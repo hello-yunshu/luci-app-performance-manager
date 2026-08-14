@@ -2,7 +2,7 @@
 name = "performance-manager-rill"
 version = "1.0.0-rc.2"
 edition = "2021"
-license = "GPL-2.0-only"
+license = "GPL-3.0-only"
 description = "Constrained Shadow intelligence sidecar for OpenWrt Performance Manager"
 
 [[bin]]

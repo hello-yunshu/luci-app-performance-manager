@@ -73,6 +73,7 @@ ucode ucode-mod-ubus ucode-mod-uci ucode-mod-rtnl ucode-mod-uloop ucode-mod-json
 ```
 ## Usage
 ### LuCI UI (Network → Performance Manager)
+The UI is Simplified-Chinese-first and automatically follows the OpenWrt/LuCI system language setting: choose Chinese in LuCI "System → Language and Style" for Chinese, or English for English (English is the secondary language and the fallback for unmatched locales).
 | Page | Description |
 |---|---|
 | Overview | runtime status, health and recent transaction overview |
@@ -202,3 +203,6 @@ make package        # build release artifacts
 ## Documentation
 - `docs/ARCHITECTURE.md` · `docs/IMPLEMENTATION_STATUS.md` · `docs/RELEASE_CHECKLIST.md`
 - `docs/EXTERNAL_VALIDATION.md`
+
+## License
+This project is licensed under **GNU GPL v3.0-only** ([LICENSE](LICENSE)). As free software you may use, modify and redistribute it, but any modified version must also be released under GPL-3.0 with the corresponding source code.
