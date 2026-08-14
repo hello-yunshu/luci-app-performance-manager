@@ -1,0 +1,125 @@
+#!/usr/bin/env python3
+from __future__ import annotations
+import ast, json, re, sys
+from pathlib import Path
+import jsonschema
+ROOT=Path(__file__).resolve().parents[1]
+errors=[]
+def fail(msg): errors.append(msg)
+def load(p):
+    try:return json.loads(p.read_text())
+    except Exception as e: fail(f'invalid JSON {p.relative_to(ROOT)}: {e}'); return None
+
+# Parse every implementation JSON and validate all frozen profile contracts.
+for p in sorted((ROOT/'profiles').glob('*.json'))+sorted((ROOT/'contracts').glob('*.json'))+sorted((ROOT/'schemas').glob('*.json')): load(p)
+profile_schema=load(ROOT/'contracts/profile.schema.json')
+profiles={p.stem:load(p) for p in (ROOT/'profiles').glob('*.json')}
+for name,obj in profiles.items():
+    try: jsonschema.Draft202012Validator(profile_schema).validate(obj)
+    except Exception as e: fail(f'profile {name}: {getattr(e,"message",e)}')
+
+def resolve(name,stack=()):
+    if name in stack: raise ValueError('profile cycle: '+' -> '.join(stack+(name,)))
+    if name not in profiles: raise ValueError(f'missing profile {name}')
+    fields=['requiredPackages','recommendedPackages','conditionalPackages','expectedCommands','expectedCapabilities','targets']; out={k:[] for k in fields}; chain=[]
+    for parent in profiles[name].get('extends',[]):
+        m,c=resolve(parent,stack+(name,))
+        for k in fields:
+            for x in m[k]:
+                if x not in out[k]: out[k].append(x)
+        for x in c:
+            if x not in chain: chain.append(x)
+    for k in fields:
+        for x in profiles[name].get(k,[]):
+            if x not in out[k]: out[k].append(x)
+    chain.append(name); return out,chain
+for name in profiles:
+    try: resolve(name)
+    except ValueError as e: fail(str(e))
+for p in (ROOT/'profiles').glob('*.json'):
+    frozen=ROOT/'docs/planning-v0.3.2/profiles'/p.name
+    if frozen.exists() and load(p)!=load(frozen): fail(f'profile drift from frozen plan: {p.name}')
+
+pairs={
+'action.example.json':'action.schema.json','fastpath-action.example.json':'action.schema.json','capability.example.json':'capability.schema.json',
+'target-ref.example.json':'target-ref.schema.json','topology-path.example.json':'topology-path.schema.json','transaction.example.json':'transaction.schema.json',
+'rill-ipc.example.json':'rill-ipc.schema.json','profile.schema.example.json':'profile.schema.json','persistence.example.json':'persistence.schema.json',
+'lock.example.json':'lock.schema.json','health.example.json':'health.schema.json','benchmark-session.example.json':'benchmark-session.schema.json',
+'companion-measurement.example.json':'companion-measurement.schema.json'}
+for ex,sch in pairs.items():
+    obj=load(ROOT/'schemas'/ex); schema=load(ROOT/'contracts'/sch)
+    if obj is not None and schema is not None:
+        try: jsonschema.Draft202012Validator(schema).validate(obj)
+        except Exception as e: fail(f'{ex} violates {sch}: {getattr(e,"message",e)}')
+# Every formal schema must ship in Core payload and stay identical.
+dest=ROOT/'package/performance-manager/files/usr/share/performance-manager/schemas'
+for sch in (ROOT/'contracts').glob('*.schema.json'):
+    dst=dest/sch.name
+    if not dst.exists(): fail(f'runtime schema missing: {sch.name}')
+    elif load(sch)!=load(dst): fail(f'runtime schema drift: {sch.name}')
+
+core=(ROOT/'package/performance-manager/files/usr/sbin/performance-manager.uc').read_text(); contracts=(ROOT/'package/performance-manager/files/usr/share/performance-manager/contracts.uc').read_text(); make=(ROOT/'package/performance-manager/Makefile').read_text()
+for m in ['ucode-mod-fs','ucode-mod-ubus','ucode-mod-uci','ucode-mod-rtnl','ucode-mod-uloop','ucode-mod-socket','ucode-mod-log']:
+    if m not in make: fail(f'core dependency missing {m}')
+core_pkg=re.search(r'define Package/performance-manager\n(.*?)\nendef',make,re.S)
+for forbidden in ['+rpcd','+luci-base','+performance-manager-rill']:
+    if core_pkg and forbidden in core_pkg.group(1): fail(f'Core hard dependency forbidden: {forbidden}')
+required_ubus=['status','capabilities','topology','targets','paths','analyze','recommendations','transactions','locks','history','apply','confirm','rollback','benchmark_start','benchmark_status','benchmark_stop','rill_status','diagnostics']
+assert 'cleanup: function' in core, 'root-only ownership cleanup method missing'
+publish=core[core.find('conn.publish(UBUS_NAME'):]
+for method in required_ubus:
+    if not re.search(rf'\b{re.escape(method)}\s*:',publish): fail(f'ubus method missing: {method}')
+if "run([ 'sh', '-c'" in core or 'run([ "sh", "-c"' in core: fail('shell -c execution forbidden')
+for token in ['pending_marker_path','arm_commit_confirm','deadlineMonotonicMs = monotonic_ms()','core-crash-recovery','boot-recovery-runtime-reset-no-stale-replay','live-state-drift-refuses-stale-rollback']:
+    if token not in core: fail(f'transaction safety mechanism missing: {token}')
+if core.rfind('uloop.init();')>core.rfind('recover_pending();'): fail('recover_pending runs before uloop initialization')
+for token in ['rtnl.listener','RTM_NEWROUTE','RTM_DELROUTE',"'-j', '-4', 'route'","'-j', '-4', 'rule', 'show'",'wanCandidates','routeProvider']:
+    if token not in core: fail(f'topology/route mechanism missing: {token}')
+for token in ['dns_health()','proxy_health()','vpn_health()','thermal_health()','recent_oom_state()','persistentStorageWritable','high-cpu-steal']:
+    if token not in core: fail(f'health mechanism missing: {token}')
+for token in ["'/etc/init.d/packet_steering'","'/usr/libexec/network/packet-steering.uc'","'/usr/libexec/platform/packet-steering.sh'","policy: 'observe-respect'"]:
+    if token not in core: fail(f'Native Packet Steering observe/respect missing: {token}')
+
+# Benchmark must use explicit evidence + the common transaction/rollback engine.
+bench=core[core.index('function benchmark_start'):core.index('function benchmark_list')]
+for token in ['companion_evidence_valid(','benchmark_apply_candidate(','rollback_transaction(session.transactionId',"validated:true","validated:false"]:
+    if token not in bench: fail(f'benchmark state-machine mechanism missing: {token}')
+if bench.index("rollback_transaction(session.transactionId,'benchmark-complete')")>bench.index('reward=(c1-c0)/c0'): fail('benchmark reward computed before rollback verification')
+for unsafe_refusal in ['exact-qdisc-restore-not-proven','no-generic-third-party-sfe-contract']:
+    if unsafe_refusal not in core: fail(f'explicit unsafe-provider refusal missing: {unsafe_refusal}')
+
+# Rill boundary, persistence and bounded storage.
+rill=(ROOT/'package/performance-manager-rill/src/src/main.rs').read_text(); rill_mk=(ROOT/'package/performance-manager-rill/Makefile').read_text(); rill_init=(ROOT/'package/performance-manager-rill/files/etc/init.d/performance-manager-rill').read_text()
+for token in ['rust/host','rust-package.mk','RUST_PKG_LOCKED:=1','USERID:=performance-manager-rill']:
+    if token not in rill_mk: fail(f'Rill build invariant missing: {token}')
+for token in ['SO_PEERCRED','cred.uid != 0','DEFAULT_MAX_MESSAGE','MAX_REQUESTS_PER_SECOND','MAX_OUTCOME_LINES','MAX_LEDGER_LINES','MAX_STATE_FILE_BYTES','bounded_append','/etc/performance-manager/rill','authority\\\":\\\"none']:
+    if token not in rill: fail(f'Rill boundary/durability invariant missing: {token}')
+for token in ['std::process::Command','Command::new','/proc/sys','iptables','nft ','uci set','uci commit']:
+    if token in rill: fail(f'Rill actuation primitive forbidden: {token}')
+for token in ['--state-dir "$state_dir"','procd_set_param user "$SERVICE_USER"','chmod 0750']:
+    if token not in rill_init: fail(f'Rill procd invariant missing: {token}')
+
+companion=(ROOT/'companion/pm_companion_agent.py').read_text()
+for token in ['pm-companion/v2','shell=False','routerMutation','sessionId','capabilityHash','routeIdentity']:
+    if token not in companion: fail(f'Companion v2 boundary missing: {token}')
+for token in ['shell=True','uci set','/proc/sys','nft ','iptables']:
+    if token in companion: fail(f'Companion mutation primitive forbidden: {token}')
+
+# LuCI required surfaces + full literal zh_Hans coverage.
+for page in ['overview','optimize','benchmark','capabilities','rill','history','advanced','settings']:
+    if not (ROOT/f'package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/{page}.js').exists(): fail(f'LuCI page missing: {page}')
+po=(ROOT/'package/luci-app-performance-manager/po/zh_Hans/performance-manager.po').read_text()
+po_ids=set(re.findall(r'^msgid "(.*)"$',po,re.M)); js_ids=set()
+for p in (ROOT/'package/luci-app-performance-manager/htdocs/luci-static/resources').rglob('*.js'):
+    for m in re.finditer(r"_\('((?:\\.|[^'\\])*)'\)",p.read_text()):
+        try: js_ids.add(ast.literal_eval("'"+m.group(1)+"'"))
+        except Exception: js_ids.add(m.group(1))
+for msg in sorted(js_ids):
+    esc=msg.replace('\\','\\\\').replace('"','\\"').replace('\n','\\n')
+    if esc not in po_ids: fail(f'zh_Hans missing msgid: {msg}')
+
+for p in ROOT.rglob('*'):
+    if p.is_file() and ('提示词' in p.name or re.search(r'(^|[_-])prompt([_.-]|$)',p.name,re.I)): fail(f'prompt artifact must not ship: {p.relative_to(ROOT)}')
+if errors:
+    print(f'CONTRACT VALIDATION FAILED ({len(errors)})'); [print(' -',e) for e in errors]; sys.exit(1)
+print(f'CONTRACT VALIDATION PASSED: {len(profiles)} profiles, {len(pairs)} schema examples, {len(required_ubus)} ubus methods, full zh_Hans literal coverage')

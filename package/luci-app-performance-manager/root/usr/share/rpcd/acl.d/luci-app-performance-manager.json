@@ -1,0 +1,17 @@
+{
+  "luci-app-performance-manager": {
+    "description": "Grant access to OpenWrt Performance Manager",
+    "read": {
+      "ubus": {
+        "performance-manager": [ "status", "capabilities", "topology", "targets", "paths", "analyze", "recommendations", "transactions", "locks", "history", "benchmark_status", "rill_status", "diagnostics" ]
+      },
+      "uci": [ "performance-manager" ]
+    },
+    "write": {
+      "ubus": {
+        "performance-manager": [ "apply", "confirm", "rollback", "benchmark_start", "benchmark_stop", "refresh" ]
+      },
+      "uci": [ "performance-manager" ]
+    }
+  }
+}

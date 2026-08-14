@@ -1,0 +1,7 @@
+{
+  "schemaVersion": 1,
+  "resource": "netdev:nic:pci:0000:00:03.0",
+  "transactionId": "tx-example",
+  "bootId": "boot-example",
+  "acquiredMonotonicMs": 1000
+}

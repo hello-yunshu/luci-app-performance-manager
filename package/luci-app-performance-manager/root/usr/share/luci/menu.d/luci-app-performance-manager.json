@@ -1,0 +1,78 @@
+{
+  "admin/network/performance-manager": {
+    "title": "Performance Manager",
+    "order": 75,
+    "action": {
+      "type": "firstchild"
+    },
+    "depends": {
+      "acl": [
+        "luci-app-performance-manager"
+      ]
+    }
+  },
+  "admin/network/performance-manager/overview": {
+    "title": "Overview",
+    "order": 10,
+    "action": {
+      "type": "view",
+      "path": "performance-manager/overview"
+    }
+  },
+  "admin/network/performance-manager/optimize": {
+    "title": "Smart Optimization",
+    "order": 20,
+    "action": {
+      "type": "view",
+      "path": "performance-manager/optimize"
+    }
+  },
+  "admin/network/performance-manager/benchmark": {
+    "title": "Performance Test",
+    "order": 30,
+    "action": {
+      "type": "view",
+      "path": "performance-manager/benchmark"
+    }
+  },
+  "admin/network/performance-manager/capabilities": {
+    "title": "Capabilities",
+    "order": 40,
+    "action": {
+      "type": "view",
+      "path": "performance-manager/capabilities"
+    }
+  },
+  "admin/network/performance-manager/rill": {
+    "title": "Rill Intelligence",
+    "order": 50,
+    "action": {
+      "type": "view",
+      "path": "performance-manager/rill"
+    }
+  },
+  "admin/network/performance-manager/history": {
+    "title": "History & Rollback",
+    "order": 60,
+    "action": {
+      "type": "view",
+      "path": "performance-manager/history"
+    }
+  },
+  "admin/network/performance-manager/settings": {
+    "title": "Settings",
+    "order": 70,
+    "action": {
+      "type": "view",
+      "path": "performance-manager/settings"
+    }
+  },
+  "admin/network/performance-manager/advanced": {
+    "title": "Advanced",
+    "order": 65,
+    "action": {
+      "type": "view",
+      "path": "performance-manager/advanced"
+    }
+  }
+}

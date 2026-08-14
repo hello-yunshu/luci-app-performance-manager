@@ -1,0 +1,106 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openwrt-performance-manager.local/schema/transaction.json",
+  "title": "Transaction",
+  "type": "object",
+  "additionalProperties": true,
+  "required": [
+    "schemaVersion",
+    "transactionId",
+    "actionId",
+    "state",
+    "requiredLocks",
+    "bootId",
+    "before",
+    "verification",
+    "result"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "type": "integer",
+      "minimum": 2
+    },
+    "transactionId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "actionId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "state": {
+      "enum": [
+        "planned",
+        "locked",
+        "snapshotted",
+        "pending",
+        "applied",
+        "verified",
+        "awaiting_confirm",
+        "committed",
+        "rolled_back",
+        "failed"
+      ]
+    },
+    "requiredLocks": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "bootId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "deadlineMonotonicMs": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "minimum": 0
+    },
+    "before": {
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "applied": {
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "verification": {
+      "type": "object"
+    },
+    "result": {
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "commitPolicy": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "requiresCommitConfirm": {
+      "type": "boolean"
+    },
+    "pendingMarker": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "updatedMonotonicMs": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "minimum": 0
+    }
+  }
+}

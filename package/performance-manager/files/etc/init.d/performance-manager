@@ -1,0 +1,34 @@
+#!/bin/sh /etc/rc.common
+
+START=28
+STOP=89
+USE_PROCD=1
+
+PROG=/usr/sbin/performance-manager.uc
+
+start_service() {
+	config_load performance-manager
+	local enabled state_dir persistent_dir
+	config_get_bool enabled main enabled 1
+	[ "$enabled" -eq 1 ] || return 0
+	config_get state_dir main state_dir /tmp/performance-manager
+	config_get persistent_dir main persistent_dir /etc/performance-manager
+	mkdir -p "$state_dir" "$persistent_dir" "$persistent_dir/pending" "$persistent_dir/policies" /run/performance-manager
+
+	procd_open_instance
+	procd_set_param command "$PROG"
+	procd_set_param respawn 3600 5 5
+	procd_set_param stdout 1
+	procd_set_param stderr 1
+	procd_set_param limits core="0"
+	procd_close_instance
+}
+
+service_triggers() {
+	procd_add_reload_trigger performance-manager network firewall
+	procd_add_raw_trigger 'interface.*' 1000 /etc/init.d/performance-manager reload
+}
+
+reload_service() {
+	ubus call performance-manager refresh '{"reason":"procd-reload"}' >/dev/null 2>&1 || restart
+}

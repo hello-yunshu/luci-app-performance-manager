@@ -1,0 +1,68 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openwrt-performance-manager.local/schema/companion-measurement.json",
+  "title": "CompanionMeasurement",
+  "type": "object",
+  "additionalProperties": true,
+  "required": [
+    "contract",
+    "role",
+    "ok",
+    "bitsPerSecond",
+    "sessionId",
+    "phase",
+    "actionId",
+    "pathId",
+    "topologyGeneration",
+    "routeIdentity",
+    "capabilityHash"
+  ],
+  "properties": {
+    "contract": {
+      "const": "pm-companion/v2"
+    },
+    "role": {
+      "enum": [
+        "lan-client",
+        "router-local-client"
+      ]
+    },
+    "ok": {
+      "const": true
+    },
+    "bitsPerSecond": {
+      "type": "number",
+      "exclusiveMinimum": 0
+    },
+    "sessionId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "phase": {
+      "enum": [
+        "control",
+        "candidate"
+      ]
+    },
+    "actionId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "pathId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "topologyGeneration": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "routeIdentity": {
+      "type": "string",
+      "minLength": 1
+    },
+    "capabilityHash": {
+      "type": "string",
+      "minLength": 1
+    }
+  }
+}

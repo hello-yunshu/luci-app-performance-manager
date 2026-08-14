@@ -1,0 +1,30 @@
+{
+  "schemaVersion": 2,
+  "transactionId": "tx-example",
+  "state": "awaiting_confirm",
+  "actionId": "fastpath.software_flow_offload",
+  "applyScope": "service",
+  "applyTarget": "firewall:defaults",
+  "evaluationPaths": [
+    "path:lan-to-wan"
+  ],
+  "owner": "performance_manager",
+  "topologyGeneration": 42,
+  "bootId": "boot-generation-example",
+  "before": {
+    "flowOffloading": false
+  },
+  "applied": {
+    "flowOffloading": true
+  },
+  "requiredLocks": [
+    "firewall"
+  ],
+  "deadlineMonotonicMs": 123456789,
+  "verification": {
+    "readBack": "pass",
+    "healthRegression": "none",
+    "commitConfirm": "pending"
+  },
+  "result": null
+}

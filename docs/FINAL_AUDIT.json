@@ -1,0 +1,249 @@
+{
+  "project": "OpenWrt Performance Manager",
+  "version": "1.0.0-rc.2",
+  "planningBaseline": "v0.3.2 Contract Freeze",
+  "auditSemantics": "Single orchestrator; every gate (contract validation, host syntax, source gates, resource budget, unittest, Rill native tests) is rerun in this process and the fresh report files are consumed. They are not target-runtime evidence.",
+  "orchestrationSteps": [
+    {
+      "name": "contract-validation",
+      "status": "pass",
+      "outputTail": "CONTRACT VALIDATION PASSED: 5 profiles, 13 schema examples, 18 ubus methods, full zh_Hans literal coverage\n"
+    },
+    {
+      "name": "host-syntax",
+      "status": "pass",
+      "outputTail": "HOST SYNTAX CHECK PASSED: 21 checks\n"
+    },
+    {
+      "name": "source-gates",
+      "status": "pass",
+      "outputTail": "Phase 0: PASS — Contract Freeze\nPhase 1: PASS — Bootstrap\nPhase 2: PASS — Capability / Topology / Target / Event\nPhase 3: PASS — Telemetry / Health / Analyzer / Path\nPhase 4: PASS — Policy / Compatibility\nPhase 5: PASS — Transactions / Locks / Commit-confirm\nPhase 6: PASS — Conservative\nPhase 7: PASS — Benchmark\nPhase 8: PASS — Rill Intelligence\nPhase 9: PASS — Recommend\nPhase 10: PASS — Assisted Auto\nPhase 11: PASS — Platforms\nPhase 12: PASS — Companion\n"
+    },
+    {
+      "name": "resource-budget",
+      "status": "pass",
+      "outputTail": "{\n  \"areas\": {\n    \"core\": {\n      \"files\": 38,\n      \"sourceBytes\": 158930,\n      \"knownStaticPayloadBytes\": 156031\n    },\n    \"luci\": {\n      \"files\": 14,\n      \"sourceBytes\": 32543,\n      \"knownStaticPayloadBytes\": 32188\n    },\n    \"rill\": {\n      \"files\": 1369,\n      \"sourceBytes\": 63081977,\n      \"knownStaticPayloadBytes\": 1375\n    }\n  },\n  \"persistentWritePolicy\": {\n    \"core\": \"event-only transaction/history/policy intents; fast/deep telemetry remains tmpfs\",\n    \"rill\": \"validated outcomes + decision-ledger entries for validated outcomes/context drift in /etc/performance-manager/rill; files are bounded/compacted; ordinary observations remain in memory\",\n    \"observationWriteAmplification\": \"0 persistent writes for ordinary stable-context telemetry observations\"\n  },\n  \"limits\": {\n    \"rillMaxMessageBytes\": 65536,\n    \"rillRequestsPerSecond\": 20,\n    \"rillCoreTimeoutMs\": 1000,\n    \"historyReadTailLines\": 512,\n    \"rillValidatedOutcomeLines\": 2048,\n    \"rillDecisionLedgerLines\": 4096,\n    \"rillStateFileMaxBytes\": 1048576,\n    \"fastTelemetryMinimumSeconds\": 30,\n    \"deepTelemetryMinimumSeconds\": 300\n  },\n  \"targetRuntimeMetrics\": {\n    \"rssBytes\": null,\n    \"steadyCpuPercent\": null,\n    \"persistentWritesPerDay\": null,\n    \"bootStartMilliseconds\": null,\n    \"status\": \"external-runtime-gate\",\n    \"requiredScripts\": [\n      \"scripts/openwrt-target-gate.sh\",\n      \"scripts/openwrt-resource-soak.sh\"\n    ],\n    \"note\": \"These values require a booted OpenWrt x86_64 target. The target gate captures startup/runtime safety evidence; the soak script measures RSS/CPU and Core/Rill logical persistent writes. Values are intentionally not fabricated from source inspection.\"\n  }\n}\n"
+    }
+  ],
+  "rillNativeTests": {
+    "status": "pass",
+    "count": 15,
+    "outputTail": "\u001b[1m\u001b[92m    Finished\u001b[0m `test` profile [unoptimized + debuginfo] target(s) in 0.00s\n\u001b[1m\u001b[92m     Running\u001b[0m unittests src/main.rs (package/performance-manager-rill/src/target/debug/deps/performance_manager_rill-83a2285b60d68c4c)\n\nrunning 15 tests\ntest tests::parser_reads_core_fields ... ok\ntest tests::parser_decodes_utf8_and_json_escapes ... ok\ntest tests::read_limited_preserves_first_chunk_and_bounds_input ... ok\ntest tests::strict_parser_rejects_bad_grammar ... ok\ntest tests::unvalidated_outcome_is_rejected ... ok\ntest tests::rate_limit_rejects_flood ... ok\ntest tests::bad_schema_requests_are_rejected ... ok\ntest tests::legacy_outcome_file_lands_in_inert_partition ... ok\ntest tests::outcome_missing_metadata_is_rejected ... ok\ntest tests::context_drift_invalidates_stale_recommendation ... ok\ntest tests::validated_outcome_binds_to_context_partition ... ok\ntest tests::recommendation_requires_evidence_in_current_context ... ok\ntest tests::state_survives_restart_within_same_partition ... ok\ntest tests::read_timeout_bounds_peer_wait ... ok\ntest tests::state_files_are_bounded ... ok\n\ntest result: ok. 15 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.36s\n\n"
+  },
+  "sourceCompletion": {
+    "phase0Through12": "pass",
+    "localAudit": "pass",
+    "packageCount": 3,
+    "frozenUbusContractMethods": 18,
+    "additionalRootAdminMethods": [
+      "cleanup"
+    ]
+  },
+  "localEvidence": {
+    "unitAndContractTests": {
+      "status": "pass",
+      "count": 69,
+      "outputTail": "st_recommended_inherits_full_minimal_contract) ... ok\ntest_runtime_profile_checker_evaluates_all_contract_classes (test_profiles.ProfileTests.test_runtime_profile_checker_evaluates_all_contract_classes) ... ok\ntest_x86_conditional_contract_survives_inheritance (test_profiles.ProfileTests.test_x86_conditional_contract_survives_inheritance) ... ok\ntest_core_independent (test_release_gate.ReleaseGateSourceTests.test_core_independent) ... ok\ntest_native_packet_steering_respected (test_release_gate.ReleaseGateSourceTests.test_native_packet_steering_respected) ... ok\ntest_safe_direct_apply_is_ring_only (test_release_gate.ReleaseGateSourceTests.test_safe_direct_apply_is_ring_only) ... ok\ntest_three_packages (test_release_gate.ReleaseGateSourceTests.test_three_packages) ... ok\ntest_api_version_and_context_key_bounds_match (test_rill_context.RillContextTests.test_api_version_and_context_key_bounds_match) ... ok\ntest_context_key_pattern_matches_rust_check (test_rill_context.RillContextTests.test_context_key_pattern_matches_rust_check) ... ok\ntest_measurement_class_enum_matches_rust (test_rill_context.RillContextTests.test_measurement_class_enum_matches_rust) ... ok\ntest_observe_required_fields_are_validated_by_rust (test_rill_context.RillContextTests.test_observe_required_fields_are_validated_by_rust) ... ok\ntest_outcome_required_fields_are_validated_by_rust (test_rill_context.RillContextTests.test_outcome_required_fields_are_validated_by_rust) ... ok\ntest_outcome_validated_const_matches_rust (test_rill_context.RillContextTests.test_outcome_validated_const_matches_rust) ... ok\ntest_rill_never_actuates (test_rill_context.RillContextTests.test_rill_never_actuates) ... ok\ntest_commit_confirm_recovery_matrix (test_runtime_contracts.RuntimeContractModelTests.test_commit_confirm_recovery_matrix) ... ok\ntest_companion_evidence_exact_context (test_runtime_contracts.RuntimeContractModelTests.test_companion_evidence_exact_context) ... ok\ntest_health_is_baseline_relative (test_runtime_contracts.RuntimeContractModelTests.test_health_is_baseline_relative) ... ok\ntest_local_evidence_requires_local_role (test_runtime_contracts.RuntimeContractModelTests.test_local_evidence_requires_local_role) ... ok\ntest_reward (test_runtime_contracts.RuntimeContractModelTests.test_reward) ... ok\ntest_runtime_shaped_transactions_validate (test_runtime_contracts.RuntimeContractModelTests.test_runtime_shaped_transactions_validate) ... ok\ntest_uninstall_cleanup_never_stale_rolls_back (test_runtime_contracts.RuntimeContractModelTests.test_uninstall_cleanup_never_stale_rolls_back) ... ok\ntest_core_uses_execvp_arrays (test_security.SecurityTests.test_core_uses_execvp_arrays) ... ok\ntest_rill_has_no_command_execution (test_security.SecurityTests.test_rill_has_no_command_execution) ... ok\ntest_rill_shadow_only_ops (test_security.SecurityTests.test_rill_shadow_only_ops) ... ok\ntest_cleanup_requires_current_owned_runtime_lease (test_upgrade_ownership.UpgradeOwnershipTests.test_cleanup_requires_current_owned_runtime_lease) ... ok\ntest_package_remove_invokes_root_cleanup (test_upgrade_ownership.UpgradeOwnershipTests.test_package_remove_invokes_root_cleanup) ... ok\ntest_prerm_is_fail_closed_on_remove (test_upgrade_ownership.UpgradeOwnershipTests.test_prerm_is_fail_closed_on_remove) ... ok\ntest_replay_refreshes_runtime_lease (test_upgrade_ownership.UpgradeOwnershipTests.test_replay_refreshes_runtime_lease) ... ok\ntest_sysupgrade_keeps_only_intended_state_roots (test_upgrade_ownership.UpgradeOwnershipTests.test_sysupgrade_keeps_only_intended_state_roots) ... ok\ntest_sysupgrade_target_gate_requires_real_reboot (test_upgrade_ownership.UpgradeOwnershipTests.test_sysupgrade_target_gate_requires_real_reboot) ... ok\ntest_target_gate_can_require_core_only_and_mutation_candidate (test_upgrade_ownership.UpgradeOwnershipTests.test_target_gate_can_require_core_only_and_mutation_candidate) ... ok\n\n----------------------------------------------------------------------\nRan 69 tests in 0.031s\n\nOK\n"
+    },
+    "hostSyntaxChecks": {
+      "status": "pass",
+      "count": 21
+    },
+    "sourceGates": {
+      "planningBaseline": "v0.3.2 Contract Freeze",
+      "scope": "source-completion-only",
+      "phases": {
+        "0": {
+          "name": "Contract Freeze",
+          "status": "pass",
+          "checks": 3,
+          "failed": []
+        },
+        "1": {
+          "name": "Bootstrap",
+          "status": "pass",
+          "checks": 4,
+          "failed": []
+        },
+        "2": {
+          "name": "Capability / Topology / Target / Event",
+          "status": "pass",
+          "checks": 5,
+          "failed": []
+        },
+        "3": {
+          "name": "Telemetry / Health / Analyzer / Path",
+          "status": "pass",
+          "checks": 5,
+          "failed": []
+        },
+        "4": {
+          "name": "Policy / Compatibility",
+          "status": "pass",
+          "checks": 3,
+          "failed": []
+        },
+        "5": {
+          "name": "Transactions / Locks / Commit-confirm",
+          "status": "pass",
+          "checks": 11,
+          "failed": []
+        },
+        "6": {
+          "name": "Conservative",
+          "status": "pass",
+          "checks": 3,
+          "failed": []
+        },
+        "7": {
+          "name": "Benchmark",
+          "status": "pass",
+          "checks": 12,
+          "failed": []
+        },
+        "8": {
+          "name": "Rill Intelligence",
+          "status": "pass",
+          "checks": 9,
+          "failed": []
+        },
+        "9": {
+          "name": "Recommend",
+          "status": "pass",
+          "checks": 2,
+          "failed": []
+        },
+        "10": {
+          "name": "Assisted Auto",
+          "status": "pass",
+          "checks": 6,
+          "failed": []
+        },
+        "11": {
+          "name": "Platforms",
+          "status": "pass",
+          "checks": 2,
+          "failed": []
+        },
+        "12": {
+          "name": "Companion",
+          "status": "pass",
+          "checks": 3,
+          "failed": []
+        }
+      },
+      "allPassed": true,
+      "note": "Target build/runtime/virtualization/forwarding/soak gates are intentionally tracked separately and are not inferred from source gates."
+    },
+    "resourceBudgetGenerated": true
+  },
+  "toolchainAvailability": {
+    "cargo": true,
+    "rustc": true,
+    "ucode": false
+  },
+  "stableReleaseExternalGates": [
+    {
+      "gate": "OpenWrt 25.12.x x86_64 SDK build: Core/LuCI/Rill",
+      "status": "pending-external-ci-or-target"
+    },
+    {
+      "gate": "Core-alone ucode compile/start on booted OpenWrt",
+      "status": "pending-external-target"
+    },
+    {
+      "gate": "Hyper-V + KVM TargetRef/hotplug/replay/rollback",
+      "status": "pending-external-target"
+    },
+    {
+      "gate": "LAN -> Router -> WAN and router-local controlled A/B",
+      "status": "pending-explicit-testbed"
+    },
+    {
+      "gate": "sysupgrade + 24h resource/flash-write soak",
+      "status": "pending-external-target"
+    }
+  ],
+  "targetEvidenceScripts": [
+    "scripts/openwrt-target-gate.sh",
+    "scripts/openwrt-sysupgrade-gate.sh",
+    "scripts/openwrt-resource-soak.sh"
+  ],
+  "packages": {
+    "performance-manager": {
+      "files": 38,
+      "bytes": 158930,
+      "makefileSha256": "20fad402df7ec9fd4c1a517f245c6a541d41790011c21ccb77d5ce3291d15133"
+    },
+    "luci-app-performance-manager": {
+      "files": 14,
+      "bytes": 32543,
+      "makefileSha256": "b1cbf2b25d10a69a16315b53478396e1dcb9c0da546916f5d482a1313c95505c"
+    },
+    "performance-manager-rill": {
+      "files": 1369,
+      "bytes": 63081977,
+      "makefileSha256": "2d1c09dc6868e7f0efe8c7101e2d18490c2dc0bdf58f8d80b3b8b26e74c7a8d8"
+    }
+  },
+  "resourceBudget": {
+    "areas": {
+      "core": {
+        "files": 38,
+        "sourceBytes": 158930,
+        "knownStaticPayloadBytes": 156031
+      },
+      "luci": {
+        "files": 14,
+        "sourceBytes": 32543,
+        "knownStaticPayloadBytes": 32188
+      },
+      "rill": {
+        "files": 1369,
+        "sourceBytes": 63081977,
+        "knownStaticPayloadBytes": 1375
+      }
+    },
+    "persistentWritePolicy": {
+      "core": "event-only transaction/history/policy intents; fast/deep telemetry remains tmpfs",
+      "rill": "validated outcomes + decision-ledger entries for validated outcomes/context drift in /etc/performance-manager/rill; files are bounded/compacted; ordinary observations remain in memory",
+      "observationWriteAmplification": "0 persistent writes for ordinary stable-context telemetry observations"
+    },
+    "limits": {
+      "rillMaxMessageBytes": 65536,
+      "rillRequestsPerSecond": 20,
+      "rillCoreTimeoutMs": 1000,
+      "historyReadTailLines": 512,
+      "rillValidatedOutcomeLines": 2048,
+      "rillDecisionLedgerLines": 4096,
+      "rillStateFileMaxBytes": 1048576,
+      "fastTelemetryMinimumSeconds": 30,
+      "deepTelemetryMinimumSeconds": 300
+    },
+    "targetRuntimeMetrics": {
+      "rssBytes": null,
+      "steadyCpuPercent": null,
+      "persistentWritesPerDay": null,
+      "bootStartMilliseconds": null,
+      "status": "external-runtime-gate",
+      "requiredScripts": [
+        "scripts/openwrt-target-gate.sh",
+        "scripts/openwrt-resource-soak.sh"
+      ],
+      "note": "These values require a booted OpenWrt x86_64 target. The target gate captures startup/runtime safety evidence; the soak script measures RSS/CPU and Core/Rill logical persistent writes. Values are intentionally not fabricated from source inspection."
+    }
+  },
+  "releaseDecision": "1.0.0-rc.2 source-complete release candidate; Stable remains blocked only by explicit external target/testbed gates",
+  "criticalSafetyProperties": [
+    "Core is independent from LuCI/Rill",
+    "direct apply allowlist remains safe Hyper-V ring floor only",
+    "Native Packet Steering is observed/respected, not seized",
+    "commit-confirm has an armed monotonic deadline plus durable pending marker",
+    "same-boot crash fails closed to verified rollback; cross-boot never replays stale runtime snapshot",
+    "controlled A/B validates exact Companion context and restores candidate before reward",
+    "benchmark experiments are exclusive under a tuning-domain lock with idle-expiry recovery",
+    "Rill is root-peer Shadow only with strict-JSON per-op validation and contextual learning state",
+    "Assisted Auto is double opt-in, maintenance/traffic/health gated, safe-allowlist only",
+    "uninstall cleanup is fail-closed: removal aborts unless the daemon confirms ownership-safe cleanup"
+  ]
+}

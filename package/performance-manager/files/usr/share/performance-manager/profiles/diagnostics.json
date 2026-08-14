@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "id": "diagnostics",
+  "extends": [],
+  "targets": [
+    "*"
+  ],
+  "requiredPackages": [],
+  "recommendedPackages": [
+    "tcpdump-mini",
+    "netperf",
+    "mtr-json"
+  ],
+  "conditionalPackages": [],
+  "expectedCommands": [],
+  "expectedCapabilities": []
+}

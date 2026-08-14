@@ -1,0 +1,71 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openwrt-performance-manager.local/schema/topology.json",
+  "title": "TopologySnapshot",
+  "type": "object",
+  "additionalProperties": true,
+  "required": [
+    "schemaVersion",
+    "topologyGeneration",
+    "interfaces",
+    "devices",
+    "paths"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "topologyGeneration": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "interfaces": {
+      "type": "array"
+    },
+    "devices": {
+      "type": "array"
+    },
+    "paths": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "workloadClass",
+          "lanInterface",
+          "wanInterface",
+          "routeIdentity",
+          "targetRefs"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "workloadClass": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "lanInterface": {
+            "type": "string"
+          },
+          "wanInterface": {
+            "type": "string"
+          },
+          "routeIdentity": {
+            "type": "string"
+          },
+          "targetRefs": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "additionalProperties": true
+      }
+    }
+  }
+}

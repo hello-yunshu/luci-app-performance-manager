@@ -1,0 +1,12 @@
+{
+  "schemaVersion": 1,
+  "stableId": "nic:pci:0000:00:08.0",
+  "kind": "netdev",
+  "logicalRole": "wan-underlay",
+  "selector": {
+    "pathId": "path:lan-to-wan",
+    "deviceRole": "physical-underlay"
+  },
+  "runtimeName": "eth0",
+  "topologyGeneration": 42
+}

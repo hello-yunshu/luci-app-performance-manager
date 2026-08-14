@@ -1,0 +1,14 @@
+{
+  "schemaVersion": 1,
+  "gate": "resource-soak",
+  "durationSeconds": 120,
+  "sampleCount": 12,
+  "coreMaxRssKiB": 4744,
+  "coreMeanCpuPercentApprox": 0.083,
+  "corePersistentWrites": 0,
+  "rillPersistentWrites": 0,
+  "persistentLogicalWritesPerDayApprox": 0.0,
+  "stableDurationSatisfied": false,
+  "executionPassed": true,
+  "passed": false
+}

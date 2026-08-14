@@ -1,0 +1,17 @@
+[package]
+name = "performance-manager-rill"
+version = "1.0.0-rc.2"
+edition = "2021"
+license = "GPL-2.0-only"
+description = "Constrained Shadow intelligence sidecar for OpenWrt Performance Manager"
+
+[[bin]]
+name = "performance-manager-rill"
+path = "src/main.rs"
+
+[profile.release]
+opt-level = "s"
+lto = true
+codegen-units = 1
+panic = "abort"
+strip = true

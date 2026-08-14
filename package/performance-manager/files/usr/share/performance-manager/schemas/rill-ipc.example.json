@@ -1,0 +1,39 @@
+{
+  "api": 2,
+  "requestId": "req-example",
+  "op": "observe",
+  "deviceProfile": "profile-hash",
+  "capabilityHash": "cap-hash",
+  "topologyGeneration": 42,
+  "pathId": "path:lan-to-wan",
+  "workloadClass": [
+    "plain_forwarding"
+  ],
+  "measurementClass": "passive_before_after",
+  "context": {
+    "cpuCount": 4,
+    "rxQueues": 4,
+    "rss": true,
+    "softnetDropRate": 0,
+    "cpuBusy": 0.62
+  },
+  "availableActions": [
+    {
+      "id": "noop",
+      "applyScope": "system",
+      "applyTarget": "system",
+      "evaluationPaths": [
+        "path:lan-to-wan"
+      ]
+    },
+    {
+      "id": "fastpath.software_flow_offload",
+      "applyScope": "service",
+      "applyTarget": "firewall:defaults",
+      "evaluationPaths": [
+        "path:lan-to-wan"
+      ],
+      "risk": "benchmark"
+    }
+  ]
+}

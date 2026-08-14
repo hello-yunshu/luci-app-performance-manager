@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 2,
+  "sessionId": "bench-example",
+  "state": "awaiting_control",
+  "userInitiated": true,
+  "actionId": "network.backlog",
+  "applyTarget": null,
+  "evaluationPath": "path:lan-to-wan",
+  "workloadClass": [
+    "plain_forwarding"
+  ],
+  "capabilityHash": "fnv1a32:01234567",
+  "topologyGeneration": 42,
+  "routeIdentity": "route-v2:89abcdef",
+  "integrationState": {},
+  "integrationFingerprint": "integ-v1:1234abcd",
+  "deviceProfile": "recommended",
+  "benchmarkLock": {
+    "domain": "benchmark:global",
+    "sessionId": "bench-example"
+  },
+  "createdMonotonicMs": 123456,
+  "measurementClass": "controlled_ab",
+  "variableCount": 1,
+  "transactionId": null,
+  "controlEvidence": null,
+  "candidateEvidence": null,
+  "result": null
+}

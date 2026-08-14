@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 1,
+  "gate": "openwrt-target-runtime",
+  "openwrtRelease": "25.12.5",
+  "architecture": "x86_64",
+  "coreStartMilliseconds": 1150,
+  "luciPresent": false,
+  "rillPresent": false,
+  "coreOnlyRequired": true,
+  "rillTested": false,
+  "mutationOptIn": false,
+  "mutationPassed": null,
+  "passes": ["architecture-x86_64","openwrt-25.12-series","core-installed","core-with-luci-absent","core-with-rill-absent","core-ubus-ready","core-running","analyzer-contract","topology-route-identity","native-packet-steering-observed","no-stale-locks"],
+  "failures": [],
+  "passed": true
+}

@@ -1,0 +1,148 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openwrt-performance-manager.local/schema/benchmark-session.json",
+  "title": "BenchmarkSession",
+  "type": "object",
+  "additionalProperties": true,
+  "required": [
+    "schemaVersion",
+    "sessionId",
+    "state",
+    "userInitiated",
+    "actionId",
+    "applyTarget",
+    "evaluationPath",
+    "workloadClass",
+    "capabilityHash",
+    "topologyGeneration",
+    "routeIdentity",
+    "integrationState",
+    "integrationFingerprint",
+    "deviceProfile",
+    "measurementClass",
+    "variableCount",
+    "result"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": 2
+    },
+    "sessionId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "state": {
+      "enum": [
+        "awaiting_control",
+        "candidate_applied",
+        "completed",
+        "failed",
+        "stopped"
+      ]
+    },
+    "userInitiated": {
+      "const": true
+    },
+    "actionId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "applyTarget": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "evaluationPath": {
+      "type": "string",
+      "minLength": 1
+    },
+    "workloadClass": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "string"
+      }
+    },
+    "capabilityHash": {
+      "type": "string",
+      "minLength": 1
+    },
+    "topologyGeneration": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "routeIdentity": {
+      "type": "string",
+      "minLength": 1
+    },
+    "integrationState": {
+      "type": "object"
+    },
+    "integrationFingerprint": {
+      "type": "string",
+      "minLength": 1
+    },
+    "deviceProfile": {
+      "type": "string",
+      "minLength": 1
+    },
+    "benchmarkLock": {
+      "type": "object",
+      "required": [
+        "domain",
+        "sessionId"
+      ],
+      "properties": {
+        "domain": {
+          "type": "string",
+          "minLength": 1
+        },
+        "sessionId": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "createdMonotonicMs": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "measurementClass": {
+      "enum": [
+        "controlled_ab",
+        "passive_before_after",
+        "health_only"
+      ]
+    },
+    "variableCount": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 1
+    },
+    "transactionId": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "controlEvidence": {
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "candidateEvidence": {
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "result": {
+      "type": [
+        "object",
+        "null"
+      ]
+    }
+  }
+}

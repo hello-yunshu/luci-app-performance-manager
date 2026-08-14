@@ -1,0 +1,461 @@
+msgid ""
+msgstr ""
+"Content-Type: text/plain; charset=UTF-8\n"
+"Language: zh_Hans\n"
+"Plural-Forms: nplurals=1; plural=0;\n"
+
+msgid "Action"
+msgstr "操作"
+
+msgid "Action committed after verification."
+msgstr "操作已在验证通过后提交。"
+
+msgid "Action was not committed; inspect transaction details."
+msgstr "操作未提交；请检查事务详情。"
+
+msgid "Active tests are explicit, one-variable-at-a-time transactions. A controlled A/B result is validated only after context stability, health checks and verified rollback."
+msgstr "主动测试必须由用户明确启动，并按单变量事务执行。受控 A/B 只有在上下文稳定、健康检查和回滚验证均通过后才会被认定有效。"
+
+msgid "Adjustable"
+msgstr "可调整"
+
+msgid "Advanced"
+msgstr "高级"
+
+msgid "Advanced details"
+msgstr "高级详情"
+
+msgid "Affected"
+msgstr "受影响对象"
+
+msgid "Applies To"
+msgstr "应用到"
+
+msgid "Apply authority"
+msgstr "应用权限"
+
+msgid "Apply candidate after validating baseline"
+msgstr "验证基线后应用候选项"
+
+msgid "Apply safely"
+msgstr "安全应用"
+
+msgid "Assisted Auto (opt-in, safe actions only)"
+msgstr "辅助自动（需选择启用，仅安全操作）"
+
+msgid "Authority"
+msgstr "权限"
+
+msgid "Automation"
+msgstr "自动化"
+
+msgid "Automation: %s"
+msgstr "自动化：%s"
+
+msgid "Availability"
+msgstr "可用性"
+
+msgid "Baseline"
+msgstr "基线"
+
+msgid "Baseline evidence"
+msgstr "基线证据"
+
+msgid "Benchmark action"
+msgstr "基准测试操作"
+
+msgid "Benchmark session JSON"
+msgstr "基准测试会话 JSON"
+
+msgid "Blocked"
+msgstr "已阻止"
+
+msgid "Blocked providers"
+msgstr "被阻止的 Provider"
+
+msgid "Blocked result"
+msgstr "阻止结果"
+
+msgid "Boot identity"
+msgstr "启动标识"
+
+msgid "Build and provider recommendations"
+msgstr "构建与 Provider 建议"
+
+msgid "Build recommendations"
+msgstr "构建建议"
+
+msgid "Candidate"
+msgstr "候选项"
+
+msgid "Candidate evidence"
+msgstr "候选证据"
+
+msgid "Capabilities"
+msgstr "能力"
+
+msgid "Capability / Topology / TargetRef JSON"
+msgstr "Capability / Topology / TargetRef JSON"
+
+msgid "Capability-first, topology-aware and transactional performance control plane."
+msgstr "以能力为先、感知拓扑并采用事务机制的性能控制平面。"
+
+msgid "Commit-confirm"
+msgstr "提交确认"
+
+msgid "Compatibility"
+msgstr "兼容性"
+
+msgid "Confidence"
+msgstr "置信度"
+
+msgid "Confirm"
+msgstr "确认"
+
+msgid "Confirmation failed or expired."
+msgstr "确认失败或已超时。"
+
+msgid "Conservative"
+msgstr "保守"
+
+msgid "Conservative automation is the supported default. Active benchmark saturation remains disabled by default."
+msgstr "默认采用保守自动化。主动饱和型基准测试默认保持关闭。"
+
+msgid "Controlled A/B"
+msgstr "受控 A/B"
+
+msgid "Core"
+msgstr "核心"
+
+msgid "Deep telemetry interval (seconds)"
+msgstr "深度遥测间隔（秒）"
+
+msgid "Diagnostics"
+msgstr "诊断"
+
+msgid "Diagnostics JSON"
+msgstr "诊断 JSON"
+
+msgid "Enable Assisted Auto"
+msgstr "启用辅助自动"
+
+msgid "Enable Core"
+msgstr "启用核心"
+
+msgid "Enable Shadow"
+msgstr "启用 Shadow"
+
+msgid "Environment"
+msgstr "环境"
+
+msgid "Environment → Path → Compatibility → Locks/Failsafe → Baseline → Candidate → Commit-confirm → Result"
+msgstr "环境 → 路径 → 兼容性 → 锁/故障保护 → 基线 → 候选项 → 提交确认 → 结果"
+
+msgid "Evaluated On"
+msgstr "评估路径"
+
+msgid "Evidence must be valid JSON."
+msgstr "证据必须是有效的 JSON。"
+
+msgid "Failsafe"
+msgstr "故障保护"
+
+msgid "Failsafe Off"
+msgstr "故障保护已关闭"
+
+msgid "Failsafe Ready"
+msgstr "故障保护就绪"
+
+msgid "Fast telemetry interval (seconds)"
+msgstr "快速遥测间隔（秒）"
+
+msgid "Generic x86"
+msgstr "通用 x86"
+
+msgid "Goal"
+msgstr "目标"
+
+msgid "Goal: %s"
+msgstr "目标：%s"
+
+msgid "Guard"
+msgstr "保护状态"
+
+msgid "Health only"
+msgstr "仅健康检查"
+
+msgid "Hidden capabilities"
+msgstr "隐藏的能力"
+
+msgid "History"
+msgstr "历史"
+
+msgid "History & Rollback"
+msgstr "历史与回滚"
+
+msgid "History JSON"
+msgstr "历史 JSON"
+
+msgid "LAN → WAN"
+msgstr "LAN → WAN"
+
+msgid "Locks / Failsafe"
+msgstr "锁 / 故障保护"
+
+msgid "Locks JSON"
+msgstr "锁 JSON"
+
+msgid "Low-traffic threshold (bytes/s)"
+msgstr "低流量阈值（字节/秒）"
+
+msgid "Maintenance window end"
+msgstr "维护窗口结束"
+
+msgid "Maintenance window start"
+msgstr "维护窗口开始"
+
+msgid "Manual"
+msgstr "手动"
+
+msgid "Mean reward"
+msgstr "平均收益"
+
+msgid "Measurement class"
+msgstr "测量类型"
+
+msgid "Mode"
+msgstr "模式"
+
+msgid "Native Packet Steering"
+msgstr "原生 Packet Steering"
+
+msgid "No"
+msgstr "否"
+
+msgid "No conservative changes are currently needed."
+msgstr "当前不需要保守型修改。"
+
+msgid "None"
+msgstr "无"
+
+msgid "Observe / Respect"
+msgstr "观察 / 尊重现状"
+
+msgid "Observe / learn / recommend only"
+msgstr "仅观察 / 学习 / 建议"
+
+msgid "Only legal, supported actions are shown. Existing user/external/preexisting settings are respected."
+msgstr "仅显示合法且受支持的操作，并尊重用户、外部组件和既有设置。"
+
+msgid "Overview"
+msgstr "概览"
+
+msgid "Ownership"
+msgstr "所有权"
+
+msgid "Pass"
+msgstr "通过"
+
+msgid "Passive before/after"
+msgstr "被动前后对比"
+
+msgid "Paste Companion JSON evidence"
+msgstr "粘贴 Companion JSON 证据"
+
+msgid "Path"
+msgstr "路径"
+
+msgid "Performance Manager"
+msgstr "性能管理器"
+
+msgid "Performance Manager Settings"
+msgstr "Performance Manager 设置"
+
+msgid "Performance Test"
+msgstr "性能测试"
+
+msgid "Persistent action history"
+msgstr "持久化操作历史"
+
+msgid "Platform"
+msgstr "平台"
+
+msgid "Policy"
+msgstr "策略"
+
+msgid "Profile"
+msgstr "Profile"
+
+msgid "Profile Degraded"
+msgstr "Profile 降级"
+
+msgid "Profile Healthy"
+msgstr "Profile 正常"
+
+msgid "Profile contract"
+msgstr "Profile 契约"
+
+msgid "Profile status JSON"
+msgstr "Profile 状态 JSON"
+
+msgid "Provider"
+msgstr "Provider"
+
+msgid "Raw JSON"
+msgstr "原始 JSON"
+
+msgid "Raw topology contract"
+msgstr "原始拓扑契约"
+
+msgid "Reason"
+msgstr "原因"
+
+msgid "Reasons"
+msgstr "原因"
+
+msgid "Resource locks"
+msgstr "资源锁"
+
+msgid "Resource usage"
+msgstr "资源使用情况"
+
+msgid "Resource usage JSON"
+msgstr "资源使用 JSON"
+
+msgid "Result"
+msgstr "结果"
+
+msgid "Rill Intelligence"
+msgstr "Rill 智能"
+
+msgid "Rill Shadow"
+msgstr "Rill Shadow"
+
+msgid "Rill Shadow · Collecting"
+msgstr "Rill Shadow · 收集中"
+
+msgid "Rill advisory: %s"
+msgstr "Rill 建议：%s"
+
+msgid "Rill cannot write UCI, sysctl or firewall state, cannot execute arbitrary shell, and cannot apply Actions."
+msgstr "Rill 无法写入 UCI、sysctl 或防火墙状态，不能执行任意 Shell，也不能直接应用操作。"
+
+msgid "Rill details"
+msgstr "Rill 详情"
+
+msgid "Risk"
+msgstr "风险"
+
+msgid "Rollback"
+msgstr "回滚"
+
+msgid "Rollback completed and read-back verified."
+msgstr "回滚已完成且读回验证通过。"
+
+msgid "Rollback could not be completed; inspect the transaction."
+msgstr "无法完成回滚；请检查事务。"
+
+msgid "Run the Companion before any candidate is applied, then paste its JSON result."
+msgstr "在应用任何候选项之前运行 Companion，然后粘贴其 JSON 结果。"
+
+msgid "Running"
+msgstr "运行中"
+
+msgid "Runtime History JSON"
+msgstr "运行时历史 JSON"
+
+msgid "Runtime event history"
+msgstr "运行时事件历史"
+
+msgid "Scope"
+msgstr "作用域"
+
+msgid "Settings"
+msgstr "设置"
+
+msgid "Shadow boundary"
+msgstr "Shadow 边界"
+
+msgid "Shadow · Collecting"
+msgstr "Shadow · 收集中"
+
+msgid "Smart Optimization"
+msgstr "智能优化"
+
+msgid "Stable targets"
+msgstr "稳定目标"
+
+msgid "Start explicit test"
+msgstr "明确启动测试"
+
+msgid "State"
+msgstr "状态"
+
+msgid "Stopped"
+msgstr "已停止"
+
+msgid "System health guard"
+msgstr "系统健康保护"
+
+msgid "Target"
+msgstr "目标"
+
+msgid "Telemetry"
+msgstr "遥测"
+
+msgid "Telemetry Active"
+msgstr "遥测已启用"
+
+msgid "Telemetry Off"
+msgstr "遥测已关闭"
+
+msgid "The candidate is temporarily active and protected by commit-confirm. Run the same endpoint test now; Core will restore the original value before validating the result."
+msgstr "候选项当前临时生效并受提交确认保护。请立即运行相同端点测试；Core 会先恢复原值，再验证结果。"
+
+msgid "Topology generation"
+msgstr "拓扑代次"
+
+msgid "Transaction JSON"
+msgstr "事务 JSON"
+
+msgid "Transaction confirmed."
+msgstr "事务已确认。"
+
+msgid "Transactions"
+msgstr "事务"
+
+msgid "Transactions JSON"
+msgstr "事务 JSON"
+
+msgid "Transport"
+msgstr "传输"
+
+msgid "Unavailable capability JSON"
+msgstr "不可用能力 JSON"
+
+msgid "Unix socket"
+msgstr "Unix 套接字"
+
+msgid "Unsupported optional capabilities are hidden from action surfaces; expected profile gaps are reported as degraded."
+msgstr "不受支持的可选能力会从操作界面隐藏；Profile 预期项缺失时会报告为降级。"
+
+msgid "Validate candidate and restore original state"
+msgstr "验证候选项并恢复原始状态"
+
+msgid "Validated samples"
+msgstr "已验证样本"
+
+msgid "Why some benchmark actions are unavailable"
+msgstr "部分基准测试操作不可用的原因"
+
+msgid "Workload"
+msgstr "工作负载"
+
+msgid "Yes"
+msgstr "是"
+
+msgid "none"
+msgstr "无"
+
+msgid "Evaluation path"
+msgstr "评估路径"

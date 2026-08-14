@@ -1,0 +1,86 @@
+{
+  "planningBaseline": "v0.3.2 Contract Freeze",
+  "scope": "source-completion-only",
+  "phases": {
+    "0": {
+      "name": "Contract Freeze",
+      "status": "pass",
+      "checks": 3,
+      "failed": []
+    },
+    "1": {
+      "name": "Bootstrap",
+      "status": "pass",
+      "checks": 4,
+      "failed": []
+    },
+    "2": {
+      "name": "Capability / Topology / Target / Event",
+      "status": "pass",
+      "checks": 5,
+      "failed": []
+    },
+    "3": {
+      "name": "Telemetry / Health / Analyzer / Path",
+      "status": "pass",
+      "checks": 5,
+      "failed": []
+    },
+    "4": {
+      "name": "Policy / Compatibility",
+      "status": "pass",
+      "checks": 3,
+      "failed": []
+    },
+    "5": {
+      "name": "Transactions / Locks / Commit-confirm",
+      "status": "pass",
+      "checks": 11,
+      "failed": []
+    },
+    "6": {
+      "name": "Conservative",
+      "status": "pass",
+      "checks": 3,
+      "failed": []
+    },
+    "7": {
+      "name": "Benchmark",
+      "status": "pass",
+      "checks": 12,
+      "failed": []
+    },
+    "8": {
+      "name": "Rill Intelligence",
+      "status": "pass",
+      "checks": 9,
+      "failed": []
+    },
+    "9": {
+      "name": "Recommend",
+      "status": "pass",
+      "checks": 2,
+      "failed": []
+    },
+    "10": {
+      "name": "Assisted Auto",
+      "status": "pass",
+      "checks": 6,
+      "failed": []
+    },
+    "11": {
+      "name": "Platforms",
+      "status": "pass",
+      "checks": 2,
+      "failed": []
+    },
+    "12": {
+      "name": "Companion",
+      "status": "pass",
+      "checks": 3,
+      "failed": []
+    }
+  },
+  "allPassed": true,
+  "note": "Target build/runtime/virtualization/forwarding/soak gates are intentionally tracked separately and are not inferred from source gates."
+}

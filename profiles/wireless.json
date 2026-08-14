@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "id": "wireless",
+  "extends": [
+    "recommended"
+  ],
+  "targets": [
+    "*"
+  ],
+  "requiredPackages": [],
+  "recommendedPackages": [
+    "iw-full",
+    "rpcd-mod-iwinfo"
+  ],
+  "conditionalPackages": [],
+  "expectedCommands": [
+    "iw"
+  ],
+  "expectedCapabilities": []
+}

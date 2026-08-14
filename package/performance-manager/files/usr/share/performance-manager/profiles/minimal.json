@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 1,
+  "id": "minimal",
+  "extends": [],
+  "targets": [
+    "*"
+  ],
+  "requiredPackages": [
+    "performance-manager",
+    "luci-app-performance-manager"
+  ],
+  "recommendedPackages": [],
+  "conditionalPackages": [],
+  "expectedCommands": [],
+  "expectedCapabilities": []
+}

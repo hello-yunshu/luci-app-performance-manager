@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openwrt-performance-manager.local/schema/lock.json",
+  "title": "ResourceLock",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "resource",
+    "transactionId",
+    "bootId",
+    "acquiredMonotonicMs"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": 1
+    },
+    "resource": {
+      "type": "string",
+      "minLength": 1
+    },
+    "transactionId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "bootId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "acquiredMonotonicMs": {
+      "type": "integer",
+      "minimum": 0
+    }
+  }
+}

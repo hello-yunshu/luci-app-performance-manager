@@ -1,0 +1,47 @@
+{
+  "areas": {
+    "core": {
+      "files": 38,
+      "sourceBytes": 158930,
+      "knownStaticPayloadBytes": 156031
+    },
+    "luci": {
+      "files": 14,
+      "sourceBytes": 32543,
+      "knownStaticPayloadBytes": 32188
+    },
+    "rill": {
+      "files": 1369,
+      "sourceBytes": 63081977,
+      "knownStaticPayloadBytes": 1375
+    }
+  },
+  "persistentWritePolicy": {
+    "core": "event-only transaction/history/policy intents; fast/deep telemetry remains tmpfs",
+    "rill": "validated outcomes + decision-ledger entries for validated outcomes/context drift in /etc/performance-manager/rill; files are bounded/compacted; ordinary observations remain in memory",
+    "observationWriteAmplification": "0 persistent writes for ordinary stable-context telemetry observations"
+  },
+  "limits": {
+    "rillMaxMessageBytes": 65536,
+    "rillRequestsPerSecond": 20,
+    "rillCoreTimeoutMs": 1000,
+    "historyReadTailLines": 512,
+    "rillValidatedOutcomeLines": 2048,
+    "rillDecisionLedgerLines": 4096,
+    "rillStateFileMaxBytes": 1048576,
+    "fastTelemetryMinimumSeconds": 30,
+    "deepTelemetryMinimumSeconds": 300
+  },
+  "targetRuntimeMetrics": {
+    "rssBytes": null,
+    "steadyCpuPercent": null,
+    "persistentWritesPerDay": null,
+    "bootStartMilliseconds": null,
+    "status": "external-runtime-gate",
+    "requiredScripts": [
+      "scripts/openwrt-target-gate.sh",
+      "scripts/openwrt-resource-soak.sh"
+    ],
+    "note": "These values require a booted OpenWrt x86_64 target. The target gate captures startup/runtime safety evidence; the soak script measures RSS/CPU and Core/Rill logical persistent writes. Values are intentionally not fabricated from source inspection."
+  }
+}

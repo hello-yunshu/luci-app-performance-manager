@@ -1,0 +1,31 @@
+{
+  "schemaVersion": 1,
+  "id": "performance-x86",
+  "extends": [
+    "recommended"
+  ],
+  "targets": [
+    "x86_64"
+  ],
+  "requiredPackages": [],
+  "recommendedPackages": [
+    "tc-full",
+    "kmod-sched",
+    "tcpdump-mini",
+    "irqbalance"
+  ],
+  "conditionalPackages": [
+    {
+      "name": "procd-ujail",
+      "whenCapability": "kernel.namespaces"
+    },
+    {
+      "name": "procd-seccomp",
+      "whenCapability": "kernel.seccomp"
+    }
+  ],
+  "expectedCommands": [
+    "tc"
+  ],
+  "expectedCapabilities": []
+}

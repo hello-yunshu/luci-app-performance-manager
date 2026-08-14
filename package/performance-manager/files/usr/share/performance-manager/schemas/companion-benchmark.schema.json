@@ -1,0 +1,84 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openwrt-performance-manager.local/schema/companion-benchmark.json",
+  "title": "CompanionBenchmarkEvidence",
+  "type": "object",
+  "additionalProperties": true,
+  "required": [
+    "contract",
+    "measurementClass",
+    "validated",
+    "validationScope",
+    "actionId",
+    "pathId",
+    "oneVariable",
+    "control",
+    "candidate",
+    "reward"
+  ],
+  "properties": {
+    "contract": {
+      "const": "pm-companion/v2"
+    },
+    "measurementClass": {
+      "const": "controlled_ab"
+    },
+    "validated": {
+      "const": true
+    },
+    "validationScope": {
+      "const": "endpoint-measurement-only"
+    },
+    "actionId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "pathId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "topologyGeneration": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "minimum": 1
+    },
+    "routeIdentity": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "oneVariable": {
+      "const": true
+    },
+    "control": {
+      "type": "object",
+      "required": [
+        "bitsPerSecond"
+      ],
+      "properties": {
+        "bitsPerSecond": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        }
+      }
+    },
+    "candidate": {
+      "type": "object",
+      "required": [
+        "bitsPerSecond"
+      ],
+      "properties": {
+        "bitsPerSecond": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        }
+      }
+    },
+    "reward": {
+      "type": "number"
+    }
+  }
+}
