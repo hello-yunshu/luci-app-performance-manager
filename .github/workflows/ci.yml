@@ -61,6 +61,9 @@ jobs:
           grep -e "\\*$rootfs$" sha256sums | sha256sum -c -
           mkdir rootfs
           sudo tar -xzf "$rootfs" -C rootfs
+          # /etc/resolv.conf in the rootfs is a dangling symlink to /tmp/resolv.conf;
+          # drop it first so copying in the host resolv.conf succeeds.
+          sudo rm -f rootfs/etc/resolv.conf
           sudo cp /etc/resolv.conf rootfs/etc/resolv.conf
       - name: Install ucode modules in rootfs
         shell: bash

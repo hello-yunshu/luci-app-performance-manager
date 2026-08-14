@@ -1,15 +1,21 @@
 # luci-app-performance-manager
+
 [English](README.en.md) | **中文**
+
 <p align="center">
   <img src="logo.png" alt="OpenWrt Performance Manager" width="480">
 </p>
+
 <p align="center">
   <strong>面向 OpenWrt 的 Capability-first、Topology-aware、Transactional 性能控制平面</strong>
 </p>
+
 <p align="center">
   先发现 OpenWrt / 驱动 / 平台已经具备的能力，再解析 Topology / TargetRef / Path / Workload，经过 Policy、Compatibility、Locks 与 Health Guard 检查后形成合法 Action，并通过事务、read-back、健康验证与回滚闭环执行。它不是 sysctl 参数大全，也不会在 OpenWrt 已有成熟实现时替换原生 provider。
 </p>
+
 ---
+
 ## 功能特性
 - **能力优先**：稳定 TargetRef，避免长期策略绑定 `eth0`；PPPoE / VPN 场景优先解析真实 underlay
 - **Topology 感知**：基于路由 / 策略路由证据与 rtnl 事件维护 topology、path 与 workload 模型
