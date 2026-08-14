@@ -48,7 +48,7 @@ class Phase712Tests(unittest.TestCase):
     def test_topology_uses_route_evidence_and_rtnl_events(self):
         route=self.function('route_context','topology')
         self.assertIn("'-j', '-4', 'route'",route); self.assertIn("'-j', '-4', 'rule', 'show'",route)
-        self.assertIn('rtnl.listener(',CORE); self.assertIn('RTM_NEWROUTE',CORE); self.assertIn('wanCandidates',CORE)
+        self.assertIn('rtnl.listener(',CORE); self.assertIn('[ 16, 17, 24, 25 ]',CORE); self.assertIn('wanCandidates',CORE)
     def test_recovery_starts_after_uloop_init(self):
         self.assertLess(CORE.rindex('uloop.init();'),CORE.rindex('recover_pending();'))
         rec=self.function('recover_pending','replay_policies')

@@ -58,7 +58,7 @@ jobs:
           rootfs="openwrt-${OPENWRT_VERSION}-x86-64-rootfs.tar.gz"
           curl -fsSLO "$base/sha256sums"
           curl -fsSLO "$base/$rootfs"
-          grep "  $rootfs$" sha256sums | sha256sum -c -
+          grep -e "\\*$rootfs$" sha256sums | sha256sum -c -
           mkdir rootfs
           sudo tar -xzf "$rootfs" -C rootfs
           sudo cp /etc/resolv.conf rootfs/etc/resolv.conf
@@ -99,7 +99,7 @@ jobs:
           test -n "$sdk"
           curl -fsSL "$base/sha256sums" -o /tmp/sha256sums
           curl -fsSLO "$base/$sdk"
-          grep "  $sdk$" /tmp/sha256sums | sha256sum -c -
+          grep -e "\\*$sdk$" /tmp/sha256sums | sha256sum -c -
           tar --zstd -xf "$sdk"
           sdkdir=$(find . -maxdepth 1 -type d -name "openwrt-sdk-${OPENWRT_VERSION}-x86-64_*" | head -n1)
           test -n "$sdkdir"

@@ -65,7 +65,7 @@ core_pkg=re.search(r'define Package/performance-manager\n(.*?)\nendef',make,re.S
 for forbidden in ['+rpcd','+luci-base','+performance-manager-rill']:
     if core_pkg and forbidden in core_pkg.group(1): fail(f'Core hard dependency forbidden: {forbidden}')
 required_ubus=['status','capabilities','topology','targets','paths','analyze','recommendations','transactions','locks','history','apply','confirm','rollback','benchmark_start','benchmark_status','benchmark_stop','rill_status','diagnostics']
-assert 'cleanup: function' in core, 'root-only ownership cleanup method missing'
+assert 'cleanup: { call:' in core, 'root-only ownership cleanup method missing'
 publish=core[core.find('conn.publish(UBUS_NAME'):]
 for method in required_ubus:
     if not re.search(rf'\b{re.escape(method)}\s*:',publish): fail(f'ubus method missing: {method}')
@@ -73,7 +73,7 @@ if "run([ 'sh', '-c'" in core or 'run([ "sh", "-c"' in core: fail('shell -c exec
 for token in ['pending_marker_path','arm_commit_confirm','deadlineMonotonicMs = monotonic_ms()','core-crash-recovery','boot-recovery-runtime-reset-no-stale-replay','live-state-drift-refuses-stale-rollback']:
     if token not in core: fail(f'transaction safety mechanism missing: {token}')
 if core.rfind('uloop.init();')>core.rfind('recover_pending();'): fail('recover_pending runs before uloop initialization')
-for token in ['rtnl.listener','RTM_NEWROUTE','RTM_DELROUTE',"'-j', '-4', 'route'","'-j', '-4', 'rule', 'show'",'wanCandidates','routeProvider']:
+for token in ['rtnl.listener','[ 16, 17, 24, 25 ]',"'-j', '-4', 'route'","'-j', '-4', 'rule', 'show'",'wanCandidates','routeProvider']:
     if token not in core: fail(f'topology/route mechanism missing: {token}')
 for token in ['dns_health()','proxy_health()','vpn_health()','thermal_health()','recent_oom_state()','persistentStorageWritable','high-cpu-steal']:
     if token not in core: fail(f'health mechanism missing: {token}')

@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 197" width="640" height="197">
+  <!-- Performance ripple mark: three waves, the middle one in brand teal -->
+  <g fill="none" stroke-width="8" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M 22 133 C 42 120 54 146 74 133 C 94 120 106 146 126 133 C 137 127 146 140 155 133" stroke="#162025"/>
+    <path d="M 22 99 C 42 86 54 112 74 99 C 94 86 106 112 126 99 C 137 93 146 106 155 99" stroke="#00CBBC"/>
+    <path d="M 22 65 C 42 52 54 78 74 65 C 94 52 106 78 126 65 C 137 59 146 72 155 65" stroke="#162025"/>
+  </g>
+  <!-- Topology / data nodes -->
+  <g fill="#00CBBC">
+    <circle cx="176" cy="83" r="7"/>
+    <circle cx="176" cy="115" r="7"/>
+  </g>
+  <!-- Wordmark: dark text, "manager" accented in brand teal -->
+  <text x="204" y="116" font-family="'Inter','SF Pro Display','Segoe UI',system-ui,-apple-system,Arial,sans-serif" font-size="36" font-weight="700" letter-spacing="-0.5" fill="#162025">performance-<tspan fill="#00CBBC">manager</tspan></text>
+</svg>
