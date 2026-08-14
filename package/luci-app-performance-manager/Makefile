@@ -20,3 +20,5 @@ define Package/luci-app-performance-manager/description
  / English secondary). The UI language follows the OpenWrt/LuCI system language
  / setting automatically.
 endef
+
+# call BuildPackage - OpenWrt buildroot signature
