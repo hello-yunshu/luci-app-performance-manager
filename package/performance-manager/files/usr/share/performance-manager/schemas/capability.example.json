@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 2,
+  "id": "nic.ring",
+  "domain": "nic",
+  "provider": "driver-ethtool",
+  "availability": "available",
+  "scope": "device",
+  "targetRef": "nic:pci:0000:00:08.0",
+  "confidence": "high",
+  "adjustable": true,
+  "dynamic": true,
+  "active": true,
+  "evidence": [
+    {
+      "source": "ethtool -g eth0",
+      "observed": {
+        "rxCurrent": 512,
+        "rxMax": 2048,
+        "txCurrent": 512,
+        "txMax": 2048
+      }
+    }
+  ]
+}

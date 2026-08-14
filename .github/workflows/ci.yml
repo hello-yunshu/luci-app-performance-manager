@@ -1,0 +1,129 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  OPENWRT_VERSION: "25.12.5"
+  OPENWRT_TARGET: "x86/64"
+
+jobs:
+  static:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - run: python -m pip install --disable-pip-version-check jsonschema pyyaml
+      - run: make audit
+      - name: LuCI JavaScript syntax
+        shell: bash
+        run: |
+          set -euo pipefail
+          for f in package/luci-app-performance-manager/htdocs/luci-static/resources/performance-manager/*.js \
+                   package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/*.js; do
+            { echo '(function(){'; cat "$f"; echo '})();'; } > /tmp/luci-check.js
+            node --check /tmp/luci-check.js
+          done
+      - name: Python companion syntax
+        run: python -m py_compile companion/pm_companion_agent.py
+
+  rill-native:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Pin Rust toolchain for reproducible native tests
+        uses: dtolnay/rust-toolchain@1.88.0
+      - run: cargo test --locked --manifest-path package/performance-manager-rill/src/Cargo.toml
+      - run: cargo check --locked --manifest-path package/performance-manager-rill/src/Cargo.toml
+
+  openwrt-ucode:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download official OpenWrt rootfs and verify checksum
+        shell: bash
+        run: |
+          set -euo pipefail
+          base="https://downloads.openwrt.org/releases/${OPENWRT_VERSION}/targets/${OPENWRT_TARGET}"
+          rootfs="openwrt-${OPENWRT_VERSION}-x86-64-rootfs.tar.gz"
+          curl -fsSLO "$base/sha256sums"
+          curl -fsSLO "$base/$rootfs"
+          grep "  $rootfs$" sha256sums | sha256sum -c -
+          mkdir rootfs
+          sudo tar -xzf "$rootfs" -C rootfs
+          sudo cp /etc/resolv.conf rootfs/etc/resolv.conf
+      - name: Install ucode modules in rootfs
+        shell: bash
+        run: |
+          set -euo pipefail
+          if sudo chroot rootfs /bin/sh -c 'command -v apk >/dev/null 2>&1'; then
+            sudo chroot rootfs /bin/sh -c 'apk update && apk add ucode ucode-mod-fs ucode-mod-ubus ucode-mod-uci ucode-mod-rtnl ucode-mod-uloop ucode-mod-socket ucode-mod-log'
+          elif sudo chroot rootfs /bin/sh -c 'command -v opkg >/dev/null 2>&1'; then
+            sudo chroot rootfs /bin/sh -c 'opkg update && opkg install ucode ucode-mod-fs ucode-mod-ubus ucode-mod-uci ucode-mod-rtnl ucode-mod-uloop ucode-mod-socket ucode-mod-log'
+          else
+            echo 'No supported OpenWrt package manager in rootfs' >&2
+            exit 1
+          fi
+      - name: Compile Core ucode on OpenWrt userspace
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo install -D -m 0755 package/performance-manager/files/usr/sbin/performance-manager.uc rootfs/usr/sbin/performance-manager.uc
+          sudo install -D -m 0644 package/performance-manager/files/usr/share/performance-manager/contracts.uc rootfs/usr/share/performance-manager/contracts.uc
+          sudo chroot rootfs /usr/bin/ucode -c -o /tmp/performance-manager.uc /usr/sbin/performance-manager.uc
+
+  openwrt-sdk-build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install host dependencies
+        run: sudo apt-get update && sudo apt-get install -y build-essential gawk gettext libncurses-dev libssl-dev python3 rsync unzip file wget zstd
+      - name: Download official SDK and verify checksum
+        shell: bash
+        run: |
+          set -euo pipefail
+          base="https://downloads.openwrt.org/releases/${OPENWRT_VERSION}/targets/${OPENWRT_TARGET}"
+          curl -fsSL "$base/" -o /tmp/index.html
+          sdk=$(grep -oE "openwrt-sdk-${OPENWRT_VERSION}-x86-64_[^\"< ]+\.tar\.zst" /tmp/index.html | head -n1)
+          test -n "$sdk"
+          curl -fsSL "$base/sha256sums" -o /tmp/sha256sums
+          curl -fsSLO "$base/$sdk"
+          grep "  $sdk$" /tmp/sha256sums | sha256sum -c -
+          tar --zstd -xf "$sdk"
+          sdkdir=$(find . -maxdepth 1 -type d -name "openwrt-sdk-${OPENWRT_VERSION}-x86-64_*" | head -n1)
+          test -n "$sdkdir"
+          echo "SDKDIR=$sdkdir" >> "$GITHUB_ENV"
+          echo "FEEDS_BUILDINFO_URL=$base/feeds.buildinfo" >> "$GITHUB_ENV"
+      - name: Pin feeds to official release feed commits
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd "$SDKDIR"
+          ./scripts/feeds update -a
+          python3 "$GITHUB_WORKSPACE/scripts/pin_feeds.py"
+      - name: Install feeds and local packages
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd "$SDKDIR"
+          ./scripts/feeds install -a
+          mkdir -p package/openwrt-performance-manager
+          cp -a "$GITHUB_WORKSPACE"/package/* package/openwrt-performance-manager/
+          make defconfig
+      - name: Build Core
+        run: cd "$SDKDIR" && make -j2 package/performance-manager/compile V=s
+      - name: Build LuCI
+        run: cd "$SDKDIR" && make -j2 package/luci-app-performance-manager/compile V=s
+      - name: Build Rill
+        run: cd "$SDKDIR" && make -j2 package/performance-manager-rill/compile V=s

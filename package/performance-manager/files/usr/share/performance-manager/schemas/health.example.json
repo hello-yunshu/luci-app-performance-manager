@@ -1,0 +1,27 @@
+{
+  "schemaVersion": 2,
+  "capturedMonotonicMs": 1000,
+  "bootId": "boot-example",
+  "lan": true,
+  "wan": true,
+  "dns": true,
+  "ipv4": true,
+  "ipv6": null,
+  "proxy": null,
+  "vpn": null,
+  "route": true,
+  "memAvailableKiB": 131072,
+  "load1": 0.25,
+  "cpu": {
+    "stealPct": 0.01,
+    "count": 4
+  },
+  "recentOom": false,
+  "stateStorageWritable": true,
+  "persistentStorageWritable": true,
+  "thermal": {
+    "available": true,
+    "maxMilliCelsius": 55000,
+    "throttleCount": 0
+  }
+}

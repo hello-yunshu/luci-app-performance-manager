@@ -1,0 +1,33 @@
+{
+  "schemaVersion": 1,
+  "id": "recommended",
+  "extends": [
+    "minimal"
+  ],
+  "targets": [
+    "x86_64"
+  ],
+  "requiredPackages": [],
+  "recommendedPackages": [
+    "performance-manager-rill",
+    "ethtool",
+    "ip-full",
+    "tc-tiny",
+    "ss",
+    "nstat",
+    "conntrack",
+    "iperf3",
+    "kmod-sched-core"
+  ],
+  "conditionalPackages": [],
+  "expectedCommands": [
+    "ethtool",
+    "ip",
+    "tc",
+    "ss",
+    "nstat",
+    "conntrack",
+    "iperf3"
+  ],
+  "expectedCapabilities": []
+}

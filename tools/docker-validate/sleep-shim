@@ -1,0 +1,17 @@
+#!/bin/sh
+# Fractional-capable sleep shim. Container busybox is built without
+# FEATURE_FLOAT_SLEEP; real OpenWrt 25.12.x supports fractional sleep. This
+# shim maps fractional args to a ceiling integer and delegates integers to the
+# real busybox sleep, so the release gate runs unchanged.
+for a in "$@"; do
+    case "$a" in
+        *.*)
+            i="${a%%.*}"
+            [ -z "$i" ] && i=0
+            i=$((i + 1))
+            [ "$i" -lt 1 ] && i=1
+            exec /bin/sleep "$i"
+            ;;
+    esac
+done
+exec /bin/sleep "$@"

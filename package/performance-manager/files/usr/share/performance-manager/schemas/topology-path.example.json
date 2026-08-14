@@ -1,0 +1,64 @@
+{
+  "schemaVersion": 2,
+  "topologyGeneration": 42,
+  "interfaces": [
+    {
+      "name": "lan",
+      "l3Device": "br-lan"
+    },
+    {
+      "name": "wan",
+      "l3Device": "pppoe-wan"
+    }
+  ],
+  "devices": [
+    {
+      "name": "br-lan",
+      "type": "bridge",
+      "members": [
+        "eth1"
+      ]
+    },
+    {
+      "name": "pppoe-wan",
+      "type": "pppoe",
+      "lower": "eth0.35"
+    },
+    {
+      "name": "eth0.35",
+      "type": "vlan",
+      "lower": "eth0"
+    },
+    {
+      "name": "eth0",
+      "type": "ethernet",
+      "driver": "hv_netvsc",
+      "targetRef": "nic:pci:0000:00:08.0"
+    },
+    {
+      "name": "eth1",
+      "type": "ethernet",
+      "driver": "hv_netvsc",
+      "targetRef": "nic:pci:0000:00:09.0"
+    }
+  ],
+  "paths": [
+    {
+      "id": "path:lan-to-wan",
+      "workloadClass": [
+        "plain_forwarding",
+        "pppoe"
+      ],
+      "lanInterface": "lan",
+      "wanInterface": "wan",
+      "underlay": [
+        "eth0.35",
+        "eth0"
+      ],
+      "targetRefs": [
+        "nic:pci:0000:00:08.0"
+      ],
+      "routeIdentity": "wan:unknown:unresolved"
+    }
+  ]
+}

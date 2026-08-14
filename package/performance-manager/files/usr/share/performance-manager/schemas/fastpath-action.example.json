@@ -1,0 +1,30 @@
+{
+  "schemaVersion": 1,
+  "id": "fastpath.software_flow_offload",
+  "applyScope": "service",
+  "applyTarget": "firewall:defaults",
+  "affectedPaths": [
+    "path:*:forwarding"
+  ],
+  "evaluationPaths": [
+    "path:lan-to-wan"
+  ],
+  "workloadClass": [
+    "plain_forwarding"
+  ],
+  "risk": "benchmark",
+  "requiresBenchmark": true,
+  "persistenceClass": "uci_delta",
+  "commitPolicy": "persist_on_accept",
+  "requiredLocks": [
+    "firewall"
+  ],
+  "requiresCommitConfirm": true,
+  "affectedTargets": [
+    "firewall:defaults"
+  ],
+  "reapplyTriggers": [
+    "boot",
+    "topology_change"
+  ]
+}

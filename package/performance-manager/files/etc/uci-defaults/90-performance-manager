@@ -1,0 +1,4 @@
+#!/bin/sh
+# Preserve existing settings. Only ensure the persistent policy directory exists.
+mkdir -p /etc/performance-manager
+exit 0

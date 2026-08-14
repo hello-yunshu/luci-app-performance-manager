@@ -1,0 +1,90 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openwrt-performance-manager.local/schema/capability.json",
+  "title": "Capability",
+  "type": "object",
+  "additionalProperties": true,
+  "required": [
+    "id",
+    "domain",
+    "provider",
+    "availability",
+    "scope",
+    "confidence",
+    "adjustable",
+    "dynamic",
+    "active",
+    "evidence"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "domain": {
+      "type": "string"
+    },
+    "provider": {
+      "type": "string"
+    },
+    "availability": {
+      "enum": [
+        "available",
+        "unavailable",
+        "degraded",
+        "unknown"
+      ]
+    },
+    "scope": {
+      "enum": [
+        "system",
+        "service",
+        "device",
+        "interface",
+        "radio",
+        "storage"
+      ]
+    },
+    "targetRef": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "confidence": {
+      "enum": [
+        "high",
+        "medium",
+        "low"
+      ]
+    },
+    "adjustable": {
+      "type": "boolean"
+    },
+    "dynamic": {
+      "type": "boolean"
+    },
+    "active": {
+      "type": "boolean"
+    },
+    "evidence": {
+      "type": "array"
+    },
+    "ownership": {
+      "enum": [
+        "user",
+        "external",
+        "preexisting",
+        "performance_manager",
+        "unknown"
+      ]
+    },
+    "policy": {
+      "type": "string"
+    }
+  }
+}

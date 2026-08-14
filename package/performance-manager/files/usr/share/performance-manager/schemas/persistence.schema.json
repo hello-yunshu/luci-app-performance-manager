@@ -1,0 +1,58 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openwrt-performance-manager.local/schema/persistence.json",
+  "title": "PersistencePolicy",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "class",
+    "owner",
+    "reapplyTriggers"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": 1
+    },
+    "class": {
+      "enum": [
+        "runtime",
+        "uci_delta",
+        "persistent_config",
+        "pm_policy_replay"
+      ]
+    },
+    "owner": {
+      "enum": [
+        "user",
+        "external",
+        "preexisting",
+        "performance_manager",
+        "unknown"
+      ]
+    },
+    "reapplyTriggers": {
+      "type": "array",
+      "items": {
+        "enum": [
+          "boot",
+          "device_up",
+          "topology_change",
+          "manual"
+        ]
+      }
+    },
+    "targetRef": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "actionId": {
+      "type": [
+        "string",
+        "null"
+      ]
+    }
+  }
+}

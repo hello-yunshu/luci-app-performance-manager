@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openwrt-performance-manager.local/schema/target-ref.json",
+  "title": "TargetRef",
+  "type": "object",
+  "additionalProperties": true,
+  "required": [
+    "stableId",
+    "logicalRole",
+    "selector",
+    "runtimeName",
+    "topologyGeneration"
+  ],
+  "properties": {
+    "stableId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "logicalRole": {
+      "type": "string"
+    },
+    "selector": {
+      "type": "object"
+    },
+    "runtimeName": {
+      "type": "string"
+    },
+    "topologyGeneration": {
+      "type": "integer",
+      "minimum": 0
+    }
+  }
+}

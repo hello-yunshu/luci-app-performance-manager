@@ -1,0 +1,29 @@
+# External Validation Required for 1.0 Stable
+
+`1.0.0-rc.2` closes the source blockers found in the strict rc.1 audit, but Stable still requires evidence that cannot be fabricated inside the current offline/non-OpenWrt assembly container.
+
+The current official 25.12.x x86/64 target is available as OpenWrt 25.12.5, including an x86/64 rootfs and SDK. CI is pinned to that release for ucode and three-package build gates.
+
+Required target evidence:
+
+1. GitHub CI: native Rust tests/check, OpenWrt rootfs ucode compile and official SDK three-package build.
+2. Booted OpenWrt 25.12.x x86_64 VM: `scripts/openwrt-target-gate.sh`.
+3. Hyper-V and KVM/Proxmox guest hotplug/TargetRef/replay/rollback fixtures.
+4. Explicit LAN→Router→WAN and router-local controlled A/B sessions where the action semantics require them.
+5. Sysupgrade preservation via `scripts/openwrt-sysupgrade-gate.sh prepare` before the upgrade and `verify` after reboot, plus `scripts/openwrt-resource-soak.sh` for 24h or longer.
+
+Until those evidence files actually pass, the correct label is **1.0.0-rc.2**, not Stable.
+
+## Docker-based Evidence Progress
+
+Validation can be driven locally from the official 25.12.5 x86/64 rootfs via Docker (see `tools/docker-validate/`), which removes the "offline / non-OpenWrt" blocker for runtime gates. Evidence artifacts are collected in `evidence/`.
+
+Status:
+
+- **1. GitHub CI** — native Rust `cargo test`/`check` and the official SDK three-package build are owned by `.github/workflows/ci.yml` (`openwrt-sdk-build` job compiles `performance-manager`, `luci-app-performance-manager`, `performance-manager-rill`). No local SDK build is required.
+- **2. Booted OpenWrt runtime gate** — PASSED inside the `owrt-pm-gate` container (25.12.5 x86/64): `scripts/openwrt-target-gate.sh` CORE-ONLY, 11/11 assertions green. Evidence: `evidence/openwrt-target-gate-25.12.5.json`.
+- **5. Resource soak (dev check)** — script viability verified for 120s (12 samples): `coreMaxRssKiB` 4744, `coreMeanCpuPercentApprox` 0.083, 0 persistent writes, `executionPassed true`. This is a development check only; the 24h+ Stable gate (`stableDurationSatisfied`) remains outstanding. Evidence: `evidence/openwrt-resource-soak-120s-dev.json`.
+
+Not yet satisfied (require real hypervisor or router hardware): items 3 (Hyper-V/KVM fixtures) and 4 (LAN/WAN A/B sessions), plus the full 24h soak and sysupgrade round-trip from item 5.
+
+Docker notes: the OpenWrt container's netifd bridges `eth0` into `br-lan` and drops the docker default route, so it is offline by design; gates must not depend on `apk add`. The container busybox lacks float sleep, so `tools/docker-validate/sleep-shim` is installed ahead of the gate. The Core artifact is converted host-side to ucode-hoisted arrow-function form by `tools/docker-validate/build-core.sh` before runtime gates.

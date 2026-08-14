@@ -1,0 +1,188 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openwrt-performance-manager.local/schema/rill-ipc.json",
+  "title": "RillIPC",
+  "description": "Formal v2 protocol between Core (performance-manager.uc) and the Rill shadow bandit (performance-manager-rill). The envelope is common to every operation; per-operation required fields are enforced by the if/then blocks below, mirroring the strict validation performed by main.rs.",
+  "type": "object",
+  "additionalProperties": true,
+  "required": [
+    "api",
+    "requestId",
+    "op"
+  ],
+  "properties": {
+    "api": {
+      "const": 2
+    },
+    "requestId": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "op": {
+      "enum": [
+        "status",
+        "observe",
+        "outcome"
+      ]
+    },
+    "deviceProfile": {
+      "type": "string",
+      "minLength": 1
+    },
+    "capabilityHash": {
+      "type": "string",
+      "minLength": 1
+    },
+    "topologyGeneration": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "pathId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "routeIdentity": {
+      "type": "string",
+      "minLength": 1
+    },
+    "workloadClass": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "string"
+      }
+    },
+    "measurementClass": {
+      "enum": [
+        "controlled_ab",
+        "passive_before_after",
+        "health_only"
+      ]
+    },
+    "context": {
+      "type": "object"
+    },
+    "integrations": {
+      "type": "object"
+    },
+    "integrationFingerprint": {
+      "type": "string",
+      "minLength": 1
+    },
+    "contextKey": {
+      "type": "string",
+      "pattern": "^ctx-v1:",
+      "maxLength": 512
+    },
+    "availableActions": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": [
+          "id"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "applyScope": {
+            "type": "string"
+          },
+          "applyTarget": {
+            "type": "string"
+          },
+          "evaluationPaths": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "risk": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "validated": {
+      "type": "boolean"
+    },
+    "actionId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "sessionId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "reward": {
+      "type": "number"
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "op": {
+            "const": "observe"
+          }
+        },
+        "required": [
+          "op"
+        ]
+      },
+      "then": {
+        "required": [
+          "deviceProfile",
+          "capabilityHash",
+          "topologyGeneration",
+          "pathId",
+          "routeIdentity",
+          "workloadClass",
+          "measurementClass",
+          "context",
+          "integrations",
+          "integrationFingerprint",
+          "contextKey",
+          "availableActions"
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "op": {
+            "const": "outcome"
+          }
+        },
+        "required": [
+          "op"
+        ]
+      },
+      "then": {
+        "required": [
+          "validated",
+          "actionId",
+          "sessionId",
+          "deviceProfile",
+          "capabilityHash",
+          "topologyGeneration",
+          "pathId",
+          "routeIdentity",
+          "workloadClass",
+          "measurementClass",
+          "integrationFingerprint",
+          "contextKey",
+          "reward"
+        ],
+        "properties": {
+          "validated": {
+            "const": true
+          }
+        }
+      }
+    }
+  ]
+}

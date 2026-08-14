@@ -1,0 +1,144 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openwrt-performance-manager.local/schema/health.json",
+  "title": "HealthSnapshot",
+  "type": "object",
+  "additionalProperties": true,
+  "required": [
+    "schemaVersion",
+    "capturedMonotonicMs",
+    "bootId",
+    "lan",
+    "wan",
+    "dns",
+    "ipv4",
+    "ipv6",
+    "proxy",
+    "vpn",
+    "route",
+    "memAvailableKiB",
+    "load1",
+    "cpu",
+    "recentOom",
+    "stateStorageWritable",
+    "persistentStorageWritable",
+    "thermal"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": 2
+    },
+    "capturedMonotonicMs": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "bootId": {
+      "type": "string"
+    },
+    "lan": {
+      "type": [
+        "boolean",
+        "null"
+      ]
+    },
+    "wan": {
+      "type": [
+        "boolean",
+        "null"
+      ]
+    },
+    "dns": {
+      "type": [
+        "boolean",
+        "null"
+      ]
+    },
+    "ipv4": {
+      "type": [
+        "boolean",
+        "null"
+      ]
+    },
+    "ipv6": {
+      "type": [
+        "boolean",
+        "null"
+      ]
+    },
+    "proxy": {
+      "type": [
+        "boolean",
+        "null"
+      ]
+    },
+    "vpn": {
+      "type": [
+        "boolean",
+        "null"
+      ]
+    },
+    "route": {
+      "type": [
+        "boolean",
+        "null"
+      ]
+    },
+    "memAvailableKiB": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "load1": {
+      "type": "number",
+      "minimum": 0
+    },
+    "cpu": {
+      "type": "object",
+      "required": [
+        "stealPct",
+        "count"
+      ],
+      "properties": {
+        "stealPct": {
+          "type": "number",
+          "minimum": 0
+        },
+        "count": {
+          "type": "integer",
+          "minimum": 1
+        }
+      }
+    },
+    "recentOom": {
+      "type": "boolean"
+    },
+    "stateStorageWritable": {
+      "type": "boolean"
+    },
+    "persistentStorageWritable": {
+      "type": "boolean"
+    },
+    "thermal": {
+      "type": "object",
+      "required": [
+        "available",
+        "maxMilliCelsius",
+        "throttleCount"
+      ],
+      "properties": {
+        "available": {
+          "type": "boolean"
+        },
+        "maxMilliCelsius": {
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "throttleCount": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    }
+  }
+}

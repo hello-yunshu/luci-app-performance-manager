@@ -1,0 +1,18 @@
+# macOS
+.DS_Store
+
+# Planning packages and prompts
+luci-app-performance-manager-Planning-v0.3.2/
+docs/planning-v0.3.2/
+OpenWrt_Performance_Manager_1.0.0-rc.2_Independent_Reaudit_2026-08-13.md
+
+# Docker build artifacts
+tools/docker-validate/build/
+tools/docker-validate/rootfs/
+
+# Python
+__pycache__/
+*.pyc
+
+# Rust build artifacts
+package/performance-manager-rill/src/target/

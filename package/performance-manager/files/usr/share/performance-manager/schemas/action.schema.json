@@ -1,0 +1,119 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openwrt-performance-manager.local/schema/action.json",
+  "title": "Action",
+  "type": "object",
+  "additionalProperties": true,
+  "required": [
+    "id",
+    "applyScope",
+    "applyTarget",
+    "affectedTargets",
+    "affectedPaths",
+    "evaluationPaths",
+    "workloadClass",
+    "risk",
+    "requiresBenchmark",
+    "persistenceClass",
+    "commitPolicy",
+    "reapplyTriggers",
+    "requiredLocks",
+    "requiresCommitConfirm"
+  ],
+  "properties": {
+    "id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "applyScope": {
+      "enum": [
+        "system",
+        "service",
+        "device",
+        "interface",
+        "radio",
+        "storage"
+      ]
+    },
+    "applyTarget": {
+      "type": "string",
+      "minLength": 1
+    },
+    "affectedTargets": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "affectedPaths": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "evaluationPaths": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "workloadClass": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "enum": [
+          "plain_forwarding",
+          "local_endpoint",
+          "transparent_proxy",
+          "vpn_tunnel",
+          "pppoe",
+          "wireless",
+          "storage_service"
+        ]
+      }
+    },
+    "persistenceClass": {
+      "enum": [
+        "runtime",
+        "uci_delta",
+        "persistent_config",
+        "pm_policy_replay"
+      ]
+    },
+    "commitPolicy": {
+      "type": "string",
+      "minLength": 1
+    },
+    "reapplyTriggers": {
+      "type": "array",
+      "items": {
+        "enum": [
+          "boot",
+          "device_up",
+          "topology_change",
+          "manual"
+        ]
+      }
+    },
+    "requiredLocks": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "requiresCommitConfirm": {
+      "type": "boolean"
+    },
+    "risk": {
+      "enum": [
+        "safe",
+        "caution",
+        "benchmark",
+        "dangerous"
+      ]
+    },
+    "requiresBenchmark": {
+      "type": "boolean"
+    }
+  }
+}

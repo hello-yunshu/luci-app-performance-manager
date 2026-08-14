@@ -1,0 +1,36 @@
+{
+  "schemaVersion": 2,
+  "id": "nic.ring.floor",
+  "applyScope": "device",
+  "applyTarget": "nic:pci:0000:00:08.0",
+  "affectedTargets": [
+    "nic:pci:0000:00:08.0"
+  ],
+  "affectedPaths": [
+    "path:lan-to-wan"
+  ],
+  "evaluationPaths": [
+    "path:lan-to-wan"
+  ],
+  "workloadClass": [
+    "plain_forwarding"
+  ],
+  "params": {
+    "rxFloor": 1024,
+    "txFloor": 1024
+  },
+  "risk": "safe",
+  "requiresBenchmark": false,
+  "persistenceClass": "pm_policy_replay",
+  "commitPolicy": "policy_replay_on_accept",
+  "reapplyTriggers": [
+    "boot",
+    "device_up",
+    "topology_change"
+  ],
+  "requiredLocks": [
+    "netdev:nic:pci:0000:00:08.0"
+  ],
+  "requiresCommitConfirm": false,
+  "requiresLinkVerification": true
+}

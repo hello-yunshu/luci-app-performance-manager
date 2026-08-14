@@ -1,0 +1,107 @@
+{
+  "checks": [
+    {
+      "name": "sh -n package/performance-manager/files/etc/init.d/performance-manager",
+      "status": "pass",
+      "output": ""
+    },
+    {
+      "name": "sh -n package/performance-manager/files/etc/uci-defaults/90-performance-manager",
+      "status": "pass",
+      "output": ""
+    },
+    {
+      "name": "sh -n package/performance-manager-rill/files/etc/init.d/performance-manager-rill",
+      "status": "pass",
+      "output": ""
+    },
+    {
+      "name": "sh -n scripts/openwrt-runtime-smoke.sh",
+      "status": "pass",
+      "output": ""
+    },
+    {
+      "name": "sh -n scripts/openwrt-target-gate.sh",
+      "status": "pass",
+      "output": ""
+    },
+    {
+      "name": "sh -n scripts/openwrt-resource-soak.sh",
+      "status": "pass",
+      "output": ""
+    },
+    {
+      "name": "sh -n scripts/openwrt-sysupgrade-gate.sh",
+      "status": "pass",
+      "output": ""
+    },
+    {
+      "name": "companion py_compile",
+      "status": "pass"
+    },
+    {
+      "name": "JSON parse",
+      "status": "pass"
+    },
+    {
+      "name": "CI YAML parse",
+      "status": "pass"
+    },
+    {
+      "name": "node --check package/luci-app-performance-manager/htdocs/luci-static/resources/performance-manager/api.js",
+      "status": "pass",
+      "output": ""
+    },
+    {
+      "name": "node --check package/luci-app-performance-manager/htdocs/luci-static/resources/performance-manager/ui.js",
+      "status": "pass",
+      "output": ""
+    },
+    {
+      "name": "node --check package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/advanced.js",
+      "status": "pass",
+      "output": ""
+    },
+    {
+      "name": "node --check package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/benchmark.js",
+      "status": "pass",
+      "output": ""
+    },
+    {
+      "name": "node --check package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/capabilities.js",
+      "status": "pass",
+      "output": ""
+    },
+    {
+      "name": "node --check package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/history.js",
+      "status": "pass",
+      "output": ""
+    },
+    {
+      "name": "node --check package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/optimize.js",
+      "status": "pass",
+      "output": ""
+    },
+    {
+      "name": "node --check package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/overview.js",
+      "status": "pass",
+      "output": ""
+    },
+    {
+      "name": "node --check package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/rill.js",
+      "status": "pass",
+      "output": ""
+    },
+    {
+      "name": "node --check package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/settings.js",
+      "status": "pass",
+      "output": ""
+    },
+    {
+      "name": "zh_Hans PO duplicate check",
+      "status": "pass"
+    }
+  ],
+  "errorCount": 0,
+  "errors": []
+}

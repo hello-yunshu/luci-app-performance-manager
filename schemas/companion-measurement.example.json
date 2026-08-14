@@ -1,0 +1,13 @@
+{
+  "contract": "pm-companion/v2",
+  "role": "lan-client",
+  "ok": true,
+  "bitsPerSecond": 1000000000,
+  "sessionId": "bench-example",
+  "phase": "control",
+  "actionId": "network.backlog",
+  "pathId": "path:lan-to-wan",
+  "topologyGeneration": 42,
+  "routeIdentity": "route-v2:89abcdef",
+  "capabilityHash": "fnv1a32:01234567"
+}

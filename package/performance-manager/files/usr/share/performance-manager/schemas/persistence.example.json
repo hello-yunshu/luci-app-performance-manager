@@ -1,0 +1,12 @@
+{
+  "schemaVersion": 1,
+  "class": "pm_policy_replay",
+  "owner": "performance_manager",
+  "reapplyTriggers": [
+    "boot",
+    "device_up",
+    "topology_change"
+  ],
+  "targetRef": "nic:pci:0000:00:03.0",
+  "actionId": "nic.ring.floor"
+}
