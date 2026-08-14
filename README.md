@@ -17,6 +17,7 @@
 ---
 
 ## 功能特性
+
 - **能力优先**：稳定 TargetRef，避免长期策略绑定 `eth0`；PPPoE / VPN 场景优先解析真实 underlay
 - **Topology 感知**：基于路由 / 策略路由证据与 rtnl 事件维护 topology、path 与 workload 模型
 - **原生 Packet Steering**：发现 / 观察 / 尊重 OpenWrt 原生实现，不重写算法
@@ -32,6 +33,7 @@
 - **LuCI Supported-first UI**：简体中文界面
 
 ## 安全不变量
+
 - Core 不硬依赖 LuCI / rpcd / Rill，可独立运行
 - Rill 仅接受 root Core 通过 UDS 连接，不能执行命令，不能写 UCI / sysctl / firewall
 - 直接 Apply 只使用固定安全 Action allowlist；benchmark 类 action 不会被静默提升为直接写入
@@ -41,6 +43,7 @@
 - 被动 / 健康类 benchmark 观察保持 `validated=false`；只有真实 validated outcome 才更新 Rill 学习
 
 ## 三个 OpenWrt 包
+
 | 包 | 说明 |
 |---|---|
 | `performance-manager` | procd 管理的 ucode/ubus Core：contracts、discovery、telemetry、事务引擎与安全动作 |
@@ -48,10 +51,14 @@
 | `performance-manager-rill` | 独立低权限 Rust Shadow 学习 sidecar，通过有界 UDS 通信 |
 
 ## 安装
+
 ### 前置条件
+
 - OpenWrt 25.12.x / x86_64
 - OpenWrt SDK 或 buildroot 构建环境（用于源码构建）
+
 ### 源码构建（OpenWrt SDK / buildroot）
+
 ```sh
 mkdir -p package/openwrt-performance-manager
 cp -a /path/to/openwrt-performance-manager/package/* package/openwrt-performance-manager/
@@ -62,8 +69,11 @@ make package/performance-manager/compile V=s
 make package/luci-app-performance-manager/compile V=s
 make package/performance-manager-rill/compile V=s
 ```
+
 > 也可以直接依赖 GitHub Actions 的 `openwrt-sdk-build` job 产出构建结果，无需本地 SDK。
+
 ### 包信息
+
 | 项目 | 值 |
 |---|---|
 | 包名 | `luci-app-performance-manager`（Core：`performance-manager`） |
@@ -73,13 +83,19 @@ make package/performance-manager-rill/compile V=s
 | UCI 配置 | `/etc/config/performance-manager` |
 | 核心程序 | `/usr/sbin/performance-manager.uc` |
 | RPC 后端 | `performance-manager`（`ubus call performance-manager <method>`） |
+
 ### 依赖
-```
+
+```text
 ucode ucode-mod-ubus ucode-mod-uci ucode-mod-rtnl ucode-mod-uloop ucode-mod-jsonc ubusd rpcd luci-base
 ```
+
 ## 使用指南
+
 ### LuCI 界面（网络 → Performance Manager）
+
 界面默认以简体中文呈现，并跟随 OpenWrt/LuCI 的系统语言设置自动切换：在 LuCI「系统 → 语言和界面」中选择中文即显示中文，选择英文即显示英文（英文为次要语言，作为未匹配语言时的回退）。
+
 | 页面 | 说明 |
 |---|---|
 | Overview | 运行状态、健康、最近事务概览 |
@@ -89,7 +105,9 @@ ucode ucode-mod-ubus ucode-mod-uci ucode-mod-rtnl ucode-mod-uloop ucode-mod-json
 | Rill Intelligence | Shadow 学习模型与决策台账 |
 | History & Rollback | 历史与回滚 |
 | Settings / Advanced | 配置项 |
+
 ### Runtime API
+
 ```sh
 ubus call performance-manager status '{}'
 ubus call performance-manager capabilities '{}'
@@ -104,20 +122,26 @@ ubus call performance-manager history '{"limit":100}'
 ubus call performance-manager diagnostics '{}'
 ubus call performance-manager rill_status '{}'
 ```
+
 合法安全动作通过 Action ID + 解析后的 TargetRef 应用：
+
 ```sh
 ubus call performance-manager apply '{"actionId":"nic.ring.floor","target":"<stableId>"}'
 ubus call performance-manager confirm '{"transactionId":"<tx>"}'
 ubus call performance-manager rollback '{"transactionId":"<tx>"}'
 ```
+
 Benchmark 生命周期：
+
 ```sh
 ubus call performance-manager benchmark_start '{"measurementClass":"controlled_ab"}'
 ubus call performance-manager benchmark_status '{"sessionId":"<session>"}'
 ubus call performance-manager benchmark_stop '{"sessionId":"<session>"}'
 ```
+
 ## 项目结构
-```
+
+```text
 package/performance-manager/files/
 ├── etc/
 │   ├── config/performance-manager    # UCI 配置
@@ -137,8 +161,10 @@ package/luci-app-performance-manager/
 ├── po/zh_Hans/                        # 简体中文翻译
 └── root/usr/share/luci/menu.d/        # LuCI 菜单注册
 ```
+
 ## 架构设计
-```
+
+```text
 ┌──────────────┐ ubus/rpcd ┌────────────────────────┐
 │  LuCI 前端   │ ─────────→ │  performance-manager   │
 │ (8 个视图)   │ ←───────── │  Core (ucode/ubus)     │
@@ -149,13 +175,18 @@ package/luci-app-performance-manager/
                           │    (Rust Shadow 学习)    │
                           └────────────────────────┘
 ```
+
 **数据流**：
+
 1. Core 通过 ubus / rtnl / uci 发现能力与 topology，维护稳定 TargetRef
 2. 前端通过 `ubus call performance-manager <method>` 查询状态 / 能力 / 建议
 3. 合法动作通过事务引擎执行：read-back → 健康验证 → commit-confirm → 必要时回滚
 4. validated outcome 可选写入 Rill，Rill 仅返回 advisory
+
 ## UCI 配置参考
+
 ### core section（main）
+
 | 选项 | 类型 | 默认值 | 说明 |
 |---|---|---|---|
 | `enabled` | boolean | 1 | 启用 Core |
@@ -171,7 +202,9 @@ package/luci-app-performance-manager/
 | `persistent_dir` | string | /etc/performance-manager | 持久目录 |
 | `health_dns_name` | string | openwrt.org | 健康检查 DNS 目标 |
 | `oom_window_seconds` / `max_load_per_cpu` / `max_cpu_steal_percent` / `max_thermal_millicelsius` | integer | 600 / 2 / 20 / 90000 | 健康门禁阈值 |
+
 ### rill section（shadow）
+
 | 选项 | 类型 | 默认值 | 说明 |
 |---|---|---|---|
 | `enabled` | boolean | 1 | 启用 Rill Shadow |
@@ -180,7 +213,9 @@ package/luci-app-performance-manager/
 | `max_message` | integer | 65536 | 最大消息字节 |
 | `timeout_ms` | integer | 1000 | 调用超时 |
 | `state_dir` | string | /etc/performance-manager/rill | Rill 持久状态 |
+
 ### benchmark section
+
 | 选项 | 类型 | 默认值 | 说明 |
 |---|---|---|---|
 | `require_explicit_start` | boolean | 1 | 必须显式启动 benchmark |
@@ -189,26 +224,34 @@ package/luci-app-performance-manager/
 | `default_measurement_class` | enum | passive_before_after | 默认测量类别 |
 | `candidate_timeout_seconds` | integer | 120 | candidate 超时 |
 | `session_idle_seconds` | integer | 600 | 会话空闲超时 |
+
 ## 构建与审计
+
 本项目使用 GitHub Actions 自动构建与验证，推送 main 分支或手动触发即可运行：
+
 - **static**：单测 + 契约校验 + source gates + final audit + LuCI JS 语法检查
 - **rill-native**：Rust native 测试（`cargo test` + `cargo check`）
 - **openwrt-ucode**：官方 OpenWrt 25.12.5 rootfs 中编译校验 Core ucode
 - **openwrt-sdk-build**：官方 SDK 构建三个包
 
 本地快速验证：
+
 ```sh
 make audit          # 单测 + 契约校验 + source gates + final audit
 make package        # 生成发布包
 ```
+
 - 目标机门禁：`scripts/openwrt-target-gate.sh`
 - 资源 / 写入 soak：`scripts/openwrt-resource-soak.sh`
 - 外部验证证据：`docs/EXTERNAL_VALIDATION.md`
 
 > `1.0.0-rc.2` 在官方 OpenWrt SDK / runtime / soak 与真实转发 A/B 门禁全部通过之前，不会标为 Stable。详见 `docs/RELEASE_CHECKLIST.md` 与 `docs/EXTERNAL_VALIDATION.md`。
+
 ## 文档
+
 - `docs/ARCHITECTURE.md` · `docs/IMPLEMENTATION_STATUS.md` · `docs/RELEASE_CHECKLIST.md`
 - `docs/EXTERNAL_VALIDATION.md`
 
 ## 许可证
+
 本项目采用 **GNU GPL v3.0-only**（[LICENSE](LICENSE)）。作为自由软件，你可以自由使用、修改与分发，但任何修改版本也必须以 GPL-3.0 许可发布并提供对应的源代码。
