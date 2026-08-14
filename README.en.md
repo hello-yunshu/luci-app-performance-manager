@@ -1,15 +1,21 @@
 # luci-app-performance-manager
+
 [中文](README.md) | **English**
+
 <p align="center">
   <img src="logo.png" alt="OpenWrt Performance Manager" width="480">
 </p>
+
 <p align="center">
   <strong>A capability-first, topology-aware, transactional performance control plane for OpenWrt</strong>
 </p>
+
 <p align="center">
   OpenWrt Performance Manager first discovers the capabilities already present in OpenWrt, drivers and the platform, then resolves Topology / TargetRef / Path / Workload. A legitimate Action only exists after passing Policy, Compatibility, Locks and Health Guard checks, and is executed through a closed loop of transactions, read-back, health verification and rollback. It is not a sysctl preset bundle, and it never replaces native providers when OpenWrt already has a mature implementation.
 </p>
+
 ---
+
 ## Features
 - **Capability-first**: stable TargetRef so long-lived policies never bind to `eth0`; PPPoE / VPN scenarios resolve the real underlay first
 - **Topology-aware**: route / policy-route evidence and rtnl events feed the topology, path and workload model

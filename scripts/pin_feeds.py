@@ -19,9 +19,15 @@ if not info.exists():
         sys.exit('feeds.buildinfo missing and FEEDS_BUILDINFO_URL not set')
     urllib.request.urlretrieve(url, info)
 for line in info.read_text().splitlines():
+    # feeds.buildinfo lines look like:
+    #   src-git <name> <url>^<commit>
     parts = line.split()
-    if len(parts) == 3 and commit_re.match(parts[2]):
-        pinned[parts[0]] = parts[2].lstrip('^')
+    if len(parts) >= 3 and parts[0] == 'src-git':
+        url = parts[2]
+        if '^' in url:
+            commit = url.rsplit('^', 1)[1]
+            if commit_re.match(commit):
+                pinned[parts[1]] = commit
 if not pinned:
     sys.exit('no pinned feed commits found in feeds.buildinfo')
 bad = []
