@@ -73,6 +73,7 @@ ucode ucode-mod-ubus ucode-mod-uci ucode-mod-rtnl ucode-mod-uloop ucode-mod-json
 ```
 ## 使用指南
 ### LuCI 界面（网络 → Performance Manager）
+界面默认以简体中文呈现，并跟随 OpenWrt/LuCI 的系统语言设置自动切换：在 LuCI「系统 → 语言和界面」中选择中文即显示中文，选择英文即显示英文（英文为次要语言，作为未匹配语言时的回退）。
 | 页面 | 说明 |
 |---|---|
 | Overview | 运行状态、健康、最近事务概览 |
@@ -202,3 +203,6 @@ make package        # 生成发布包
 ## 文档
 - `docs/ARCHITECTURE.md` · `docs/IMPLEMENTATION_STATUS.md` · `docs/RELEASE_CHECKLIST.md`
 - `docs/EXTERNAL_VALIDATION.md`
+
+## 许可证
+本项目采用 **GNU GPL v3.0-only**（[LICENSE](LICENSE)）。作为自由软件，你可以自由使用、修改与分发，但任何修改版本也必须以 GPL-3.0 许可发布并提供对应的源代码。

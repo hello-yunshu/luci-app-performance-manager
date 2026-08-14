@@ -3,7 +3,7 @@ include $(TOPDIR)/rules.mk
 PKG_NAME:=performance-manager
 PKG_VERSION:=1.0.0-rc.2
 PKG_RELEASE:=1
-PKG_LICENSE:=GPL-2.0-only
+PKG_LICENSE:=GPL-3.0-only
 PKG_MAINTAINER:=OpenWrt Performance Manager contributors
 
 include $(INCLUDE_DIR)/package.mk
@@ -12,13 +12,15 @@ define Package/performance-manager
   SECTION:=net
   CATEGORY:=Network
   SUBMENU:=Routing and Redirection
-  TITLE:=Capability-first OpenWrt performance control plane
+  TITLE:=OpenWrt 性能管理器核心（以能力为先的性能控制平面）/ Capability-first OpenWrt performance control plane
   DEPENDS:=+ubus +uci +ucode +ucode-mod-fs +ucode-mod-ubus +ucode-mod-uci +ucode-mod-rtnl +ucode-mod-uloop +ucode-mod-socket +ucode-mod-log
 endef
 
 define Package/performance-manager/description
- A topology-aware, evidence-driven and transactional performance manager.
- Core is independent from LuCI, rpcd and the optional Rill Shadow service.
+ 以能力为先、感知拓扑并采用事务机制的 OpenWrt 性能管理器。
+ 核心独立于 LuCI、rpcd 和可选的 Rill Shadow 服务。
+ / A topology-aware, evidence-driven and transactional performance manager.
+ / Core is independent from LuCI, rpcd and the optional Rill Shadow service.
 endef
 
 define Package/performance-manager/conffiles
