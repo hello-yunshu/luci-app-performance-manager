@@ -196,7 +196,7 @@ jobs:
       - name: Upload package artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: openwrt-${{ env.OPENWRT_VERSION }}-${{ env.OPENWRT_TARGET }}-packages
+          name: openwrt-${{ env.SDK_CACHE_TAG }}-packages
           path: |
             ${{ env.SDKDIR }}/bin/targets/**/packages/*.apk
             ${{ env.SDKDIR }}/bin/targets/**/packages/*.ipk
