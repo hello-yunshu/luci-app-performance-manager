@@ -178,6 +178,18 @@ msgstr "目标"
 msgid "Goal: %s"
 msgstr "目标：%s"
 
+msgid "Balanced (measurable for A/B)"
+msgstr "均衡（可用于 A/B 测量）"
+
+msgid "Throughput (measurable for A/B)"
+msgstr "吞吐（可用于 A/B 测量）"
+
+msgid "Latency (not measurable for A/B)"
+msgstr "低延迟（不可用于 A/B 测量）"
+
+msgid "CPU efficiency (not measurable for A/B)"
+msgstr "CPU 效率（不可用于 A/B 测量）"
+
 msgid "Guard"
 msgstr "保护状态"
 

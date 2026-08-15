@@ -1,6 +1,6 @@
-# Rill Shadow Learning Model — 1.0.0-rc.3
+# Rill Shadow Learning Model — 1.0.0-rc.4
 
-Since 1.0.0-rc.3 Rill is an **external runtime dependency**: Performance Manager consumes the Rill binary built and released by the Rill upstream repository; this repository no longer vendors, compiles, cross-compiles or natively tests Rill's Rust implementation. The PM↔Rill dependency contract is formalized in `contracts/rill-dependency.json` and validated by `scripts/rill_contract_check.py`.
+Since 1.0.0-rc.4 Rill is an **external runtime dependency**: Performance Manager consumes the Rill binary built and released by the Rill upstream repository; this repository no longer vendors, compiles, cross-compiles or natively tests Rill's Rust implementation. The PM↔Rill dependency contract is formalized in `contracts/rill-dependency.json` and validated by `scripts/rill_contract_check.py`.
 
 Rill runs as a dedicated unprivileged external service over a bounded Unix-domain socket. The root Core is the only accepted peer (`SO_PEERCRED`). Rill cannot execute commands, write UCI/sysctl/firewall state or call the Action actuator. When the upstream Rill binary is absent/unreachable/protocol-incompatible, Core stays fail-closed via the capability/protocol gate (`external-runtime-missing`, `protocol-major-mismatch`, `RILL_PROTOCOL_API`); it never auto-applies and never fakes a recommendation.
 

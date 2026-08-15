@@ -1,0 +1,9 @@
+# Local real-Core ucode runtime harness image (aarch64 dev only, NOT CI).
+# CI uses the official OpenWrt x86_64 rootfs; this image lets the harness be
+# authored and validated locally on Apple Silicon before pushing to Remote CI.
+FROM alpine:latest
+RUN apk add --no-cache ucode ucode-mod-fs ucode-mod-ubus ucode-mod-rtnl \
+    ucode-mod-uci ucode-mod-uloop ucode-mod-socket ucode-mod-math ucode-mod-log \
+    coreutils findutils grep sed
+WORKDIR /work
+ENTRYPOINT ["/bin/sh"]

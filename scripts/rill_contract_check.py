@@ -17,7 +17,9 @@ contract:
 When the upstream release entry is null (external-dependency-blocked), that is
 a legitimate, honest state as long as the Core fails closed and the integration
 package never compiles/bundles Rill.  This script does NOT fabricate a pass for
-a missing release: it reports the blocked status verbatim.
+a missing release: it reports the blocked status verbatim and separates the
+PM-side fail-closed contract (pass) from the upstream integration (blocked), so
+the overall feature status is blocked rather than a claimed Rill PASS.
 """
 from __future__ import annotations
 import json, sys
@@ -67,5 +69,29 @@ else:
     check('blocked reason recorded', bool(up.get('blockedReason')))
 
 ok=all(ok for _,ok in checks)
-print(f"rill-contract: {sum(1 for _,ok in checks if ok)}/{len(checks)} checks passed; upstream status={up.get('status')}")
+# 5. Honest feature status: the PM-side fail-closed contract can pass while the
+#    upstream Rill integration stays blocked.  These MUST be reported separately
+#    so a missing upstream is never surfaced as a working Rill integration.
+up=DEP.get('upstream',{})
+provisioned = bool(up.get('releaseVersion') or up.get('artifactUrl') or up.get('artifactSha256'))
+pm_contract = 'pass' if ok else 'fail'
+upstream_integration = 'pass' if (provisioned and ok) else 'blocked'
+overall = 'pass' if (pm_contract == 'pass' and upstream_integration == 'pass') else 'blocked'
+status = {
+    'schemaVersion': 1,
+    'contract': 'rill-integration-status',
+    'pmFailClosedContract': pm_contract,
+    'upstreamIntegration': upstream_integration,
+    'overallFeatureStatus': overall,
+    'upstreamStatus': up.get('status'),
+    'blockedReason': up.get('blockedReason'),
+    'provisioned': provisioned,
+    'checks': [{'name': n, 'ok': o} for n, o in checks],
+    'note': 'A blocked upstream integration is NOT a PASS; the Core/runtime fail-closed contract is verified separately and the overall feature status remains blocked until a compatible upstream release is provisioned and verified.'
+}
+out = ROOT/'docs/rill-integration-status.json'
+out.write_text(json.dumps(status, ensure_ascii=False, indent=2) + '\n')
+print(f"rill-contract: {sum(1 for _,ok in checks if ok)}/{len(checks)} checks passed; "
+      f"pmFailClosedContract={pm_contract} upstreamIntegration={upstream_integration} overallFeatureStatus={overall}")
+print(json.dumps(status, ensure_ascii=False, indent=2))
 if not ok: sys.exit(1)

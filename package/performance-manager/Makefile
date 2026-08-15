@@ -1,7 +1,7 @@
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=performance-manager
-PKG_VERSION:=1.0.0_rc3
+PKG_VERSION:=1.0.0_rc4
 PKG_RELEASE:=1
 PKG_LICENSE:=GPL-3.0-only
 PKG_MAINTAINER:=OpenWrt Performance Manager contributors

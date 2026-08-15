@@ -56,7 +56,7 @@ for i in range(first_decl, last_decl + 1):
         continue  # indented -> inside a function body
     if re.match(r'^}\s*$', ln):
         continue
-    if not ln.strip() or ln.strip().startswith('//'):
+    if not ln.strip() or ln.strip().startswith('//') or ln.strip().startswith('/*') or ln.strip().startswith('*'):
         continue
     raise SystemExit(f'unexpected col-0 line at L{i}: {ln!r}')
 
@@ -118,7 +118,7 @@ def find_forward(text):
     return fwd
 
 fwd = find_forward(result)
-print(f'functions: {len(decl_lines)}  hoisted-decls: {len(hoist_lines)-2}')
+print(f'functions: {len(decl_lines)}  hoisted-decls: {len(hoist_lines)-2}', file=sys.stderr)
 if fwd:
     # These are benign: every callee is a hoisted `let` binding declared at the
     # top, so the call resolves as long as it happens after assignment (it does —
@@ -129,15 +129,15 @@ if fwd:
             if c not in set(decl_lines.values()):
                 unresolved.append((ln, name, c, cl))
     if unresolved:
-        print(f'FATAL: callees not covered by hoist block: {unresolved}')
+        print(f'FATAL: callees not covered by hoist block: {unresolved}', file=sys.stderr)
         raise SystemExit(1)
-    print(f'forward refs resolved by hoisting: {sum(len(c) for c in fwd.values())}')
+    print(f'forward refs resolved by hoisting: {sum(len(c) for c in fwd.values())}', file=sys.stderr)
 else:
-    print('no forward references remain')
+    print('no forward references remain', file=sys.stderr)
 
 if out_path:
     with open(out_path, 'w') as f:
         f.write(result)
-    print(f'wrote {out_path}')
+    print(f'wrote {out_path}', file=sys.stderr)
 else:
     sys.stdout.write(result)

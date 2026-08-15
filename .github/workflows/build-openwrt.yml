@@ -22,7 +22,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
       - name: Install host dependencies
         run: sudo apt-get update && sudo apt-get install -y build-essential gawk gettext libncurses-dev libssl-dev python3 rsync unzip file wget zstd
       - name: Download official SDK and verify checksum
@@ -64,23 +64,26 @@ jobs:
         run: cd "$SDKDIR" && make -j2 package/luci-app-performance-manager/compile V=s
       - name: Build Rill integration package (glue only, never compiles Rill)
         run: cd "$SDKDIR" && make -j2 package/performance-manager-rill/compile V=s
-      - name: Assert expected packages present
+      - name: Assert expected packages present (exact APK metadata match)
         shell: bash
         run: |
           set -euo pipefail
           cd "$SDKDIR"
           find bin -name '*.apk' -o -name '*.ipk' | sort
-          test -n "$(find bin -name 'performance-manager*.apk' | head -n1)" || { echo 'expected performance-manager APK missing' >&2; exit 1; }
-          test -n "$(find bin -name 'luci-app-performance-manager*.apk' | head -n1)" || { echo 'expected luci-app-performance-manager APK missing' >&2; exit 1; }
-          test -n "$(find bin -name 'performance-manager-rill*.apk' | head -n1)" || { echo 'expected performance-manager-rill APK missing' >&2; exit 1; }
+          # Version part of the APK pkgver: VERSION is 1.0.0-rc.4 -> 1.0.0_rc4.
+          apk_version="$(sed -E 's/-rc\./_rc/' "$GITHUB_WORKSPACE/VERSION")"
+          # Exact verification reads .PKGINFO (pkgname/pkgver/arch/deps) instead
+          # of filename prefix, so performance-manager and performance-manager-rill
+          # can never be confused and a stale rc.3 artifact can never pass.
+          python3 "$GITHUB_WORKSPACE/scripts/verify_apks.py" "$SDKDIR" "$apk_version" "x86_64"
       - name: Generate build metadata (auditable evidence)
         shell: bash
         run: |
           set -euo pipefail
-          python3 -m pip install --disable-pip-version-check jsonschema pyyaml 2>/dev/null || true
-          # Re-run audit locally for the evidence bundle (source gates only;
-          # the SDK build is the remote compile evidence captured below).
-          (make audit >/dev/null 2>&1 || true)
+          python3 -m pip install --disable-pip-version-check jsonschema pyyaml
+          # Blocking source audit: a failing audit must fail this workflow; the
+          # `|| true` swallower is deliberately removed.
+          make audit
           python3 scripts/build_evidence.py
           cat build-metadata.json
       - name: Generate package checksums
@@ -122,7 +125,7 @@ jobs:
           PY
       - name: Upload package artifacts and build evidence
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: openwrt-${{ env.SDK_CACHE_TAG }}-packages-and-evidence
           path: |
@@ -138,4 +141,6 @@ jobs:
             docs/SOURCE_GATES.json
             docs/HOST_SYNTAX_REPORT.json
             docs/RESOURCE_BUDGET.json
+            docs/rill-integration-status.json
+            docs/apk-verification.json
           if-no-files-found: error

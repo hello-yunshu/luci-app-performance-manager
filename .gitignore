@@ -10,6 +10,10 @@ OpenWrt_Performance_Manager_*_Prompt_2026-08-15.md
 # Docker build artifacts
 tools/docker-validate/build/
 tools/docker-validate/rootfs/
+tools/docker-validate/owrt-armv8/
+tools/docker-validate/_probe.uc
+tools/docker-validate/_run_probe.uc
+tools/docker-validate/harness/build/
 
 # Python
 __pycache__/

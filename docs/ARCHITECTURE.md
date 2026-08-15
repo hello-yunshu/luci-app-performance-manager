@@ -1,4 +1,4 @@
-# Architecture — 1.0.0-rc.3
+# Architecture — 1.0.0-rc.4
 
 ## Authority boundary
 
@@ -12,7 +12,7 @@ The Companion Agent is an endpoint evidence utility for explicit tests and has n
 
 ### Rill externalization
 
-Since 1.0.0-rc.3 Rill is an **external runtime dependency**: Performance Manager only consumes the Rill binary built and released by the Rill upstream repository. This repository no longer vendors, compiles, cross-compiles or natively tests Rill's Rust implementation (`performance-manager-rill/src/` was removed). `performance-manager-rill` is now an integration/meta package — no Rust build path, `PKG_BUILD_DEPENDS` empty, `Build/Compile` a no-op — containing only PM-specific glue: a fail-closed init guard and `lib/upgrade/keep.d`. Its init script starts nothing when the upstream Rill binary is absent and logs `external Rill runtime not installed; integration blocked (fail-closed)`.
+Since 1.0.0-rc.4 Rill is an **external runtime dependency**: Performance Manager only consumes the Rill binary built and released by the Rill upstream repository. This repository no longer vendors, compiles, cross-compiles or natively tests Rill's Rust implementation (`performance-manager-rill/src/` was removed). `performance-manager-rill` is now an integration/meta package — no Rust build path, `PKG_BUILD_DEPENDS` empty, `Build/Compile` a no-op — containing only PM-specific glue: a fail-closed init guard and `lib/upgrade/keep.d`. Its init script starts nothing when the upstream Rill binary is absent and logs `external Rill runtime not installed; integration blocked (fail-closed)`.
 
 - The `shadow` rill UCI section gains a `binary` option (default empty) pointing at the upstream Rill runtime path; empty = external dependency not installed and integration is blocked.
 - `contracts/rill-dependency.json` formalizes the PM↔Rill dependency contract (protocol api=2, ops status/observe/outcome, `ctx-v1:` ContextKey maxLength 512, required capabilities, `minimumRillVersion`, upstream release provenance); `scripts/rill_contract_check.py` validates it.

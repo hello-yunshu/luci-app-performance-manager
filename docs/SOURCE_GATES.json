@@ -1,86 +1,134 @@
 {
   "planningBaseline": "v0.3.2 Contract Freeze",
-  "scope": "source-completion-only",
+  "scope": "structural-source-only",
+  "forbiddenApi": [
+    [
+      "no Cargo.toml reintroduced",
+      true
+    ],
+    [
+      "no Cargo.lock reintroduced",
+      true
+    ],
+    [
+      "no Rust .rs source reintroduced",
+      true
+    ],
+    [
+      "integration Makefile Build/Compile stays thin",
+      true
+    ],
+    [
+      "no forbidden cargo/rustc invocation in CI",
+      true
+    ]
+  ],
   "phases": {
     "0": {
       "name": "Contract Freeze",
       "status": "pass",
       "checks": 3,
-      "failed": []
+      "failed": [],
+      "evidence": "structural: schema files + frozen contract fields present",
+      "verificationLayer": "structural-source"
     },
     "1": {
       "name": "Bootstrap",
       "status": "pass",
       "checks": 4,
-      "failed": []
+      "failed": [],
+      "evidence": "structural: package Makefiles + Core service wiring present",
+      "verificationLayer": "structural-source"
     },
     "2": {
       "name": "Capability / Topology / Target / Event",
       "status": "pass",
       "checks": 5,
-      "failed": []
+      "failed": [],
+      "evidence": "structural: functions/commands present; real Multi-WAN/underlay behavior is verified by the real Core runtime harness (harness [1]-[3])",
+      "verificationLayer": "structural-source"
     },
     "3": {
       "name": "Telemetry / Health / Analyzer / Path",
       "status": "pass",
       "checks": 5,
-      "failed": []
+      "failed": [],
+      "evidence": "structural: analyzer/health functions present",
+      "verificationLayer": "structural-source"
     },
     "4": {
       "name": "Policy / Compatibility",
       "status": "pass",
       "checks": 3,
-      "failed": []
+      "failed": [],
+      "evidence": "structural: detectors + compatibility function present",
+      "verificationLayer": "structural-source"
     },
     "5": {
       "name": "Transactions / Locks / Commit-confirm",
       "status": "pass",
       "checks": 11,
-      "failed": []
+      "failed": [],
+      "evidence": "structural: transaction/lock/cleanup wiring present; real transaction semantics are exercised by the runtime harness and uninstall/migration gates",
+      "verificationLayer": "structural-source"
     },
     "6": {
       "name": "Conservative",
       "status": "pass",
-      "checks": 3,
-      "failed": []
+      "checks": 4,
+      "failed": [],
+      "evidence": "structural: allowlist + tick wiring present; real Conservative semantics are verified by the runtime harness [6]",
+      "verificationLayer": "structural-source"
     },
     "7": {
       "name": "Benchmark",
       "status": "pass",
       "checks": 12,
-      "failed": []
+      "failed": [],
+      "evidence": "structural: state machine + fingerprint wiring present; methodology-mismatch and nft candidate-mask behavior are verified by the runtime harness [4]-[5]",
+      "verificationLayer": "structural-source"
     },
     "8": {
       "name": "Rill Intelligence (external runtime)",
       "status": "pass",
       "checks": 9,
-      "failed": []
+      "failed": [],
+      "evidence": "structural: PM-side fail-closed contract wiring present; Rill unavailable/malformed fail-closed and status honesty are verified by the runtime harness [7] and scripts/rill_contract_check.py. Upstream external integration is BLOCKED (see docs/rill-integration-status.json).",
+      "verificationLayer": "structural-source"
     },
     "9": {
       "name": "Recommend",
       "status": "pass",
-      "checks": 2,
-      "failed": []
+      "checks": 1,
+      "failed": [],
+      "evidence": "structural: advisory wiring present; generate-advice behavior is gated by Rill availability (fail-closed when external runtime blocked).",
+      "verificationLayer": "structural-source"
     },
     "10": {
       "name": "Assisted Auto",
       "status": "pass",
       "checks": 6,
-      "failed": []
+      "failed": [],
+      "evidence": "structural: opt-in + traffic-gate wiring present",
+      "verificationLayer": "structural-source"
     },
     "11": {
       "name": "Platforms",
       "status": "pass",
       "checks": 2,
-      "failed": []
+      "failed": [],
+      "evidence": "structural: platform detection present; real target hotplug/forwarding is target-only evidence",
+      "verificationLayer": "structural-source"
     },
     "12": {
       "name": "Companion",
       "status": "pass",
       "checks": 3,
-      "failed": []
+      "failed": [],
+      "evidence": "structural: companion envelope + ingest wiring present",
+      "verificationLayer": "structural-source"
     }
   },
   "allPassed": true,
-  "note": "Target build/runtime/virtualization/forwarding/soak gates are intentionally tracked separately and are not inferred from source gates."
+  "note": "These gates are STRUCTURAL evidence only: file/schema/function-wiring presence plus forbidden-API guards (no Cargo/Rust/cargo build). They do NOT prove complex behavior is correct. Real behavior is verified by (1) the real Core ucode runtime harness (tools/docker-validate/harness -> core-runtime-harness.log), (2) LuCI render smoke, (3) the Remote OpenWrt SDK build, and (4) exact APK metadata validation. Target build/runtime/virtualization/forwarding/soak gates are tracked separately."
 }

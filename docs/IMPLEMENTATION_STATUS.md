@@ -1,6 +1,20 @@
-# Implementation Status — 1.0.0-rc.3
+# Implementation Status — 1.0.0-rc.4
 
-This repository implements the frozen planning pack v0.3.2 through Phase 12 as a **source-complete release candidate** after the strict rc.1 re-audit and the 2026-08-14 independent re-audit hardening. “Source-complete” means the required contracts, runtime mechanisms, UI surfaces, guards, tests and target-evidence tooling exist; it does **not** claim that target/testbed gates have already passed. The independent re-audit closed: benchmark tuning-domain exclusivity (global lock + idle/stale recovery), full context fingerprint with candidate-key masking, strict non-fallback evaluation paths with a resolved-route hard gate, path-specific health, the Rill contextual bandit with formal per-op v2 IPC schema and strict JSON parsing, the target-bound Assisted Auto traffic gate, fail-closed uninstall cleanup, pinned CI toolchain/feeds, behavioral source gates and the self-contained final audit orchestrator.
+This repository implements the frozen planning pack v0.3.2 through Phase 12 as a **source-complete release candidate** after the strict rc.1 re-audit, the 2026-08-14 independent re-audit hardening, and the 2026-08-16 rc.4 single-repo remediation. “Source-complete” means the required contracts, runtime mechanisms, UI surfaces, guards, tests and target-evidence tooling exist; it does **not** claim that target/testbed gates have already passed. The independent re-audit closed: benchmark tuning-domain exclusivity (global lock + idle/stale recovery), full context fingerprint with candidate-key masking, strict non-fallback evaluation paths with a resolved-route hard gate, path-specific health, the Rill contextual bandit with formal per-op v2 IPC schema and strict JSON parsing, the target-bound Assisted Auto traffic gate, fail-closed uninstall cleanup, pinned CI toolchain/feeds, behavioral source gates and the self-contained final audit orchestrator.
+
+### 1.0.0-rc.4 round (single-repo remediation + real Core harness)
+
+- **Real Core ucode runtime harness (Layer 2)** — `tools/docker-validate/harness` executes the actual `performance-manager.uc` on real OpenWrt 25.12.5 ucode and asserts Multi-WAN/PBR evidence discovery, underlay resolution, path-specific workload, nft candidate-only masking, methodology mismatch, Conservative auto-tick gating and Rill fail-closed; wired into `openwrt-ucode` CI as the blocking behavioral regression.
+- **`run()` portability fix** — argv-ARRAY → POSIX-quoted shell string (the array form is rejected by `fs.popen` on the supported runtime); regression test updated to assert safe shell-quoting.
+- **`rill_send()` framing fix** — newline framing + partial/oversized/timeout/peer-closed handling.
+- **WAN candidates from evidence** (`wan_candidates_evidence`) instead of `wan[0-9]+` naming.
+- **nft fingerprint masking** — normalized JSON, volatile counters stripped, PM-owned flow-offload masked.
+- **Conservative auto-tick** — safe-allowlist-only auto-apply through the full transactional chain, health/benchmark/backoff gated.
+- **Honest Rill integration status** — `docs/rill-integration-status.json` (pmFailClosedContract / upstreamIntegration / overallFeatureStatus); source gates + final audit report the upstream integration as **blocked**, never PASS.
+- **Exact APK verification** (`scripts/verify_apks.py`) via `.PKGINFO` pkgname/pkgver/arch.
+- **CI hardening** — Actions pinned to SHAs; `make audit` failures not swallowed; CA-bundled TLS apk.
+- **Goal UI honesty** — settings labels measurable vs non-measurable goals.
+- **rc.3 → rc.4 migration** — `uci-defaults/90-performance-manager` sets the new `main.conservative_auto` on the preserved conffile.
 
 ### 1.0.0-rc.3 round (closed blockers / hardening)
 
