@@ -28,7 +28,16 @@ def gate(name, checks):
 # (tools/docker-validate/harness) and the Remote OpenWrt build, not of source
 # substring checks.
 def forbidden_api_gates():
-    repo_files = [p for p in ROOT.rglob('*') if p.is_file() and '__pycache__' not in p.parts and '.git' not in p.parts]
+    # Enumerate the repository's own files.  In CI the workspace also contains
+    # the downloaded OpenWrt SDK tree as a subdirectory, whose feed packages
+    # legitimately include Rust/Cargo files; those must NOT count as this
+    # repository reintroducing a Rust toolchain, so scan git-tracked files
+    # (the SDK is untracked) rather than every file on disk.
+    try:
+        out = subprocess.run(['git', 'ls-files', '-z'], cwd=ROOT, capture_output=True, text=True)
+        repo_files = [ROOT / p for p in out.stdout.split('\0') if p]
+    except Exception:
+        repo_files = [p for p in ROOT.rglob('*') if p.is_file() and '__pycache__' not in p.parts and '.git' not in p.parts]
     names = {p.name for p in repo_files}
     has_cargo_toml = any(p.name == 'Cargo.toml' for p in repo_files)
     has_cargo_lock = any(p.name == 'Cargo.lock' for p in repo_files)
