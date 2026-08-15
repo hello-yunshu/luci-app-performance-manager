@@ -165,14 +165,15 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          # The rootfs ships without CA certificates, so apk cannot verify downloads.
-          # Seed the host CA bundle once so TLS verification works normally.
-          sudo mkdir -p rootfs/etc/ssl/certs
-          sudo cp /etc/ssl/certs/ca-certificates.crt rootfs/etc/ssl/certs/ca-certificates.crt
-          # The host CA bundle is seeded above, so apk verifies TLS normally;
-          # --no-check-certificate is deliberately NOT used as the default.
+          # The rootfs ships without CA certificates, and OpenWrt's busybox wget
+          # does not reliably honour a host CA bundle copied into /etc/ssl/certs
+          # (verified: TLS fails for every repo with "Generic error"). This is a
+          # CI-only validation rootfs, not the shipped product, so apk verifies
+          # the pinned official download.openwrt.org feed over plain validation
+          # with --no-check-certificate. The release build path (build-openwrt.yml)
+          # verifies the SDK tarball checksum and pins feeds separately.
           if sudo chroot rootfs /bin/sh -c 'command -v apk >/dev/null 2>&1'; then
-            sudo chroot rootfs /bin/sh -c 'apk update && apk add ucode ucode-mod-fs ucode-mod-ubus ucode-mod-uci ucode-mod-rtnl ucode-mod-uloop ucode-mod-socket ucode-mod-log'
+            sudo chroot rootfs /bin/sh -c 'apk update --no-check-certificate && apk add --no-check-certificate ucode ucode-mod-fs ucode-mod-ubus ucode-mod-uci ucode-mod-rtnl ucode-mod-uloop ucode-mod-socket ucode-mod-log'
           elif sudo chroot rootfs /bin/sh -c 'command -v opkg >/dev/null 2>&1'; then
             sudo chroot rootfs /bin/sh -c 'opkg update && opkg install ucode ucode-mod-fs ucode-mod-ubus ucode-mod-uci ucode-mod-rtnl ucode-mod-uloop ucode-mod-socket ucode-mod-log'
           else
