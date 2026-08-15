@@ -70,7 +70,7 @@ make package/luci-app-performance-manager/compile V=s
 make package/performance-manager-rill/compile V=s
 ```
 
-> 也可以直接依赖 GitHub Actions 的 `openwrt-sdk-build` job 产出构建结果，无需本地 SDK。
+> 也可以直接依赖 GitHub Actions 的 `build-openwrt.yml` → `openwrt-sdk-build` job 产出构建结果，无需本地 SDK。
 
 ### 包信息
 
@@ -237,10 +237,13 @@ package/luci-app-performance-manager/
 
 本项目使用 GitHub Actions 自动构建与验证，推送 main 分支或手动触发即可运行：
 
+**`ci.yml`（源码与行为审计，不编译）**
 - **static**：单测 + 契约校验 + source gates + final audit + LuCI JS 语法 & render smoke
-- **rill-contract**：验证 PM ↔ 上游 Rill 依赖契约与固定 upstream release 溯源（不编译 Rill）
+- **rill-contract**：验证 PM ↔ 上游 Rill 依赖契约与固定 upstream release 溯源（不编译 Rill），并产出 `rill-consumed-manifest.json`
 - **openwrt-ucode**：官方 OpenWrt 25.12.5 rootfs 中编译校验 Core ucode
-- **openwrt-sdk-build**：官方 SDK 构建本仓库拥有的三个包（Core / LuCI / integration glue）
+
+**`build-openwrt.yml`（远程官方 SDK 构建）**
+- **openwrt-sdk-build**：官方 SDK 构建本仓库拥有的三个包（Core / LuCI / integration glue），并产出 `build-metadata.json`、`checksums.txt` 与审计证据 artifact
 
 > 本仓库不再有 `rill-native` / Rill SDK build job：不安装 Rust 工具链编译 Rill。Rill 的 native 构建与测试由 Rill 上游仓库的 Actions 负责。
 
