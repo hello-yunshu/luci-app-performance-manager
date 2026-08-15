@@ -198,6 +198,8 @@ jobs:
         with:
           name: openwrt-${{ env.SDK_CACHE_TAG }}-packages
           path: |
+            ${{ env.SDKDIR }}/bin/packages/**/*.apk
+            ${{ env.SDKDIR }}/bin/packages/**/*.ipk
             ${{ env.SDKDIR }}/bin/targets/**/packages/*.apk
             ${{ env.SDKDIR }}/bin/targets/**/packages/*.ipk
           if-no-files-found: error
