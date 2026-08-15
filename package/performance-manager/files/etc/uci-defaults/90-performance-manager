@@ -1,4 +1,14 @@
 #!/bin/sh
 # Preserve existing settings. Only ensure the persistent policy directory exists.
 mkdir -p /etc/performance-manager
+
+# rc.3 -> rc.4 migration: `main.conservative_auto` is new. The Core defaults it
+# to enabled (true) when absent, but make it explicit on the preserved conffile
+# so an upgrade from rc.3 surfaces the intended conservative auto-apply setting
+# rather than silently inheriting a default.
+if ! uci get performance-manager.main.conservative_auto >/dev/null 2>&1; then
+	uci set performance-manager.main.conservative_auto='1'
+	uci commit performance-manager
+fi
+
 exit 0

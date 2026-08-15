@@ -41,8 +41,22 @@ if (!conn) {
 	exit(1);
 }
 
+function shell_quote(arg) {
+	let s = `${arg}`;
+	/* Plain safe characters need no quoting; everything else is single-quoted
+	 * with the POSIX \' escape so argv elements survive the shell round-trip. */
+	if (match(s, /^[A-Za-z0-9_@%+=:,.|/\-]+$/))
+		return s;
+	return sprintf("'%s'", replace(s, /'/g, "'\\''"));
+}
+
 function run(argv) {
-	let p = fs.popen(argv, 'r');
+	/* ucode's fs.popen rejects an argv ARRAY on the supported OpenWrt runtime
+	 * (returns null, so every command would silently fail). A shell-joined
+	 * string is the portable form that works on real OpenWrt 25.12.5. Each
+	 * element is POSIX-quoted so arguments survive the /bin/sh round-trip. */
+	let cmd = join(' ', map(argv ?? [], shell_quote));
+	let p = fs.popen(cmd, 'r');
 	if (!p)
 		return { rc: 127, out: '' };
 	let out = p.read('all') ?? '';
@@ -244,6 +258,16 @@ function netdevs() {
 	return out;
 }
 
+function wan_underlay_devices() {
+	/* Devices that underlay a real WAN candidate, derived from route/rule
+	 * evidence so a custom-named WAN (isp-b, fiber, ...) is classified as
+	 * wan-underlay rather than falling through to physical-underlay. */
+	let devs = {};
+	for (let w in wan_candidates_evidence())
+		for (let d in [ w.device, w.l3_device ]) if (d) devs[d] = true;
+	return devs;
+}
+
 function target_refs() {
 	let refs = [];
 	let topo = interface_dump();
@@ -267,12 +291,13 @@ function target_refs() {
 				push(runtime_interfaces[runtime], role);
 		}
 	}
+	let wan_devs = wan_underlay_devices();
 	for (let d in netdevs()) {
 		if (!d.targetRef)
 			continue;
 		let r = stable_target(d.name);
 		let ifrole = roles[d.name];
-		if (ifrole == 'wan' || match(ifrole ?? '', /^wan[0-9]*$/))
+		if (wan_devs[d.name] || ifrole == 'wan' || match(ifrole ?? '', /^wan[0-9]*$/))
 			r.logicalRole = 'wan-underlay';
 		else if (ifrole == 'lan')
 			r.logicalRole = 'lan-underlay';
@@ -342,24 +367,40 @@ function push_unique_wl(dst, value) {
 	if (index(dst, value) < 0) push(dst, value);
 }
 
+function device_type_map() {
+	/* netifd device dump carries the device TYPE (bridge/vlan/tunnel/wireless/
+	 * ppp/...), which is the runtime-shaped evidence used to classify a path
+	 * instead of guessing from interface names. */
+	let devs = device_dump(), m = {};
+	for (let d in devs.device ?? []) if (d?.name) m[d.name] = d?.type ?? null;
+	return m;
+}
+
 function derive_workload(entry) {
-	/* Workload Class is derived from evidence, never hard-coded to
-	 * plain_forwarding.  Covers every class declared by the frozen contract:
-	 * plain_forwarding / local_endpoint / transparent_proxy / vpn_tunnel /
-	 * pppoe / wireless / storage_service. */
+	/* Workload Class is derived from the CURRENT path's own evidence, never
+	 * from global system state.  A globally-installed VPN must NOT label an
+	 * unrelated plain WAN path as vpn_tunnel: a path is vpn_tunnel only when
+	 * it actually traverses a tunnel device/proto.  wireless is decided by the
+	 * netifd device type (or sysfs), not by a `wlan` name.  storage_service is
+	 * not guessed from device NAMES (ethN-swp / storage): there is no reliable
+	 * storage-bound workload evidence here, so it is deliberately not emitted
+	 * rather than guessed. */
 	let wl = [];
 	let proto = entry?.proto ?? null;
-	let integ = integration_state();
+	let chain = entry?.underlayChain ?? [];
+	let types = device_type_map();
+	let is_tunnel = index([ 'wireguard', 'openvpn', 'gre', 'gretap', 'vti', 'sit', 'ip6tnl', 'tun', 'pptp' ], proto ?? '') >= 0;
+	for (let name in chain) {
+		let t = types[name] ?? '';
+		if (index([ 'wireguard', 'tun', 'tunnel', 'gre', 'gretap', 'vti', 'sit', 'ip6tnl' ], t) >= 0) is_tunnel = true;
+		if (t == 'wireless') push_unique_wl(wl, 'wireless');
+	}
 	if (proto == 'pppoe') push_unique_wl(wl, 'pppoe');
-	if (integ.transparentProxy) push_unique_wl(wl, 'transparent_proxy');
-	if (integ.wireguard || integ.openvpn) push_unique_wl(wl, 'vpn_tunnel');
-	for (let name in (entry?.underlayChain ?? []))
-		if (match(name ?? '', /^wlan[0-9]/)) { push_unique_wl(wl, 'wireless'); break; }
+	if (is_tunnel) push_unique_wl(wl, 'vpn_tunnel');
 	if (entry?.id == 'path:local-endpoint') push_unique_wl(wl, 'local_endpoint');
-	/* storage_service is a classification for devices bound to storage I/O;
-	 * it is only emitted when a storage-bound NIC is present in the chain. */
-	for (let name in (entry?.underlayChain ?? []))
-		if (match(name ?? '', /^(eth[0-9]+-swp|.*storage.*)/)) { push_unique_wl(wl, 'storage_service'); break; }
+	/* transparent_proxy is a system-wide policy signal: every forwarding path
+	 * traverses the proxy, so it is deliberately not path-specific. */
+	if (integration_state().transparentProxy) push_unique_wl(wl, 'transparent_proxy');
 	if (!length(wl)) push_unique_wl(wl, 'plain_forwarding');
 	return wl;
 }
@@ -433,16 +474,64 @@ function route_context(wan) {
 	};
 }
 
+function wan_candidates_evidence() {
+	/* Derive real WAN candidates from runtime route/rule evidence, not from
+	 * interface NAME patterns.  A custom interface (isp-b, fiber, backup,
+	 * lte_uplink, wwan, ...) is a WAN because a default/policy route or a
+	 * policy-routing rule references its device, not because it matches
+	 * `wan[0-9]+`.  Minimal images without ip route evidence fall back to an
+	 * explicit `wan`/`wan-N` name only as a last resort. */
+	let dump = interface_dump(), by_dev = {};
+	for (let i in dump.interface ?? []) {
+		for (let d in [ i.device, i.l3_device ]) {
+			if (!d) continue;
+			by_dev[d] = by_dev[d] ?? [];
+			if (index(by_dev[d], i.interface) < 0) push(by_dev[d], i.interface);
+		}
+	}
+	let route_devs = {};
+	for (let rows in [ json_rows(run([ 'ip', '-j', '-4', 'route', 'show', 'table', 'all', 'default' ]).out),
+	                   json_rows(run([ 'ip', '-j', '-6', 'route', 'show', 'table', 'all', 'default' ]).out) ]) {
+		for (let r in rows) {
+			let devs = r.dev ? [ r.dev ] : [];
+			for (let nh in r.nexthops ?? []) if (nh.dev) push(devs, nh.dev);
+			for (let d in devs) if (d) route_devs[d] = true;
+		}
+	}
+	for (let rows in [ json_rows(run([ 'ip', '-j', '-4', 'rule', 'show' ]).out),
+	                   json_rows(run([ 'ip', '-j', '-6', 'rule', 'show' ]).out) ]) {
+		for (let r in rows) {
+			for (let k in [ 'oif', 'iif', 'dev' ]) if (r[k]) route_devs[r[k]] = true;
+		}
+	}
+	let out = [], seen = {};
+	for (let d in keys(route_devs)) {
+		for (let name in by_dev[d] ?? []) {
+			if (seen[name]) continue;
+			seen[name] = true;
+			for (let i in dump.interface ?? []) if (i.interface == name) { push(out, i); break; }
+		}
+	}
+	return out;
+}
+
 function topology() {
-	let dump=interface_dump(), interfaces=[], wans=[], lan=null;
+	let dump=interface_dump(), interfaces=[], lan=null;
 	for (let i in dump.interface ?? []) {
 		let name=i.interface, l3=i.l3_device ?? i.device ?? null;
 		push(interfaces,{name:name,l3Device:l3,up:i.up ?? false,proto:i.proto ?? null,device:i.device ?? null});
 		if (name == 'lan') lan=i;
-		if (name == 'wan' || match(name ?? '', /^wan[0-9]+$/)) push(wans,i);
 	}
-	/* A named wan is primary when present; otherwise preserve netifd order. */
-	sort(wans,function(a,b){ if (a.interface=='wan') return -1; if (b.interface=='wan') return 1; return `${a.interface}` > `${b.interface}` ? 1 : -1; });
+	/* WAN candidates come from runtime route/rule evidence first; the old
+	 * name-based wan/wan-N discovery is only a fallback on images with no ip
+	 * route evidence, so custom-named WANs are never dropped for failing a
+	 * name pattern.  An explicit `wan` interface still wins as primary. */
+	let wans = wan_candidates_evidence();
+	if (!length(wans)) {
+		for (let i in dump.interface ?? [])
+			if (i.interface == 'wan' || match(i.interface ?? '', /^wan[0-9]+$/)) push(wans, i);
+	}
+	sort(wans,function(a,b){ if (a.interface == 'wan') return -1; if (b.interface == 'wan') return 1; return `${a.interface}` > `${b.interface}` ? 1 : -1; });
 	let devices=netdevs(), paths=[];
 	for (let wi=0; wi<length(wans); wi++) {
 		let wan=wans[wi], path_targets=[], underlay=underlay_chain(wan);
@@ -545,19 +634,85 @@ function integration_fingerprint(masked_keys) {
 	return `integ-v1:${fnv1a32(join('\n', rows))}`;
 }
 
+function nft_has_key(node, key) {
+	/* Recursive key search over parsed nft JSON (objects + arrays). */
+	let t = type(node);
+	if (t == 'object') {
+		for (let k in keys(node))
+			if (k == key || nft_has_key(node[k], key)) return true;
+		return false;
+	}
+	if (t == 'array') for (let v in node) if (nft_has_key(v, key)) return true;
+	return false;
+}
+
+function nft_rule_is_flow_offload(rule) {
+	/* A fastpath candidate toggling flow offload legitimately adds/removes a
+	 * `flow add @ft` rule; such a rule carries a JSON node keyed `flow`. */
+	return nft_has_key(rule ?? {}, 'flow');
+}
+
+function nft_canon(value) {
+	/* Canonical structural serialization of one nft item.  Volatile identity
+	 * (handle) and live counters (packets/bytes) are dropped so the fingerprint
+	 * reflects topology, not transient traffic or allocation order. */
+	let t = type(value);
+	if (t == 'object') {
+		let parts = [], ks = keys(value);
+		sort(ks);
+		for (let k in ks) {
+			if (k == 'handle' || k == 'packets' || k == 'bytes') continue;
+			push(parts, sprintf('%s=%s', k, nft_canon(value[k])));
+		}
+		return sprintf('{%s}', join(',', parts));
+	}
+	if (t == 'array') {
+		let parts = [];
+		for (let v in value) push(parts, nft_canon(v));
+		sort(parts);
+		return sprintf('[%s]', join(',', parts));
+	}
+	if (t == 'number') return sprintf('%d', value);
+	if (t == 'bool') return value ? 'true' : 'false';
+	if (t == 'null' || t == 'undefined') return 'null';
+	return sprintf('"%s"', value);
+}
+
 function nft_ruleset_fingerprint(masked_keys) {
 	if (!command_exists('nft')) return null;
 	let r = run([ 'nft', '-j', 'list', 'ruleset' ]);
 	if (r.rc != 0) return null;
-	/* Canonical structural identity: strip volatile packet/byte counters so the
-	 * fingerprint reflects the ruleset topology, not transient traffic. */
-	let stripped = trimstr(replace(r.out, /"packets":\s*[0-9]+,\s*"bytes":\s*[0-9]+/g, ''));
-	if (!length(stripped)) return null;
-	/* Fastpath A/B changes flow-offload, which legitimately alters the running
-	 * ruleset; mask it to avoid a false control/candidate drift. */
-	if (index(masked_keys ?? [], 'fastpath-mask-nft') >= 0)
-		return sprintf('masked:%d', fnv1a32(stripped));
-	return fnv1a32(stripped);
+	let root = null;
+	try { root = json(r.out); } catch (e) { return null; }
+	let items = root?.nftables ?? [];
+	if (!length(items)) return null;
+	/* Fastpath A/B legitimately reprograms flow offload (a flowtable + a
+	 * `flow add` rule).  When masked, those PM-owned structures are EXCLUDED
+	 * from the canonical identity so the candidate does not create a false
+	 * control/candidate drift.  Every other rule stays part of the identity,
+	 * so an unrelated external change still invalidates the experiment. */
+	let mask_fastpath = index(masked_keys ?? [], 'fastpath-mask-nft') >= 0;
+	let parts = [];
+	for (let it in items) {
+		let kind = length(keys(it)) ? keys(it)[0] : null;
+		if (kind == 'metainfo') continue;
+		if (mask_fastpath && kind == 'flowtable') continue;
+		if (mask_fastpath && kind == 'rule' && nft_rule_is_flow_offload(it.rule)) continue;
+		push(parts, nft_canon(it));
+	}
+	if (!length(parts)) return null;
+	sort(parts);
+	return sprintf('nft-v2:%s', fnv1a32(join('\n', parts)));
+}
+
+function nft_comparable(control_fingerprint, candidate_fingerprint) {
+	/* Positive/negative comparability for controlled fastpath A/B: fingerprints
+	 * must be identical (or both absent) for the experiment to be comparable.
+	 * The candidate-only flow-offload case is already normalized by the mask,
+	 * so an identical fingerprint means the running ruleset is otherwise
+	 * unchanged; any remaining difference means unrelated drift -> invalid. */
+	let a = control_fingerprint ?? null, b = candidate_fingerprint ?? null;
+	return { comparable: a == b, control: a, candidate: b };
 }
 
 function queue_topology() {
@@ -2123,6 +2278,38 @@ function rill_socket_path() {
 	return cfg('shadow.socket', '/run/performance-manager/rill.sock');
 }
 
+function rill_recv_frame(s, maxMsg, timeout) {
+	/* Read ONE newline-delimited JSON frame from the Rill socket, bounded and
+	 * fail-closed.  Handles partial reads, oversized replies, empty replies,
+	 * a peer that closes early, and a read timeout — none of which may be
+	 * parsed as a truncated/garbage JSON.  Returns the raw frame body (without
+	 * the trailing newline) on success, or an error object { state } on
+	 * failure.  The protocol is strictly framed by a single trailing newline;
+	 * trailing bytes after the first frame are ignored for this request. */
+	let buf = '';
+	let deadline = monotonic_ms() + max(1, timeout);
+	let closed = false, timed_out = false;
+	while (length(buf) < maxMsg) {
+		let remaining = max(1, deadline - monotonic_ms());
+		let events = socket.poll(remaining, s);
+		if (!events || !length(events) || !((events[0][1] ?? 0) & socket.POLLIN)) {
+			timed_out = true;
+			break;
+		}
+		let chunk = s.recv(max(1, maxMsg - length(buf)));
+		if (chunk == null || chunk == '') { closed = true; break; }
+		buf += chunk;
+		if (index(buf, '\n') >= 0) break;
+	}
+	if (closed) return { state: 'peer-closed' };
+	if (timed_out) return { state: 'timeout-or-peer-error' };
+	/* Frame never terminated within the per-message bound. */
+	if (index(buf, '\n') < 0) return { state: length(buf) >= maxMsg ? 'oversized-response' : 'truncated-frame' };
+	let body = trimstr(slice(buf, 0, index(buf, '\n')));
+	if (!length(body)) return { state: 'empty-response' };
+	return { body: body };
+}
+
 function rill_send(payload) {
 	if (!bool_cfg('shadow.enabled', true)) return { ok: false, state: 'disabled' };
 	let maxMsg = min(262144, max(4096, int_cfg('shadow.max_message', 65536)));
@@ -2132,16 +2319,15 @@ function rill_send(payload) {
 	let s = socket.connect({ path: rill_socket_path() }, null, null, timeout);
 	if (!s) return { ok: false, state: 'unavailable' };
 	let sent = s.send(wire);
-	if (sent == null) { s.close(); return { ok: false, state: 'send-failed' }; }
-	let events = socket.poll(timeout, s);
-	if (!events || !length(events) || !((events[0][1] ?? 0) & socket.POLLIN)) {
-		s.close();
-		return { ok: false, state: 'timeout-or-peer-error' };
-	}
-	let data = s.recv(max);
+	if (sent == null || sent != length(wire)) { s.close(); return { ok: false, state: 'send-failed' }; }
+	let frame = rill_recv_frame(s, maxMsg, timeout);
 	s.close();
-	if (!data) return { ok: false, state: 'no-response' };
-	try { return { ok: true, response: json(data) }; } catch (e) { return { ok: false, state: 'bad-response' }; }
+	if (frame.state) return { ok: false, state: frame.state };
+	/* Strict single-frame JSON parse; any malformed body fails closed. */
+	let parsed = null;
+	try { parsed = json(frame.body); } catch (e) { return { ok: false, state: 'bad-response' }; }
+	if (parsed == null) return { ok: false, state: 'bad-response' };
+	return { ok: true, response: parsed };
 }
 
 function rill_available_actions() {
@@ -2368,6 +2554,50 @@ function assisted_auto_tick(current) {
 	return { enabled: true, state: result.ok ? 'applied' : 'failed', actionId: action.id, result: result };
 }
 
+function benchmark_active() {
+	/* True while a controlled A/B experiment holds the global tuning domain on
+	 * this boot.  Conservative must never auto-apply concurrently with it. */
+	let lock = json_read(benchmark_lock_path('benchmark:global'), null);
+	if (!lock || lock.bootId != boot_id()) return false;
+	let session = json_read(benchmark_path(lock.sessionId), null);
+	return benchmark_session_active(session);
+}
+
+function conservative_auto_tick() {
+	/* Conservative is the DEFAULT automation mode (planning v0.3.2 Phase 6 /
+	 * MANIFEST defaultProfile.automation=conservative): it is a real safe
+	 * optimizer that auto-applies ONLY the v0.1 safe allowlist through the full
+	 * transactional safety chain (capability -> compatibility -> ownership ->
+	 * health guard -> locks -> snapshot -> transaction -> apply -> readback ->
+	 * health verification -> commit -> rollback) inside apply_ring().  It never
+	 * auto-applies benchmark/unsafe/unknown actions, and it never seizes
+	 * preexisting values. */
+	if (cfg('main.automation', 'conservative') != 'conservative')
+		return { enabled: false, state: 'disabled' };
+	if (!bool_cfg('main.conservative_auto', true))
+		return { enabled: true, state: 'opt-out' };
+	let guard = system_guard();
+	if (!guard.pass) return { enabled: true, state: 'health-guard', guard: guard };
+	/* Never race an active benchmark experiment (holds the global tuning
+	 * domain). */
+	if (benchmark_active()) return { enabled: true, state: 'benchmark-active' };
+	/* Backoff: a transient apply failure is rolled back by apply_ring, so the
+	 * candidate would otherwise reappear every telemetry tick; require a quiet
+	 * gap before retrying to avoid a hot loop. */
+	let attempt = json_read(`${state_dir()}/conservative-last-attempt.json`, null);
+	if (attempt && attempt.bootId == boot_id() && (monotonic_ms() - (attempt.monotonicMs ?? 0)) < max(120000, int_cfg('main.conservative_retry_ms', 300000)))
+		return { enabled: true, state: 'backoff' };
+	let actions = candidate_actions();
+	if (!length(actions)) return { enabled: true, state: 'no-safe-candidate' };
+	let action = actions[0];
+	if (index(SAFE_ACTIONS, action.id) < 0 || action.risk != 'safe')
+		return { enabled: true, state: 'candidate-not-safe' };
+	json_write(`${state_dir()}/conservative-last-attempt.json`, { bootId: boot_id(), monotonicMs: monotonic_ms(), actionId: action.id });
+	let result = apply_ring(action);
+	history('conservative.action', { actionId: action.id, target: action.applyTarget, ok: result.ok, state: result.ok ? 'applied' : 'failed', result: result });
+	return { enabled: true, state: result.ok ? 'applied' : 'failed', actionId: action.id, result: result };
+}
+
 function analysis_report() {
 	let caps=capabilities(), topo=topology(), guard=system_guard(), profile=profile_status(), findings=[], evidence=[];
 	let unresolved=[];
@@ -2403,8 +2633,10 @@ function conservative_disposition() {
 		automation: automation,
 		/* Conservative/Shadow: only the safe allowlist can ever auto-apply, and
 		 * only through the full transactional path (ownership + precheck +
-		 * backup + bounded apply + verification + rollback). */
-		autoAppliesSafeAllowlistOnly: automation != 'assisted',
+		 * backup + bounded apply + verification + rollback).  `conservative` is
+		 * the default mode and drives conservative_auto_tick(); `manual` never
+		 * auto-applies; `assisted` is double opt-in + additionally gated. */
+		autoAppliesSafeAllowlistOnly: automation == 'conservative' && bool_cfg('main.conservative_auto', true),
 		/* Assisted Auto is double opt-in and additionally gated by maintenance
 		 * window, health guard and target-specific low traffic. */
 		assistedAutoEnabled: automation == 'assisted' && bool_cfg('main.assisted_auto', false),
@@ -2492,6 +2724,7 @@ function schedule_telemetry() {
 		json_write(`${state_dir()}/telemetry/latest.json`, snap);
 		rill_observe();
 		assisted_auto_tick(snap);
+		conservative_auto_tick();
 		this.set(interval);
 	});
 	let deep_interval = max(300, int_cfg('main.deep_interval', 600)) * 1000;

@@ -1,0 +1,69 @@
+{
+  "schemaVersion": 1,
+  "contract": "rill-integration-status",
+  "pmFailClosedContract": "pass",
+  "upstreamIntegration": "blocked",
+  "overallFeatureStatus": "blocked",
+  "upstreamStatus": "external-dependency-blocked",
+  "blockedReason": "no real upstream Rill release is provisioned yet; the previous in-repo Rill implementation was removed this cycle and no external upstream repository/release has been published. Integration is fail-closed until a real upstream release is pinned here.",
+  "provisioned": false,
+  "checks": [
+    {
+      "name": "schema api const==2",
+      "ok": true
+    },
+    {
+      "name": "DEP protocol api==2",
+      "ok": true
+    },
+    {
+      "name": "schema ops == status/observe/outcome",
+      "ok": true
+    },
+    {
+      "name": "Core shadow-only ops contract",
+      "ok": true
+    },
+    {
+      "name": "DEP requiredOps match",
+      "ok": true
+    },
+    {
+      "name": "Core fail-closed gate token: external-runtime-missing",
+      "ok": true
+    },
+    {
+      "name": "Core fail-closed gate token: protocol-major-mismatch",
+      "ok": true
+    },
+    {
+      "name": "Core fail-closed gate token: RILL_PROTOCOL_API",
+      "ok": true
+    },
+    {
+      "name": "Core fail-closed gate token: (r.response?.api ?? 0) != RILL_PROTOCOL_API",
+      "ok": true
+    },
+    {
+      "name": "Core fail-closed gate token: state: 'incompatible'",
+      "ok": true
+    },
+    {
+      "name": "integration package never compiles Rill",
+      "ok": true
+    },
+    {
+      "name": "no bundled Rust source",
+      "ok": true
+    },
+    {
+      "name": "upstream status is external-dependency-blocked",
+      "ok": true
+    },
+    {
+      "name": "blocked reason recorded",
+      "ok": true
+    }
+  ],
+  "note": "A blocked upstream integration is NOT a PASS; the Core/runtime fail-closed contract is verified separately and the overall feature status remains blocked until a compatible upstream release is provisioned and verified."
+}

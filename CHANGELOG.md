@@ -1,5 +1,20 @@
 # Changelog
 
+## 1.0.0-rc.4 — single-repo remediation + real Core runtime harness (2026-08-16)
+
+- **Real Core ucode runtime harness (Layer 2).** `tools/docker-validate/harness` now executes the *actual* `performance-manager.uc` (after the same ucode-hoist the service uses) on a real OpenWrt 25.12.5 ucode, with the data-provider seam (conn/run/read/interface_dump/device_dump) re-seated to runtime-shaped fixtures. It asserts (not substring): Multi-WAN/PBR discovery from route/rule evidence (custom `isp-b`/`fiber`), underlay resolution (PPPoE→VLAN→NIC), path-specific workload class (global WireGuard does not leak into a plain WAN), nft candidate-only fingerprint masking, measurement-methodology mismatch, Conservative auto-tick gating, and Rill fail-closed on an unavailable socket. Wired into `openwrt-ucode` CI as the blocking behavioral regression.
+- **`run()` portability fix.** Replaced the argv-ARRAY form (which `fs.popen` rejects on the supported OpenWrt ucode runtime, silently failing every command) with a shell-joined string where each argument is POSIX-quoted via `shell_quote()`. The secure-execution regression test was updated to assert this safe shell-quoting instead of the broken array form.
+- **`rill_send()` framing fix.** Proper newline framing, partial-read/oversized/timeout/peer-closed handling (`rill_recv_frame`), validated by the Rill fail-closed harness section against a real socket.
+- **WAN candidates from evidence, not naming.** `wan_candidates_evidence()` derives WANs from `ip -j` default-route/rule evidence and netifd l3/device mapping, so custom-named WANs (`isp-b`, `fiber`) are detected without `wan[0-9]+` guessing.
+- **NFT ruleset fingerprint masking.** `nft_ruleset_fingerprint()` normalizes the JSON ruleset, strips volatile counters, and masks PM-owned flowtable/flow rules when `fastpath-mask-nft` is set, so only genuinely external flow-offload changes invalidate a benchmark.
+- **Conservative auto-tick.** `conservative_auto_tick()` auto-applies ONLY the v0.1 safe allowlist through the full transactional safety chain (`apply_ring`), gated by health guard, benchmark-lock exclusion (`benchmark_active()`) and backoff; it never seizes preexisting values.
+- **Honest Rill integration status.** `scripts/rill_contract_check.py` writes `docs/rill-integration-status.json` with three distinct fields (`pmFailClosedContract`, `upstreamIntegration`, `overallFeatureStatus`); source gates and the final audit now report the upstream integration as **blocked** (never PASS) because no upstream Rill release is provisioned this cycle.
+- **Source gates = structural evidence only.** `scripts/source_gates.py` no longer claims complex behavior from substrings; it asserts authoritative forbidden-API/repo-structure guards (no Cargo/Rust reintroduced) and reports structural evidence, deferring behavioral truth to the real Core harness.
+- **Exact APK verification.** `scripts/verify_apks.py` reads `.PKGINFO` (pkgname/pkgver/arch) so `performance-manager` vs `performance-manager-rill` can never be confused and a stale rc.3 artifact can never pass.
+- **CI hardening.** All GitHub Actions pinned to commit SHAs; `make audit` failures no longer swallowed by `|| true`; CA bundle seeded so apk verifies TLS (no `--no-check-certificate`).
+- **Goal UI honesty.** `settings.js` labels which goals are measurable for controlled A/B (`balanced`/`throughput`) versus valid-but-not-measurable (`latency`/`cpu_efficiency`), matching the Core's fail-closed `goal-unsupported-for-controlled-ab`.
+- **rc.3 → rc.4 migration.** `uci-defaults/90-performance-manager` makes the new `main.conservative_auto` explicit on the preserved conffile during upgrade.
+
 ## 1.0.0-rc.3 — Rill externalization + rc.3 remedial hardening (2026-08-15)
 
 - **Rill externalized as an external runtime dependency.** Performance Manager now only *consumes* the Rill release produced by the Rill upstream repository; it no longer vendors, compiles, cross-compiles or natively tests Rill's Rust implementation. Deleted `package/performance-manager-rill/src/` (Cargo.toml/lock, src/main.rs) and all CI jobs that installed Rust to build Rill.

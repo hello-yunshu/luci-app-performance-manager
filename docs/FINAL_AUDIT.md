@@ -1,8 +1,8 @@
-# Final Audit — 1.0.0-rc.3
+# Final Audit — 1.0.0-rc.4
 
 ## Decision
 
-**PASS — 1.0.0-rc.3 source-complete release candidate; Stable remains blocked only by explicit external target/testbed gates.**
+**PASS — 1.0.0-rc.4 Core/LuCI source candidate; Rill external integration BLOCKED; Stable remains blocked by explicit external target/testbed gates and a provisioned upstream Rill release.**
 
 This audit is a single self-contained orchestrator: contract validation, host syntax checks, source gates, resource budget and the unittest suite are all rerun in this process, and only the freshly generated reports are consumed. Source completion is deliberately separated from real target evidence.
 
@@ -41,7 +41,11 @@ This audit is a single self-contained orchestrator: contract validation, host sy
 
 ## Rill integration (external runtime)
 
-Rill is an external runtime dependency owned, built and released by its upstream repository. This repository does not compile or natively test Rill. The PM CI `rill-contract` gate verifies the pinned upstream Rill release (provenance/checksum) and the PM<->Rill protocol/capability contract; a missing runtime, unreachable service or protocol-major mismatch is fail-closed and reported as Rill unavailable/incompatible, never silently assumed healthy.
+Rill is an external runtime dependency owned, built and released by its upstream repository. This repository does not compile or natively test Rill. The PM-side fail-closed contract **PASSES** (the Core never crashes, never fakes a recommendation, and never auto-applies from an unavailable/incompatible runtime), but because no upstream Rill release is provisioned this cycle the **external integration is BLOCKED** (`docs/rill-integration-status.json`). This is reported honestly: **pmFailClosedContract=pass, upstreamIntegration=blocked, overallFeatureStatus=blocked** — never PASS.
+
+## Real Core runtime harness
+
+Real OpenWrt ucode executes the actual `performance-manager.uc` (Layer 2) via `tools/docker-validate/harness` and asserts on: Multi-WAN/PBR discovery from route/rule evidence (custom `isp-b`/`fiber`), underlay resolution (PPPoE→VLAN→NIC), path-specific workload class (global WireGuard does not leak into plain WAN), nft candidate-only fingerprint masking, measurement-methodology mismatch, Conservative auto-tick gating, and Rill fail-closed on an unavailable socket. Report: `core-runtime-harness.log`.
 
 ## Closed strict-audit blockers
 

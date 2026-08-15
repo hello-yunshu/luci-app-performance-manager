@@ -13,7 +13,16 @@ return view.extend({
 		o = s.option(form.Value, 'maintenance_start', _('Maintenance window start')); o.default='03:00'; o.depends('automation', 'assisted');
 		o = s.option(form.Value, 'maintenance_end', _('Maintenance window end')); o.default='05:00'; o.depends('automation', 'assisted');
 		o = s.option(form.Value, 'assisted_max_bytes_per_second', _('Low-traffic threshold (bytes/s)')); o.datatype='uinteger'; o.default='1048576'; o.depends('automation', 'assisted');
-		o = s.option(form.ListValue, 'goal', _('Goal')); ['balanced','throughput','latency','cpu_efficiency'].forEach(function(v){ o.value(v, v); }); o.default='balanced';
+		// Goal semantics are honest: balanced/throughput are measurable for
+		// controlled A/B; latency/cpu_efficiency are valid end-state goals but
+		// the Core fails closed (goal-unsupported-for-controlled-ab) for
+		// controlled A/B under them, so the UI marks them as such up front.
+		o = s.option(form.ListValue, 'goal', _('Goal')); [
+			['balanced', _('Balanced (measurable for A/B)')],
+			['throughput', _('Throughput (measurable for A/B)')],
+			['latency', _('Latency (not measurable for A/B)')],
+			['cpu_efficiency', _('CPU efficiency (not measurable for A/B)')]
+		].forEach(function(v){ o.value(v[0], v[1]); }); o.default='balanced';
 		o = s.option(form.ListValue, 'profile', _('Profile')); ['minimal','recommended','performance-x86','wireless','diagnostics'].forEach(function(v){ o.value(v, v); }); o.default='recommended';
 		o = s.option(form.Flag, 'telemetry', _('Telemetry')); o.default=o.enabled;
 		o = s.option(form.Flag, 'history', _('History')); o.default=o.enabled;

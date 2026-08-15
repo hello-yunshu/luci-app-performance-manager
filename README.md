@@ -78,7 +78,7 @@ make package/performance-manager-rill/compile V=s
 |---|---|
 | 包名 | `luci-app-performance-manager`（Core：`performance-manager`） |
 | 目标 | OpenWrt 25.12.x / x86_64 |
-| 当前源码候选 | `1.0.0-rc.3` |
+| 当前源码候选 | `1.0.0-rc.4` |
 | 服务脚本 | `/etc/init.d/performance-manager` |
 | UCI 配置 | `/etc/config/performance-manager` |
 | 核心程序 | `/usr/sbin/performance-manager.uc` |
@@ -258,7 +258,7 @@ make package        # 生成发布包
 - 资源 / 写入 soak：`scripts/openwrt-resource-soak.sh`
 - 外部验证证据：`docs/EXTERNAL_VALIDATION.md`
 
-> `1.0.0-rc.3` 在官方 OpenWrt SDK / runtime / soak 与真实转发 A/B 门禁全部通过之前，不会标为 Stable。详见 `docs/RELEASE_CHECKLIST.md` 与 `docs/EXTERNAL_VALIDATION.md`。
+> `1.0.0-rc.4` 在官方 OpenWrt SDK / runtime / soak 与真实转发 A/B 门禁全部通过之前，不会标为 Stable。详见 `docs/RELEASE_CHECKLIST.md` 与 `docs/EXTERNAL_VALIDATION.md`。
 
 ## 文档
 

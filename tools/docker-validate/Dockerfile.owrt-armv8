@@ -1,0 +1,9 @@
+# Local aarch64 OpenWrt 25.12.5 rootfs image for authoring/validating the real
+# Core ucode runtime harness on Apple Silicon. NOT used by CI (CI uses the
+# official x86_64 rootfs directly). The OWRT armv8 rootfs tarball and its
+# extracted tree are gitignored (target-only evidence, not source); extract
+# rootfs.tar.gz into ./rootfs before building.
+FROM scratch
+COPY rootfs/ /
+ENV PATH=/usr/sbin:/usr/bin:/sbin:/bin
+CMD ["/bin/sh"]

@@ -5,10 +5,20 @@ CORE=(ROOT/'package/performance-manager/files/usr/sbin/performance-manager.uc').
 SCHEMA=json.loads((ROOT/'contracts/rill-ipc.schema.json').read_text())
 
 class SecurityTests(unittest.TestCase):
-    def test_core_uses_execvp_arrays(self):
+    def test_core_uses_safe_shell_quoting(self):
+        # ucode's fs.popen rejects an argv ARRAY on the supported OpenWrt runtime
+        # (returns null, so every command would silently fail). The portable form
+        # is a single shell-joined string where EACH argument is POSIX-quoted
+        # (shell_quote), so argv elements survive the /bin/sh round-trip and no
+        # bare user/program text is ever concatenated into the shell unquoted.
         s=CORE
+        # No unsafe bare `sh -c` with an unquoted template string.
         self.assertNotIn("run([ 'sh', '-c'",s)
-        self.assertRegex(s,r"fs\.popen\(argv, 'r'\)")
+        # The runner must POSIX-quote each argument before joining.
+        self.assertRegex(s,r"function shell_quote\(arg\)")
+        self.assertRegex(s,r"replace\(s, /'/g, \"'\\\\''\"\)")
+        # fs.popen is invoked with the joined, quoted string — never a raw array.
+        self.assertRegex(s,r"fs\.popen\(cmd, 'r'\)")
     def test_rill_contract_is_shadow_only_no_apply(self):
         # Rill is an external runtime; the shadow-only contract is enforced on
         # the PM side: the Core only ever sends status/observe/outcome and the
