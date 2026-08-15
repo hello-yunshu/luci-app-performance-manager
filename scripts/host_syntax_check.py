@@ -28,11 +28,21 @@ try:
 except Exception as e:
     errors.append(f'companion py_compile: {e}'); checks.append({'name':'companion py_compile','status':'fail','output':str(e)})
 
-for p in sorted(ROOT.rglob('*.json')):
-    if any(x in p.parts for x in ('.git','dist','__pycache__')): continue
+# Scan only the repository's own JSON files.  In CI the workspace also contains
+# the downloaded OpenWrt SDK tree (a subdirectory whose feeds include non-JSON
+# templates like bfdd.template.json); those must not fail this check, so walk
+# git-tracked files (the SDK tree is untracked), falling back to the on-disk
+# walk when git is unavailable.
+try:
+    _out = subprocess.run(['git', 'ls-files', '-z'], cwd=ROOT, capture_output=True, text=True)
+    _tracked = [ROOT / p for p in _out.stdout.split('\0') if p]
+except Exception:
+    _tracked = [p for p in ROOT.rglob('*') if p.is_file() and '__pycache__' not in p.parts and '.git' not in p.parts]
+for p in sorted(x for x in _tracked if x.suffix == '.json'):
+    if any(x in p.parts for x in ('.git', 'dist', '__pycache__')): continue
     try: json.loads(p.read_text())
     except Exception as e: errors.append(f'json {p.relative_to(ROOT)}: {e}')
-checks.append({'name':'JSON parse','status':'fail' if any(e.startswith('json ') for e in errors) else 'pass'})
+checks.append({'name': 'JSON parse', 'status': 'fail' if any(e.startswith('json ') for e in errors) else 'pass'})
 
 try:
     yaml.safe_load((ROOT/'.github/workflows/ci.yml').read_text())

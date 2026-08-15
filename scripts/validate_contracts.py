@@ -122,8 +122,21 @@ for msg in sorted(js_ids):
     esc=msg.replace('\\','\\\\').replace('"','\\"').replace('\n','\\n')
     if esc not in po_ids: fail(f'zh_Hans missing msgid: {msg}')
 
-for p in ROOT.rglob('*'):
-    if p.is_file() and ('提示词' in p.name or re.search(r'(^|[_-])prompt([_.-]|$)',p.name,re.I)): fail(f'prompt artifact must not ship: {p.relative_to(ROOT)}')
+# Scan only the repository's own files.  In CI the workspace also contains the
+# downloaded OpenWrt SDK tree (a subdirectory whose feeds legitimately include
+# filenames like ".../0024-spi-pl022-Prompt-warning-....patch"); those must not
+# count as this repository shipping a prompt artifact, so walk git-tracked
+# files (the SDK tree is untracked), falling back to the on-disk walk when git
+# is unavailable.
+try:
+    import subprocess
+    _out = subprocess.run(['git', 'ls-files', '-z'], cwd=ROOT, capture_output=True, text=True)
+    _tracked = [ROOT / p for p in _out.stdout.split('\0') if p]
+except Exception:
+    _tracked = [p for p in ROOT.rglob('*') if p.is_file() and '__pycache__' not in p.parts and '.git' not in p.parts]
+for p in _tracked:
+    if p.is_file() and ('提示词' in p.name or re.search(r'(^|[_-])prompt([_.-]|$)', p.name, re.I)):
+        fail(f'prompt artifact must not ship: {p.relative_to(ROOT)}')
 if errors:
     print(f'CONTRACT VALIDATION FAILED ({len(errors)})'); [print(' -',e) for e in errors]; sys.exit(1)
 print(f'CONTRACT VALIDATION PASSED: {len(profiles)} profiles, {len(pairs)} schema examples, {len(required_ubus)} ubus methods, full zh_Hans literal coverage')
