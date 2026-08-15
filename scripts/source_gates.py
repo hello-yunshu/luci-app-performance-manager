@@ -10,10 +10,11 @@ import json, subprocess, sys
 from pathlib import Path
 ROOT=Path(__file__).resolve().parents[1]
 CORE=(ROOT/'package/performance-manager/files/usr/sbin/performance-manager.uc').read_text()
-RILL=(ROOT/'package/performance-manager-rill/src/src/main.rs').read_text()
 COMP=(ROOT/'companion/pm_companion_agent.py').read_text()
 CFG=(ROOT/'package/performance-manager/files/etc/config/performance-manager').read_text()
 CONTRACTS=(ROOT/'package/performance-manager/files/usr/share/performance-manager/contracts.uc').read_text()
+RILL_MAKE=(ROOT/'package/performance-manager-rill/Makefile').read_text()
+RILL_SCHEMA=(ROOT/'contracts/rill-ipc.schema.json').read_text()
 
 def all_tokens(text,tokens): return all(t in text for t in tokens)
 def gate(name, checks):
@@ -41,10 +42,19 @@ phases['6']=gate('Conservative',[
  ('safe allowlist ring only',"SAFE_ACTIONS = [ 'nic.ring.floor' ]" in CONTRACTS),('ring readback rollback',all_tokens(CORE,['ring_restore','ring_matches','verification-failed'])),('policy replay ownership',all_tokens(CORE,['pm_policy_replay','ownerTransactionId','replay_policies']))])
 phases['7']=gate('Benchmark',[
  ('tuning-domain exclusivity',all_tokens(CORE,["return 'benchmark:global'",'acquire_benchmark_lock(','benchmark-domain-lock-conflict','existing.sessionId != session_id'])),('lock acquired before session write',CORE.index('acquire_benchmark_lock(lock_domain, id)')<CORE.index('json_write(benchmark_path(id),session)')),('stale experiment lock recovery',all_tokens(CORE,['clean_stale_benchmark_locks()'])),('full context fingerprint',all_tokens(CORE,['integration_fingerprint(masked_keys)','benchmark_masked_keys(action_id)','benchmark-context-drift'])),('candidate-mutated keys masked',all_tokens(CORE,['firewall.@defaults[0].flow_offloading'])),('strict evaluation path resolve',all_tokens(CORE,['primary_path(path_id)','evaluation-path-not-found'])),('forwarding requires resolved route',all_tokens(CORE,["selected_path.routeResolved === true","routeProvider != 'ip-full+rtnl-events'",'evaluation-route-unresolved'])),('controlled evidence state machine',all_tokens(CORE,['awaiting_control','candidate_applied','companion_evidence_valid','benchmark_apply_candidate'])),('candidate rollback before reward',CORE.find("rollback_transaction(session.transactionId,'benchmark-complete')")>=0 and CORE.find("rollback_transaction(session.transactionId,'benchmark-complete')")<CORE.find('reward=(c1-c0)/c0')),('one variable',all_tokens(CORE,['variableCount:1','benchmark.one_variable'])),('all action IDs',all(x in CORE for x in ['service.irqbalance','network.backlog','network.budget','network.buffers','network.busy_poll','netdev.tx_queue_len','nic.coalescing','tcp.cc','qdisc.replace','fastpath.software_flow_offload','fastpath.hardware_flow_offload','fastpath.third_party_sfe','cpu.governor'])),('unsafe generic providers explicitly blocked',all_tokens(CORE,['exact-qdisc-restore-not-proven','no-generic-third-party-sfe-contract']))])
-phases['8']=gate('Rill Intelligence',[
- ('shadow only',all_tokens(RILL,['SO_PEERCRED','authority\\\":\\\"none']) and 'Command::new' not in RILL),('strict JSON parser',all_tokens(RILL,['fn parse_json','bad-json','strict_parser_rejects_bad_grammar'])),('context-partitioned model',all_tokens(RILL,['context_partitions','context_components','context_diff_reasons','LEGACY_CONTEXT'])),('context-key contract binding',all_tokens(RILL,['require_context_key','ctx-v1:','MAX_CONTEXT_KEY_LEN'])),('per-op validation',all_tokens(RILL,['validate_observe','validate_outcome','missing-context-key'])),('full metadata ingest',all_tokens(RILL,['ObserveMeta','device_profile','metrics_digest','integrations_digest'])),('context drift ledger',all_tokens(RILL,['context_drift','last_drift_epoch'])),('recommendation needs current-context evidence',all_tokens(RILL,['MIN_RECOMMENDATION_SAMPLES','recommendation_json','currentContext'])),('persistent bounded state',all_tokens(RILL,['/etc/performance-manager/rill','MAX_OUTCOME_LINES','MAX_LEDGER_LINES','MAX_STATE_FILE_BYTES','bounded_append']))])
+phases['8']=gate('Rill Intelligence (external runtime)',[
+ ('no bundled Rust source',not (ROOT/'package/performance-manager-rill/src').exists()),
+ ('integration package never compiles Rill',all_tokens(RILL_MAKE,['Build/Compile','PKG_BUILD_DEPENDS:=']) and 'cargo' not in RILL_MAKE and 'rust' not in RILL_MAKE.lower()),
+ ('shadow-only ops contract',all_tokens(CORE,["const RILL_REQUIRED_OPS = [ 'status', 'observe', 'outcome' ]"])),
+ ('protocol major gate',all_tokens(CORE,['RILL_PROTOCOL_API',"protocol-major-mismatch",'(r.response?.api ?? 0) != RILL_PROTOCOL_API'])),
+ ('external runtime fail-closed',all_tokens(CORE,['external-runtime-missing','shadow.binary'])),
+ ('no apply/uci op in protocol',"'apply' not in RILL_SCHEMA and 'uci' not in RILL_SCHEMA"),
+ ('bounded context-key partition',all_tokens(CORE,['rill_context_key_build','ctx-v1:','goal=%s'])),
+ ('goal is first-class partition',all_tokens(CORE,['const GOALS =',"goal_class = safe_name(goal_id ?? 'balanced')"])),
+ ('per-op validation',all_tokens(CORE,['rill_send','rill_status','rill_observe','rill_outcome_payload']))])
 phases['9']=gate('Recommend',[
- ('learned advisory',all_tokens(CORE,['learnedAdvisory','rill.detail?.recommendations'])),('Rill recommendation threshold',all_tokens(RILL,['MIN_RECOMMENDATION_SAMPLES','recommendation_json']))])
+ ('learned advisory',all_tokens(CORE,['learnedAdvisory','rill.detail?.recommendations'])),
+ ('Rill recommendation threshold (external contract)',all_tokens(CORE,['learnedAdvisory']))])
 phases['10']=gate('Assisted Auto',[
  ('default off',"option assisted_auto '0'" in CFG),('double opt-in',all_tokens(CORE,["!= 'assisted'","bool_cfg('main.assisted_auto', false)"])),('maintenance + health gates',all_tokens(CORE,['in_maintenance_window()','system_guard()'])),('action selected before traffic gate',CORE.index('let action = actions[0]')<CORE.index('assisted_low_traffic(current, target_ref?.runtimeName ?? null)')),('target-specific low-traffic gate',all_tokens(CORE,['assisted_low_traffic(current, runtime)','assisted-previous-','resolve_target(action.applyTarget)'])),('safe allowlist only','index(SAFE_ACTIONS, action.id)' in CORE)])
 phases['11']=gate('Platforms',[

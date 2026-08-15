@@ -1,0 +1,27 @@
+{
+  "schemaVersion": 1,
+  "contract": "pm<->rill-dependency",
+  "description": "Performance Manager's declared dependency contract on the upstream Rill runtime. Rill is an EXTERNAL runtime owned, built and released by its upstream repository; this repository never compiles or natively tests Rill. This file pins the PM-side contract (protocol + capability + minimum version) and records the upstream release currently consumed. The upstream release entry is authoritative: when it is null/empty the integration is external-dependency-blocked and the Core capability gate reports it fail-closed.",
+  "protocol": {
+    "api": 2,
+    "schemaFile": "contracts/rill-ipc.schema.json",
+    "requiredOps": ["status", "observe", "outcome"],
+    "contextKeyPattern": "^ctx-v1:",
+    "contextKeyMaxLength": 512
+  },
+  "capabilities": {
+    "required": ["context-partitioned-model", "goal-partition", "validated-outcome", "decision-ledger", "model-health"],
+    "optional": ["bandit", "exploration", "recommendation"]
+  },
+  "minimumRillVersion": "1.0.0",
+  "versionRangeSemantics": "runtime must satisfy protocol.api==2 and every required capability; higher unknown major is NOT assumed compatible; missing runtime, unreachable service or protocol-major mismatch is fail-closed.",
+  "upstream": {
+    "repository": null,
+    "releaseVersion": null,
+    "artifactUrl": null,
+    "artifactSha256": null,
+    "manifestUrl": null,
+    "status": "external-dependency-blocked",
+    "blockedReason": "no real upstream Rill release is provisioned yet; the previous in-repo Rill implementation was removed this cycle and no external upstream repository/release has been published. Integration is fail-closed until a real upstream release is pinned here."
+  }
+}

@@ -1,5 +1,7 @@
 # Platform Matrix
 
+Primary supported baseline: **OpenWrt 25.12.x / x86_64 (APK)**. The rows below describe the additional platform-specific behavior and validation.
+
 | Platform | RC behavior | Stable validation needed |
 |---|---|---|
 | Generic OpenWrt x86_64 | capability/topology/path discovery; native providers respected | bare-metal/VM smoke + soak |

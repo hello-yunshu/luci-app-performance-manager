@@ -89,15 +89,19 @@ for unsafe_refusal in ['exact-qdisc-restore-not-proven','no-generic-third-party-
     if unsafe_refusal not in core: fail(f'explicit unsafe-provider refusal missing: {unsafe_refusal}')
 
 # Rill boundary, persistence and bounded storage.
-rill=(ROOT/'package/performance-manager-rill/src/src/main.rs').read_text(); rill_mk=(ROOT/'package/performance-manager-rill/Makefile').read_text(); rill_init=(ROOT/'package/performance-manager-rill/files/etc/init.d/performance-manager-rill').read_text()
-for token in ['rust/host','rust-package.mk','RUST_PKG_LOCKED:=1','USERID:=performance-manager-rill']:
-    if token not in rill_mk: fail(f'Rill build invariant missing: {token}')
-for token in ['SO_PEERCRED','cred.uid != 0','DEFAULT_MAX_MESSAGE','MAX_REQUESTS_PER_SECOND','MAX_OUTCOME_LINES','MAX_LEDGER_LINES','MAX_STATE_FILE_BYTES','bounded_append','/etc/performance-manager/rill','authority\\\":\\\"none']:
-    if token not in rill: fail(f'Rill boundary/durability invariant missing: {token}')
-for token in ['std::process::Command','Command::new','/proc/sys','iptables','nft ','uci set','uci commit']:
-    if token in rill: fail(f'Rill actuation primitive forbidden: {token}')
-for token in ['--state-dir "$state_dir"','procd_set_param user "$SERVICE_USER"','chmod 0750']:
-    if token not in rill_init: fail(f'Rill procd invariant missing: {token}')
+# Rill is an EXTERNAL runtime: this repository never compiles or natively tests
+# it, so there is deliberately no bundled Rust source and no Rust build path.
+rill_mk=(ROOT/'package/performance-manager-rill/Makefile').read_text(); rill_init=(ROOT/'package/performance-manager-rill/files/etc/init.d/performance-manager-rill').read_text()
+if (ROOT/'package/performance-manager-rill/src').exists(): fail('bundled Rill source must not exist (external runtime)')
+for token in ['rust/host','rust-package.mk','RUST_PKG_LOCKED:=1','cargo']:
+    if token in rill_mk: fail(f'Rill build invariant must NOT be present (external runtime): {token}')
+# The integration package still guards the external runtime and stays fail-closed.
+for token in ['Build/Compile','PKG_BUILD_DEPENDS:=']:
+    if token not in rill_mk: fail(f'integration Makefile mechanism missing: {token}')
+for token in ['external Rill runtime not installed','[ -n "$binary" ] && [ -x "$binary" ]','--state-dir "$state_dir"','procd_set_param user "$SERVICE_USER"','chmod 0750']:
+    if token not in rill_init: fail(f'Rill integration-guard invariant missing: {token}')
+for token in ["const RILL_REQUIRED_OPS = [ 'status', 'observe', 'outcome' ]","RILL_PROTOCOL_API","protocol-major-mismatch","external-runtime-missing","(r.response?.api ?? 0) != RILL_PROTOCOL_API"]:
+    if token not in core: fail(f'Core Rill capability/protocol gate mechanism missing: {token}')
 
 companion=(ROOT/'companion/pm_companion_agent.py').read_text()
 for token in ['pm-companion/v2','shell=False','routerMutation','sessionId','capabilityHash','routeIdentity']:

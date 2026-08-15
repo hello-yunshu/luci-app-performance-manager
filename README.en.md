@@ -26,7 +26,7 @@
 - **Telemetry + Health Guard**: evidence/confidence Analyzer, baseline-relative health gate, resource locks, durable pending markers, verified rollback and a real monotonic commit-confirm engine
 - **Phase-7 benchmark orchestration**: irqbalance, backlog/budget, buffers, busy poll, tx queue, coalescing, CC, qdisc, SFO/HFO/SFE and CPU governor; providers run only when an exact reversible contract exists
 - **Controlled A/B truthfulness**: persisted control evidence → one-variable transactional candidate → candidate evidence → verified rollback → result persistence → optional Rill outcome; missing/invalid evidence never becomes `validated=true`
-- **Rill Shadow learning**: context drift detection, validated-outcome weighted bandit, Decision Ledger, model health; advisory only
+- **Rill Shadow learning**: Rill is an external runtime dependency built and released by its upstream repository; PM only consumes its advisory through a bounded shadow-only IPC protocol (context drift detection, validated-outcome weighting, Decision Ledger, model health), failing closed without faking recommendations when Rill is missing or incompatible
 - **Assisted Auto**: explicit opt-in only — maintenance window + low-traffic gate + safe allowlist
 - **Multi-platform guidance**: generic x86, Hyper-V and KVM (including Proxmox VE guest guidance)
 - **Companion Agent**: an explicit LAN/WAN iperf3 endpoint tool with no router-mutation authority
@@ -48,7 +48,7 @@
 |---|---|
 | `performance-manager` | procd-managed ucode/ubus Core: contracts, discovery, telemetry, transaction engine and safe actions |
 | `luci-app-performance-manager` | Supported-first LuCI UI (Simplified Chinese) |
-| `performance-manager-rill` | Dedicated low-privilege Rust Shadow learning sidecar over bounded UDS |
+| `performance-manager-rill` | PM ↔ upstream Rill integration glue: consumes the upstream Rill release only, never compiles Rill |
 
 ## Installation
 
@@ -169,19 +169,26 @@ package/luci-app-performance-manager/
 │   LuCI UI    │ ─────────→ │  performance-manager   │
 │  (8 views)   │ ←───────── │  Core (ucode/ubus)     │
 └──────────────┘  JSON     └───────────┬────────────┘
-                                      │ UDS (bounded)
+                                      │ UDS (bounded, shadow-only)
                           ┌───────────▼────────────┐
                           │ performance-manager-rill │
-                          │   (Rust Shadow learning) │
+                          │   (integration glue)     │
+                          └───────────┬────────────┘
+                                      │ consumes upstream release
+                          ┌───────────▼────────────┐
+                          │   Rill upstream runtime │
+                          │ (built/released upstream)│
                           └────────────────────────┘
 ```
+
+> **Rill is an external runtime dependency.** Rill's source, Rust toolchain, cross-platform compilation and binary release all belong to the Rill upstream repository; this repository does not vendor, compile or natively test Rill's Rust implementation. `performance-manager-rill` is PM-specific integration glue (fail-closed capability gate + service glue) that only consumes and verifies the upstream release artifact.
 
 **Data flow**:
 
 1. Core discovers capabilities and topology through ubus / rtnl / uci and keeps stable TargetRefs
 2. The UI queries status / capabilities / recommendations via `ubus call performance-manager <method>`
 3. Legal actions run through the transaction engine: read-back → health verification → commit-confirm → rollback when needed
-4. Validated outcomes optionally feed Rill; Rill only returns advisory output
+4. Validated outcomes optionally feed Rill; Rill only returns advisory output; Core stays healthy and fails closed when Rill is missing / protocol-incompatible
 
 ## UCI configuration reference
 
@@ -229,10 +236,12 @@ package/luci-app-performance-manager/
 
 This project is built and verified automatically with GitHub Actions, triggered by pushing to main or manually:
 
-- **static**: unit tests + contract validation + source gates + final audit + LuCI JS syntax check
-- **rill-native**: Rust native tests (`cargo test` + `cargo check`)
+- **static**: unit tests + contract validation + source gates + final audit + LuCI JS syntax & render smoke
+- **rill-contract**: verifies the PM ↔ upstream Rill dependency contract and pinned upstream release provenance (never compiles Rill)
 - **openwrt-ucode**: compiles and validates Core ucode inside the official OpenWrt 25.12.5 rootfs
-- **openwrt-sdk-build**: builds all three packages with the official SDK
+- **openwrt-sdk-build**: builds the three packages this repository owns (Core / LuCI / integration glue) with the official SDK
+
+> This repository no longer has a `rill-native` / Rill SDK build job: no Rust toolchain is installed to compile Rill. Rill's native build and tests are the responsibility of the Rill upstream repository's Actions.
 
 Local quick verification:
 
@@ -245,7 +254,7 @@ make package        # build release artifacts
 - Resource / write soak: `scripts/openwrt-resource-soak.sh`
 - External validation evidence: `docs/EXTERNAL_VALIDATION.md`
 
-> `1.0.0-rc.2` is intentionally not called Stable until the official OpenWrt SDK / runtime / soak and real forwarding A/B gates have actually passed. See `docs/RELEASE_CHECKLIST.md` and `docs/EXTERNAL_VALIDATION.md`.
+> `1.0.0-rc.3` is intentionally not called Stable until the official OpenWrt SDK / runtime / soak and real forwarding A/B gates have actually passed. See `docs/RELEASE_CHECKLIST.md` and `docs/EXTERNAL_VALIDATION.md`.
 
 ## Documentation
 

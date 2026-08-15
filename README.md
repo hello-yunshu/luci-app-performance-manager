@@ -26,7 +26,7 @@
 - **Telemetry + Health Guard**：evidence/confidence Analyzer、baseline-relative 健康门禁、资源锁、持久 pending marker、verified rollback 与真实 monotonic commit-confirm 引擎
 - **Phase-7 Benchmark 编排**：irqbalance、backlog/budget、buffers、busy poll、tx queue、coalescing、CC、qdisc、SFO/HFO/SFE、CPU governor；只有存在精确可逆契约时才执行 provider
 - **受控 A/B 真值**：持久 control evidence → 单变量事务 candidate → candidate evidence → 验证后回滚 → 结果持久化 → 可选 Rill outcome；缺失 / 无效 evidence 永远不会变成 `validated=true`
-- **Rill Shadow 学习**：上下文漂移检测、validated outcome 加权 bandit、Decision Ledger、模型健康，仅输出 advisory
+- **Rill Shadow 学习**：Rill 是外部运行时依赖，由上游仓库构建与发布；PM 只通过有界 shadow-only IPC 协议消费其 advisory（上下文漂移检测、validated outcome 加权、Decision Ledger、模型健康），缺失 / 不兼容时 fail-closed 且不伪造建议
 - **Assisted Auto**：默认关闭，必须显式选择 + 维护窗口 + 低流量门禁 + 安全 allowlist
 - **多平台指导**：Generic x86、Hyper-V、KVM（含 Proxmox VE guest 建议）
 - **Companion Agent**：显式 LAN/WAN iperf3 端点工具，不拥有路由器修改权限
@@ -48,7 +48,7 @@
 |---|---|
 | `performance-manager` | procd 管理的 ucode/ubus Core：contracts、discovery、telemetry、事务引擎与安全动作 |
 | `luci-app-performance-manager` | Supported-first LuCI 界面（简体中文） |
-| `performance-manager-rill` | 独立低权限 Rust Shadow 学习 sidecar，通过有界 UDS 通信 |
+| `performance-manager-rill` | PM ↔ 上游 Rill 集成开关（integration glue）：只消费上游 Rill 正式发布产物，不编译 Rill 源码 |
 
 ## 安装
 
@@ -78,7 +78,7 @@ make package/performance-manager-rill/compile V=s
 |---|---|
 | 包名 | `luci-app-performance-manager`（Core：`performance-manager`） |
 | 目标 | OpenWrt 25.12.x / x86_64 |
-| 当前源码候选 | `1.0.0-rc.2` |
+| 当前源码候选 | `1.0.0-rc.3` |
 | 服务脚本 | `/etc/init.d/performance-manager` |
 | UCI 配置 | `/etc/config/performance-manager` |
 | 核心程序 | `/usr/sbin/performance-manager.uc` |
@@ -169,19 +169,26 @@ package/luci-app-performance-manager/
 │  LuCI 前端   │ ─────────→ │  performance-manager   │
 │ (8 个视图)   │ ←───────── │  Core (ucode/ubus)     │
 └──────────────┘  JSON     └───────────┬────────────┘
-                                      │ UDS（有界）
+                                      │ UDS（有界，shadow-only）
                           ┌───────────▼────────────┐
                           │ performance-manager-rill │
-                          │    (Rust Shadow 学习)    │
+                          │   (integration glue)     │
+                          └───────────┬────────────┘
+                                      │ 消费上游正式发布产物
+                          ┌───────────▼────────────┐
+                          │   Rill upstream runtime │
+                          │  (上游仓库构建/发布)      │
                           └────────────────────────┘
 ```
+
+> **Rill 是外部运行时依赖。** Rill 的源码、Rust toolchain、跨平台编译与二进制发布全部由 Rill 上游仓库负责；本仓库不内置、不编译、不测试 Rill 的 Rust 实现。`performance-manager-rill` 只是 PM 专属的集成 glue（fail-closed 能力门禁 + 服务 glue），只消费并校验上游正式发布产物。
 
 **数据流**：
 
 1. Core 通过 ubus / rtnl / uci 发现能力与 topology，维护稳定 TargetRef
 2. 前端通过 `ubus call performance-manager <method>` 查询状态 / 能力 / 建议
 3. 合法动作通过事务引擎执行：read-back → 健康验证 → commit-confirm → 必要时回滚
-4. validated outcome 可选写入 Rill，Rill 仅返回 advisory
+4. validated outcome 可选写入 Rill，Rill 仅返回 advisory；Rill 缺失 / 协议不兼容时 Core 保持正常并 fail-closed
 
 ## UCI 配置参考
 
@@ -209,6 +216,7 @@ package/luci-app-performance-manager/
 |---|---|---|---|
 | `enabled` | boolean | 1 | 启用 Rill Shadow |
 | `mode` | enum | shadow | 只读学习，无 Apply 权限 |
+| `binary` | string | (空) | 上游提供的 Rill 运行时二进制路径；为空 = 外部依赖未安装，集成 fail-closed / 阻塞 |
 | `socket` | string | /run/performance-manager/rill.sock | UDS 路径 |
 | `max_message` | integer | 65536 | 最大消息字节 |
 | `timeout_ms` | integer | 1000 | 调用超时 |
@@ -229,10 +237,12 @@ package/luci-app-performance-manager/
 
 本项目使用 GitHub Actions 自动构建与验证，推送 main 分支或手动触发即可运行：
 
-- **static**：单测 + 契约校验 + source gates + final audit + LuCI JS 语法检查
-- **rill-native**：Rust native 测试（`cargo test` + `cargo check`）
+- **static**：单测 + 契约校验 + source gates + final audit + LuCI JS 语法 & render smoke
+- **rill-contract**：验证 PM ↔ 上游 Rill 依赖契约与固定 upstream release 溯源（不编译 Rill）
 - **openwrt-ucode**：官方 OpenWrt 25.12.5 rootfs 中编译校验 Core ucode
-- **openwrt-sdk-build**：官方 SDK 构建三个包
+- **openwrt-sdk-build**：官方 SDK 构建本仓库拥有的三个包（Core / LuCI / integration glue）
+
+> 本仓库不再有 `rill-native` / Rill SDK build job：不安装 Rust 工具链编译 Rill。Rill 的 native 构建与测试由 Rill 上游仓库的 Actions 负责。
 
 本地快速验证：
 
@@ -245,7 +255,7 @@ make package        # 生成发布包
 - 资源 / 写入 soak：`scripts/openwrt-resource-soak.sh`
 - 外部验证证据：`docs/EXTERNAL_VALIDATION.md`
 
-> `1.0.0-rc.2` 在官方 OpenWrt SDK / runtime / soak 与真实转发 A/B 门禁全部通过之前，不会标为 Stable。详见 `docs/RELEASE_CHECKLIST.md` 与 `docs/EXTERNAL_VALIDATION.md`。
+> `1.0.0-rc.3` 在官方 OpenWrt SDK / runtime / soak 与真实转发 A/B 门禁全部通过之前，不会标为 Stable。详见 `docs/RELEASE_CHECKLIST.md` 与 `docs/EXTERNAL_VALIDATION.md`。
 
 ## 文档
 

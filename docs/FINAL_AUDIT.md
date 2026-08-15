@@ -1,23 +1,23 @@
-# Final Audit — 1.0.0-rc.2
+# Final Audit — 1.0.0-rc.3
 
 ## Decision
 
-**PASS — 1.0.0-rc.2 source-complete release candidate; Stable remains blocked only by explicit external target/testbed gates.**
+**PASS — 1.0.0-rc.3 source-complete release candidate; Stable remains blocked only by explicit external target/testbed gates.**
 
-This audit is a single self-contained orchestrator: contract validation, host syntax checks, source gates, resource budget, the unittest suite and the Rill native test suite are all rerun in this process, and only the freshly generated reports are consumed. Source completion is deliberately separated from real target evidence.
+This audit is a single self-contained orchestrator: contract validation, host syntax checks, source gates, resource budget and the unittest suite are all rerun in this process, and only the freshly generated reports are consumed. Source completion is deliberately separated from real target evidence.
 
 ## Orchestrated gates
 
 - contract-validation: **PASS**
 - host-syntax: **PASS**
 - source-gates: **PASS**
+- rill-contract: **PASS**
 - resource-budget: **PASS**
 
-- Rill native tests: **PASS**
 
 ## Local evidence
 
-- Executable unit/contract tests: **69**, status **PASS**.
+- Executable unit/contract tests: **84**, status **PASS**.
 - Host syntax/JSON/JS/YAML checks: **21**, status **PASS**.
 - Formal schemas/examples and frozen profiles: validated by `scripts/validate_contracts.py`.
 - zh_Hans: all current literal LuCI msgids are covered.
@@ -33,11 +33,15 @@ This audit is a single self-contained orchestrator: contract validation, host sy
 - Phase 5: **PASS** — Transactions / Locks / Commit-confirm
 - Phase 6: **PASS** — Conservative
 - Phase 7: **PASS** — Benchmark
-- Phase 8: **PASS** — Rill Intelligence
+- Phase 8: **PASS** — Rill Intelligence (external runtime)
 - Phase 9: **PASS** — Recommend
 - Phase 10: **PASS** — Assisted Auto
 - Phase 11: **PASS** — Platforms
 - Phase 12: **PASS** — Companion
+
+## Rill integration (external runtime)
+
+Rill is an external runtime dependency owned, built and released by its upstream repository. This repository does not compile or natively test Rill. The PM CI `rill-contract` gate verifies the pinned upstream Rill release (provenance/checksum) and the PM<->Rill protocol/capability contract; a missing runtime, unreachable service or protocol-major mismatch is fail-closed and reported as Rill unavailable/incompatible, never silently assumed healthy.
 
 ## Closed strict-audit blockers
 
@@ -47,11 +51,12 @@ This audit is a single self-contained orchestrator: contract validation, host sy
 - Active transaction state has a durable pending marker; same-boot daemon crash rolls back, while cross-boot recovery clears stale runtime intent without replay.
 - Health Guard includes baseline-relative LAN/WAN/DNS/IPv4/IPv6/proxy/VPN/route, load, steal, OOM, thermal and writable-state checks.
 - Route identity is based on `ip -j` default-route/rule evidence and rtnetlink route/link events; multi-WAN candidates are represented explicitly.
-- Controlled A/B is now an explicit session: control evidence → one-variable candidate transaction → candidate evidence → verified rollback → comparison.
-- Generic qdisc and third-party SFE are capability-blocked unless an exact reversible provider contract is proven.
-- Benchmark experiments are exclusive under a single tuning-domain lock, acquire-before-session-write, with stale/idle lock recovery on daemon start and cleanup.
-- Benchmark context fingerprinting covers per-service running state, UCI config digests (candidate-mutated keys masked) and ip rule evidence; any drift fails the session closed.
-- Forwarding benchmarks require a resolved route (`routeResolved===true` from the rtnl listener) and a strict, non-fallback evaluation path.
-- Rill is a root-peer Shadow bandit with a strict JSON parser, per-operation schema validation, a context-partitioned model keyed by Core-computed ContextKeys, and stale-recommendation invalidation on drift.
+- Runtime Topology conforms to the formal schema (string `lanInterface`), and paths resolve a real underlay NIC chain (VLAN/bridge/PPPoE/tunnel/radio) to a stable target.
+- Multi-WAN/PBR Path inventory is built from netifd/runtime route/rule evidence, not `wan[0-9]+` naming guesses.
+- Workload Class is derived from affected/evaluation path evidence (all seven frozen classes), never hard-coded to `plain_forwarding`.
+- Conservative automation carries real safety semantics: safe-allowlist-only auto-apply, never seizes preexisting, observe/respect packet steering, transactional ownership-backed writes, Rill advisory-only.
+- Controlled A/B freezes a canonical measurement methodology (host/port/direction/streams/duration/protocol/tool version); any control/candidate mismatch is rejected (`validated=false`, no reward, no Rill outcome).
+- Benchmark context includes a live nft ruleset fingerprint and route/rule identity; live-only control/candidate drift invalidates the experiment.
+- Policy replay cedes on live drift: if the value PM owns has changed, ownership is relinquished and the user/external value is not overwritten.
 - Assisted Auto gates on the selected action's own target traffic before applying, and remains safe-allowlist only.
 - Uninstall cleanup is fail-closed: package removal aborts unless the daemon confirms an ownership-safe cleanup; upgrades and staged roots are untouched.

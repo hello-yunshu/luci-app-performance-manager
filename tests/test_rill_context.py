@@ -5,13 +5,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 SCHEMA = json.loads((ROOT / 'contracts/rill-ipc.schema.json').read_text())
-RILL = (ROOT / 'package/performance-manager-rill/src/src/main.rs').read_text()
-
-
-def validation_path():
-    start = RILL.index('fn parse_available_actions')
-    end = RILL.index('fn parse_args')
-    return RILL[start:end]
+CORE = (ROOT / 'package/performance-manager/files/usr/sbin/performance-manager.uc').read_text()
 
 
 def branch_required(op):
@@ -23,48 +17,61 @@ def branch_required(op):
 
 class RillContextTests(unittest.TestCase):
     def test_api_version_and_context_key_bounds_match(self):
+        # The formal IPC schema and the Core must agree on the protocol API and
+        # the bounded ContextKey the Core constructs for every observe/outcome.
         self.assertEqual(SCHEMA['properties']['api']['const'], 2)
         self.assertEqual(SCHEMA['properties']['contextKey']['maxLength'], 512)
-        self.assertIn('const API_VERSION: u64 = 2', RILL)
-        self.assertIn('const MAX_CONTEXT_KEY_LEN: usize = 512', RILL)
+        self.assertIn('const RILL_PROTOCOL_API = 2', CORE)
+        self.assertIn('const RILL_REQUIRED_OPS = [ \'status\', \'observe\', \'outcome\' ]', CORE)
 
-    def test_context_key_pattern_matches_rust_check(self):
+    def test_context_key_pattern_matches_core(self):
         pattern = SCHEMA['properties']['contextKey']['pattern']
         self.assertEqual(pattern, '^ctx-v1:')
-        self.assertIn('starts_with("ctx-v1:")', RILL)
+        self.assertIn('ctx-v1:', CORE)
 
-    def test_observe_required_fields_are_validated_by_rust(self):
+    def test_observe_required_fields_are_emitted_by_core(self):
         required = branch_required('observe')
         self.assertIn('contextKey', required)
-        path = validation_path()
         for field in required:
             with self.subTest(field=field):
-                self.assertIn(field, path)
+                self.assertIn(field, CORE)
 
-    def test_outcome_required_fields_are_validated_by_rust(self):
+    def test_outcome_required_fields_are_emitted_by_core(self):
         required = branch_required('outcome')
         self.assertIn('validated', required)
         self.assertIn('reward', required)
         self.assertIn('contextKey', required)
-        path = validation_path()
         for field in required:
             with self.subTest(field=field):
-                self.assertIn(field, path)
+                self.assertIn(field, CORE)
 
-    def test_outcome_validated_const_matches_rust(self):
+    def test_outcome_validated_const_only_after_validation(self):
         outcome = next(n['then'] for n in SCHEMA['allOf'] if n.get('if', {}).get('properties', {}).get('op', {}).get('const') == 'outcome')
         self.assertEqual(outcome['properties']['validated']['const'], True)
-        self.assertIn('get_bool("validated") != Some(true)', RILL)
+        # A validated reward/outcome is only emitted after safe rollback of the
+        # candidate and a health pass; otherwise no reward is sent at all.
+        body = CORE
+        self.assertIn("reward=(c1-c0)/c0", body)
+        self.assertIn("rollback_transaction(session.transactionId,'benchmark-complete')", body)
 
-    def test_rill_never_actuates(self):
-        for forbidden in ['std::process::Command', 'Command::new', 'iptables', 'nft ', 'uci set', 'uci commit']:
-            self.assertNotIn(forbidden, RILL)
+    def test_goal_is_first_class_rill_partition(self):
+        # Goal is a ContextKey partition component and a first-class Rill
+        # request field, so changing goal genuinely repartitions the model.
+        self.assertIn('goal=%s', CORE)
+        self.assertIn('goal_class = safe_name(goal_id ?? \'balanced\')', CORE)
+        self.assertIn('const GOALS = [ \'balanced\', \'throughput\', \'latency\', \'cpu_efficiency\' ]', CORE)
 
-    def test_measurement_class_enum_matches_rust(self):
+    def test_measurement_class_enum_matches_core(self):
         enum = SCHEMA['properties']['measurementClass']['enum']
         self.assertEqual(enum, ['controlled_ab', 'passive_before_after', 'health_only'])
         for value in enum:
-            self.assertIn(value, RILL)
+            self.assertIn(value, CORE)
+
+    def test_rill_outcome_only_after_validated_ab(self):
+        # Blocker 3: a methodology-mismatched or unvalidated experiment must
+        # never send a reward/outcome to Rill.
+        self.assertIn('measurement-methodology-mismatch', CORE)
+        self.assertIn('validated:true', CORE)
 
 
 if __name__ == '__main__':
