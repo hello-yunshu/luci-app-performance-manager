@@ -20,6 +20,7 @@ return view.extend({
 		const root = E('div');
 		const action = E('select', { 'class': 'cbi-input-select', 'aria-label': _('Benchmark action') });
 		actions.forEach(function(a) { action.appendChild(E('option', { value: a.id }, [ a.id + ' · ' + a.evaluationSemantics ])); });
+		const pathSelect = E('select', { 'class': 'cbi-input-select', 'style': 'margin-left:.5rem', 'aria-label': _('Evaluation path') });
 		function refreshPaths() {
 			pathSelect.replaceChildren();
 			const selected = actions.find(function(a){ return a.id === action.value; });
@@ -27,7 +28,6 @@ return view.extend({
 		}
 		action.addEventListener('change', refreshPaths);
 		refreshPaths();
-		const pathSelect = E('select', { 'class': 'cbi-input-select', 'style': 'margin-left:.5rem', 'aria-label': _('Evaluation path') });
 		const measurement = E('select', { 'class': 'cbi-input-select', 'style': 'margin-left:.5rem', 'aria-label': _('Measurement class') }, [
 			E('option', { value: 'controlled_ab' }, [ _('Controlled A/B') ]),
 			E('option', { value: 'passive_before_after' }, [ _('Passive before/after') ]),

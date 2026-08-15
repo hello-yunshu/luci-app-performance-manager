@@ -1,18 +1,18 @@
 # External Validation Required for 1.0 Stable
 
-`1.0.0-rc.2` closes the source blockers found in the strict rc.1 audit, but Stable still requires evidence that cannot be fabricated inside the current offline/non-OpenWrt assembly container.
+`1.0.0-rc.3` closes the source blockers found by the strict rc.1 audit and the 2026-08-14 independent re-audit, but Stable still requires evidence that cannot be fabricated inside the current offline/non-OpenWrt assembly container.
 
 The current official 25.12.x x86/64 target is available as OpenWrt 25.12.5, including an x86/64 rootfs and SDK. CI is pinned to that release for ucode and three-package build gates.
 
 Required target evidence:
 
-1. GitHub CI: native Rust tests/check, OpenWrt rootfs ucode compile and official SDK three-package build.
+1. GitHub CI: the four `.github/workflows/ci.yml` jobs — `static` (incl. the LuCI render smoke harness `scripts/luci_render_smoke.js`), `rill-contract` (contract + pinned upstream release provenance, no Rust toolchain), `openwrt-ucode` (official OpenWrt 25.12.5 rootfs ucode compile of Core), `openwrt-sdk-build` (official SDK builds only packages this repository owns). Rill itself is external, so there is no native Rust build here.
 2. Booted OpenWrt 25.12.x x86_64 VM: `scripts/openwrt-target-gate.sh`.
 3. Hyper-V and KVM/Proxmox guest hotplug/TargetRef/replay/rollback fixtures.
 4. Explicit LAN→Router→WAN and router-local controlled A/B sessions where the action semantics require them.
 5. Sysupgrade preservation via `scripts/openwrt-sysupgrade-gate.sh prepare` before the upgrade and `verify` after reboot, plus `scripts/openwrt-resource-soak.sh` for 24h or longer.
 
-Until those evidence files actually pass, the correct label is **1.0.0-rc.2**, not Stable.
+Until those evidence files actually pass, the correct label is **1.0.0-rc.3**, not Stable.
 
 ## Docker-based Evidence Progress
 
@@ -20,7 +20,7 @@ Validation can be driven locally from the official 25.12.5 x86/64 rootfs via Doc
 
 Status:
 
-- **1. GitHub CI** — native Rust `cargo test`/`check` and the official SDK three-package build are owned by `.github/workflows/ci.yml` (`openwrt-sdk-build` job compiles `performance-manager`, `luci-app-performance-manager`, `performance-manager-rill`). No local SDK build is required.
+- **1. GitHub CI** — owned by `.github/workflows/ci.yml`: `static` (incl. LuCI render smoke), `rill-contract` (contract + pinned upstream Rill release provenance, no Rust toolchain), `openwrt-ucode` (official 25.12.5 rootfs compile of Core), `openwrt-sdk-build` (official SDK builds only the packages this repository owns: `performance-manager`, `luci-app-performance-manager`, `performance-manager-rill`). No local SDK build is required, and no native Rust build is performed.
 - **2. Booted OpenWrt runtime gate** — PASSED inside the `owrt-pm-gate` container (25.12.5 x86/64): `scripts/openwrt-target-gate.sh` CORE-ONLY, 11/11 assertions green. Evidence: `evidence/openwrt-target-gate-25.12.5.json`.
 - **5. Resource soak (dev check)** — script viability verified for 120s (12 samples): `coreMaxRssKiB` 4744, `coreMeanCpuPercentApprox` 0.083, 0 persistent writes, `executionPassed true`. This is a development check only; the 24h+ Stable gate (`stableDurationSatisfied`) remains outstanding. Evidence: `evidence/openwrt-resource-soak-120s-dev.json`.
 

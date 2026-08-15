@@ -5,6 +5,7 @@
 luci-app-performance-manager-Planning-v0.3.2/
 docs/planning-v0.3.2/
 OpenWrt_Performance_Manager_1.0.0-rc.2_Independent_Reaudit_2026-08-13.md
+OpenWrt_Performance_Manager_*_Prompt_2026-08-15.md
 
 # Docker build artifacts
 tools/docker-validate/build/

@@ -82,6 +82,20 @@ def cmd_client(args: argparse.Namespace) -> int:
     if args.parallel > 1:
         argv += ["-P", str(args.parallel)]
     result = run_iperf(argv, args.seconds + args.timeout_slack)
+    # Canonical measurement methodology (Blocker 3).  Control and candidate
+    # legs of a controlled A/B must reproduce this exact fingerprint so the
+    # Core can reject a mismatched experiment instead of rewarding it.
+    tool_version = (result.get("iperf3") or {}).get("start", {}).get("version")
+    methodology = {
+        "host": args.host,
+        "port": args.port,
+        "reverse": bool(args.reverse),
+        "parallel": int(args.parallel),
+        "duration": int(args.seconds),
+        "protocol": "iperf3-tcp",
+        "tool": "iperf3",
+        "toolVersion": tool_version,
+    }
     envelope = {
         "contract": CONTRACT,
         "role": args.role,
@@ -93,7 +107,8 @@ def cmd_client(args: argparse.Namespace) -> int:
         "topologyGeneration": args.topology_generation,
         "routeIdentity": args.route_identity,
         "capabilityHash": args.capability_hash,
-        "endpoint": {"host": args.host, "port": args.port, "reverse": args.reverse, "parallel": args.parallel},
+        "endpoint": {"host": args.host, "port": args.port, "reverse": args.reverse, "parallel": args.parallel, "tool": "iperf3"},
+        "methodology": methodology,
         **result,
     }
     if args.output:

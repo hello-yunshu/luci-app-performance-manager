@@ -163,3 +163,102 @@ def rill_outcome_context_binding(payload: dict[str, Any]) -> str | None:
     """Outcomes must carry the context key; absence means no binding."""
     key = payload.get("contextKey")
     return key if isinstance(key, str) and key.startswith("ctx-v1:") else None
+
+
+# ---------------------------------------------------------------------------
+# rc.3 High-item / Blocker behavioral reference models.  These mirror the
+# ucode runtime logic so behavioral fixtures can assert REAL semantics rather
+# than a substring.  source_gates separately asserts the runtime exposes the
+# matching mechanism.
+# ---------------------------------------------------------------------------
+
+WORKLOAD_CLASSES = ["plain_forwarding", "local_endpoint", "transparent_proxy",
+                    "vpn_tunnel", "pppoe", "wireless", "storage_service"]
+
+
+def underlay_target(devices: dict[str, str | None], start: str | None) -> tuple[list[str], str | None]:
+    """Resolve a logical interface to its real underlay NIC chain and the first
+    stable physical/virtual NIC in it.  `devices` maps name -> parent (netifd
+    device dump).  Mirrors Core's underlay_chain(): the chain is walked fully
+    (bridge -> VLAN -> PPPoE -> tunnel -> NIC) and only a true physical/virtual
+    NIC (pure eth/wlan/phy, no VLAN/bridge decoration) is the stable target, so
+    an intermediate `eth1.100` VLAN is part of the chain but is not the target."""
+    import re
+    chain: list[str] = []
+    seen: set[str] = set()
+    cur = start
+    while cur and cur not in seen:
+        seen.add(cur)
+        chain.append(cur)
+        if re.fullmatch(r"(eth\d+|wlan\d+|phy\d+)", cur):
+            return chain, cur  # stable physical/virtual NIC
+        cur = devices.get(cur)
+    return (chain, chain[-1] if chain else None) if chain else ([], None)
+
+
+def derive_workload_class(*, proto: str | None, transparent_proxy: bool, vpn: bool,
+                          underlay_chain: list[str], local_endpoint: bool = False,
+                          storage_chain: bool = False) -> list[str]:
+    """Derive Workload Class from evidence (never hard-coded).  Mirrors Core's
+    derive_workload() and workload_for_paths()."""
+    wl: list[str] = []
+    def _add(v: str) -> None:
+        if v not in wl:
+            wl.append(v)
+    if proto == "pppoe":
+        _add("pppoe")
+    if transparent_proxy:
+        _add("transparent_proxy")
+    if vpn:
+        _add("vpn_tunnel")
+    if any(n.startswith("wlan") for n in (underlay_chain or [])):
+        _add("wireless")
+    if local_endpoint:
+        _add("local_endpoint")
+    if storage_chain or any(("storage" in n) or n.startswith("eth") and "-swp" in n for n in (underlay_chain or [])):
+        _add("storage_service")
+    if not wl:
+        _add("plain_forwarding")
+    return wl
+
+
+def measurement_methodology(*, host: str | None, port, reverse: bool, parallel, duration,
+                            protocol: str = "iperf3-tcp", tool: str = "iperf3",
+                            tool_version: str | None = None) -> tuple[str, ...]:
+    """Canonical frozen measurement fingerprint (Blocker 3)."""
+    return (host, port, "R" if reverse else "F", max(1, int(parallel or 1)),
+            int(duration or 0), protocol, tool, tool_version)
+
+
+def methodology_matches(control_methodology: tuple[str, ...], candidate: tuple[str, ...]) -> bool:
+    return control_methodology == candidate
+
+
+def goal_measurement(goal: str) -> str | None:
+    """Which measurement a Goal genuinely needs.  An unsupported Goal must not
+    silently degrade to throughput (Blocker 2)."""
+    return {"balanced": "throughput", "throughput": "throughput",
+            "latency": None, "cpu_efficiency": None}.get(goal)
+
+
+def replay_cede_decision(*, has_owned_lease: bool, owned_ring: str | None, live_ring: str | None) -> str:
+    """Policy replay ownership (Blocker 4): if a PM-owned lease exists and the
+    live value no longer matches what PM owns, relinquish and do NOT replay.
+    Status string matches the Core's emitted `ceded-live-drift`."""
+    if not has_owned_lease or owned_ring is None:
+        return "replay"
+    if live_ring != owned_ring:
+        return "ceded-live-drift"
+    return "replay"
+
+
+def nft_ruleset_fingerprint(ruleset_text: str, masked_keys: list[str] | None = None) -> int | None:
+    """Canonical live nft ruleset identity: strip volatile packet/byte counters
+    so the fingerprint reflects topology, not transient traffic (9.6)."""
+    import re
+    stripped = re.sub(r'"packets":\s*[0-9]+,\s*"bytes":\s*[0-9]+', '', ruleset_text)
+    if not stripped.strip():
+        return None
+    if masked_keys and "fastpath-mask-nft" in masked_keys:
+        return hash(("masked", stripped)) & 0xFFFFFFFF
+    return hash(stripped) & 0xFFFFFFFF

@@ -14,6 +14,16 @@ const DEFAULT_STATE_DIR = '/tmp/performance-manager';
 const DEFAULT_PERSIST_DIR = '/etc/performance-manager';
 const PROFILE_DIR = '/usr/share/performance-manager/profiles';
 const MAX_HISTORY_LINES = 512;
+/* PM<->Rill integration contract.  Rill is an external runtime: the Core only
+ * negotiates capability via the bounded Unix-socket protocol and never
+ * compiles or bundles Rill.  A missing runtime, unreachable service or protocol
+ * major mismatch is fail-closed (integration unavailable/incompatible). */
+const RILL_PROTOCOL_API = 2;
+const RILL_REQUIRED_OPS = [ 'status', 'observe', 'outcome' ];
+const GOALS = [ 'balanced', 'throughput', 'latency', 'cpu_efficiency' ];
+/* Only throughput A/B is measurable with the current iperf3 methodology.
+ * Other goals fail-closed rather than silently degrading to throughput. */
+const GOAL_MEASURABLE = { balanced: 'throughput', throughput: 'throughput', latency: null, cpu_efficiency: null };
 
 let topology_generation = 1;
 let tx_counter = 0;
@@ -71,6 +81,10 @@ function bool_cfg(key, fallback) {
 function int_cfg(key, fallback) {
 	let v = +cfg(key, `${fallback}`);
 	return v >= 0 ? v : fallback;
+}
+
+function str_cfg(key, fallback) {
+	return cfg(key, fallback) ?? fallback;
 }
 
 function state_dir() {
@@ -234,6 +248,7 @@ function target_refs() {
 	let refs = [];
 	let topo = interface_dump();
 	let roles = {};
+	let runtime_interfaces = {};
 	for (let iface in topo.interface ?? []) {
 		/* A logical L3 device (e.g. pppoe-wan) is not necessarily the NIC
 		 * that owns a device-scoped knob.  Record both identities and later
@@ -244,6 +259,12 @@ function target_refs() {
 			/* Prefer WAN/LAN role over a weaker role if aliases overlap. */
 			if (!roles[runtime] || role == 'wan' || role == 'lan' || match(role ?? '', /^wan[0-9]*$/))
 				roles[runtime] = role;
+			/* Keep the owning interface name so a WAN/LAN underlay ref can be
+			 * matched back to its logical interface without guessing names. */
+			if (!runtime_interfaces[runtime])
+				runtime_interfaces[runtime] = [];
+			if (index(runtime_interfaces[runtime], role) < 0)
+				push(runtime_interfaces[runtime], role);
 		}
 	}
 	for (let d in netdevs()) {
@@ -257,7 +278,10 @@ function target_refs() {
 			r.logicalRole = 'lan-underlay';
 		else
 			r.logicalRole = 'physical-underlay';
-		r.selector = { deviceRole: r.logicalRole };
+		/* Selector must be consistent with the WAN fallback join: the same
+		 * key (interface) used by topology() to match a target back to its
+		 * logical WAN, so a non-default WAN is never picked by name guess. */
+		r.selector = { deviceRole: r.logicalRole, interface: runtime_interfaces[d.name]?.[0] ?? null, device: d.name };
 		push(refs, r);
 	}
 	return refs;
@@ -269,16 +293,87 @@ function stable_ref_for_runtime(runtime) {
 	return ref?.stableId ? ref : null;
 }
 
+function device_dump() {
+	/* netifd device dump carries parent relations (VLAN -> bridge -> L3 ->
+	 * physical) that the interface dump omits.  Used to walk a real underlay
+	 * chain so a PPPoE/VLAN/tunnel logical interface resolves to the NIC that
+	 * actually owns the tunable. */
+	try {
+		return conn.call('network.device', 'dump', {}) ?? { device: [] };
+	}
+	catch (e) {
+		return { device: [] };
+	}
+}
+
+function underlay_chain(iface) {
+	/* Resolve a logical interface to its real underlay NIC chain.  Walks
+	 * logical -> L3 -> VLAN -> bridge -> PPPoE -> tunnel -> physical/virtual
+	 * NIC so the affected path points at the device that owns the underlying
+	 * tunable, not a synthetic L3 name. */
+	let start = iface?.device ?? iface?.l3_device ?? null;
+	let devs = device_dump(), parent = {};
+	for (let d in devs.device ?? []) {
+		let n = d?.name;
+		if (!n) continue;
+		parent[n] = d?.parent ?? null;
+	}
+	let chain = [], seen = {}, cur = start;
+	while (cur && !seen[cur]) {
+		seen[cur] = true;
+		push(chain, cur);
+		let ref = stable_ref_for_runtime(cur);
+		if (ref) return { chain: chain, target: ref };
+		cur = parent[cur] ?? null;
+	}
+	/* No device-parent relation resolved to a stable NIC; accept the direct
+	 * device/l3_device only if it maps to a stable device. */
+	let direct = stable_ref_for_runtime(start);
+	if (direct) return { chain: start ? [ start ] : [], target: direct };
+	return { chain: chain, target: null };
+}
+
 function interface_underlay_ref(iface) {
 	if (!iface) return null;
-	/* Prefer netifd's device (underlay) over l3_device, but only when it
-	 * resolves to a stable hardware/virtual-bus identity.  This prevents
-	 * PPPoE/VPN logical interfaces from becoming ethtool targets. */
-	for (let runtime in [ iface.device, iface.l3_device ]) {
-		let ref = stable_ref_for_runtime(runtime);
-		if (ref) return ref;
+	return underlay_chain(iface)?.target ?? null;
+}
+
+function push_unique_wl(dst, value) {
+	if (index(dst, value) < 0) push(dst, value);
+}
+
+function derive_workload(entry) {
+	/* Workload Class is derived from evidence, never hard-coded to
+	 * plain_forwarding.  Covers every class declared by the frozen contract:
+	 * plain_forwarding / local_endpoint / transparent_proxy / vpn_tunnel /
+	 * pppoe / wireless / storage_service. */
+	let wl = [];
+	let proto = entry?.proto ?? null;
+	let integ = integration_state();
+	if (proto == 'pppoe') push_unique_wl(wl, 'pppoe');
+	if (integ.transparentProxy) push_unique_wl(wl, 'transparent_proxy');
+	if (integ.wireguard || integ.openvpn) push_unique_wl(wl, 'vpn_tunnel');
+	for (let name in (entry?.underlayChain ?? []))
+		if (match(name ?? '', /^wlan[0-9]/)) { push_unique_wl(wl, 'wireless'); break; }
+	if (entry?.id == 'path:local-endpoint') push_unique_wl(wl, 'local_endpoint');
+	/* storage_service is a classification for devices bound to storage I/O;
+	 * it is only emitted when a storage-bound NIC is present in the chain. */
+	for (let name in (entry?.underlayChain ?? []))
+		if (match(name ?? '', /^(eth[0-9]+-swp|.*storage.*)/)) { push_unique_wl(wl, 'storage_service'); break; }
+	if (!length(wl)) push_unique_wl(wl, 'plain_forwarding');
+	return wl;
+}
+
+function workload_for_paths(path_ids) {
+	/* An action's workload is the union of its affected/evaluation paths'
+	 * workload classes, never a hard-coded default. */
+	let wl = [];
+	for (let path_id in path_ids ?? []) {
+		let p = primary_path(path_id);
+		for (let w in p?.workloadClass ?? []) push_unique_wl(wl, w);
 	}
-	return null;
+	if (!length(wl)) push_unique_wl(wl, 'plain_forwarding');
+	return wl;
 }
 
 function resolve_target(stable_id) {
@@ -350,13 +445,12 @@ function topology() {
 	sort(wans,function(a,b){ if (a.interface=='wan') return -1; if (b.interface=='wan') return 1; return `${a.interface}` > `${b.interface}` ? 1 : -1; });
 	let devices=netdevs(), paths=[];
 	for (let wi=0; wi<length(wans); wi++) {
-		let wan=wans[wi], path_targets=[], wan_ref=interface_underlay_ref(wan);
-		let wan_target=wan_ref?.stableId ?? null;
+		let wan=wans[wi], path_targets=[], underlay=underlay_chain(wan);
+		let wan_target=underlay?.target?.stableId ?? null;
 		if (!wan_target) for (let r in target_refs()) if (r.logicalRole == 'wan-underlay' && (r.selector?.interface == wan.interface || wi == 0)) { wan_target=r.stableId; break; }
 		if (wan_target) push(path_targets,wan_target);
-		let workload=['plain_forwarding']; if ((wan?.proto ?? '')=='pppoe') push(workload,'pppoe'); if (integration_state().transparentProxy) push(workload,'transparent_proxy');
 		let route=route_context(wan), specific=`path:lan-to-${safe_name(wan.interface ?? `wan${wi}`)}`;
-		let entry={id:specific,workloadClass:workload,lanInterface:lan?.interface ?? 'lan',wanInterface:wan?.interface ?? `wan${wi}`,routeIdentity:route.identity,routeProvider:route.provider,routeResolved:route.resolved,routeEvidence:route.evidence,targetRefs:path_targets};
+		let entry={id:specific,workloadClass:derive_workload({id:specific,proto:wan?.proto ?? null,underlayChain:underlay?.chain ?? []}),lanInterface:lan?.interface ?? 'lan',wanInterface:wan?.interface ?? `wan${wi}`,routeIdentity:route.identity,routeProvider:route.provider,routeResolved:route.resolved,routeEvidence:route.evidence,targetRefs:path_targets,underlayChain:underlay?.chain ?? []};
 		if (wi == 0) {
 			let primary={}; for (let k in keys(entry)) primary[k]=entry[k]; primary.id='path:lan-to-wan'; push(paths,primary);
 			if (specific != 'path:lan-to-wan') push(paths,entry);
@@ -364,10 +458,13 @@ function topology() {
 	}
 	if (!length(paths)) {
 		let route=route_context(null);
-		push(paths,{id:'path:lan-to-wan',workloadClass:['plain_forwarding'],lanInterface:lan?.interface ?? 'lan',wanInterface:'wan',routeIdentity:route.identity,routeProvider:route.provider,routeResolved:route.resolved,routeEvidence:route.evidence,targetRefs:[]});
+		push(paths,{id:'path:lan-to-wan',workloadClass:['plain_forwarding'],lanInterface:lan?.interface ?? 'lan',wanInterface:'wan',routeIdentity:route.identity,routeProvider:route.provider,routeResolved:route.resolved,routeEvidence:route.evidence,targetRefs:[],underlayChain:[]});
 	}
 	let primary=paths[0], local_targets=primary?.targetRefs ?? [];
-	push(paths,{id:'path:local-endpoint',workloadClass:['local_endpoint'],lanInterface:null,wanInterface:primary?.wanInterface ?? 'wan',routeIdentity:primary?.routeIdentity ?? 'unresolved',routeProvider:primary?.routeProvider ?? 'unresolved',routeResolved:primary?.routeResolved ?? false,routeEvidence:primary?.routeEvidence ?? {},targetRefs:local_targets});
+	/* The local-endpoint path has no LAN interface.  Emit the empty string so
+	 * the runtime output conforms to the formal topology schema which declares
+	 * lanInterface as a string (never null). */
+	push(paths,{id:'path:local-endpoint',workloadClass:derive_workload({id:'path:local-endpoint'}),lanInterface:'',wanInterface:primary?.wanInterface ?? 'wan',routeIdentity:primary?.routeIdentity ?? 'unresolved',routeProvider:primary?.routeProvider ?? 'unresolved',routeResolved:primary?.routeResolved ?? false,routeEvidence:primary?.routeEvidence ?? {},targetRefs:local_targets,underlayChain:[]});
 	return {schemaVersion:2,topologyGeneration:topology_generation,interfaces:interfaces,devices:devices,wanCandidates:map(wans,function(w){return w.interface;}),paths:paths};
 }
 
@@ -411,9 +508,10 @@ function masked_uci_digest(name, masked_keys) {
 function benchmark_masked_keys(action_id) {
 	/* A fastpath A/B candidate itself mutates these UCI keys; they must not
 	 * create a false integration-drift between control and candidate.  Every
-	 * other observed UCI value stays part of the fingerprint. */
+	 * other observed UCI value stays part of the fingerprint.  The live nft
+	 * ruleset is likewise masked (9.6) because flow-offload reprograms it. */
 	if (action_id == 'fastpath.software_flow_offload' || action_id == 'fastpath.hardware_flow_offload')
-		return [ 'firewall.@defaults[0].flow_offloading', 'firewall.@defaults[0].flow_offloading_hw' ];
+		return [ 'firewall.@defaults[0].flow_offloading', 'firewall.@defaults[0].flow_offloading_hw', 'fastpath-mask-nft' ];
 	return [];
 }
 
@@ -436,7 +534,30 @@ function integration_fingerprint(masked_keys) {
 	let rules = run([ 'ip', '-j', 'rule', 'show' ]);
 	if (rules.rc == 0 && length(trimstr(rules.out)))
 		push(rows, `rules:${fnv1a32(join('|', canonical_rows(json_rows(rules.out))))}`);
+	/* Live firewall/route fingerprint (9.6): a file hash of /etc/config/firewall
+	 * is not evidence of an unchanged running ruleset.  Add the canonical
+	 * structural identity of the live nft ruleset so control/candidate drift in
+	 * the running firewall is detected.  Fastpath candidates legitimately
+	 * reprogram flow-offload, so that component is masked the same way the
+	 * corresponding UCI keys are. */
+	let nft = nft_ruleset_fingerprint(masked_keys);
+	if (nft != null) push(rows, `nft:${nft}`);
 	return `integ-v1:${fnv1a32(join('\n', rows))}`;
+}
+
+function nft_ruleset_fingerprint(masked_keys) {
+	if (!command_exists('nft')) return null;
+	let r = run([ 'nft', '-j', 'list', 'ruleset' ]);
+	if (r.rc != 0) return null;
+	/* Canonical structural identity: strip volatile packet/byte counters so the
+	 * fingerprint reflects the ruleset topology, not transient traffic. */
+	let stripped = trimstr(replace(r.out, /"packets":\s*[0-9]+,\s*"bytes":\s*[0-9]+/g, ''));
+	if (!length(stripped)) return null;
+	/* Fastpath A/B changes flow-offload, which legitimately alters the running
+	 * ruleset; mask it to avoid a false control/candidate drift. */
+	if (index(masked_keys ?? [], 'fastpath-mask-nft') >= 0)
+		return sprintf('masked:%d', fnv1a32(stripped));
+	return fnv1a32(stripped);
 }
 
 function queue_topology() {
@@ -912,7 +1033,7 @@ function candidate_actions() {
 					schemaVersion: 2,
 					id: 'nic.ring.floor', applyScope: 'device', applyTarget: ref.stableId,
 					affectedTargets: [ ref.stableId ], affectedPaths: affected_paths,
-					evaluationPaths: affected_paths, workloadClass: [ 'plain_forwarding' ],
+					evaluationPaths: affected_paths, workloadClass: workload_for_paths(affected_paths),
 					params: { rxFloor: rx_need ? 1024 : ring.rxCurrent, txFloor: tx_need ? 1024 : ring.txCurrent },
 					risk: 'safe', requiresBenchmark: false, persistenceClass: 'pm_policy_replay',
 					commitPolicy: 'policy_replay_on_accept', reapplyTriggers: [ 'boot', 'device_up', 'topology_change' ],
@@ -1690,6 +1811,17 @@ function replay_policies(reason) {
 		if (!ref) { push(results, { policy: pol.actionId, target: pol.targetRef.stableId, status: 'unresolved' }); continue; }
 		let ring = ethtool_ring(ref.runtimeName);
 		if (!ring) { push(results, { policy: pol.actionId, target: ref.stableId, status: 'capability-missing' }); continue; }
+		/* Blocker 4: cede-on-live-drift.  If the value PM left is no longer
+		 * present (user/external changed it), replay must NOT overwrite that
+		 * live change.  Relinquish ownership instead of reapplying. */
+		let owned_ring = pol?.runtimeLease?.ownedRing ?? null;
+		if (owned_ring && !ring_matches(ref, owned_ring)) {
+			pol.ownershipRelinquished = { reason: 'live-drift', atMonotonicMs: monotonic_ms(), driftRing: ring_snapshot(ref), ownedRing: owned_ring };
+			pol.owner = 'external';
+			json_write(p, pol);
+			push(results, { policy: pol.actionId, target: ref.stableId, status: 'ceded-live-drift' });
+			continue;
+		}
 		let params = pol.params ?? {};
 		let need = (params.rxFloor != null && ring.rxCurrent < params.rxFloor) || (params.txFloor != null && ring.txCurrent < params.txFloor);
 		if (!need) { push(results, { policy: pol.actionId, target: ref.stableId, status: 'already-satisfied' }); continue; }
@@ -1698,7 +1830,7 @@ function replay_policies(reason) {
 		if (!length(eval_paths)) { push(results,{policy:pol.actionId,target:ref.stableId,status:'path-unresolved'}); continue; }
 		let a = {
 			id: 'nic.ring.floor', applyScope: 'device', applyTarget: ref.stableId, affectedTargets: [ref.stableId],
-			affectedPaths: eval_paths, evaluationPaths: eval_paths, workloadClass: ['plain_forwarding'],
+			affectedPaths: eval_paths, evaluationPaths: eval_paths, workloadClass: workload_for_paths(eval_paths),
 			params: params, risk: 'safe', requiresBenchmark: false, persistenceClass: 'pm_policy_replay',
 			commitPolicy: 'policy_replay_on_accept', reapplyTriggers: pol.reapplyTriggers, requiredLocks: [`netdev:${ref.stableId}`],
 			requiresCommitConfirm: false, requiresLinkVerification: true
@@ -1799,7 +1931,7 @@ function benchmark_context(path_id, masked_keys) {
 		capabilityHash:capability_hash(caps), topologyGeneration:topology_generation,
 		routeIdentity:path?.routeIdentity ?? 'unresolved', routeProvider:path?.routeProvider ?? null,
 		integrationState:integration_state(), integrationFingerprint:integration_fingerprint(masked_keys),
-		workloadClass:path?.workloadClass ?? [ 'plain_forwarding' ]
+		workloadClass:path?.workloadClass ?? [ 'plain_forwarding' ], goal:goal()
 	};
 }
 
@@ -1808,8 +1940,53 @@ function benchmark_context_frozen(session) {
 		capabilityHash: session?.capabilityHash, topologyGeneration: session?.topologyGeneration,
 		routeIdentity: session?.routeIdentity, routeProvider: null,
 		integrationState: session?.integrationState, integrationFingerprint: session?.integrationFingerprint,
-		workloadClass: session?.workloadClass
+		workloadClass: session?.workloadClass, goal: session?.goal
 	};
+}
+
+/* -- Goal semantics (Blocker 2) -------------------------------------------
+ * The configured goal must genuinely partition the model, select benchmark
+ * measurement, drive reward and appear in the Rill request and UI.  A goal
+ * with no measurable methodology fails-closed instead of silently degrading
+ * to throughput. */
+function goal() {
+	let g = cfg('main.goal', 'balanced');
+	return index(GOALS, g) >= 0 ? g : 'balanced';
+}
+
+function goal_measurable(g) {
+	return GOAL_MEASURABLE[g] ?? null;
+}
+
+/* -- Controlled A/B measurement methodology fingerprint (Blocker 3) -------
+ * A controlled experiment is one-variable-at-a-time only if the measurement
+ * methodology is identical between control and candidate.  The canonical
+ * fingerprint covers endpoint identity, port, direction, parallel streams,
+ * duration, protocol/mode and tool version.  A mismatch invalidates the
+ * experiment: no reward is emitted and no Rill outcome is sent. */
+function measurement_methodology(e) {
+	let m = e?.methodology ?? {};
+	let ep = e?.endpoint ?? {};
+	return {
+		host: m.host ?? ep.host ?? null,
+		port: m.port ?? ep.port ?? null,
+		reverse: (m.reverse ?? ep.reverse) ? true : false,
+		parallel: max(1, +((m.parallel ?? ep.parallel) ?? 1)),
+		duration: +((m.duration ?? e?.resultDuration) ?? 0),
+		protocol: m.protocol ?? 'iperf3-tcp',
+		tool: (m.tool ?? ep.tool) ?? 'iperf3',
+		toolVersion: m.toolVersion ?? null
+	};
+}
+
+function methodology_key(m) {
+	return sprintf('m:%s|%s|%s|%d|%d|%s|%s|%s',
+		m.host ?? '', m.port ?? '', m.reverse ? 'R' : 'F', m.parallel, m.duration,
+		m.protocol ?? '', m.tool ?? '', m.toolVersion ?? '');
+}
+
+function methodology_matches(a, b) {
+	return methodology_key(measurement_methodology(a)) == methodology_key(measurement_methodology(b));
 }
 
 function companion_evidence_valid(e, session, phase) {
@@ -1832,7 +2009,8 @@ function benchmark_start(msg) {
 		 * class are part of the A/B attribution and must not drift. */
 		let nowctx=benchmark_context(session.evaluationPath, benchmark_masked_keys(session.actionId));
 		let workload_drift=stable_list_hash('workload',nowctx.workloadClass) != stable_list_hash('workload',session.workloadClass);
-		if (nowctx.capabilityHash != session.capabilityHash || nowctx.topologyGeneration != session.topologyGeneration || nowctx.routeIdentity != session.routeIdentity || nowctx.integrationFingerprint != session.integrationFingerprint || workload_drift) {
+		let goal_drift=nowctx.goal != session.goal;
+		if (nowctx.capabilityHash != session.capabilityHash || nowctx.topologyGeneration != session.topologyGeneration || nowctx.routeIdentity != session.routeIdentity || nowctx.integrationFingerprint != session.integrationFingerprint || workload_drift || goal_drift) {
 			if (session.transactionId) rollback_transaction(session.transactionId,'benchmark-context-drift');
 			release_benchmark_lock(session.benchmarkLock?.domain, session.sessionId);
 			session.state='failed'; session.result={validated:false,error:'benchmark-context-drift'}; json_write(benchmark_path(sid),session); return {ok:false,error:'benchmark-context-drift',session:session};
@@ -1841,6 +2019,9 @@ function benchmark_start(msg) {
 			if (session.state != 'awaiting_control') return {ok:false,error:'benchmark-not-awaiting-control'};
 			let valid=companion_evidence_valid(msg?.evidence,session,'control'); if (!valid.ok) return valid;
 			session.controlEvidence=msg.evidence;
+			/* Freeze the measurement methodology from the control leg so the
+			 * candidate must reproduce it exactly (Blocker 3). */
+			session.companion.methodology=measurement_methodology(msg.evidence);
 			let applied=benchmark_apply_candidate(session.actionId,session.evaluationPath,session.sessionId);
 			if (!applied.ok) { benchmark_fail_session(benchmark_path(sid),sid,applied.error); return {ok:false,error:applied.error,session:session,detail:applied}; }
 			session.transactionId=applied.transaction.transactionId; session.state='candidate_applied'; session.candidateDeadlineMonotonicMs=applied.transaction.deadlineMonotonicMs;
@@ -1857,6 +2038,10 @@ function benchmark_start(msg) {
 		if (phase == 'candidate') {
 			if (session.state != 'candidate_applied') return {ok:false,error:'benchmark-not-awaiting-candidate'};
 			let valid=companion_evidence_valid(msg?.evidence,session,'candidate'); if (!valid.ok) return valid;
+			/* Candidate must reproduce the frozen control methodology exactly.
+			 * A mismatch invalidates the A/B: no reward, no Rill outcome. */
+			if (!session.companion?.methodology || !methodology_matches(session.companion.methodology,msg.evidence))
+				return {ok:false,error:'measurement-methodology-mismatch',session:session};
 			let tx=json_read(tx_path(session.transactionId),null);
 			if (!tx || tx.state != 'awaiting_confirm') return {ok:false,error:'benchmark-candidate-transaction-not-live'};
 			let hcmp=compare_health(tx.before?.health ?? baseline_health(session.evaluationPath),baseline_health(session.evaluationPath));
@@ -1883,6 +2068,10 @@ function benchmark_start(msg) {
 	let path_id=msg?.pathId ?? expected_path, selected_path=primary_path(path_id), ctx=benchmark_context(path_id, benchmark_masked_keys(action)), id=sprintf('bench-%s-%d',substr(boot_id(),0,8),monotonic_ms());
 	if (measurement == 'controlled_ab') {
 		if (action == 'observe') return {ok:false,error:'controlled-ab-requires-action'};
+		/* Goal must be measurable with the current methodology; otherwise the
+		 * experiment fails-closed instead of degrading to throughput. */
+		let cur_goal = goal(), goal_meas = goal_measurable(cur_goal);
+		if (goal_meas == null) return {ok:false,error:'goal-unsupported-for-controlled-ab',goal:cur_goal,required:{methodology:goal_meas}};
 		if (!selected_path) return {ok:false,error:'evaluation-path-not-found'};
 		if ((semantics == 'local' && path_id != 'path:local-endpoint') || (semantics == 'forwarding' && path_id == 'path:local-endpoint')) return {ok:false,error:'measurement-path-semantics-mismatch',expectedSemantics:semantics};
 		if (!bool_cfg('benchmark.one_variable',true)) return {ok:false,error:'one-variable-contract-disabled'};
@@ -1898,7 +2087,7 @@ function benchmark_start(msg) {
 		let lock_domain=benchmark_lock_domain(action, plan, path_id);
 		let lock=acquire_benchmark_lock(lock_domain, id);
 		if (!lock.ok) return {ok:false,error:'benchmark-domain-lock-conflict',conflict:lock.conflict,domain:lock_domain};
-		let session={schemaVersion:2,sessionId:id,state:'awaiting_control',userInitiated:true,actionId:action,applyTarget:plan.targetRef?.stableId ?? null,evaluationPath:path_id,workloadClass:ctx.workloadClass,capabilityHash:ctx.capabilityHash,topologyGeneration:ctx.topologyGeneration,routeIdentity:ctx.routeIdentity,integrationState:ctx.integrationState,integrationFingerprint:ctx.integrationFingerprint,deviceProfile:cfg('main.profile','recommended'),benchmarkLock:{domain:lock_domain,sessionId:id},createdMonotonicMs:monotonic_ms(),measurementClass:'controlled_ab',variableCount:1,transactionId:null,controlEvidence:null,candidateEvidence:null,result:null,companion:{contract:'pm-companion/v2',requiredRole:semantics=='local'?'router-local-client':'lan-client',phases:['control','candidate'],metadata:{sessionId:id,actionId:action,pathId:path_id,topologyGeneration:ctx.topologyGeneration,routeIdentity:ctx.routeIdentity,capabilityHash:ctx.capabilityHash}}};
+		let session={schemaVersion:2,sessionId:id,state:'awaiting_control',userInitiated:true,actionId:action,applyTarget:plan.targetRef?.stableId ?? null,evaluationPath:path_id,workloadClass:ctx.workloadClass,capabilityHash:ctx.capabilityHash,topologyGeneration:ctx.topologyGeneration,routeIdentity:ctx.routeIdentity,integrationState:ctx.integrationState,integrationFingerprint:ctx.integrationFingerprint,deviceProfile:cfg('main.profile','recommended'),goal:cur_goal,benchmarkLock:{domain:lock_domain,sessionId:id},createdMonotonicMs:monotonic_ms(),measurementClass:'controlled_ab',variableCount:1,transactionId:null,controlEvidence:null,candidateEvidence:null,result:null,companion:{contract:'pm-companion/v2',requiredRole:semantics=='local'?'router-local-client':'lan-client',phases:['control','candidate'],methodology:null,metadata:{sessionId:id,actionId:action,pathId:path_id,topologyGeneration:ctx.topologyGeneration,routeIdentity:ctx.routeIdentity,capabilityHash:ctx.capabilityHash,goal:cur_goal}}};
 		ensure_dir(`${state_dir()}/benchmarks`);
 		if (!json_write(benchmark_path(id),session)) { release_benchmark_lock(lock_domain,id); return {ok:false,error:'benchmark-session-write-failed'}; }
 		history('benchmark.started',session);
@@ -1966,38 +2155,41 @@ function rill_available_actions() {
 	return out;
 }
 
-function rill_context_key_build(profile, capability_hash, topo_gen, path_id, route_identity, workload_class, integ_fingerprint) {
+function rill_context_key_build(profile, capability_hash, topo_gen, path_id, route_identity, workload_class, integ_fingerprint, goal_id) {
 	/* Canonical bounded ContextKey.  The same construction must be used by
 	 * observe and by every outcome so Rill can partition its model per
-	 * context.  Identity components are hashed to keep the key bounded. */
+	 * context.  Identity components are hashed to keep the key bounded.
+	 * Goal is a first-class partition component (Blocker 2). */
 	let route_class = route_identity == 'unresolved' ? 'unresolved' : fnv1a32(route_identity);
 	let integ_class = fnv1a32(integ_fingerprint ?? '');
 	let workload_class_h = stable_list_hash('w', workload_class ?? [ 'plain_forwarding' ]);
-	return sprintf('ctx-v1:profile=%s;cap=%s;topo=%d;path=%s;route=%s;workload=%s;integ=%s',
+	let goal_class = safe_name(goal_id ?? 'balanced');
+	return sprintf('ctx-v1:profile=%s;cap=%s;topo=%d;path=%s;route=%s;workload=%s;integ=%s;goal=%s',
 		safe_name(profile ?? 'recommended'), capability_hash ?? 'unknown', topo_gen ?? 0,
-		safe_name(path_id ?? 'path:lan-to-wan'), route_class, workload_class_h, integ_class);
+		safe_name(path_id ?? 'path:lan-to-wan'), route_class, workload_class_h, integ_class, goal_class);
 }
 
 function rill_context_key_observe() {
 	let caps = capabilities(), topo = topology(), path = topo.paths[0];
 	return rill_context_key_build(cfg('main.profile','recommended'), capability_hash(caps), topology_generation,
 		path?.id ?? 'path:lan-to-wan', path?.routeIdentity ?? 'unresolved', path?.workloadClass ?? [ 'plain_forwarding' ],
-		integration_fingerprint([]));
+		integration_fingerprint([]), goal());
 }
 
 function rill_outcome_payload(action_id, measurement, reward, session_id, ctx) {
 	ctx = ctx ?? {};
+	let g = ctx.goal ?? goal();
 	return {
 		api: 2, requestId: sprintf('outcome-%d', monotonic_ms()), op: 'outcome', validated: true,
 		actionId: action_id, measurementClass: measurement, reward: reward, sessionId: session_id,
-		deviceProfile: cfg('main.profile','recommended'),
+		deviceProfile: cfg('main.profile','recommended'), goal: g,
 		capabilityHash: ctx.capabilityHash ?? 'unknown', topologyGeneration: ctx.topologyGeneration ?? 0,
 		pathId: ctx.pathId ?? 'path:lan-to-wan', routeIdentity: ctx.routeIdentity ?? 'unresolved',
 		workloadClass: ctx.workloadClass ?? [ 'plain_forwarding' ],
 		integrationFingerprint: ctx.integrationFingerprint ?? integration_fingerprint([]),
 		contextKey: rill_context_key_build(cfg('main.profile','recommended'), ctx.capabilityHash ?? 'unknown',
 			ctx.topologyGeneration ?? 0, ctx.pathId ?? 'path:lan-to-wan', ctx.routeIdentity ?? 'unresolved',
-			ctx.workloadClass ?? [ 'plain_forwarding' ], ctx.integrationFingerprint ?? '')
+			ctx.workloadClass ?? [ 'plain_forwarding' ], ctx.integrationFingerprint ?? '', g)
 	};
 }
 
@@ -2007,24 +2199,35 @@ function rill_observe() {
 	let path = topo.paths[0];
 	let integ = integration_state();
 	let integ_fp = integration_fingerprint([]);
+	let g = goal();
 	let payload = {
 		api: 2, requestId: sprintf('obs-%d', monotonic_ms()), op: 'observe', deviceProfile: cfg('main.profile','recommended'),
 		capabilityHash: capability_hash(caps), topologyGeneration: topology_generation,
 		pathId: path?.id ?? 'path:lan-to-wan', routeIdentity: path?.routeIdentity ?? 'unresolved', workloadClass: path?.workloadClass ?? ['plain_forwarding'],
-		measurementClass: 'passive_before_after', context: telemetry_snapshot(), integrations: integ,
+		measurementClass: 'passive_before_after', context: telemetry_snapshot(), integrations: integ, goal: g,
 		integrationFingerprint: integ_fp,
 		contextKey: rill_context_key_build(cfg('main.profile','recommended'), capability_hash(caps), topology_generation,
-			path?.id ?? 'path:lan-to-wan', path?.routeIdentity ?? 'unresolved', path?.workloadClass ?? ['plain_forwarding'], integ_fp),
+			path?.id ?? 'path:lan-to-wan', path?.routeIdentity ?? 'unresolved', path?.workloadClass ?? ['plain_forwarding'], integ_fp, g),
 		availableActions: rill_available_actions()
 	};
 	return rill_send(payload);
 }
 
 function rill_status() {
-	let r = rill_send({ api: 2, requestId: sprintf('status-%d', monotonic_ms()), op: 'status' });
-	if (!r.ok) return { enabled: bool_cfg('shadow.enabled', true), mode: 'shadow', status: 'Shadow · Collecting', transport: r.state ?? 'unavailable' };
+	let enabled = bool_cfg('shadow.enabled', true);
+	/* External dependency check: a configured/installed upstream Rill runtime
+	 * must exist before the integration can be available. */
+	let binary = str_cfg('shadow.binary', '');
+	if (enabled && binary != '' && !file_exists(binary))
+		return { enabled: enabled, mode: 'shadow', status: 'Shadow · External dependency blocked', state: 'blocked', reason: 'external-runtime-missing', compatibility: 'incompatible', transport: 'unavailable' };
+	let r = rill_send({ api: RILL_PROTOCOL_API, requestId: sprintf('status-%d', monotonic_ms()), op: 'status' });
+	if (!r.ok) return { enabled: enabled, mode: 'shadow', status: 'Shadow · Collecting', state: 'unavailable', reason: r.state ?? 'unavailable', compatibility: 'unknown', transport: r.state ?? 'unavailable' };
+	/* Protocol major negotiation: a higher/foreign major must not be assumed
+	 * compatible; the handshake must echo the required API version. */
+	if ((r.response?.api ?? 0) != RILL_PROTOCOL_API)
+		return { enabled: enabled, mode: 'shadow', status: 'Shadow · Incompatible protocol', state: 'incompatible', reason: 'protocol-major-mismatch', compatibility: 'incompatible', transport: 'connected', requestedApi: RILL_PROTOCOL_API, advertisedApi: r.response?.api ?? null, detail: r.response };
 	let learning = r.response?.state == 'learning';
-	return { enabled: true, mode: 'shadow', status: learning ? 'Shadow · Learning' : 'Shadow · Collecting', transport: 'connected', detail: r.response };
+	return { enabled: true, mode: 'shadow', status: learning ? 'Shadow · Learning' : 'Shadow · Collecting', state: 'available', reason: null, compatibility: 'compatible', transport: 'connected', detail: r.response };
 }
 
 function push_unique(dst, value) {
@@ -2189,6 +2392,38 @@ function analysis_report() {
 	return {schemaVersion:2,topologyGeneration:topology_generation,confidence:confidence,evidence:evidence,findings:findings,guard:guard,profile:profile,integrations:integration_state(),platform:platform_info(),recommendations:recommendations()};
 }
 
+function conservative_disposition() {
+	/* Conservative is a real safety optimizer, not a UI string.  It encodes
+	 * exactly what the Core will and will not do automatically, so reviewers
+	 * (and the behavioral tests) can assert the semantics rather than a label. */
+	let automation = cfg('main.automation', 'conservative');
+	let safe = candidate_actions();
+	return {
+		schemaVersion: 2,
+		automation: automation,
+		/* Conservative/Shadow: only the safe allowlist can ever auto-apply, and
+		 * only through the full transactional path (ownership + precheck +
+		 * backup + bounded apply + verification + rollback). */
+		autoAppliesSafeAllowlistOnly: automation != 'assisted',
+		/* Assisted Auto is double opt-in and additionally gated by maintenance
+		 * window, health guard and target-specific low traffic. */
+		assistedAutoEnabled: automation == 'assisted' && bool_cfg('main.assisted_auto', false),
+		neverAutoApplies: [ 'benchmark', 'unsafe' ],
+		seizesPreexisting: false,
+		packetSteeringPolicy: 'observe-respect',
+		/* Every write is transactional; nothing is directly applied outside the
+		 * Core.  Rill is advisory only and cannot write state. */
+		writesAreTransactional: true,
+		benchmarkActionsAreUserInitiated: true,
+		concrete: safe,
+		explicitGuarantees: [
+			'safe-allowlist-only', 'never-seize-preexisting', 'observe-respect-packet-steering',
+			'ownership-precheck-backup-verify-rollback', 'benchmark-user-initiated-only',
+			'no-apply-outside-core', 'rill-advisory-only'
+		]
+	};
+}
+
 function status() {
 	let guard = system_guard();
 	let profile = profile_status();
@@ -2197,6 +2432,7 @@ function status() {
 		telemetry: bool_cfg('main.telemetry', true), history: bool_cfg('main.history', true), failsafe: bool_cfg('main.failsafe', true),
 		topologyGeneration: topology_generation, bootId: boot_id(),
 		profile: profile, healthGuard: guard, rill: rill_status(), nativePacketSteering: packet_steering_capability(), platform: platform_info(),
+		automationDisposition: conservative_disposition(),
 		assistedAuto: { enabled: cfg('main.automation','conservative') == 'assisted' && bool_cfg('main.assisted_auto', false), maintenanceWindow: [ cfg('main.maintenance_start','03:00'), cfg('main.maintenance_end','05:00') ] }
 	};
 }

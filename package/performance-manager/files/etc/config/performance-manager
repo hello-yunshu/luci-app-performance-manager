@@ -24,6 +24,9 @@ config core 'main'
 config rill 'shadow'
 	option enabled '1'
 	option mode 'shadow'
+	# Path to the upstream-provided Rill runtime binary.  Empty = external
+	# dependency not installed; the integration is fail-closed/blocked.
+	option binary ''
 	option socket '/run/performance-manager/rill.sock'
 	option max_message '65536'
 	option timeout_ms '1000'

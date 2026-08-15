@@ -51,7 +51,7 @@
       "failed": []
     },
     "8": {
-      "name": "Rill Intelligence",
+      "name": "Rill Intelligence (external runtime)",
       "status": "pass",
       "checks": 9,
       "failed": []

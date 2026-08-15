@@ -3,7 +3,6 @@ import unittest
 
 ROOT=Path(__file__).resolve().parents[1]
 CORE=(ROOT/'package/performance-manager/files/usr/sbin/performance-manager.uc').read_text()
-RILL=(ROOT/'package/performance-manager-rill/src/src/main.rs').read_text()
 CFG=(ROOT/'package/performance-manager/files/etc/config/performance-manager').read_text()
 CONTRACTS=(ROOT/'package/performance-manager/files/usr/share/performance-manager/contracts.uc').read_text()
 
@@ -31,11 +30,17 @@ class Phase712Tests(unittest.TestCase):
         self.assertIn('exact-qdisc-restore-not-proven',plan)
         self.assertIn('no-generic-third-party-sfe-contract',plan)
         for action in set(actions)-{'qdisc.replace','fastpath.third_party_sfe'}: self.assertIn(action,plan)
-    def test_rill_state_is_persistent_bounded_and_advisory(self):
-        self.assertIn('DEFAULT_STATE_DIR: &str = "/etc/performance-manager/rill"',RILL)
-        for token in ['MAX_OUTCOME_LINES','MAX_LEDGER_LINES','MAX_STATE_FILE_BYTES','bounded_append','decision-ledger.jsonl','authority\\\":\\\"none']:
-            self.assertIn(token,RILL)
-        self.assertNotIn('Command::new',RILL)
+    def test_rill_integration_is_external_and_fail_closed(self):
+        # Rill is an external runtime: the Core never compiles/bundles it and
+        # only drives it through a bounded capability/protocol gate.  A missing
+        # runtime or protocol-major mismatch is fail-closed, never assumed OK.
+        self.assertIn('const RILL_PROTOCOL_API = 2',CORE)
+        self.assertIn('const RILL_REQUIRED_OPS',CORE)
+        self.assertIn('external-runtime-missing',CORE)
+        self.assertIn('protocol-major-mismatch',CORE)
+        self.assertIn("state: 'incompatible'",CORE)
+        self.assertNotIn('cargo',(ROOT/'package/performance-manager-rill/Makefile').read_text())
+        self.assertNotIn('rust',(ROOT/'package/performance-manager-rill/Makefile').read_text())
     def test_assisted_auto_is_double_opt_in(self):
         self.assertIn("option automation 'conservative'",CFG); self.assertIn("option assisted_auto '0'",CFG)
         body=self.function('assisted_auto_tick','status')
