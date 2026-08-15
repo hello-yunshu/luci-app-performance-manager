@@ -85,11 +85,14 @@ def main(argv):
 
     # The build gate is PASS only when the expected APK packages were produced
     # and the Rill consumed release (when provisioned) is pinned, never latest.
-    expected_apks = [f'{name}_*.apk' for name in packages]
+    # OpenWrt names built APKs as `<pkg>-<version>-<rel>_<arch>.apk` (hyphen
+    # before the version), so match the package name prefix followed by either
+    # a hyphen or an underscore separator.
+    expected_apks = [f'{name}-*.apk' for name in packages]
     apks_found = []
     if sdk_dir:
         for apk in Path(sdk_dir).rglob('*.apk'):
-            if any(apk.name.startswith(name + '_') for name in packages):
+            if any(apk.name.startswith(name + '-') or apk.name.startswith(name + '_') for name in packages):
                 apks_found.append(apk.name)
     build_pass = bool(sdk_dir) and len(apks_found) >= len(packages) and 'latest' not in (up.get('artifactUrl') or '')
 
