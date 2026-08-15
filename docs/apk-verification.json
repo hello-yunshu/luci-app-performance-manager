@@ -1,0 +1,58 @@
+{
+  "schemaVersion": 1,
+  "contract": "apk-exact-verification",
+  "expectedVersion": "1.0.0_rc4",
+  "arch": "x86_64",
+  "packages": {
+    "performance-manager": {
+      "status": "ok",
+      "filename": "performance-manager-1.0.0_rc4-r1.apk",
+      "sha256": "78ee1765a86a57cd16968ab659ec10464d54397235c0d084e1894ef69c68d3d4",
+      "pkgname": "performance-manager",
+      "pkgver": "1.0.0_rc4-r1",
+      "arch": "x86_64",
+      "depends": [
+        "libc",
+        "ubus",
+        "uci",
+        "ucode",
+        "ucode-mod-fs",
+        "ucode-mod-log",
+        "ucode-mod-rtnl",
+        "ucode-mod-socket",
+        "ucode-mod-ubus",
+        "ucode-mod-uci",
+        "ucode-mod-uloop"
+      ]
+    },
+    "luci-app-performance-manager": {
+      "status": "ok",
+      "filename": "luci-app-performance-manager-1.0.0_rc4-r1.apk",
+      "sha256": "ca064d9c2c944f0abc9b629ac19517aefe53df21cd3741d5120c29b1022bb71a",
+      "pkgname": "luci-app-performance-manager",
+      "pkgver": "1.0.0_rc4-r1",
+      "arch": "noarch",
+      "depends": [
+        "libc",
+        "luci-base",
+        "luci-i18n-base-zh-cn",
+        "performance-manager",
+        "rpcd"
+      ]
+    },
+    "performance-manager-rill": {
+      "status": "ok",
+      "filename": "performance-manager-rill-1.0.0_rc4-r1.apk",
+      "sha256": "224149abd96586b41842786ca65ba5d96087315c17763464045f4483ede2b4df",
+      "pkgname": "performance-manager-rill",
+      "pkgver": "1.0.0_rc4-r1",
+      "arch": "x86_64",
+      "depends": [
+        "libc",
+        "performance-manager"
+      ]
+    }
+  },
+  "verdict": "PASS",
+  "failures": []
+}
