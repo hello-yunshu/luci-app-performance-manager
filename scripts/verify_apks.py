@@ -27,18 +27,38 @@ ROOT = Path(__file__).resolve().parents[1]
 EXPECTED = ['performance-manager', 'luci-app-performance-manager', 'performance-manager-rill']
 
 
-def open_maybe_gz(path):
+def open_package(path):
+    """Open an APK returning a binary file object, handling gzip, zstd, xz and
+    plain-tar compression.  OpenWrt 25.x APKs are zstd-compressed (.tar.zst) by
+    default, which Python's tarfile cannot decode directly, so zstd is
+    decompressed through the zstandard module (or the `zstd` CLI as a fallback)
+    before tarfile reads the stream."""
     with open(path, 'rb') as f:
-        head = f.read(2)
-    if head == b'\x1f\x8b':
+        head = f.read(6)
+    if head[:2] == b'\x1f\x8b':  # gzip
         return gzip.open(path, 'rb')
-    return open(path, 'rb')
+    if head[:4] == b'\x28\xb5\x2f\xfd':  # zstd
+        # Buffered into a seekable BytesIO: the compressed stream is not
+        # seekable, and tarfile('r:*') seeks for compression detection.
+        f = open(path, 'rb')
+        try:
+            import zstandard as zstd
+            with zstd.ZstdDecompressor().stream_reader(f) as r:
+                return io.BytesIO(r.read())
+        except Exception:
+            f.close()
+            import subprocess
+            p = subprocess.run(['zstd', '-d', '-c', path], capture_output=True)
+            if p.returncode != 0:
+                raise RuntimeError(p.stderr.decode('utf-8', 'replace'))
+            return io.BytesIO(p.stdout)
+    return open(path, 'rb')  # xz / plain tar (tarfile 'r:*' auto-detects)
 
 
 def apk_pkginfo(path):
     """Return a dict of the package's .PKGINFO control metadata, or None."""
     try:
-        with open_maybe_gz(path) as f:
+        with open_package(path) as f:
             with tarfile.open(fileobj=f, mode='r:*') as tf:
                 m = tf.getmember('.PKGINFO')
                 data = tf.extractfile(m).read().decode('utf-8', 'replace')
