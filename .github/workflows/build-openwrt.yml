@@ -75,7 +75,10 @@ jobs:
           # Exact verification reads .PKGINFO (pkgname/pkgver/arch/deps) instead
           # of filename prefix, so performance-manager and performance-manager-rill
           # can never be confused and a stale rc.3 artifact can never pass.
-          python3 "$GITHUB_WORKSPACE/scripts/verify_apks.py" "$SDKDIR" "$apk_version" "x86_64"
+          # $SDKDIR is a RELATIVE path, so after `cd "$SDKDIR"` above it would
+          # resolve to a nested, non-existing directory and rglob would find
+          # nothing. Pass the absolute CWD ($PWD), which is the SDK root.
+          python3 "$GITHUB_WORKSPACE/scripts/verify_apks.py" "$PWD" "$apk_version" "x86_64"
       - name: Generate build metadata (auditable evidence)
         shell: bash
         run: |
