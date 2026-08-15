@@ -39,6 +39,17 @@ jobs:
           node scripts/luci_render_smoke.js
       - name: Python companion syntax
         run: python -m py_compile companion/pm_companion_agent.py
+      - name: Upload source/behavior audit evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: source-audit-evidence
+          path: |
+            docs/FINAL_AUDIT.md
+            docs/FINAL_AUDIT.json
+            docs/SOURCE_GATES.json
+            docs/HOST_SYNTAX_REPORT.json
+            docs/RESOURCE_BUDGET.json
+          if-no-files-found: error
 
   # Rill is an EXTERNAL runtime owned, built and released by its upstream
   # repository. This repository never compiles or natively tests Rill, so there
@@ -89,6 +100,41 @@ jobs:
               sys.exit(1)
           print(f"rill-contract: artifact SHA-256 verified ({digest})")
           PY
+      - name: Generate Rill consumed manifest
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - "$GITHUB_WORKSPACE" <<'PY'
+          import json, sys
+          root = sys.argv[1]
+          dep = json.load(open(f"{root}/contracts/rill-dependency.json"))
+          up = dep.get("upstream") or {}
+          manifest = {
+            "schemaVersion": 1,
+            "contract": "pm<->rill-consumed-release",
+            "upstreamRepository": up.get("repository"),
+            "consumedVersion": up.get("releaseVersion"),
+            "artifactUrl": up.get("artifactUrl"),
+            "artifactSha256": up.get("artifactSha256"),
+            "manifestUrl": up.get("manifestUrl"),
+            "status": up.get("status") or "external-dependency-blocked",
+            "blockedReason": up.get("blockedReason"),
+            "protocolApi": dep.get("protocol", {}).get("api"),
+            "requiredCapabilities": dep.get("capabilities", {}).get("required"),
+            "minimumRillVersion": dep.get("minimumRillVersion"),
+            "note": "PM never compiles Rill; this manifest records the upstream release this repo consumes. When null the integration is external-dependency-blocked and the Core capability gate fails closed."
+          }
+          with open(f"{root}/rill-consumed-manifest.json", "w") as f:
+              json.dump(manifest, f, ensure_ascii=False, indent=2)
+              f.write("\n")
+          print(json.dumps({"status": manifest["status"], "consumedVersion": manifest["consumedVersion"]}))
+          PY
+      - name: Upload Rill consumed manifest
+        uses: actions/upload-artifact@v4
+        with:
+          name: rill-consumed-manifest
+          path: rill-consumed-manifest.json
+          if-no-files-found: error
       - run: python -m py_compile companion/pm_companion_agent.py
 
   openwrt-ucode:
@@ -134,72 +180,3 @@ jobs:
           sudo install -D -m 0755 package/performance-manager/files/usr/sbin/performance-manager.uc rootfs/usr/sbin/performance-manager.uc
           sudo install -D -m 0644 package/performance-manager/files/usr/share/performance-manager/contracts.uc rootfs/usr/share/performance-manager/contracts.uc
           sudo chroot rootfs /usr/bin/ucode -c -o /tmp/performance-manager.uc /usr/sbin/performance-manager.uc
-
-  # Official OpenWrt SDK build for the packages this repository OWNS:
-  # performance-manager (Core), luci-app-performance-manager (UI) and the
-  # performance-manager-rill integration package (which never compiles Rill).
-  # Real build evidence comes from this remote Action, not local mocks.
-  openwrt-sdk-build:
-    runs-on: ubuntu-latest
-    timeout-minutes: 60
-    steps:
-      - uses: actions/checkout@v4
-      - name: Install host dependencies
-        run: sudo apt-get update && sudo apt-get install -y build-essential gawk gettext libncurses-dev libssl-dev python3 rsync unzip file wget zstd
-      - name: Download official SDK and verify checksum
-        shell: bash
-        run: |
-          set -euo pipefail
-          base="https://downloads.openwrt.org/releases/${OPENWRT_VERSION}/targets/${OPENWRT_TARGET}"
-          curl -fsSL "$base/" -o /tmp/index.html
-          sdk=$(grep -oE "openwrt-sdk-${OPENWRT_VERSION}-x86-64_[^\"< ]+\.tar\.zst" /tmp/index.html | head -n1)
-          test -n "$sdk"
-          curl -fsSL "$base/sha256sums" -o /tmp/sha256sums
-          curl -fsSLO "$base/$sdk"
-          grep -e "\\*$sdk$" /tmp/sha256sums | sha256sum -c -
-          tar --zstd -xf "$sdk"
-          sdkdir=$(find . -maxdepth 1 -type d -name "openwrt-sdk-${OPENWRT_VERSION}-x86-64_*" | head -n1)
-          test -n "$sdkdir"
-          echo "SDKDIR=$sdkdir" >> "$GITHUB_ENV"
-          echo "FEEDS_BUILDINFO_URL=$base/feeds.buildinfo" >> "$GITHUB_ENV"
-          echo "SDK_CACHE_TAG=${OPENWRT_VERSION}-${OPENWRT_TARGET//\//-}" >> "$GITHUB_ENV"
-      - name: Pin feeds to official release feed commits
-        shell: bash
-        run: |
-          set -euo pipefail
-          cd "$SDKDIR"
-          ./scripts/feeds update -a
-          python3 "$GITHUB_WORKSPACE/scripts/pin_feeds.py"
-      - name: Install feeds and local packages
-        shell: bash
-        run: |
-          set -euo pipefail
-          cd "$SDKDIR"
-          ./scripts/feeds install -a
-          mkdir -p package/openwrt-performance-manager
-          cp -a "$GITHUB_WORKSPACE"/package/* package/openwrt-performance-manager/
-          make defconfig
-      - name: Build Core
-        run: cd "$SDKDIR" && make -j2 package/performance-manager/compile V=s
-      - name: Build LuCI
-        run: cd "$SDKDIR" && make -j2 package/luci-app-performance-manager/compile V=s
-      - name: Build Rill integration package (glue only, never compiles Rill)
-        run: cd "$SDKDIR" && make -j2 package/performance-manager-rill/compile V=s
-      - name: Assert expected packages present
-        shell: bash
-        run: |
-          set -euo pipefail
-          cd "$SDKDIR"
-          find bin -name '*.apk' -o -name '*.ipk' | sort
-          test -n "$(find bin -name 'performance-manager*.apk' | head -n1)" || { echo 'expected performance-manager APK missing' >&2; exit 1; }
-          test -n "$(find bin -name 'luci-app-performance-manager*.apk' | head -n1)" || { echo 'expected luci-app-performance-manager APK missing' >&2; exit 1; }
-      - name: Upload package artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: openwrt-${{ env.SDK_CACHE_TAG }}-packages
-          path: |
-            ${{ env.SDKDIR }}/bin/packages/**/*.apk
-            ${{ env.SDKDIR }}/bin/packages/**/*.ipk
-            ${{ env.SDKDIR }}/bin/targets/**/packages/*.apk
-            ${{ env.SDKDIR }}/bin/targets/**/packages/*.ipk
-          if-no-files-found: error

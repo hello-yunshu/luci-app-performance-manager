@@ -70,7 +70,7 @@ make package/luci-app-performance-manager/compile V=s
 make package/performance-manager-rill/compile V=s
 ```
 
-> You can also rely on the GitHub Actions `openwrt-sdk-build` job to produce the build instead of using a local SDK.
+> You can also rely on the GitHub Actions `build-openwrt.yml` → `openwrt-sdk-build` job to produce the build instead of using a local SDK.
 
 ### Package info
 
@@ -236,10 +236,13 @@ package/luci-app-performance-manager/
 
 This project is built and verified automatically with GitHub Actions, triggered by pushing to main or manually:
 
+**`ci.yml` (source & behavior audit, non-compiling)**
 - **static**: unit tests + contract validation + source gates + final audit + LuCI JS syntax & render smoke
-- **rill-contract**: verifies the PM ↔ upstream Rill dependency contract and pinned upstream release provenance (never compiles Rill)
+- **rill-contract**: verifies the PM ↔ upstream Rill dependency contract and pinned upstream release provenance (never compiles Rill), and emits `rill-consumed-manifest.json`
 - **openwrt-ucode**: compiles and validates Core ucode inside the official OpenWrt 25.12.5 rootfs
-- **openwrt-sdk-build**: builds the three packages this repository owns (Core / LuCI / integration glue) with the official SDK
+
+**`build-openwrt.yml` (remote official SDK build)**
+- **openwrt-sdk-build**: builds the three packages this repository owns (Core / LuCI / integration glue) with the official SDK, and emits `build-metadata.json`, `checksums.txt` and audit-evidence artifacts
 
 > This repository no longer has a `rill-native` / Rill SDK build job: no Rust toolchain is installed to compile Rill. Rill's native build and tests are the responsibility of the Rill upstream repository's Actions.
 
