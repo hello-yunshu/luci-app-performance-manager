@@ -198,6 +198,6 @@ jobs:
         with:
           name: openwrt-${{ env.OPENWRT_VERSION }}-${{ env.OPENWRT_TARGET }}-packages
           path: |
-            ${{ env.SDKDIR }}/bin/*.apk
-            ${{ env.SDKDIR }}/bin/*.ipk
+            ${{ env.SDKDIR }}/bin/targets/**/packages/*.apk
+            ${{ env.SDKDIR }}/bin/targets/**/packages/*.ipk
           if-no-files-found: error
