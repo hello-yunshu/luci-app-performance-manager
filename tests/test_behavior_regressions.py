@@ -148,24 +148,26 @@ class BehavioralRegressions(unittest.TestCase):
         self.assertNotEqual(nft_ruleset_fingerprint(a), nft_ruleset_fingerprint(c))
         self.assertIn('nft_ruleset_fingerprint', CORE)
 
-    # 10. Rill capability handshake is protocol/capability driven and fail-closed.
+    # 10. Rill capability handshake is contract/protocol driven and fail-closed.
     def test_rill_capability_handshake_is_fail_closed(self):
-        self.assertIn('const RILL_PROTOCOL_API = 2', CORE)
-        self.assertIn('protocol-major-mismatch', CORE)
+        self.assertIn("const RILL_CONTRACT = 'pm-rill-shadow'", CORE)
+        self.assertIn('const RILL_PROTOCOL_VERSION = 1', CORE)
+        self.assertIn('contract-mismatch', CORE)
+        self.assertIn('protocol-version-mismatch', CORE)
         self.assertIn('external-runtime-missing', CORE)
-        self.assertIn("(r.response?.api ?? 0) != RILL_PROTOCOL_API", CORE)
-        # Missing runtime is never silently healthy.
-        self.assertIn("state: 'incompatible'", CORE)
+        self.assertIn("state: RILL_STATES.incompatible", CORE)
 
     # 11. Upstream Rill artifact checksum/manifest gate is a real contract check.
     def test_rill_dependency_contract_is_pinned_or_blocked(self):
         dep = json.loads((ROOT / 'contracts/rill-dependency.json').read_text())
-        self.assertEqual(dep['protocol']['api'], 2)
+        self.assertEqual(dep['protocol']['contract'], 'pm-rill-shadow')
+        self.assertEqual(dep['protocol']['protocolVersion'], 1)
         self.assertEqual(set(dep['protocol']['requiredOps']), {'status', 'observe', 'outcome'})
         up = dep['upstream']
-        if up.get('releaseVersion') or up.get('artifactSha256'):
-            self.assertNotIn('latest/download', up.get('artifactUrl') or '')
-            self.assertTrue(up['artifactSha256'])
+        art = up.get('artifact') or {}
+        if up.get('releaseVersion'):
+            self.assertNotIn('latest/download', art.get('url') or '')
+            self.assertTrue(art['sha256'])
         else:
             self.assertEqual(up['status'], 'external-dependency-blocked')
         # The integration package never compiles Rill.

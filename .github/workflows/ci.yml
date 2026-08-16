@@ -191,8 +191,9 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          # Layer 2: execute the ACTUAL performance-manager.uc (after the same
-          # ucode-hoist the service uses) against runtime-shaped fixtures. This is
+          # Layer 2: execute the ACTUAL performance-manager.uc (the same raw,
+          # forward-reference-free source the service ships and the APK installs)
+          # against runtime-shaped fixtures. This is
           # the real behavioral regression the prompt requires — Multi-WAN/PBR via
           # route/rule evidence, underlay resolution, path-specific workload,
           # nft candidate-only masking, methodology mismatch, Conservative
@@ -208,3 +209,29 @@ jobs:
           name: core-runtime-harness
           path: core-runtime-harness.log
           if-no-files-found: warn
+      - name: Raw shipped Core daemon startup smoke (ubus publish + calls)
+        shell: bash
+        run: |
+          set -euo pipefail
+          # CORE BLOCKER C: boot the ACTUAL shipped performance-manager.uc as a
+          # daemon (verbatim, zero forward references, NO convert_hoist) inside
+          # the rootfs with a live ubusd, then assert the ubus object publishes
+          # and status/topology/capabilities answer well-formed JSON.
+          python3 tools/docker-validate/startup-smoke.py rootfs
+          python3 - "$GITHUB_WORKSPACE" <<'PY'
+          import json, sys
+          ev = json.load(open(f"{sys.argv[1]}/docs/core-startup-smoke.json"))
+          if not ev.get("ok"):
+              print(f"FAIL: core startup smoke not ok: {ev}")
+              sys.exit(1)
+          print(f"core-startup-smoke: {ev['coreSha256']} methods={list(ev['methods'])}")
+          PY
+      - name: Upload raw Core startup smoke report
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: core-startup-smoke
+          path: |
+            core-startup-smoke.log
+            docs/core-startup-smoke.json
+          if-no-files-found: error

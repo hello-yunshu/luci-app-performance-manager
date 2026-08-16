@@ -1,6 +1,6 @@
 # Changelog
 
-## 1.0.0-rc.4 — single-repo remediation + real Core runtime harness (2026-08-16)
+## 1.0.0-rc.5 — single-repo remediation + real Core runtime harness (2026-08-16)
 
 - **Real Core ucode runtime harness (Layer 2).** `tools/docker-validate/harness` now executes the *actual* `performance-manager.uc` (after the same ucode-hoist the service uses) on a real OpenWrt 25.12.5 ucode, with the data-provider seam (conn/run/read/interface_dump/device_dump) re-seated to runtime-shaped fixtures. It asserts (not substring): Multi-WAN/PBR discovery from route/rule evidence (custom `isp-b`/`fiber`), underlay resolution (PPPoE→VLAN→NIC), path-specific workload class (global WireGuard does not leak into a plain WAN), nft candidate-only fingerprint masking, measurement-methodology mismatch, Conservative auto-tick gating, and Rill fail-closed on an unavailable socket. Wired into `openwrt-ucode` CI as the blocking behavioral regression.
 - **`run()` portability fix.** Replaced the argv-ARRAY form (which `fs.popen` rejects on the supported OpenWrt ucode runtime, silently failing every command) with a shell-joined string where each argument is POSIX-quoted via `shell_quote()`. The secure-execution regression test was updated to assert this safe shell-quoting instead of the broken array form.

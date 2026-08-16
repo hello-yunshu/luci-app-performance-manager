@@ -1,18 +1,22 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://openwrt-performance-manager.local/schema/rill-ipc.json",
-  "title": "RillIPC",
-  "description": "Formal v2 protocol between Core (performance-manager.uc) and the Rill shadow bandit (performance-manager-rill). The envelope is common to every operation; per-operation required fields are enforced by the if/then blocks below, mirroring the strict validation performed by main.rs.",
+  "title": "PmRillShadowIPC",
+  "description": "Formal v1 protocol between Core (performance-manager.uc) and the pinned Rill PM adapter (rill-pm-adapter, published by hello-yunshu/rill-ml). The contract name 'pm-rill-shadow' and protocolVersion 1 are deliberately independent of Rill Runtime IPC API v1/v2/v3. The envelope is common to every operation; per-operation required fields are enforced by the if/then blocks below, mirroring the strict validation performed by the adapter.",
   "type": "object",
   "additionalProperties": true,
   "required": [
-    "api",
+    "contract",
+    "protocolVersion",
     "requestId",
     "op"
   ],
   "properties": {
-    "api": {
-      "const": 2
+    "contract": {
+      "const": "pm-rill-shadow"
+    },
+    "protocolVersion": {
+      "const": 1
     },
     "requestId": {
       "type": "string",
@@ -117,6 +121,18 @@
       "type": "string",
       "minLength": 1
     },
+    "decisionId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "goal": {
+      "type": "string",
+      "minLength": 1
+    },
+    "modelGeneration": {
+      "type": "integer",
+      "minimum": 0
+    },
     "reward": {
       "type": "number"
     }
@@ -164,8 +180,11 @@
       "then": {
         "required": [
           "validated",
+          "decisionId",
           "actionId",
           "sessionId",
+          "goal",
+          "modelGeneration",
           "deviceProfile",
           "capabilityHash",
           "topologyGeneration",

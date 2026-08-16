@@ -8,6 +8,17 @@ upstream Rill release this repo consumes (never `latest`), and the overall
 PASS/FAIL verdict. It is emitted by the remote GitHub Actions build job; the
 script is kept runnable on the host so the schema and field population can be
 reused and tested without a toolchain.
+
+Package verification is NOT re-derived here from weak filename prefixes.
+The authoritative source is the exact APK report written by
+scripts/verify_apks.py (docs/apk-verification.json), which matches every
+expected package on pkgname/pkgver/arch/depends and asserts the Core daemon
+inside the built APK is byte-identical (SHA256) to the shipped source.  The
+metadata also separates the build verdicts so an "APK build PASS" can never be
+misread as a full RC PASS: pmPackagesBuildVerdict / apkExactVerificationVerdict
+/ rillArtifactProvenanceVerdict / rillRuntimeCompatibilityVerdict /
+rillFunctionalIntegrationVerdict are recorded independently and combined only
+into the explicit rcVerdict.
 """
 from __future__ import annotations
 import hashlib, json, os, subprocess, sys
@@ -73,7 +84,7 @@ def main(argv):
     up = dep.get('upstream') or {}
     rill_repo = up.get('repository') or None
     rill_version = up.get('releaseVersion') or None
-    rill_checksum = up.get('artifactSha256') or None
+    rill_checksum = (up.get('artifact') or {}).get('sha256') or None
     rill_status = up.get('status') or 'external-dependency-blocked'
 
     packages = ['performance-manager', 'luci-app-performance-manager', 'performance-manager-rill']
@@ -83,18 +94,101 @@ def main(argv):
         if mk.exists():
             package_shas[name] = hashlib.sha256(mk.read_bytes()).hexdigest()
 
-    # The build gate is PASS only when the expected APK packages were produced
-    # and the Rill consumed release (when provisioned) is pinned, never latest.
-    # OpenWrt names built APKs as `<pkg>-<version>-<rel>_<arch>.apk` (hyphen
-    # before the version), so match the package name prefix followed by either
-    # a hyphen or an underscore separator.
-    expected_apks = [f'{name}-*.apk' for name in packages]
-    apks_found = []
-    if sdk_dir:
-        for apk in Path(sdk_dir).rglob('*.apk'):
-            if any(apk.name.startswith(name + '-') or apk.name.startswith(name + '_') for name in packages):
-                apks_found.append(apk.name)
-    build_pass = bool(sdk_dir) and len(apks_found) >= len(packages) and 'latest' not in (up.get('artifactUrl') or '')
+    # Authoritative package verification: consume the exact APK report produced
+    # by scripts/verify_apks.py (exact pkgname/pkgver/arch/depends match + the
+    # Core daemon SHA256 inside the APK vs the shipped source).  build_evidence
+    # never re-does weak filename-prefix inference, because `performance-manager-*`
+    # also matches the integration package and could mask a missing Core.
+    apk_report = None
+    apk_report_path = ROOT / 'docs' / 'apk-verification.json'
+    if apk_report_path.exists():
+        try:
+            apk_report = json.loads(apk_report_path.read_text())
+        except Exception:
+            apk_report = None
+
+    report_packages = (apk_report or {}).get('packages', {})
+    produced = {}
+    for name in packages:
+        rec = report_packages.get(name) or {}
+        produced[name] = rec.get('filename') if rec.get('status') not in ('missing', 'duplicate') else None
+
+    pm_build_verdict = 'PASS' if (apk_report is not None and all(produced[n] for n in packages)) else 'FAIL'
+    apk_exact_verdict = 'PASS' if (apk_report or {}).get('verdict') == 'PASS' else 'FAIL'
+
+    # Rill Gate 1 — Artifact Provenance: pinned release tag/URL/SHA256/asset and
+    # tag commit, never `latest`/`main`.  A not-provisioned (blocked) upstream is
+    # an honest state (the Core fails closed); a provisioned-but-broken pin FAILS.
+    artifact = up.get('artifact') or {}
+    artifact_url = artifact.get('url') or ''
+    provisioned = bool(up.get('releaseVersion') or artifact_url)
+    if not provisioned:
+        rill_provenance = 'BLOCKED'
+        rill_provenance_reason = 'no upstream Rill release provisioned (external-dependency-blocked)'
+    elif (artifact.get('sha256') and artifact_url and 'latest/download' not in artifact_url
+          and up.get('releaseVersion') and up.get('tagCommitSha')):
+        rill_provenance = 'PASS'
+        rill_provenance_reason = None
+    else:
+        rill_provenance = 'FAIL'
+        rill_provenance_reason = 'upstream Rill release entry is incomplete or unpinned'
+
+    # Rill Gates 2 (Runtime Compatibility) and 3 (Functional Integration) require
+    # executing the real adapter and are recorded by the gate jobs; this SDK build
+    # job does not execute them, so they default to BLOCKED (never fabricated PASS)
+    # unless the gate status document already records an explicit verdict.
+    rill_status_doc = {}
+    rill_status_path = ROOT / 'docs' / 'rill-integration-status.json'
+    if rill_status_path.exists():
+        try:
+            rill_status_doc = json.loads(rill_status_path.read_text())
+        except Exception:
+            rill_status_doc = {}
+    rill_runtime_verdict = str(rill_status_doc.get('runtimeCompatibility', 'BLOCKED')).upper()
+    rill_functional_verdict = str(rill_status_doc.get('functionalIntegration', 'BLOCKED')).upper()
+    if rill_runtime_verdict not in ('PASS', 'FAIL', 'BLOCKED'):
+        rill_runtime_verdict = 'BLOCKED'
+    if rill_functional_verdict not in ('PASS', 'FAIL', 'BLOCKED'):
+        rill_functional_verdict = 'BLOCKED'
+
+    verdicts = {
+        'pmPackagesBuildVerdict': pm_build_verdict,
+        'apkExactVerificationVerdict': apk_exact_verdict,
+        'rillArtifactProvenanceVerdict': rill_provenance,
+        'rillRuntimeCompatibilityVerdict': rill_runtime_verdict,
+        'rillFunctionalIntegrationVerdict': rill_functional_verdict,
+    }
+    if all(v == 'PASS' for v in verdicts.values()):
+        rc_verdict = 'PASS'
+    elif any(v == 'FAIL' for v in verdicts.values()):
+        rc_verdict = 'FAIL'
+    else:
+        rc_verdict = 'BLOCKED'
+
+    # The SDK build job itself gates on: all expected packages built + the exact
+    # APK verification passing + a valid Rill pin (a blocked upstream does not
+    # fail the build; a provisioned-but-broken pin does).  The combined rcVerdict
+    # is recorded separately so an APK build PASS is never read as a full RC PASS.
+    build_pass = (pm_build_verdict == 'PASS' and apk_exact_verdict == 'PASS'
+                  and rill_provenance in ('PASS', 'BLOCKED'))
+
+    packages_meta = {}
+    for name in packages:
+        entry = {'makefileSha256': package_shas.get(name)}
+        rec = report_packages.get(name) or {}
+        if rec:
+            entry['status'] = rec.get('status')
+            if rec.get('filename'):
+                entry['apkFilename'] = rec['filename']
+            if rec.get('sha256'):
+                entry['apkSha256'] = rec['sha256']
+            if rec.get('pkgver'):
+                entry['pkgver'] = rec['pkgver']
+            if rec.get('arch'):
+                entry['arch'] = rec['arch']
+            if name == 'performance-manager' and 'core' in rec:
+                entry['core'] = rec['core']
+        packages_meta[name] = entry
 
     metadata = {
         'schemaVersion': 1,
@@ -108,22 +202,33 @@ def main(argv):
         'sdkSha256': sdk_digest(sdk_dir) if sdk_dir else None,
         'feedsCommits': feeds_commits(sdk_dir) if sdk_dir else {},
         'packageManagerFormat': pkg_manager,
-        'packages': {name: {'makefileSha256': package_shas.get(name)} for name in packages},
-        'expectedApkPackages': expected_apks,
-        'producedApkPackages': sorted(apks_found),
+        'packages': packages_meta,
+        'expectedApkPackages': list(packages),
+        'producedApkPackages': [produced[n] for n in packages if produced[n]],
+        'apkExactVerificationVerdict': apk_exact_verdict,
+        'apkVerificationReport': str(apk_report_path) if apk_report is not None else None,
         'rillUpstreamRepository': rill_repo,
         'rillConsumedVersion': rill_version,
         'rillConsumedArtifactSha256': rill_checksum,
         'rillUpstreamStatus': rill_status,
+        'rillArtifactProvenanceReason': rill_provenance_reason,
         'workflow': workflow,
         'workflowRunId': run_id,
         'buildTimestamp': datetime.now(timezone.utc).isoformat(),
+        'verdicts': {**verdicts, 'rcVerdict': rc_verdict},
         'verdict': 'PASS' if build_pass else 'FAIL',
     }
     out = ROOT / 'build-metadata.json' if not env('BUILD_EVIDENCE_OUT') else Path(env('BUILD_EVIDENCE_OUT'))
     out.write_text(json.dumps(metadata, ensure_ascii=False, indent=2) + '\n')
-    print(json.dumps({'verdict': metadata['verdict'], 'producedApks': len(apks_found), 'output': str(out)},
-                     ensure_ascii=False, indent=2))
+    print(json.dumps({
+        'verdict': metadata['verdict'],
+        'pmPackagesBuildVerdict': pm_build_verdict,
+        'apkExactVerificationVerdict': apk_exact_verdict,
+        'rillArtifactProvenanceVerdict': rill_provenance,
+        'rcVerdict': rc_verdict,
+        'producedApks': [produced[n] for n in packages if produced[n]],
+        'output': str(out),
+    }, ensure_ascii=False, indent=2))
     sys.exit(0 if build_pass else 1)
 
 

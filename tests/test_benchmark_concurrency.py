@@ -24,7 +24,7 @@ class BenchmarkLockTests(unittest.TestCase):
 class BenchmarkMaskedKeysTests(unittest.TestCase):
     def test_fastpath_candidate_masks_its_own_uci_keys(self):
         keys = m.benchmark_masked_uci_keys('fastpath.software_flow_offload')
-        self.assertEqual(sorted(keys), ['firewall.@defaults[0].flow_offloading', 'firewall.@defaults[0].flow_offloading_hw'])
+        self.assertEqual(sorted(keys), ['fastpath-expected-delta', 'firewall.@defaults[0].flow_offloading', 'firewall.@defaults[0].flow_offloading_hw'])
         self.assertEqual(m.benchmark_masked_uci_keys('fastpath.hardware_flow_offload'), keys)
 
     def test_non_fastpath_actions_mask_nothing(self):

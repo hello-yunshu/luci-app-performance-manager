@@ -1,5 +1,6 @@
 {
-  "api": 2,
+  "contract": "pm-rill-shadow",
+  "protocolVersion": 1,
   "requestId": "req-example",
   "op": "observe",
   "deviceProfile": "profile-hash",

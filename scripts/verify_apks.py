@@ -8,13 +8,20 @@ reads the real APK CONTROL metadata (`.PKGINFO`) and verifies, for each expected
 package, an exact match on:
 
   - package name       (pkgname)
-  - version + release  (pkgver, e.g. 1.0.0_rc4-r1)
+  - version + release  (pkgver, e.g. 1.0.0_rc5-r1)
   - architecture       (arch == the target arch)
   - dependencies       (depend lines)
   - filename + sha256
 
+For the `performance-manager` Core package it additionally extracts the shipped
+daemon `/usr/sbin/performance-manager.uc` from the APK's ADB data blocks and
+asserts it is byte-for-byte identical (SHA256) to the repo source that the
+runtime harness and startup smoke execute — so a built APK can never diverge
+from the tested Core.
+
 It fails closed (exit != 0) if any expected package is absent, duplicated, of
-the wrong arch, or a stray old-version artifact.
+the wrong arch, a stray old-version artifact, or if the APK's Core file does not
+match the tested source.
 
 Usage:
   python3 scripts/verify_apks.py <sdk_dir> <expected_version> <arch>
@@ -25,6 +32,11 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 EXPECTED = ['performance-manager', 'luci-app-performance-manager', 'performance-manager-rill']
+
+# The shipped Core daemon path inside the package; its bytes must equal the
+# repo source the runtime harness / startup smoke run verbatim.
+CORE_PATH = '/usr/sbin/performance-manager.uc'
+CORE_SRC = ROOT / 'package/performance-manager/files/usr/sbin/performance-manager.uc'
 
 
 def open_package(path):
@@ -78,6 +90,19 @@ def _u64(b, off):
     return struct.unpack_from('<Q', b, off)[0]
 
 
+def _uint(payload, val):
+    """Decode an INT / INT32 / INT64 adb_val_t (embedded or indirect)."""
+    t = val & 0xf0000000
+    base = val & 0x0fffffff
+    if t == 0x10000000:  # INT: value embedded in low 28 bits
+        return base
+    if t == 0x20000000:  # INT32: u32 at offset
+        return _u32(payload, base)
+    if t == 0x30000000:  # INT64: u64 at offset
+        return _u64(payload, base)
+    return 0
+
+
 def _blob(payload, val):
     """Decode a BLOB_8 / BLOB_16 / BLOB_32 adb_val_t located at `val`'s offset
     inside `payload`, returning bytes (or None for non-blob types)."""
@@ -102,87 +127,201 @@ def _object_slots(payload, off):
     return [_u32(payload, off + 4 + i * 4) for i in range(count - 1)]
 
 
+def _adb_body(raw):
+    """Decompress the ADB package body (bytes after the 4-byte ADB header).
+
+    Returns the uncompressed `ADB.pckg` body, or None if it is not a decodable
+    ADBv3 package stream."""
+    if raw[0:3] != b'ADB':
+        return None
+    comp = raw[3]
+    if comp == 0x64:  # 'd' -> Deflate (raw stream, no gzip header)
+        return zlib.decompress(raw[4:], wbits=-zlib.MAX_WBITS)
+    if comp == 0x63:  # 'c' -> custom method: u8 method id + u8 level
+        method = raw[4]
+        if method == 1:  # Deflate
+            return zlib.decompress(raw[6:], wbits=-zlib.MAX_WBITS)
+        if method == 2:  # Zstandard
+            import zstandard as zstd
+            return zstd.ZstdDecompressor().decompress(raw[6:])
+        return None
+    if comp == 0x2e:  # '.' -> not compressed
+        return raw[4:]
+    return None
+
+
+def _adb_blocks(body):
+    """Yield (btype, payload) for every block in an `ADB.pckg` body.
+
+    Handles both the simple 4-byte header and the extended 16-byte header, and
+    skips the 8-byte alignment padding after each block (a block's raw size is
+    padded up to an 8-byte boundary)."""
+    if body[0:8] != b'ADB.pckg':
+        return
+    pos, n = 8, len(body)
+    while pos + 4 <= n:
+        v = _u32(body, pos)
+        if (v >> 30) == 3:  # extended 16-byte header: btype in low 30 bits
+            btype = v & 0x3fffffff
+            raw = _u64(body, pos + 8)
+            hdr = 16
+        else:  # simple 4-byte header: btype in top 2 bits
+            btype = v >> 30
+            raw = v & 0x3fffffff
+            hdr = 4
+        if raw < hdr:
+            return
+        yield btype, body[pos + hdr: pos + raw]
+        pos += raw
+        pos += (8 - (raw & 7)) & 7  # 8-byte alignment padding
+
+
+def _adb_root(adb):
+    """Return the slot list of the ADB_BLOCK_ADB root OBJECT, or None."""
+    root_val = _u32(adb, 4)
+    if root_val & 0xf0000000 != 0xe0000000:
+        return None
+    slots = _object_slots(adb, root_val & 0x0fffffff)
+    return slots or None
+
+
+def _adb_pkginfo_meta(adb):
+    """Parse the PKGINFO object (ID 1) of an ADB_BLOCK_ADB payload, returning a
+    dict with pkgname / pkgver / arch / depend, or None."""
+    slots = _adb_root(adb)
+    if not slots:
+        return None
+    pkginfo_val = slots[0]  # ID 1: PKGINFO
+    if pkginfo_val == 0 or pkginfo_val & 0xf0000000 != 0xe0000000:
+        return None
+    info = _object_slots(adb, pkginfo_val & 0x0fffffff)
+
+    def slot_str(idx):
+        if idx >= len(info):
+            return ''
+        val = info[idx]
+        if val == 0:
+            return ''
+        data = _blob(adb, val)
+        return data.decode('utf-8', 'replace') if data else ''
+
+    deps = []
+    if len(info) > 14:  # ID 15: DEPENDS (object of dependency objects)
+        dval = info[14]
+        if dval and (dval & 0xf0000000) == 0xe0000000:
+            for o in _object_slots(adb, dval & 0x0fffffff):
+                if o and (o & 0xf0000000) == 0xe0000000:
+                    dslots = _object_slots(adb, o & 0x0fffffff)
+                    if dslots:
+                        nb = _blob(adb, dslots[0])  # dep NAME (ID 1)
+                        if nb:
+                            deps.append(nb.decode('utf-8', 'replace'))
+    return {'pkgname': slot_str(0), 'pkgver': slot_str(1),
+            'arch': slot_str(4), 'depend': deps}
+
+
+def _adb_paths(adb):
+    """Parse the PATHS object (ID 2) of an ADB_BLOCK_ADB payload, returning a
+    dict mapping (dir_idx, file_idx) -> (abs_path, size).  The 1-based indexes
+    match the dir/file indexes used by the ADB_BLOCK_DATA headers."""
+    slots = _adb_root(adb)
+    if not slots or len(slots) < 2:
+        return {}
+    paths_val = slots[1]  # ID 2: PATHS (object of dir objects)
+    if paths_val == 0 or paths_val & 0xf0000000 != 0xe0000000:
+        return {}
+    dirs = _object_slots(adb, paths_val & 0x0fffffff)
+    result = {}
+    for d_idx, dval in enumerate(dirs, 1):
+        if dval == 0 or dval & 0xf0000000 != 0xe0000000:
+            continue
+        dslots = _object_slots(adb, dval & 0x0fffffff)
+        dir_name = ''
+        if dslots:  # ID 1: NAME
+            nb = _blob(adb, dslots[0])
+            if nb:
+                dir_name = nb.decode('utf-8', 'replace')
+        files_val = dslots[2] if len(dslots) > 2 else 0  # ID 3: FILES
+        if files_val and (files_val & 0xf0000000) == 0xe0000000:
+            for f_idx, fval in enumerate(_object_slots(adb, files_val & 0x0fffffff), 1):
+                if fval == 0 or fval & 0xf0000000 != 0xe0000000:
+                    continue
+                fslots = _object_slots(adb, fval & 0x0fffffff)
+                fname = ''
+                if fslots:  # ID 1: NAME
+                    fb = _blob(adb, fslots[0])
+                    if fb:
+                        fname = fb.decode('utf-8', 'replace')
+                fsize = 0
+                if len(fslots) > 2:  # ID 3: SIZE
+                    fsize = _uint(adb, fslots[2])
+                path = (dir_name + '/' + fname) if dir_name else fname
+                result[(d_idx, f_idx)] = (path, fsize)
+    return result
+
+
 def adb_pkginfo(raw):
     """Parse an ADBv3 package byte-string, returning a dict with pkgname /
     pkgver / arch / depend, or None if it is not a decodable ADBv3 package."""
     try:
-        if raw[0:3] != b'ADB':
+        body = _adb_body(raw)
+        if body is None:
             return None
-        comp = raw[3]
-        if comp == 0x64:  # 'd' -> Deflate (raw stream, no gzip header)
-            body = zlib.decompress(raw[4:], wbits=-zlib.MAX_WBITS)
-        elif comp == 0x63:  # 'c' -> custom method: u8 method id + u8 level
-            method = raw[4]
-            if method == 1:  # Deflate
-                body = zlib.decompress(raw[6:], wbits=-zlib.MAX_WBITS)
-            elif method == 2:  # Zstandard
-                import zstandard as zstd
-                body = zstd.ZstdDecompressor().decompress(raw[6:])
-            else:
-                return None
-        elif comp == 0x2e:  # '.' -> not compressed
-            body = raw[4:]
-        else:
-            return None
-        if body[0:8] != b'ADB.pckg':
-            return None
-
-        # Walk the ADB block stream looking for the mandatory ADB_BLOCK_ADB.
-        pos = 8
-        adb = None
-        while pos + 4 <= len(body):
-            v = _u32(body, pos)
-            if (v >> 30) == 3:  # extended 16-byte header
-                btype = v & 0x3fffffff
-                x_size = _u64(body, pos + 8)
-                payload = body[pos + 16: pos + x_size]
-                pos += x_size
-            else:  # simple 4-byte header
-                btype = v >> 30
-                payload = body[pos + 4: pos + (v & 0x3fffffff)]
-                pos += v & 0x3fffffff
+        for btype, payload in _adb_blocks(body):
             if btype == 0:  # ADB_BLOCK_ADB
-                adb = payload
-                break
-        if adb is None:
-            return None
-
-        # adb_hdr: u8 compat_ver, u8 ver, u16 reserved, u32 root (OBJECT).
-        root_val = _u32(adb, 4)
-        if root_val & 0xf0000000 != 0xe0000000:
-            return None
-        slots = _object_slots(adb, root_val & 0x0fffffff)
-        if not slots:
-            return None
-        pkginfo_val = slots[0]  # ID 1: PKGINFO
-        if pkginfo_val == 0 or pkginfo_val & 0xf0000000 != 0xe0000000:
-            return None
-        info = _object_slots(adb, pkginfo_val & 0x0fffffff)
-
-        def slot_str(idx):
-            if idx >= len(info):
-                return ''
-            val = info[idx]
-            if val == 0:
-                return ''
-            data = _blob(adb, val)
-            return data.decode('utf-8', 'replace') if data else ''
-
-        deps = []
-        if len(info) > 14:  # ID 15: DEPENDS (object of dependency objects)
-            dval = info[14]
-            if dval and (dval & 0xf0000000) == 0xe0000000:
-                for o in _object_slots(adb, dval & 0x0fffffff):
-                    if o and (o & 0xf0000000) == 0xe0000000:
-                        dslots = _object_slots(adb, o & 0x0fffffff)
-                        if dslots:
-                            nb = _blob(adb, dslots[0])  # dep NAME (ID 1)
-                            if nb:
-                                deps.append(nb.decode('utf-8', 'replace'))
-        return {'pkgname': slot_str(0), 'pkgver': slot_str(1),
-                'arch': slot_str(4), 'depend': deps}
+                return _adb_pkginfo_meta(payload)
+        return None
     except Exception:
         return None
+
+
+def adb_file_content(raw, target):
+    """Extract the content of a file at `target` (an absolute in-package path,
+    e.g. `/usr/sbin/performance-manager.uc`) from an ADBv3 package byte-string,
+    or None if it is absent.  A file's data may span multiple ADB_BLOCK_DATA
+    blocks, so matching contents are concatenated up to the recorded size."""
+    body = _adb_body(raw)
+    if body is None:
+        return None
+    want = target.lstrip('/')
+    found = None  # (dir_idx, file_idx, size)
+    buf = bytearray()
+    for btype, payload in _adb_blocks(body):
+        if btype == 0:  # ADB_BLOCK_ADB: build the file -> path/size map
+            for key, (path, size) in _adb_paths(payload).items():
+                if path == want:
+                    found = (key[0], key[1], size)
+                    break
+            if found is None:
+                return None
+            if found[2] == 0:
+                return b''
+        elif btype == 2 and found is not None:  # ADB_BLOCK_DATA
+            key = (_u32(payload, 0), _u32(payload, 4))
+            if key == (found[0], found[1]):
+                buf.extend(payload[8:])
+                if len(buf) >= found[2]:
+                    return bytes(buf[:found[2]])
+    return None
+
+
+def apk_file_content(path, target):
+    """Return the raw bytes of `target` inside an APK (ADBv3 or tar-based), or
+    None if the file is absent."""
+    with open(path, 'rb') as f:
+        raw = f.read()
+    if raw[0:3] == b'ADB':
+        return adb_file_content(raw, target)
+    want = target.lstrip('/')
+    try:
+        with open_package(path) as f:
+            with tarfile.open(fileobj=f, mode='r:*') as tf:
+                for m in tf.getmembers():
+                    if m.name.lstrip('./') == want and m.isfile():
+                        return tf.extractfile(m).read()
+    except Exception:
+        pass
+    return None
 
 
 def apk_pkginfo(path):
@@ -273,7 +412,7 @@ def main(argv):
         if not isinstance(deps, list):
             deps = [deps]
         # pkgver is "<version>-r<release>"; the version part must equal the repo
-        # version (e.g. 1.0.0_rc4) so a stale rc.3 artifact can never pass.
+        # version (e.g. 1.0.0_rc5) so a stale rc.3 artifact can never pass.
         ver_part = pkgver.split('-r')[0]
         # Architecture-independent packages (LuCI apps, translations) are built
         # as `noarch`/`all`, which matches ANY target; only a concrete, differing
@@ -292,6 +431,35 @@ def main(argv):
             'arch': pkgarch,
             'depends': deps,
         }
+        # The Core package's shipped daemon must be byte-for-byte identical to
+        # the tested/shipped source: extract `/usr/sbin/performance-manager.uc`
+        # from the APK's ADB data blocks and compare its SHA256 against the repo
+        # file that the runtime harness and startup smoke execute verbatim.
+        if name == 'performance-manager':
+            core_rec = {'path': CORE_PATH}
+            apk_core = apk_file_content(apk, CORE_PATH)
+            src_sha = sha256(CORE_SRC) if CORE_SRC.is_file() else None
+            if apk_core is None:
+                core_rec['status'] = 'missing'
+                failures.append(f'{name}: {CORE_PATH} not found inside APK')
+            elif not src_sha:
+                core_rec['status'] = 'no-source'
+                core_rec['size'] = len(apk_core)
+                core_rec['apkSha256'] = hashlib.sha256(apk_core).hexdigest()
+                failures.append(f'{name}: cannot compare Core (repo source {CORE_SRC.name} missing)')
+            else:
+                apk_sha = hashlib.sha256(apk_core).hexdigest()
+                core_rec.update({
+                    'status': 'match' if apk_sha == src_sha else 'mismatch',
+                    'size': len(apk_core),
+                    'apkSha256': apk_sha,
+                    'sourceSha256': src_sha,
+                })
+                if apk_sha != src_sha:
+                    failures.append(f'{name}: APK {CORE_PATH} sha256 != shipped source ({apk_sha} vs {src_sha})')
+            report['packages'][name]['core'] = core_rec
+            print(f"CORE {name}: {CORE_PATH} {core_rec.get('status')} "
+                  f"apk={core_rec.get('apkSha256', '-')} src={core_rec.get('sourceSha256', '-')}")
         print(f"OK {name}: {apk.name} pkgver={pkgver} arch={pkgarch} sha256={report['packages'][name]['sha256']}")
 
     # Reject any stray APK that is not one of the three expected packages but

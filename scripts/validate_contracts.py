@@ -80,8 +80,42 @@ for token in ['dns_health()','proxy_health()','vpn_health()','thermal_health()',
 for token in ["'/etc/init.d/packet_steering'","'/usr/libexec/network/packet-steering.uc'","'/usr/libexec/platform/packet-steering.sh'","policy: 'observe-respect'"]:
     if token not in core: fail(f'Native Packet Steering observe/respect missing: {token}')
 
+def function_body(src,name):
+    # Extract a single function body by brace matching (skipping strings and
+    # comments).  The shipped Core is reordered callee-before-caller, so
+    # neighbouring-function slicing would be unstable.
+    m=re.search(r'function '+re.escape(name)+r'\s*\(',src)
+    if not m: return ''
+    start=m.start(); i=src.index('{',start); depth=0
+    while i<len(src):
+        c=src[i]
+        if c=='`':
+            i+=1
+            while i<len(src):
+                if src[i]=='\\': i+=2; continue
+                if src[i]=='`': break
+                i+=1
+            i+=1; continue
+        if c in "'\"":
+            q=c; i+=1
+            while i<len(src):
+                if src[i]=='\\': i+=2; continue
+                if src[i]==q: break
+                i+=1
+            i+=1; continue
+        if c=='/' and src[i:i+2]=='//':
+            i=src.index('\n',i); continue
+        if c=='/' and src[i:i+2]=='/*':
+            j=src.find('*/',i); i=(j+2) if j>=0 else len(src); continue
+        if c=='{': depth+=1
+        elif c=='}':
+            depth-=1
+            if depth==0: return src[start:i+1]
+        i+=1
+    return src[start:]
+
 # Benchmark must use explicit evidence + the common transaction/rollback engine.
-bench=core[core.index('function benchmark_start'):core.index('function benchmark_list')]
+bench=function_body(core,'benchmark_start')
 for token in ['companion_evidence_valid(','benchmark_apply_candidate(','rollback_transaction(session.transactionId',"validated:true","validated:false"]:
     if token not in bench: fail(f'benchmark state-machine mechanism missing: {token}')
 if bench.index("rollback_transaction(session.transactionId,'benchmark-complete')")>bench.index('reward=(c1-c0)/c0'): fail('benchmark reward computed before rollback verification')
@@ -100,7 +134,7 @@ for token in ['Build/Compile','PKG_BUILD_DEPENDS:=']:
     if token not in rill_mk: fail(f'integration Makefile mechanism missing: {token}')
 for token in ['external Rill runtime not installed','[ -n "$binary" ] && [ -x "$binary" ]','--state-dir "$state_dir"','procd_set_param user "$SERVICE_USER"','chmod 0750']:
     if token not in rill_init: fail(f'Rill integration-guard invariant missing: {token}')
-for token in ["const RILL_REQUIRED_OPS = [ 'status', 'observe', 'outcome' ]","RILL_PROTOCOL_API","protocol-major-mismatch","external-runtime-missing","(r.response?.api ?? 0) != RILL_PROTOCOL_API"]:
+for token in ["const RILL_REQUIRED_OPS = [ 'status', 'observe', 'outcome' ]","const RILL_CONTRACT = 'pm-rill-shadow'","const RILL_PROTOCOL_VERSION = 1","contract-mismatch","protocol-version-mismatch","external-runtime-missing","state: RILL_STATES.incompatible"]:
     if token not in core: fail(f'Core Rill capability/protocol gate mechanism missing: {token}')
 
 companion=(ROOT/'companion/pm_companion_agent.py').read_text()

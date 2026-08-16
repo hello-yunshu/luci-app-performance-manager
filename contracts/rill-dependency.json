@@ -1,9 +1,10 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "contract": "pm<->rill-dependency",
-  "description": "Performance Manager's declared dependency contract on the upstream Rill runtime. Rill is an EXTERNAL runtime owned, built and released by its upstream repository; this repository never compiles or natively tests Rill. This file pins the PM-side contract (protocol + capability + minimum version) and records the upstream release currently consumed. The upstream release entry is authoritative: when it is null/empty the integration is external-dependency-blocked and the Core capability gate reports it fail-closed.",
+  "description": "Performance Manager's declared dependency contract on the upstream Rill ML repository. Rill is an EXTERNAL runtime owned, built and released by its upstream repository; this repository never compiles or natively tests Rill. The PM-side contract is the independent 'pm-rill-shadow' v1 protocol (deliberately distinct from Rill Runtime IPC API v1/v2/v3). The upstream release entry is authoritative: it pins the exact tag, tag commit, artifact URL and SHA-256 consumed by the packaged performance-manager-rill integration. A missing/invalid entry keeps the Core capability gate fail-closed.",
   "protocol": {
-    "api": 2,
+    "contract": "pm-rill-shadow",
+    "protocolVersion": 1,
     "schemaFile": "contracts/rill-ipc.schema.json",
     "requiredOps": ["status", "observe", "outcome"],
     "contextKeyPattern": "^ctx-v1:",
@@ -13,15 +14,39 @@
     "required": ["context-partitioned-model", "goal-partition", "validated-outcome", "decision-ledger", "model-health"],
     "optional": ["bandit", "exploration", "recommendation"]
   },
-  "minimumRillVersion": "1.0.0",
-  "versionRangeSemantics": "runtime must satisfy protocol.api==2 and every required capability; higher unknown major is NOT assumed compatible; missing runtime, unreachable service or protocol-major mismatch is fail-closed.",
+  "minimumRillVersion": "1.2.0-rc.1",
+  "versionRangeSemantics": "runtime must satisfy pm-rill-shadow protocolVersion==1 and every required capability; higher unknown protocol major is NOT assumed compatible; missing runtime, unreachable service or protocol mismatch is fail-closed. Rill Runtime IPC API and the PM adapter protocol are different contracts.",
   "upstream": {
-    "repository": null,
-    "releaseVersion": null,
-    "artifactUrl": null,
-    "artifactSha256": null,
-    "manifestUrl": null,
-    "status": "external-dependency-blocked",
-    "blockedReason": "no real upstream Rill release is provisioned yet; the previous in-repo Rill implementation was removed this cycle and no external upstream repository/release has been published. Integration is fail-closed until a real upstream release is pinned here."
+    "repository": "https://github.com/hello-yunshu/rill-ml",
+    "releaseVersion": "1.2.0-rc.1",
+    "releaseTag": "v1.2.0-rc.1",
+    "tagCommitSha": "aec03e7af0c772f073a7940b56138796fae0b848",
+    "artifact": {
+      "id": "rill-pm-adapter",
+      "name": "rill-pm-adapter-1.2.0-rc.1-linux-x86_64-musl",
+      "url": "https://github.com/hello-yunshu/rill-ml/releases/download/v1.2.0-rc.1/rill-pm-adapter-1.2.0-rc.1-linux-x86_64-musl",
+      "sha256": "5d3b0ca069ceaa6ecbb6a3fd8f3686fbcaf5752b1ba2bcbc0caf3ad7222cf4d4",
+      "size": 1278152
+    },
+    "artifacts": {
+      "linux-x86_64-musl": {
+        "name": "rill-pm-adapter-1.2.0-rc.1-linux-x86_64-musl",
+        "url": "https://github.com/hello-yunshu/rill-ml/releases/download/v1.2.0-rc.1/rill-pm-adapter-1.2.0-rc.1-linux-x86_64-musl",
+        "sha256": "5d3b0ca069ceaa6ecbb6a3fd8f3686fbcaf5752b1ba2bcbc0caf3ad7222cf4d4",
+        "size": 1278152
+      },
+      "linux-aarch64-musl": {
+        "name": "rill-pm-adapter-1.2.0-rc.1-linux-aarch64-musl",
+        "url": "https://github.com/hello-yunshu/rill-ml/releases/download/v1.2.0-rc.1/rill-pm-adapter-1.2.0-rc.1-linux-aarch64-musl",
+        "sha256": "23c9a616c7d3c0049823b52a23415360d9dc2ea92c1c3e19a1740fdb07813edb",
+        "size": 1126048
+      }
+    },
+    "manifestUrl": "https://github.com/hello-yunshu/rill-ml/releases/download/v1.2.0-rc.1/candidate-index.json",
+    "pmAdapterProtocolVersion": 1,
+    "status": "provisioned",
+    "provisionedAt": "2026-08-16T01:36:04Z",
+    "verifiedBy": "independent host smoke on the published binary (SHA-256 + size match signed index)",
+    "note": "The pinned adapter is advisory-only and never mutates OpenWrt/UCI/sysctl/ethtool state. All mutations remain in PM Core. The x86/64 RC gate consumes the linux-x86_64-musl artifact; linux-aarch64-musl is provisioned for the next target and is not yet backed by a Remote OpenWrt SDK target build."
   }
 }

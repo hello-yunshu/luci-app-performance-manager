@@ -8,10 +8,11 @@ contract:
   1. the pinned upstream Rill release entry is well-formed and, when a release
      is provisioned, carries a non-empty pinned version + artifact URL + SHA-256
      (never `latest` and never an empty checksum);
-  2. the formal IPC schema and the Core agree on protocol api==2 and the
-     shadow-only required ops (exactly status/observe/outcome);
+  2. the formal IPC schema and the Core agree on protocol contract
+     'pm-rill-shadow' v1 and the shadow-only required ops (exactly
+     status/observe/outcome);
   3. the Core capability gate is fail-closed: missing runtime, unreachable
-     service and protocol-major mismatch are surfaced as unavailable/
+     service and contract/protocol mismatch are surfaced as unavailable/
      incompatible, never silently assumed OK.
 
 When the upstream release entry is null (external-dependency-blocked), that is
@@ -37,9 +38,11 @@ def check(name, ok):
     checks.append((name, bool(ok)))
     if not ok: print('FAIL:', name)
 
-# 1. Protocol api + shadow-only ops agreement between schema and Core.
-check('schema api const==2', SCHEMA['properties']['api']['const']==2)
-check('DEP protocol api==2', DEP['protocol']['api']==2)
+# 1. Protocol contract + shadow-only ops agreement between schema and Core.
+check('schema contract const==pm-rill-shadow', SCHEMA['properties']['contract']['const']=='pm-rill-shadow')
+check('schema protocolVersion const==1', SCHEMA['properties']['protocolVersion']['const']==1)
+check('DEP protocol contract==pm-rill-shadow', DEP['protocol']['contract']=='pm-rill-shadow')
+check('DEP protocol protocolVersion==1', DEP['protocol']['protocolVersion']==1)
 ops=set(SCHEMA['properties']['op']['enum'])
 check('schema ops == status/observe/outcome', ops=={'status','observe','outcome'})
 check('Core shadow-only ops contract', "const RILL_REQUIRED_OPS = [ 'status', 'observe', 'outcome' ]" in CORE
@@ -47,8 +50,9 @@ check('Core shadow-only ops contract', "const RILL_REQUIRED_OPS = [ 'status', 'o
 check('DEP requiredOps match', set(DEP['protocol']['requiredOps'])==ops)
 
 # 2. Core fail-closed capability gate.
-for token in ['external-runtime-missing','protocol-major-mismatch','RILL_PROTOCOL_API',
-              '(r.response?.api ?? 0) != RILL_PROTOCOL_API',"state: 'incompatible'"]:
+for token in ['external-runtime-missing','contract-mismatch','protocol-version-mismatch',
+              "const RILL_CONTRACT = 'pm-rill-shadow'",'const RILL_PROTOCOL_VERSION = 1',
+              "state: RILL_STATES.incompatible"]:
     check(f'Core fail-closed gate token: {token}', token in CORE)
 
 # 3. Integration package never compiles/bundles Rill.
@@ -58,9 +62,9 @@ check('no bundled Rust source', not (ROOT/'package/performance-manager-rill/src'
 
 # 4. Upstream release entry policy.
 up=DEP.get('upstream',{})
-if up.get('releaseVersion') or up.get('artifactUrl') or up.get('artifactSha256'):
-    check('release pinned (no latest/download)', up.get('artifactUrl') and 'latest/download' not in (up.get('artifactUrl') or ''))
-    check('release checksum non-empty', bool(up.get('artifactSha256')))
+if up.get('releaseVersion') or up.get('artifact'):
+    check('release pinned (no latest/download)', (up.get('artifact') or {}).get('url') and 'latest/download' not in ((up.get('artifact') or {}).get('url') or ''))
+    check('release checksum non-empty', bool((up.get('artifact') or {}).get('sha256')))
     check('release version non-empty', bool(up.get('releaseVersion')))
 else:
     # No upstream release provisioned: legitimate blocked state, reported verbatim.
@@ -73,7 +77,7 @@ ok=all(ok for _,ok in checks)
 #    upstream Rill integration stays blocked.  These MUST be reported separately
 #    so a missing upstream is never surfaced as a working Rill integration.
 up=DEP.get('upstream',{})
-provisioned = bool(up.get('releaseVersion') or up.get('artifactUrl') or up.get('artifactSha256'))
+provisioned = bool(up.get('releaseVersion') or up.get('artifact'))
 pm_contract = 'pass' if ok else 'fail'
 upstream_integration = 'pass' if (provisioned and ok) else 'blocked'
 overall = 'pass' if (pm_contract == 'pass' and upstream_integration == 'pass') else 'blocked'

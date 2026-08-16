@@ -257,7 +257,7 @@ make package        # build release artifacts
 - Resource / write soak: `scripts/openwrt-resource-soak.sh`
 - External validation evidence: `docs/EXTERNAL_VALIDATION.md`
 
-> `1.0.0-rc.4` is intentionally not called Stable until the official OpenWrt SDK / runtime / soak and real forwarding A/B gates have actually passed. See `docs/RELEASE_CHECKLIST.md` and `docs/EXTERNAL_VALIDATION.md`.
+> `1.0.0-rc.5` is intentionally not called Stable until the official OpenWrt SDK / runtime / soak and real forwarding A/B gates have actually passed. See `docs/RELEASE_CHECKLIST.md` and `docs/EXTERNAL_VALIDATION.md`.
 
 ## Documentation
 

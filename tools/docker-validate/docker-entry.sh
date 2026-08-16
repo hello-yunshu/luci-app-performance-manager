@@ -17,16 +17,12 @@ if [ -d "$SRC/package/performance-manager" ]; then
   cp "$SRC/package/performance-manager/files/etc/init.d/performance-manager" /etc/init.d/performance-manager
   cp "$SRC/package/performance-manager/files/etc/config/performance-manager" /etc/config/performance-manager
   cp "$SRC/package/performance-manager/files/etc/uci-defaults/90-performance-manager" /etc/uci-defaults/90-performance-manager
-  # Install the ucode-hoisted artifact (runtime-correct), not the readable
-  # declaration-syntax source: ucode does not hoist function declarations, so
-  # the raw source crashes at runtime. The artifact is generated host-side by
-  # tools/docker-validate/build-core.sh.
-  if [ -r "$SRC/tools/docker-validate/build/performance-manager.uc" ]; then
-    cp "$SRC/tools/docker-validate/build/performance-manager.uc" /usr/sbin/performance-manager.uc
-  else
-    echo "ERROR: converted Core artifact missing; run 'sh tools/docker-validate/build-core.sh' on the host first" >&2
-    exit 1
-  fi
+  # Install the RAW shipped Core verbatim.  The production source is written
+  # callee-before-caller (ucode resolves free-variable bindings at function
+  # DEFINITION time and does not hoist function declarations), so it runs as a
+  # daemon without any transform.  There is deliberately NO convert_hoist step
+  # (CORE BLOCKER C): what is tested == what is shipped == what the APK installs.
+  cp "$SRC/package/performance-manager/files/usr/sbin/performance-manager.uc" /usr/sbin/performance-manager.uc
   cp "$SRC/package/performance-manager/files/usr/share/performance-manager/contracts.uc" /usr/share/performance-manager/contracts.uc
   cp -a "$SRC/package/performance-manager/files/usr/share/performance-manager/profiles/." /usr/share/performance-manager/profiles/
   cp -a "$SRC/contracts/"*.schema.json /usr/share/performance-manager/schemas/

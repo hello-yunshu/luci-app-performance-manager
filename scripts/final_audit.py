@@ -36,6 +36,17 @@ step('resource-budget',[sys.executable,'scripts/resource_budget.py','--source-tr
 host=json.loads((ROOT/'docs/HOST_SYNTAX_REPORT.json').read_text())
 source=json.loads((ROOT/'docs/SOURCE_GATES.json').read_text())
 resource=json.loads((ROOT/'docs/RESOURCE_BUDGET.json').read_text())
+# Rill status is re-derived from the freshly regenerated gate document so the
+# audit never hardcodes a stale blocked/PASS: docs/rill-integration-status.json
+# is rewritten by scripts/rill_contract_check.py (step 'rill-contract' above).
+rill_status_doc=json.loads((ROOT/'docs/rill-integration-status.json').read_text())
+rill_status={
+  'pmFailClosedContract': rill_status_doc.get('pmFailClosedContract','fail'),
+  'upstreamIntegration': rill_status_doc.get('upstreamIntegration','blocked'),
+  'overallFeatureStatus': rill_status_doc.get('overallFeatureStatus','blocked'),
+  'upstreamStatus': rill_status_doc.get('upstreamStatus'),
+  'provisioned': bool(rill_status_doc.get('provisioned')),
+}
 packages={}
 for name in ['performance-manager','luci-app-performance-manager','performance-manager-rill']:
     p=ROOT/'package'/name; files=[x for x in p.rglob('*') if x.is_file() and '__pycache__' not in x.parts]
@@ -59,14 +70,14 @@ report={
  'coreRuntimeHarness':{'status':'see core-runtime-harness.log (Remote CI)','layer':'Layer 2 real Core ucode runtime','covered':['Multi-WAN/PBR route/rule evidence','underlay resolver (PPPoE/VLAN/NIC)','path-specific workload class','nft candidate-only fingerprint mask','measurement methodology mismatch','Conservative auto-tick gating','Rill fail-closed unavailable']},
  'toolchainAvailability':{'cargo':present('cargo'),'rustc':present('rustc'),'ucode':present('ucode')},
  'stableReleaseExternalGates':external,'targetEvidenceScripts':['scripts/openwrt-target-gate.sh','scripts/openwrt-sysupgrade-gate.sh','scripts/openwrt-resource-soak.sh'],'packages':packages,'resourceBudget':resource,
- 'rillStatus':{'pmFailClosedContract':'pass','upstreamIntegration':'blocked','featureStatus':'blocked','note':'Upstream Rill release is not provisioned this cycle; the PM Core fails closed and the external integration is reported BLOCKED, never PASS. See docs/rill-integration-status.json.'},
- 'releaseDecision': (f'{version} Core/LuCI source candidate; Rill external integration BLOCKED; Stable remains blocked by explicit external target/testbed gates and a provisioned upstream Rill release' if local_pass else f'{version} local/source audit FAILED'),
+ 'rillStatus':{'pmFailClosedContract':rill_status['pmFailClosedContract'],'upstreamIntegration':rill_status['upstreamIntegration'],'overallFeatureStatus':rill_status['overallFeatureStatus'],'upstreamStatus':rill_status['upstreamStatus'],'provisioned':rill_status['provisioned'],'note':f"Derived from the freshly regenerated docs/rill-integration-status.json (written by the rill-contract gate). provisioned={rill_status['provisioned']}."},
+ 'releaseDecision': (f"{version} source + Rill integration candidate; Stable remains blocked by explicit external target/testbed gates" if (local_pass and rill_status['overallFeatureStatus']=='pass') else (f'{version} Core/LuCI source candidate; Rill external integration BLOCKED; Stable remains blocked by explicit external target/testbed gates and a provisioned upstream Rill release' if local_pass else f'{version} local/source audit FAILED')),
  'criticalSafetyProperties':['Core is independent from LuCI/Rill','direct apply allowlist remains safe Hyper-V ring floor only','Native Packet Steering is observed/respected, not seized','commit-confirm has an armed monotonic deadline plus durable pending marker','same-boot crash fails closed to verified rollback; cross-boot never replays stale runtime snapshot','controlled A/B validates exact Companion methodology+context and restores candidate before reward','benchmark experiments are exclusive under a tuning-domain lock with idle-expiry recovery','Rill is an external advisory runtime driven through a shadow-only IPC protocol with capability gating and fail-closed on missing/incompatible runtime; upstream integration is BLOCKED this cycle','Assisted Auto is double opt-in, maintenance/traffic/health gated, safe-allowlist only','uninstall cleanup is fail-closed: removal aborts unless the daemon confirms ownership-safe cleanup']}
 (ROOT/'docs/FINAL_AUDIT.json').write_text(json.dumps(report,ensure_ascii=False,indent=2)+'\n')
 phase_lines='\n'.join(f"- Phase {n}: **{g['status'].upper()}** — {g['name']}" for n,g in source['phases'].items())
 md=f'''# Final Audit — {version}\n\n## Decision\n\n**{'PASS' if local_pass else 'FAIL'} — {report['releaseDecision']}.**\n\nThis audit is a single self-contained orchestrator: contract validation, host syntax checks, source gates, resource budget and the unittest suite are all rerun in this process, and only the freshly generated reports are consumed. Source completion is deliberately separated from real target evidence.\n\n## Orchestrated gates\n\n{''.join(f"- {s['name']}: **{s['status'].upper()}**\n" for s in steps)}\n\n## Local evidence\n\n- Executable unit/contract tests: **{tests['count']}**, status **{tests['status'].upper()}**.\n- Host syntax/JSON/JS/YAML checks: **{len(host.get('checks',[]))}**, status **{'PASS' if host.get('errorCount')==0 else 'FAIL'}**.\n- Formal schemas/examples and frozen profiles: validated by `scripts/validate_contracts.py`.\n- zh_Hans: all current literal LuCI msgids are covered.\n- Resource budget: generated; target-only RSS/CPU/writes/day/boot-time values remain explicitly unmeasured until a real OpenWrt VM is used.\n\n## Source phase gates\n\n{phase_lines}\n\n## Rill integration (external runtime)
 
-Rill is an external runtime dependency owned, built and released by its upstream repository. This repository does not compile or natively test Rill. The PM-side fail-closed contract **PASSES** (the Core never crashes, never fakes a recommendation, and never auto-applies from an unavailable/incompatible runtime), but because no upstream Rill release is provisioned this cycle the **external integration is BLOCKED** (`docs/rill-integration-status.json`). This is reported honestly: **pmFailClosedContract=pass, upstreamIntegration=blocked, overallFeatureStatus=blocked** — never PASS.
+Rill is an external runtime dependency owned, built and released by its upstream repository. This repository does not compile or natively test Rill. The PM-side fail-closed contract **PASSES** (the Core never crashes, never fakes a recommendation, and never auto-applies from an unavailable/incompatible runtime). The freshly regenerated gate (`docs/rill-integration-status.json`, written by the `rill-contract` step) reports: **pmFailClosedContract={rill_status['pmFailClosedContract']}, upstreamIntegration={rill_status['upstreamIntegration']}, overallFeatureStatus={rill_status['overallFeatureStatus']}** (provisioned={str(rill_status['provisioned']).lower()}). This is derived from the pinned upstream release entry and never hardcoded; the remaining Stable gates (booted target, real A/B testbed, soak) are still explicit external gates.
 
 ## Real Core runtime harness
 
