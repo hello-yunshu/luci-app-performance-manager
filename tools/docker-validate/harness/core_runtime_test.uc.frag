@@ -181,24 +181,32 @@ check(index(wl_vpn, 'vpn_tunnel') >= 0, 'path traversing wg0 IS vpn_tunnel', wl_
 let wl_wifi = derive_workload({ id: 'path:lan-to-wifi', proto: null, underlayChain: ['wlan-radio0'] });
 check(index(wl_wifi, 'wireless') >= 0, 'non-wlan0-named wireless device -> wireless class', wl_wifi);
 
-print('== [4] fastpath nft fingerprint: real candidate-only masking ==\n');
+print('== [4] fastpath nft fingerprint: real expected-delta attribution ==\n');
+/* Control: fastpath offload disabled -> NO PM flowtable/flow-rule present. */
+_NFT_RULESET = '{"nftables":[{"metainfo":{}},{"chain":{"family":"inet","table":"fw4","name":"forward"}}]}';
+let snap_ctl = nft_snapshot();
+let fp_ctl = nft_ruleset_fingerprint([ 'fastpath-mask-nft' ]);
+/* Candidate: fastpath offload enabled -> PM flowtable `ft` + `flow add @ft`. */
 _NFT_RULESET = '{"nftables":[{"metainfo":{}},{"chain":{"family":"inet","table":"fw4","name":"forward"}},' +
 	'{"flowtable":{"family":"inet","table":"fw4","name":"ft"}},' +
 	'{"rule":{"family":"inet","table":"fw4","chain":"forward","flow":{"add":"@ft"}}}]}';
-let fp_ctl = nft_ruleset_fingerprint([ 'fastpath-mask-nft' ]);
+let snap_cand = nft_snapshot();
 let fp_cand = nft_ruleset_fingerprint([ 'fastpath-mask-nft' ]);
-check(fp_ctl == fp_cand, 'candidate-only PM flow offload is masked -> identical fingerprint', { fp_ctl, fp_cand });
-check(nft_comparable(fp_ctl, fp_cand).comparable, 'nft_comparable(control,candidate-only-flowoffload) == true');
+/* The unmasked fingerprint reflects the candidate's own flowtable/rule toggle ... */
+check(fp_ctl != fp_cand, 'candidate-only PM flow offload changes the unmasked fingerprint', { fp_ctl, fp_cand });
+/* ... and expected-delta accepts EXACTLY the PM flowtable + flow-rule toggle. */
+check(nft_comparable(snap_ctl, snap_cand).comparable, 'nft_comparable(control,candidate-only-flowoffload) == true');
 
 /* Unrelated external drift (a different chain rule) must invalidate. */
 let _NFT_EXTERNAL = '{"nftables":[{"metainfo":{}},{"chain":{"family":"inet","table":"fw4","name":"forward"}},' +
 	'{"flowtable":{"family":"inet","table":"fw4","name":"ft"}},' +
-	'{"rule":{"family":"inet","table":"fw4","name":"forward","flow":{"add":"@ft"}}},' +
-	'{"rule":{"family":"inet","table":"fw4","name":"forward","dnat":{"to":["1.2.3.4"]}}}]}';
+	'{"rule":{"family":"inet","table":"fw4","chain":"forward","flow":{"add":"@ft"}}},' +
+	'{"rule":{"family":"inet","table":"fw4","chain":"forward","dnat":{"to":["1.2.3.4"]}}}]}';
 _NFT_RULESET = _NFT_EXTERNAL;
+let snap_ext = nft_snapshot();
 let fp_ext = nft_ruleset_fingerprint([ 'fastpath-mask-nft' ]);
-check(fp_ctl != fp_ext, 'unrelated external nft rule changes fingerprint', { fp_ctl, fp_ext });
-check(!nft_comparable(fp_ctl, fp_ext).comparable, 'nft_comparable(control, external-drift) == false');
+check(fp_cand != fp_ext, 'unrelated external nft rule changes fingerprint', { fp_cand, fp_ext });
+check(!nft_comparable(snap_cand, snap_ext).comparable, 'nft_comparable(candidate, external-drift) == false');
 
 print('== [5] measurement methodology mismatch (real Core) ==\n');
 let ctl_raw = { methodology: { host: 'server-A', port: 5201, reverse: false, parallel: 1, duration: 10 }, endpoint: { host: 'server-A', tool: 'iperf3' } };

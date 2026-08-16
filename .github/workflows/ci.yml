@@ -79,7 +79,8 @@ jobs:
           root = sys.argv[1]
           dep = json.load(open(f"{root}/contracts/rill-dependency.json"))
           up = dep.get("upstream") or {}
-          if not (up.get("releaseVersion") or up.get("artifactUrl") or up.get("artifactSha256")):
+          art = (up.get("artifact") or {}) if isinstance(up.get("artifact"), dict) else {}
+          if not (up.get("releaseVersion") or art.get("url") or art.get("sha256")):
               status = up.get("status")
               expected = "external-dependency-blocked"
               if status != expected:
@@ -87,8 +88,8 @@ jobs:
                   sys.exit(1)
               print(f"rill-contract: upstream not provisioned (status={status}); PM fails closed — no release gate asserted")
               sys.exit(0)
-          url = up.get("artifactUrl")
-          sha = up.get("artifactSha256")
+          url = art.get("url")
+          sha = art.get("sha256")
           if not url or "latest/download" in url:
               print("FAIL: provisioned upstream release must pin a versioned artifact URL, never latest/download")
               sys.exit(1)
@@ -112,13 +113,14 @@ jobs:
           root = sys.argv[1]
           dep = json.load(open(f"{root}/contracts/rill-dependency.json"))
           up = dep.get("upstream") or {}
+          art = (up.get("artifact") or {}) if isinstance(up.get("artifact"), dict) else {}
           manifest = {
             "schemaVersion": 1,
             "contract": "pm<->rill-consumed-release",
             "upstreamRepository": up.get("repository"),
             "consumedVersion": up.get("releaseVersion"),
-            "artifactUrl": up.get("artifactUrl"),
-            "artifactSha256": up.get("artifactSha256"),
+            "artifactUrl": art.get("url"),
+            "artifactSha256": art.get("sha256"),
             "manifestUrl": up.get("manifestUrl"),
             "status": up.get("status") or "external-dependency-blocked",
             "blockedReason": up.get("blockedReason"),

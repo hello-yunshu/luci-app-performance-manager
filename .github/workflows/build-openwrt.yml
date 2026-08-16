@@ -109,13 +109,14 @@ jobs:
           root = sys.argv[1]
           dep = json.load(open(f"{root}/contracts/rill-dependency.json"))
           up = dep.get("upstream") or {}
+          art = (up.get("artifact") or {}) if isinstance(up.get("artifact"), dict) else {}
           manifest = {
             "schemaVersion": 1,
             "contract": "pm<->rill-consumed-release",
             "upstreamRepository": up.get("repository"),
             "consumedVersion": up.get("releaseVersion"),
-            "artifactUrl": up.get("artifactUrl"),
-            "artifactSha256": up.get("artifactSha256"),
+            "artifactUrl": art.get("url"),
+            "artifactSha256": art.get("sha256"),
             "manifestUrl": up.get("manifestUrl"),
             "status": up.get("status") or "external-dependency-blocked",
             "blockedReason": up.get("blockedReason"),
