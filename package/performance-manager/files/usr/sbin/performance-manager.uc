@@ -18,8 +18,11 @@ const MAX_HISTORY_LINES = 512;
  * negotiates capability via the bounded Unix-socket protocol and never
  * compiles or bundles Rill.  A missing runtime, unreachable service or protocol
  * major mismatch is fail-closed (integration unavailable/incompatible). */
-const RILL_PROTOCOL_API = 2;
+const RILL_CONTRACT = 'pm-rill-shadow';
+const RILL_PROTOCOL_VERSION = 1;
+const RILL_REQUIRED_CAPABILITIES = [ 'context-partitioned-model', 'goal-partition', 'validated-outcome', 'decision-ledger', 'model-health' ];
 const RILL_REQUIRED_OPS = [ 'status', 'observe', 'outcome' ];
+const RILL_STATES = { disabled: 'disabled', notProvisioned: 'not-provisioned', starting: 'starting', available: 'available', learning: 'learning', incompatible: 'incompatible', unhealthy: 'unhealthy', unavailable: 'unavailable' };
 const GOALS = [ 'balanced', 'throughput', 'latency', 'cpu_efficiency' ];
 /* Only throughput A/B is measurable with the current iperf3 methodology.
  * Other goals fail-closed rather than silently degrading to throughput. */
@@ -258,60 +261,6 @@ function netdevs() {
 	return out;
 }
 
-function wan_underlay_devices() {
-	/* Devices that underlay a real WAN candidate, derived from route/rule
-	 * evidence so a custom-named WAN (isp-b, fiber, ...) is classified as
-	 * wan-underlay rather than falling through to physical-underlay. */
-	let devs = {};
-	for (let w in wan_candidates_evidence())
-		for (let d in [ w.device, w.l3_device ]) if (d) devs[d] = true;
-	return devs;
-}
-
-function target_refs() {
-	let refs = [];
-	let topo = interface_dump();
-	let roles = {};
-	let runtime_interfaces = {};
-	for (let iface in topo.interface ?? []) {
-		/* A logical L3 device (e.g. pppoe-wan) is not necessarily the NIC
-		 * that owns a device-scoped knob.  Record both identities and later
-		 * only attach the role to netdevs that resolve to a stable device. */
-		for (let runtime in [ iface.device, iface.l3_device ]) {
-			if (!runtime) continue;
-			let role = iface.interface;
-			/* Prefer WAN/LAN role over a weaker role if aliases overlap. */
-			if (!roles[runtime] || role == 'wan' || role == 'lan' || match(role ?? '', /^wan[0-9]*$/))
-				roles[runtime] = role;
-			/* Keep the owning interface name so a WAN/LAN underlay ref can be
-			 * matched back to its logical interface without guessing names. */
-			if (!runtime_interfaces[runtime])
-				runtime_interfaces[runtime] = [];
-			if (index(runtime_interfaces[runtime], role) < 0)
-				push(runtime_interfaces[runtime], role);
-		}
-	}
-	let wan_devs = wan_underlay_devices();
-	for (let d in netdevs()) {
-		if (!d.targetRef)
-			continue;
-		let r = stable_target(d.name);
-		let ifrole = roles[d.name];
-		if (wan_devs[d.name] || ifrole == 'wan' || match(ifrole ?? '', /^wan[0-9]*$/))
-			r.logicalRole = 'wan-underlay';
-		else if (ifrole == 'lan')
-			r.logicalRole = 'lan-underlay';
-		else
-			r.logicalRole = 'physical-underlay';
-		/* Selector must be consistent with the WAN fallback join: the same
-		 * key (interface) used by topology() to match a target back to its
-		 * logical WAN, so a non-default WAN is never picked by name guess. */
-		r.selector = { deviceRole: r.logicalRole, interface: runtime_interfaces[d.name]?.[0] ?? null, device: d.name };
-		push(refs, r);
-	}
-	return refs;
-}
-
 function stable_ref_for_runtime(runtime) {
 	if (!runtime) return null;
 	let ref = stable_target(runtime);
@@ -376,54 +325,6 @@ function device_type_map() {
 	return m;
 }
 
-function derive_workload(entry) {
-	/* Workload Class is derived from the CURRENT path's own evidence, never
-	 * from global system state.  A globally-installed VPN must NOT label an
-	 * unrelated plain WAN path as vpn_tunnel: a path is vpn_tunnel only when
-	 * it actually traverses a tunnel device/proto.  wireless is decided by the
-	 * netifd device type (or sysfs), not by a `wlan` name.  storage_service is
-	 * not guessed from device NAMES (ethN-swp / storage): there is no reliable
-	 * storage-bound workload evidence here, so it is deliberately not emitted
-	 * rather than guessed. */
-	let wl = [];
-	let proto = entry?.proto ?? null;
-	let chain = entry?.underlayChain ?? [];
-	let types = device_type_map();
-	let is_tunnel = index([ 'wireguard', 'openvpn', 'gre', 'gretap', 'vti', 'sit', 'ip6tnl', 'tun', 'pptp' ], proto ?? '') >= 0;
-	for (let name in chain) {
-		let t = types[name] ?? '';
-		if (index([ 'wireguard', 'tun', 'tunnel', 'gre', 'gretap', 'vti', 'sit', 'ip6tnl' ], t) >= 0) is_tunnel = true;
-		if (t == 'wireless') push_unique_wl(wl, 'wireless');
-	}
-	if (proto == 'pppoe') push_unique_wl(wl, 'pppoe');
-	if (is_tunnel) push_unique_wl(wl, 'vpn_tunnel');
-	if (entry?.id == 'path:local-endpoint') push_unique_wl(wl, 'local_endpoint');
-	/* transparent_proxy is a system-wide policy signal: every forwarding path
-	 * traverses the proxy, so it is deliberately not path-specific. */
-	if (integration_state().transparentProxy) push_unique_wl(wl, 'transparent_proxy');
-	if (!length(wl)) push_unique_wl(wl, 'plain_forwarding');
-	return wl;
-}
-
-function workload_for_paths(path_ids) {
-	/* An action's workload is the union of its affected/evaluation paths'
-	 * workload classes, never a hard-coded default. */
-	let wl = [];
-	for (let path_id in path_ids ?? []) {
-		let p = primary_path(path_id);
-		for (let w in p?.workloadClass ?? []) push_unique_wl(wl, w);
-	}
-	if (!length(wl)) push_unique_wl(wl, 'plain_forwarding');
-	return wl;
-}
-
-function resolve_target(stable_id) {
-	for (let r in target_refs())
-		if (r.stableId == stable_id)
-			return r;
-	return null;
-}
-
 function interface_dump() {
 	try {
 		return conn.call('network.interface', 'dump', {}) ?? { interface: [] };
@@ -449,29 +350,6 @@ function json_rows(text) {
 
 function canonical_rows(rows) {
 	let encoded=map(rows,function(r){return sprintf('%.J',r);}); sort(encoded); return encoded;
-}
-
-function route_context(wan) {
-	let fallback = wan ? sprintf('%s:%s:%s', wan.interface, wan.proto ?? 'unknown', wan.device ?? wan.l3_device ?? 'unknown') : 'unresolved';
-	if (!command_exists('ip'))
-		return { identity: fallback == 'unresolved' ? 'unresolved' : `netifd:${fnv1a32(fallback)}`, provider: 'netifd-fallback', resolved: fallback != 'unresolved', evidence: { fallback: fallback } };
-	let v4 = run([ 'ip', '-j', '-4', 'route', 'show', 'table', 'all', 'default' ]);
-	let v6 = run([ 'ip', '-j', '-6', 'route', 'show', 'table', 'all', 'default' ]);
-	let rules4 = run([ 'ip', '-j', '-4', 'rule', 'show' ]), rules6 = run([ 'ip', '-j', '-6', 'rule', 'show' ]);
-	let v4rows=json_rows(v4.out), v6rows=json_rows(v6.out), r4rows=json_rows(rules4.out), r6rows=json_rows(rules6.out);
-	let devices=[];
-	if (wan) for (let d in [ wan.device, wan.l3_device ]) if (d && index(devices,d)<0) push(devices,d);
-	let selected4 = wan ? filter(v4rows,function(r){return route_row_matches_devices(r,devices);}) : v4rows;
-	let selected6 = wan ? filter(v6rows,function(r){return route_row_matches_devices(r,devices);}) : v6rows;
-	let resolved = length(selected4) > 0 || length(selected6) > 0;
-	if (!resolved)
-		return { identity: fallback == 'unresolved' ? 'unresolved' : `netifd:${fnv1a32(fallback)}`, provider: 'netifd-fallback', resolved: false, evidence: { fallback:fallback, expectedDevices:devices, ipErrors:[v4.rc,v6.rc,rules4.rc,rules6.rc] } };
-	let c4=canonical_rows(selected4), c6=canonical_rows(selected6), cr4=canonical_rows(r4rows), cr6=canonical_rows(r6rows);
-	let raw=sprintf('wan=%s\ndevices=%s\nv4=%s\nv6=%s\nrules4=%s\nrules6=%s',wan?.interface ?? 'global',join(',',devices),join('|',c4),join('|',c6),join('|',cr4),join('|',cr6));
-	return {
-		identity:`route-v3:${fnv1a32(raw)}`, provider:'ip-full+rtnl-events', resolved:true,
-		evidence:{ expectedDevices:devices, ipv4Default:selected4, ipv6Default:selected6, ipv4Rules:r4rows, ipv6Rules:r6rows }
-	};
 }
 
 function wan_candidates_evidence() {
@@ -515,46 +393,65 @@ function wan_candidates_evidence() {
 	return out;
 }
 
-function topology() {
-	let dump=interface_dump(), interfaces=[], lan=null;
-	for (let i in dump.interface ?? []) {
-		let name=i.interface, l3=i.l3_device ?? i.device ?? null;
-		push(interfaces,{name:name,l3Device:l3,up:i.up ?? false,proto:i.proto ?? null,device:i.device ?? null});
-		if (name == 'lan') lan=i;
+function wan_underlay_devices() {
+	/* Devices that underlay a real WAN candidate, derived from route/rule
+	 * evidence so a custom-named WAN (isp-b, fiber, ...) is classified as
+	 * wan-underlay rather than falling through to physical-underlay. */
+	let devs = {};
+	for (let w in wan_candidates_evidence())
+		for (let d in [ w.device, w.l3_device ]) if (d) devs[d] = true;
+	return devs;
+}
+
+function target_refs() {
+	let refs = [];
+	let topo = interface_dump();
+	let roles = {};
+	let runtime_interfaces = {};
+	for (let iface in topo.interface ?? []) {
+		/* A logical L3 device (e.g. pppoe-wan) is not necessarily the NIC
+		 * that owns a device-scoped knob.  Record both identities and later
+		 * only attach the role to netdevs that resolve to a stable device. */
+		for (let runtime in [ iface.device, iface.l3_device ]) {
+			if (!runtime) continue;
+			let role = iface.interface;
+			/* Prefer WAN/LAN role over a weaker role if aliases overlap. */
+			if (!roles[runtime] || role == 'wan' || role == 'lan' || match(role ?? '', /^wan[0-9]*$/))
+				roles[runtime] = role;
+			/* Keep the owning interface name so a WAN/LAN underlay ref can be
+			 * matched back to its logical interface without guessing names. */
+			if (!runtime_interfaces[runtime])
+				runtime_interfaces[runtime] = [];
+			if (index(runtime_interfaces[runtime], role) < 0)
+				push(runtime_interfaces[runtime], role);
+		}
 	}
-	/* WAN candidates come from runtime route/rule evidence first; the old
-	 * name-based wan/wan-N discovery is only a fallback on images with no ip
-	 * route evidence, so custom-named WANs are never dropped for failing a
-	 * name pattern.  An explicit `wan` interface still wins as primary. */
-	let wans = wan_candidates_evidence();
-	if (!length(wans)) {
-		for (let i in dump.interface ?? [])
-			if (i.interface == 'wan' || match(i.interface ?? '', /^wan[0-9]+$/)) push(wans, i);
+	let wan_devs = wan_underlay_devices();
+	for (let d in netdevs()) {
+		if (!d.targetRef)
+			continue;
+		let r = stable_target(d.name);
+		let ifrole = roles[d.name];
+		if (wan_devs[d.name] || ifrole == 'wan' || match(ifrole ?? '', /^wan[0-9]*$/))
+			r.logicalRole = 'wan-underlay';
+		else if (ifrole == 'lan')
+			r.logicalRole = 'lan-underlay';
+		else
+			r.logicalRole = 'physical-underlay';
+		/* Selector must be consistent with the WAN fallback join: the same
+		 * key (interface) used by topology() to match a target back to its
+		 * logical WAN, so a non-default WAN is never picked by name guess. */
+		r.selector = { deviceRole: r.logicalRole, interface: runtime_interfaces[d.name]?.[0] ?? null, device: d.name };
+		push(refs, r);
 	}
-	sort(wans,function(a,b){ if (a.interface == 'wan') return -1; if (b.interface == 'wan') return 1; return `${a.interface}` > `${b.interface}` ? 1 : -1; });
-	let devices=netdevs(), paths=[];
-	for (let wi=0; wi<length(wans); wi++) {
-		let wan=wans[wi], path_targets=[], underlay=underlay_chain(wan);
-		let wan_target=underlay?.target?.stableId ?? null;
-		if (!wan_target) for (let r in target_refs()) if (r.logicalRole == 'wan-underlay' && (r.selector?.interface == wan.interface || wi == 0)) { wan_target=r.stableId; break; }
-		if (wan_target) push(path_targets,wan_target);
-		let route=route_context(wan), specific=`path:lan-to-${safe_name(wan.interface ?? `wan${wi}`)}`;
-		let entry={id:specific,workloadClass:derive_workload({id:specific,proto:wan?.proto ?? null,underlayChain:underlay?.chain ?? []}),lanInterface:lan?.interface ?? 'lan',wanInterface:wan?.interface ?? `wan${wi}`,routeIdentity:route.identity,routeProvider:route.provider,routeResolved:route.resolved,routeEvidence:route.evidence,targetRefs:path_targets,underlayChain:underlay?.chain ?? []};
-		if (wi == 0) {
-			let primary={}; for (let k in keys(entry)) primary[k]=entry[k]; primary.id='path:lan-to-wan'; push(paths,primary);
-			if (specific != 'path:lan-to-wan') push(paths,entry);
-		} else push(paths,entry);
-	}
-	if (!length(paths)) {
-		let route=route_context(null);
-		push(paths,{id:'path:lan-to-wan',workloadClass:['plain_forwarding'],lanInterface:lan?.interface ?? 'lan',wanInterface:'wan',routeIdentity:route.identity,routeProvider:route.provider,routeResolved:route.resolved,routeEvidence:route.evidence,targetRefs:[],underlayChain:[]});
-	}
-	let primary=paths[0], local_targets=primary?.targetRefs ?? [];
-	/* The local-endpoint path has no LAN interface.  Emit the empty string so
-	 * the runtime output conforms to the formal topology schema which declares
-	 * lanInterface as a string (never null). */
-	push(paths,{id:'path:local-endpoint',workloadClass:derive_workload({id:'path:local-endpoint'}),lanInterface:'',wanInterface:primary?.wanInterface ?? 'wan',routeIdentity:primary?.routeIdentity ?? 'unresolved',routeProvider:primary?.routeProvider ?? 'unresolved',routeResolved:primary?.routeResolved ?? false,routeEvidence:primary?.routeEvidence ?? {},targetRefs:local_targets,underlayChain:[]});
-	return {schemaVersion:2,topologyGeneration:topology_generation,interfaces:interfaces,devices:devices,wanCandidates:map(wans,function(w){return w.interface;}),paths:paths};
+	return refs;
+}
+
+function resolve_target(stable_id) {
+	for (let r in target_refs())
+		if (r.stableId == stable_id)
+			return r;
+	return null;
 }
 
 function integration_present(name) {
@@ -578,6 +475,35 @@ function integration_state() {
 	return state;
 }
 
+function derive_workload(entry) {
+	/* Workload Class is derived from the CURRENT path's own evidence, never
+	 * from global system state.  A globally-installed VPN must NOT label an
+	 * unrelated plain WAN path as vpn_tunnel: a path is vpn_tunnel only when
+	 * it actually traverses a tunnel device/proto.  wireless is decided by the
+	 * netifd device type (or sysfs), not by a `wlan` name.  storage_service is
+	 * not guessed from device NAMES (ethN-swp / storage): there is no reliable
+	 * storage-bound workload evidence here, so it is deliberately not emitted
+	 * rather than guessed. */
+	let wl = [];
+	let proto = entry?.proto ?? null;
+	let chain = entry?.underlayChain ?? [];
+	let types = device_type_map();
+	let is_tunnel = index([ 'wireguard', 'openvpn', 'gre', 'gretap', 'vti', 'sit', 'ip6tnl', 'tun', 'pptp' ], proto ?? '') >= 0;
+	for (let name in chain) {
+		let t = types[name] ?? '';
+		if (index([ 'wireguard', 'tun', 'tunnel', 'gre', 'gretap', 'vti', 'sit', 'ip6tnl' ], t) >= 0) is_tunnel = true;
+		if (t == 'wireless') push_unique_wl(wl, 'wireless');
+	}
+	if (proto == 'pppoe') push_unique_wl(wl, 'pppoe');
+	if (is_tunnel) push_unique_wl(wl, 'vpn_tunnel');
+	if (entry?.id == 'path:local-endpoint') push_unique_wl(wl, 'local_endpoint');
+	/* transparent_proxy is a system-wide policy signal: every forwarding path
+	 * traverses the proxy, so it is deliberately not path-specific. */
+	if (integration_state().transparentProxy) push_unique_wl(wl, 'transparent_proxy');
+	if (!length(wl)) push_unique_wl(wl, 'plain_forwarding');
+	return wl;
+}
+
 function masked_uci_digest(name, masked_keys) {
 	let r = run([ 'uci', 'show', name ]);
 	if (r.rc != 0) return null;
@@ -597,64 +523,56 @@ function masked_uci_digest(name, masked_keys) {
 function benchmark_masked_keys(action_id) {
 	/* A fastpath A/B candidate itself mutates these UCI keys; they must not
 	 * create a false integration-drift between control and candidate.  Every
-	 * other observed UCI value stays part of the fingerprint.  The live nft
-	 * ruleset is likewise masked (9.6) because flow-offload reprograms it. */
+	 * other observed UCI value stays part of the fingerprint.
+	 * The live nft ruleset is NOT masked (Blocker B): the extra
+	 * 'fastpath-expected-delta' marker tells the benchmark context that the
+	 * nft component must be verified by EXACT expected delta (nft_comparable)
+	 * instead of being folded into the fingerprint, so only the candidate's
+	 * own flowtable/flow-rule toggle is allowed to differ. */
 	if (action_id == 'fastpath.software_flow_offload' || action_id == 'fastpath.hardware_flow_offload')
-		return [ 'firewall.@defaults[0].flow_offloading', 'firewall.@defaults[0].flow_offloading_hw', 'fastpath-mask-nft' ];
+		return [ 'firewall.@defaults[0].flow_offloading', 'firewall.@defaults[0].flow_offloading_hw', 'fastpath-expected-delta' ];
 	return [];
 }
 
-function integration_fingerprint(masked_keys) {
-	/* Canonical context fingerprint: installed-boolean detection (the old
-	 * integration_state) is NOT evidence of unchanged runtime behavior, so the
-	 * fingerprint adds per-service running state, UCI config digests and the
-	 * live ip rule policy set (PBR/mwan3/policy routing surfaces). */
-	let rows = [];
-	for (let name in [ 'openclash', 'passwall', 'passwall2', 'homeproxy', 'sqm', 'qosify', 'mwan3', 'pbr', 'openvpn' ]) {
-		if (!integration_present(name)) continue;
-		let running = service_running(name);
-		push(rows, `svc:${name}:${running == null ? 'na' : running ? '1' : '0'}`);
-	}
-	for (let name in [ 'openclash', 'passwall', 'passwall2', 'homeproxy', 'sqm', 'qosify', 'mwan3', 'pbr', 'firewall' ]) {
-		if (!file_exists(`/etc/config/${name}`)) continue;
-		let d = masked_uci_digest(name, masked_keys);
-		if (d != null) push(rows, `cfg:${d}`);
-	}
-	let rules = run([ 'ip', '-j', 'rule', 'show' ]);
-	if (rules.rc == 0 && length(trimstr(rules.out)))
-		push(rows, `rules:${fnv1a32(join('|', canonical_rows(json_rows(rules.out))))}`);
-	/* Live firewall/route fingerprint (9.6): a file hash of /etc/config/firewall
-	 * is not evidence of an unchanged running ruleset.  Add the canonical
-	 * structural identity of the live nft ruleset so control/candidate drift in
-	 * the running firewall is detected.  Fastpath candidates legitimately
-	 * reprogram flow-offload, so that component is masked the same way the
-	 * corresponding UCI keys are. */
-	let nft = nft_ruleset_fingerprint(masked_keys);
-	if (nft != null) push(rows, `nft:${nft}`);
-	return `integ-v1:${fnv1a32(join('\n', rows))}`;
-}
+/* -- Expected Delta (Blocker B) -------------------------------------------
+ * fastpath A/B attribution no longer uses a global "ignore all flowtable/flow
+ * rule" mask, which also hid unrelated external changes.  Instead the control
+ * and candidate nft rulesets are structurally compared and the delta must be
+ * EXACTLY the PM candidate's own flowtable/flow-rule toggle.  Anything else
+ * (an unrelated rule, a second flowtable, an in-place mutation of the PM
+ * flowtable/rule) invalidates the experiment (fail-closed). */
 
-function nft_has_key(node, key) {
-	/* Recursive key search over parsed nft JSON (objects + arrays). */
-	let t = type(node);
-	if (t == 'object') {
-		for (let k in keys(node))
-			if (k == key || nft_has_key(node[k], key)) return true;
-		return false;
+/* Exact identity of the ONLY nft structures a firewall4 fastpath candidate is
+ * allowed to toggle.  Everything else must stay byte-identical across the
+ * control/candidate snapshots. */
+const FASTPATH_FLOWTABLE = { family: 'inet', table: 'fw4', name: 'ft' };
+const FASTPATH_FLOW_RULE  = { family: 'inet', table: 'fw4', chain: 'forward', ref: '@ft' };
+
+function nft_item_matches_spec(item, spec) {
+	/* Does one parsed nft element match the exact PM fastpath structure?
+	 * `spec` is 'flowtable' (exact family/table/name) or 'flowrule' (exact
+	 * family/table/chain + `flow add @ft`).  Structural content beyond the
+	 * identity is intentionally NOT matched, so an in-place mutation of the PM
+	 * flowtable/rule surfaces as a delta instead of being silently accepted. */
+	let t = type(item);
+	let kind = (t == 'object' && length(keys(item))) ? keys(item)[0] : null;
+	if (spec == 'flowtable') {
+		if (kind != 'flowtable') return false;
+		let ft = item.flowtable ?? {};
+		return ft.family == FASTPATH_FLOWTABLE.family && ft.table == FASTPATH_FLOWTABLE.table && ft.name == FASTPATH_FLOWTABLE.name;
 	}
-	if (t == 'array') for (let v in node) if (nft_has_key(v, key)) return true;
+	if (spec == 'flowrule') {
+		if (kind != 'rule') return false;
+		let r = item.rule ?? {};
+		if (r.family != FASTPATH_FLOW_RULE.family || r.table != FASTPATH_FLOW_RULE.table || r.chain != FASTPATH_FLOW_RULE.chain) return false;
+		return (r.flow?.add ?? null) == FASTPATH_FLOW_RULE.ref;
+	}
 	return false;
-}
-
-function nft_rule_is_flow_offload(rule) {
-	/* A fastpath candidate toggling flow offload legitimately adds/removes a
-	 * `flow add @ft` rule; such a rule carries a JSON node keyed `flow`. */
-	return nft_has_key(rule ?? {}, 'flow');
 }
 
 function nft_canon(value) {
 	/* Canonical structural serialization of one nft item.  Volatile identity
-	 * (handle) and live counters (packets/bytes) are dropped so the fingerprint
+	 * (handle) and live counters (packets/bytes) are dropped so the snapshot
 	 * reflects topology, not transient traffic or allocation order. */
 	let t = type(value);
 	if (t == 'object') {
@@ -678,41 +596,47 @@ function nft_canon(value) {
 	return sprintf('"%s"', value);
 }
 
-function nft_ruleset_fingerprint(masked_keys) {
-	if (!command_exists('nft')) return null;
-	let r = run([ 'nft', '-j', 'list', 'ruleset' ]);
-	if (r.rc != 0) return null;
-	let root = null;
-	try { root = json(r.out); } catch (e) { return null; }
-	let items = root?.nftables ?? [];
-	if (!length(items)) return null;
-	/* Fastpath A/B legitimately reprograms flow offload (a flowtable + a
-	 * `flow add` rule).  When masked, those PM-owned structures are EXCLUDED
-	 * from the canonical identity so the candidate does not create a false
-	 * control/candidate drift.  Every other rule stays part of the identity,
-	 * so an unrelated external change still invalidates the experiment. */
-	let mask_fastpath = index(masked_keys ?? [], 'fastpath-mask-nft') >= 0;
-	let parts = [];
-	for (let it in items) {
-		let kind = length(keys(it)) ? keys(it)[0] : null;
-		if (kind == 'metainfo') continue;
-		if (mask_fastpath && kind == 'flowtable') continue;
-		if (mask_fastpath && kind == 'rule' && nft_rule_is_flow_offload(it.rule)) continue;
-		push(parts, nft_canon(it));
-	}
-	if (!length(parts)) return null;
-	sort(parts);
-	return sprintf('nft-v2:%s', fnv1a32(join('\n', parts)));
+function nft_item_in(list, item) {
+	let canon = nft_canon(item);
+	for (let it in list) if (nft_canon(it) == canon) return true;
+	return false;
 }
 
-function nft_comparable(control_fingerprint, candidate_fingerprint) {
-	/* Positive/negative comparability for controlled fastpath A/B: fingerprints
-	 * must be identical (or both absent) for the experiment to be comparable.
-	 * The candidate-only flow-offload case is already normalized by the mask,
-	 * so an identical fingerprint means the running ruleset is otherwise
-	 * unchanged; any remaining difference means unrelated drift -> invalid. */
-	let a = control_fingerprint ?? null, b = candidate_fingerprint ?? null;
-	return { comparable: a == b, control: a, candidate: b };
+function nft_delta_is_expected(control, candidate) {
+	/* Structural delta between two parsed nft element arrays (metainfo
+	 * dropped).  ok == true ONLY when the delta is exactly the PM flowtable
+	 * `ft` + `flow add @ft` rule toggled on one side (add or remove), with no
+	 * unrelated change and no in-place mutation of those structures. */
+	let added = [], removed = [];
+	for (let c in candidate) if (!nft_item_in(control, c)) push(added, c);
+	for (let c in control) if (!nft_item_in(candidate, c)) push(removed, c);
+	let ft_added = 0, rule_added = 0, ft_removed = 0, rule_removed = 0, unrelated = [];
+	for (let it in added) {
+		if (nft_item_matches_spec(it, 'flowtable')) ft_added++;
+		else if (nft_item_matches_spec(it, 'flowrule')) rule_added++;
+		else push(unrelated, sprintf('added:%s', nft_canon(it)));
+	}
+	for (let it in removed) {
+		if (nft_item_matches_spec(it, 'flowtable')) ft_removed++;
+		else if (nft_item_matches_spec(it, 'flowrule')) rule_removed++;
+		else push(unrelated, sprintf('removed:%s', nft_canon(it)));
+	}
+	let add_side = ft_added + rule_added, rm_side = ft_removed + rule_removed;
+	let ok = length(unrelated) == 0 &&
+		((add_side == 2 && rm_side == 0 && ft_added == 1 && rule_added == 1) ||
+		 (rm_side == 2 && add_side == 0 && ft_removed == 1 && rule_removed == 1));
+	return { ok: ok, added: map(added, nft_canon), removed: map(removed, nft_canon), unrelated: unrelated };
+}
+
+function nft_comparable(control_snapshot, candidate_snapshot) {
+	/* Expected-delta comparability for controlled fastpath A/B.  The control
+	 * and candidate snapshots must differ by EXACTLY the PM flowtable/flow-rule
+	 * toggle.  If either snapshot is unavailable, the experiment FAILS CLOSED
+	 * (not comparable) rather than guessing. */
+	let a = control_snapshot ?? null, b = candidate_snapshot ?? null;
+	if (a == null || b == null) return { comparable: false, reason: 'nft-snapshot-unavailable', control: a, candidate: b };
+	let d = nft_delta_is_expected(a.parsed ?? [], b.parsed ?? []);
+	return { comparable: d.ok, reason: d.ok ? 'expected-delta' : 'unexpected-nft-delta', delta: d };
 }
 
 function queue_topology() {
@@ -935,11 +859,38 @@ function service_running(name) {
 	return run([ script, 'running' ]).rc == 0;
 }
 
-function dns_health() {
-	if (!command_exists('nslookup')) return null;
-	let host = cfg('main.health_dns_name', 'openwrt.org');
-	if (!match(host, /^[A-Za-z0-9.-]+$/)) return null;
-	return run([ 'nslookup', host ]).rc == 0;
+function integration_fingerprint(masked_keys, nft) {
+	/* Canonical context fingerprint: installed-boolean detection (the old
+	 * integration_state) is NOT evidence of unchanged runtime behavior, so the
+	 * fingerprint adds per-service running state, UCI config digests and the
+	 * live ip rule policy set (PBR/mwan3/policy routing surfaces). */
+	let rows = [];
+	for (let name in [ 'openclash', 'passwall', 'passwall2', 'homeproxy', 'sqm', 'qosify', 'mwan3', 'pbr', 'openvpn' ]) {
+		if (!integration_present(name)) continue;
+		let running = service_running(name);
+		push(rows, `svc:${name}:${running == null ? 'na' : running ? '1' : '0'}`);
+	}
+	for (let name in [ 'openclash', 'passwall', 'passwall2', 'homeproxy', 'sqm', 'qosify', 'mwan3', 'pbr', 'firewall' ]) {
+		if (!file_exists(`/etc/config/${name}`)) continue;
+		let d = masked_uci_digest(name, masked_keys);
+		if (d != null) push(rows, `cfg:${d}`);
+	}
+	let rules = run([ 'ip', '-j', 'rule', 'show' ]);
+	if (rules.rc == 0 && length(trimstr(rules.out)))
+		push(rows, `rules:${fnv1a32(join('|', canonical_rows(json_rows(rules.out))))}`);
+	/* Live firewall/route fingerprint (9.6): a file hash of /etc/config/firewall
+	 * is not evidence of an unchanged running ruleset.  Add the FULL canonical
+	 * structural identity of the live nft ruleset (no flow mask, Blocker B) so
+	 * control/candidate drift in the running firewall is detected.  Fastpath
+	 * sessions pass an explicit snapshot and verify it by expected delta in
+	 * nft_comparable; they pass `null` here so the nft row is not folded into
+	 * the raw fingerprint (the candidate legitimately toggles the flowtable).
+	 * ucode has no distinct `undefined` value and no arity introspection in
+	 * strict mode, so the caller ALWAYS supplies the snapshot explicitly: a
+	 * real snapshot (or `null` when nft is unavailable) to fold the nft row in,
+	 * or `null` to suppress it (fastpath Blocker B sessions). */
+	if (nft != null && length(nft.items)) push(rows, `nft:${fnv1a32(nft.canonical)}`);
+	return `integ-v1:${fnv1a32(join('\n', rows))}`;
 }
 
 function proxy_health() {
@@ -1006,42 +957,6 @@ function recent_oom_state() {
 	return last != null && now - last <= window;
 }
 
-function baseline_health(path_id) {
-	let mem = meminfo();
-	let load = split(trimstr(read('/proc/loadavg') ?? '0 0 0'), ' ');
-	let dump = interface_dump();
-	let wan_up = null, lan_up = null;
-	let ipv4 = null, ipv6 = null;
-	let path = path_id != null ? primary_path(path_id) : null;
-	for (let i in dump.interface ?? []) {
-		if (i.interface == 'lan') lan_up = i.up ?? false;
-		let is_wan = i.interface == 'wan' || match(i.interface ?? '', /^wan[0-9]*$/);
-		/* Path-specific health must watch the WAN interface of the evaluated
-		 * path, not just the primary WAN.  A secondary-wan experiment must be
-		 * guarded against regressions on that same interface. */
-		if (path && i.interface == path.wanInterface) {
-			wan_up = i.up ?? false;
-			ipv4 = length(i['ipv4-address'] ?? []) > 0;
-			ipv6 = length(i['ipv6-address'] ?? []) > 0 || length(i['ipv6-prefix'] ?? []) > 0;
-		} else if (!path && (i.interface == 'wan' || (wan_up == null && is_wan))) {
-			wan_up = i.up ?? false;
-			ipv4 = length(i['ipv4-address'] ?? []) > 0;
-			ipv6 = length(i['ipv6-address'] ?? []) > 0 || length(i['ipv6-prefix'] ?? []) > 0;
-		}
-	}
-	let topo = topology();
-	return {
-		schemaVersion: 2, capturedMonotonicMs: monotonic_ms(), bootId: boot_id(),
-		lan: lan_up, wan: wan_up, dns: dns_health(), ipv4: ipv4, ipv6: ipv6,
-		proxy: proxy_health(), vpn: vpn_health(), route: ((path?.routeResolved ?? topo.paths[0]?.routeResolved ?? false) === true) ? true : false,
-		evaluationPath: path?.id ?? null,
-		memAvailableKiB: mem.MemAvailable ?? 0,
-		load1: +(load[0] ?? '0'), cpu: cpu_stat(), recentOom: recent_oom_state(),
-		stateStorageWritable: storage_writable(state_dir()), persistentStorageWritable: storage_writable(persist_dir()),
-		thermal: thermal_health()
-	};
-}
-
 function compare_health(before, after) {
 	let failures = [];
 	for (let key in [ 'lan', 'wan', 'dns', 'ipv4', 'ipv6', 'proxy', 'vpn', 'route' ]) {
@@ -1057,22 +972,6 @@ function compare_health(before, after) {
 	return { pass: length(failures) == 0, failures: failures };
 }
 
-function system_guard() {
-	let h = baseline_health();
-	let reasons = [];
-	let max_load_per_cpu = max(1, int_cfg('main.max_load_per_cpu', 2));
-	let max_steal_pct = max(1, int_cfg('main.max_cpu_steal_percent', 20)) / 100;
-	let max_temp = max(60000, int_cfg('main.max_thermal_millicelsius', 90000));
-	if (h.memAvailableKiB > 0 && h.memAvailableKiB < 16384) push(reasons, 'low-memory');
-	if (h.recentOom) push(reasons, 'recent-oom');
-	if (h.load1 > (h.cpu?.count ?? 1) * max_load_per_cpu) push(reasons, 'high-cpu-load');
-	if ((h.cpu?.stealPct ?? 0) > max_steal_pct) push(reasons, 'high-cpu-steal');
-	if (h.thermal?.available && (h.thermal.maxMilliCelsius ?? 0) >= max_temp) push(reasons, 'thermal-hot');
-	if (!h.stateStorageWritable) push(reasons, 'state-storage-unavailable');
-	if (!h.persistentStorageWritable) push(reasons, 'persistent-storage-unavailable');
-	return { pass: length(reasons) == 0, reasons: reasons, health: h };
-}
-
 function softnet() {
 	let processed = 0, dropped = 0, squeezed = 0;
 	for (let line in split(read('/proc/net/softnet_stat') ?? '', '\n')) {
@@ -1084,18 +983,6 @@ function softnet() {
 		}
 	}
 	return { processed: processed, dropped: dropped, timeSqueezed: squeezed };
-}
-
-function telemetry_snapshot() {
-	let dev = {};
-	for (let line in split(read('/proc/net/dev') ?? '', '\n')) {
-		let m = match(line, /^\s*([^:]+):\s*([0-9]+)\s+[0-9]+\s+[0-9]+\s+([0-9]+).*?\s([0-9]+)\s+[0-9]+\s+[0-9]+\s+([0-9]+)/);
-		if (m) dev[trimstr(m[1])] = { rxBytes: +m[2], rxDrop: +m[3], txBytes: +m[4], txDrop: +m[5] };
-	}
-	return {
-		monotonicMs: monotonic_ms(), bootId: boot_id(), topologyGeneration: topology_generation,
-		softnet: softnet(), interfaces: dev, health: baseline_health()
-	};
 }
 
 function platform_info() {
@@ -1122,103 +1009,9 @@ function benchmark_semantics(action_id) {
 	return 'forwarding';
 }
 
-function benchmark_catalog() {
-	let topo=topology(), integ=integration_state(), ids=[
-		'service.irqbalance','network.backlog','network.budget','network.buffers','network.busy_poll','netdev.tx_queue_len','nic.coalescing','tcp.cc','qdisc.replace','fastpath.software_flow_offload','fastpath.hardware_flow_offload','fastpath.third_party_sfe','cpu.governor'
-	], out=[];
-	let forwarding=[];
-	for (let p in topo.paths ?? []) if (p.id != 'path:local-endpoint' && (p.routeResolved ?? false)) push(forwarding,p.id);
-	for (let id in ids) {
-		let semantics=benchmark_semantics(id), paths=semantics=='local' ? ['path:local-endpoint'] : forwarding, usable=[], provider_rows=[], blockers=[];
-		for (let path_id in paths) {
-			let path=primary_path(path_id), c=compatibility(id,null,path_id), plan=c.allowed ? benchmark_provider_plan(id,path_id) : {ok:false,error:'compatibility-blocked'};
-			if (c.allowed && plan.ok && path) { push(usable,path_id); push(provider_rows,{pathId:path_id,kind:plan.kind,resource:plan.resource}); }
-			else push(blockers,{pathId:path_id,error:plan.error ?? 'compatibility-blocked',compatibility:c});
-		}
-		/* Keep provider-level refusals visible even when no route is currently
-		 * usable, so qdisc/SFE absence is a capability decision, not a hidden gap. */
-		if (!length(paths)) {
-			let path_id=semantics=='local'?'path:local-endpoint':'path:lan-to-wan', c=compatibility(id,null,path_id), plan=c.allowed?benchmark_provider_plan(id,path_id):{ok:false,error:'compatibility-blocked'};
-			push(blockers,{pathId:path_id,error:plan.error ?? 'route-unresolved',compatibility:c});
-		}
-		push(out,{id:id,applyScope:length(provider_rows) && match(provider_rows[0].resource ?? '',/^netdev:/)?'device':'system',risk:'benchmark',oneVariableDefault:true,evaluationSemantics:semantics,evaluationPaths:usable,requiresExplicitEndpoints:true,requiredClientRole:semantics=='local'?'router-local-client':'lan-client',status:length(usable)?'endpoint-required':'blocked',providers:provider_rows,blockers:blockers,integrationState:integ});
-	}
-	return out;
-}
-
-function compatibility(action_id, target, path_id) {
-	let integ = integration_state();
-	let explicit = path_id != null && length(`${path_id}`);
-	let eval_path = explicit ? primary_path(path_id) : (topology().paths?.[0] ?? null);
-	let blockers = [], warnings = [];
-	if (explicit && !eval_path)
-		push(blockers, 'evaluation-path-not-found');
-	if (action_id == 'fastpath.hardware_flow_offload' && integ.sqm)
-		push(blockers, 'HFO + SQM is blocked');
-	if (action_id == 'qdisc.replace' && (integ.sqm || integ.qosify))
-		push(blockers, 'qdisc replacement conflicts with SQM/qosify');
-	if ((action_id == 'fastpath.software_flow_offload' || action_id == 'fastpath.third_party_sfe') && integ.openclash)
-		push(warnings, 'SFE/SFO with OpenClash is benchmark-only');
-	if ((integ.mwan3 || integ.pbr) && ((eval_path?.routeResolved ?? false) != true || eval_path?.routeProvider != 'ip-full+rtnl-events'))
-		push(blockers, 'multi-WAN/PBR evaluation path has no resolved WAN-specific route identity');
-	if (target && match(target.runtimeName ?? '', /^(veth|docker|br-)/))
-		push(blockers, 'virtual/container device is not a physical NIC tuning target');
-	return { allowed: length(blockers) == 0, blockers: blockers, warnings: warnings };
-}
-
 function policy_owned(stable_id, action_id) {
 	let p = `${persist_dir()}/policies/${safe_name(stable_id)}.${safe_name(action_id)}.json`;
 	return json_read(p, null);
-}
-
-function candidate_actions() {
-	let actions = [];
-	let plat = platform_info();
-	for (let ref in target_refs()) {
-		let ring = ethtool_ring(ref.runtimeName);
-		if (plat.hyperv && ref.driver == 'hv_netvsc' && ring) {
-			let rx_need = ring.rxCurrent != null && ring.rxCurrent < 1024 && ring.rxMax != null && ring.rxMax >= 1024;
-			let tx_need = ring.txCurrent != null && ring.txCurrent < 1024 && ring.txMax != null && ring.txMax >= 1024;
-			if (rx_need || tx_need) {
-				let affected_paths=[];
-				for (let p in topology().paths ?? [])
-					if (p.id != 'path:local-endpoint' && index(p.targetRefs ?? [], ref.stableId) >= 0) push_unique(affected_paths,p.id);
-				if (!length(affected_paths)) continue;
-				push(actions, {
-					schemaVersion: 2,
-					id: 'nic.ring.floor', applyScope: 'device', applyTarget: ref.stableId,
-					affectedTargets: [ ref.stableId ], affectedPaths: affected_paths,
-					evaluationPaths: affected_paths, workloadClass: workload_for_paths(affected_paths),
-					params: { rxFloor: rx_need ? 1024 : ring.rxCurrent, txFloor: tx_need ? 1024 : ring.txCurrent },
-					risk: 'safe', requiresBenchmark: false, persistenceClass: 'pm_policy_replay',
-					commitPolicy: 'policy_replay_on_accept', reapplyTriggers: [ 'boot', 'device_up', 'topology_change' ],
-					requiredLocks: [ `netdev:${ref.stableId}` ], requiresCommitConfirm: false,
-					requiresLinkVerification: true,
-					reason: 'Hyper-V hv_netvsc ring is below the conservative 1024 floor while hardware maximum supports it.'
-				});
-			}
-		}
-	}
-	return actions;
-}
-
-function recommendations() {
-	let acts = candidate_actions();
-	let packet = packet_steering_capability();
-	let notes = [];
-	if (packet.availability == 'available')
-		push(notes, { id: 'network.packet_steering.native', disposition: 'respect', detail: 'Native OpenWrt provider detected; no ownership seizure.' });
-	let port = port_capacity_capability();
-	let po = port.evidence[0]?.observed;
-	if ((po?.conntrackPressure ?? 0) >= 0.70 || integration_state().transparentProxy)
-		push(notes, { id: 'network.local_port_capacity', disposition: 'analyze', detail: 'Local port capacity is relevant under proxy/high-connection pressure; reserved ports and ownership must be preserved. Any change remains benchmark-only.' });
-	let rill = rill_status();
-	return {
-		topologyGeneration: topology_generation, actions: acts, observations: notes,
-		benchmarkActions: benchmark_catalog(),
-		rill: rill,
-		learnedAdvisory: rill.detail?.recommendations ?? []
-	};
 }
 
 function lock_path(resource) {
@@ -1289,26 +1082,6 @@ function cancel_tx_timer(txid) {
 	let t = tx_timers[txid];
 	if (t) t.cancel();
 	delete tx_timers[txid];
-}
-
-function arm_tx_timer(tx) {
-	cancel_tx_timer(tx.transactionId);
-	if (tx.state != 'awaiting_confirm' || tx.deadlineMonotonicMs == null) return false;
-	let remaining = max(1, tx.deadlineMonotonicMs - monotonic_ms());
-	tx_timers[tx.transactionId] = uloop.timer(remaining, function() {
-		rollback_transaction(tx.transactionId, 'confirm-timeout');
-		delete tx_timers[tx.transactionId];
-	});
-	return true;
-}
-
-function arm_commit_confirm(tx, timeout_ms) {
-	tx.deadlineMonotonicMs = monotonic_ms() + max(1000, timeout_ms);
-	tx.verification.commitConfirm = 'pending';
-	tx.state = 'awaiting_confirm';
-	if (!tx_save(tx)) return { ok: false, error: 'pending-marker-write-failed' };
-	arm_tx_timer(tx);
-	return { ok: true, transaction: tx };
 }
 
 function compact_jsonl(path, limit) {
@@ -1397,119 +1170,6 @@ function persist_ring_policy(ref, params, transaction_id, before_ring, owned_rin
 	return json_write(ring_policy_path(ref.stableId), policy);
 }
 
-function apply_ring(action, options) {
-	options = options ?? {};
-	let ref = resolve_target(action.applyTarget);
-	if (!ref) return { ok: false, error: 'target-unresolved' };
-	let comp = compatibility(action.id, ref, action.evaluationPaths?.[0]);
-	if (!comp.allowed) return { ok: false, error: 'compatibility-blocked', compatibility: comp };
-	let guard = system_guard();
-	if (!guard.pass) return { ok: false, error: 'health-guard-blocked', guard: guard };
-
-	let tx = tx_new(action);
-	if (!tx_save(tx)) return { ok: false, error: 'transaction-journal-write-failed' };
-	let lock = acquire_locks(action.requiredLocks, tx.transactionId);
-	if (!lock.ok) {
-		tx.state = 'failed'; tx.result = { error: 'lock-conflict', detail: lock }; tx_save(tx);
-		return { ok: false, transaction: tx };
-	}
-	tx.state = 'locked'; if (!tx_save(tx)) { release_locks(tx.requiredLocks, tx.transactionId); return { ok: false, error: 'transaction-journal-write-failed' }; }
-	let before_health = baseline_health();
-	let snap = ring_snapshot(ref);
-	if (!snap) {
-		tx.state = 'failed'; tx.result = { error: 'snapshot-failed' }; tx_save(tx); release_locks(tx.requiredLocks, tx.transactionId);
-		return { ok: false, transaction: tx };
-	}
-	tx.before = { ring: snap, health: before_health, targetRef: ref };
-	tx.state = 'snapshotted'; if (!tx_save(tx)) { release_locks(tx.requiredLocks, tx.transactionId); return { ok: false, error: 'transaction-journal-write-failed' }; }
-	tx.state = 'pending';
-	if (!tx_save(tx)) { tx.state = 'failed'; tx.result = { error: 'pending-marker-write-failed' }; tx_save(tx); release_locks(tx.requiredLocks, tx.transactionId); return { ok: false, transaction: tx }; }
-	let ap = ring_apply(ref, action.params);
-	if (ap.rc != 0) {
-		tx.state = 'failed'; tx.result = { error: 'apply-failed', output: ap.out }; tx_save(tx); release_locks(tx.requiredLocks, tx.transactionId);
-		return { ok: false, transaction: tx };
-	}
-	tx.state = 'applied'; tx.applied = action.params;
-	if (!tx_save(tx)) {
-		let restore=ring_restore(ref,snap), restored=restore.rc == 0 && ring_matches(ref,snap);
-		tx.verification.rollbackReadBack=restored?'pass':'fail'; tx.state=restored?'rolled_back':'failed'; tx.result={error:'transaction-journal-write-failed-after-apply',rollback:restored?'restored':'failed'};
-		tx_save(tx); release_locks(tx.requiredLocks,tx.transactionId); return {ok:false,error:'transaction-journal-write-failed-after-apply',transaction:tx};
-	}
-	let after_ring = ring_snapshot(ref);
-	let after_health = baseline_health();
-	let hcmp = compare_health(before_health, after_health);
-	let readback = after_ring &&
-		(action.params.rxFloor == null || after_ring.rxCurrent >= action.params.rxFloor) &&
-		(action.params.txFloor == null || after_ring.txCurrent >= action.params.txFloor);
-	let link = link_ok(ref);
-	if (!readback || !link || !hcmp.pass) {
-		let restore = ring_restore(ref, snap);
-		let restored = restore.rc == 0 && ring_matches(ref, snap);
-		tx.verification = { readBack: readback ? 'pass' : 'fail', link: link ? 'pass' : 'fail', healthRegression: hcmp.pass ? 'none' : hcmp.failures, rollbackReadBack: restored ? 'pass' : 'fail', commitConfirm: 'not_required' };
-		tx.state = restored ? 'rolled_back' : 'failed';
-		tx.result = { error: 'verification-failed', rollback: restored ? 'restored' : 'failed', rollbackOutput: restore.out ?? '' };
-		tx_save(tx); release_locks(tx.requiredLocks, tx.transactionId);
-		(options.runtimeOnly ? runtime_history : history)(restored ? 'transaction.rollback' : 'transaction.rollback_failed', tx);
-		if (!options.runtimeOnly && restored)
-			rill_send(rill_outcome_payload(action.id,'health_only',-1.0,tx.transactionId,{ capabilityHash:capability_hash(capabilities()), topologyGeneration:topology_generation, pathId:topology().paths?.[0]?.id ?? 'path:lan-to-wan', routeIdentity:topology().paths?.[0]?.routeIdentity ?? 'unresolved', workloadClass:topology().paths?.[0]?.workloadClass ?? ['plain_forwarding'], integrationFingerprint:integration_fingerprint([]) }));
-		return { ok: false, transaction: tx };
-	}
-	tx.verification = { readBack: 'pass', link: 'pass', healthRegression: 'none', commitConfirm: action.requiresCommitConfirm ? 'pending' : 'not_required' };
-	tx.state = 'verified'; tx.result = { ring: after_ring };
-	if (!tx_save(tx)) {
-		let restore = ring_restore(ref, snap);
-		let restored = restore.rc == 0 && ring_matches(ref, snap);
-		tx.state = restored ? 'rolled_back' : 'failed'; tx.result = { error: 'transaction-journal-write-failed', rollback: restored ? 'restored' : 'failed' };
-		tx_save(tx); release_locks(tx.requiredLocks, tx.transactionId); return { ok: false, transaction: tx };
-	}
-	if (action.requiresCommitConfirm) {
-		let armed = arm_commit_confirm(tx, max(5, int_cfg('main.commit_confirm_seconds', 30)) * 1000);
-		if (!armed.ok) { rollback_transaction(tx.transactionId, 'commit-confirm-arm-failed'); return { ok: false, error: armed.error, transaction: tx }; }
-		return { ok: true, awaitingConfirm: true, transaction: tx };
-	}
-	if (!options.skipPersistence && !persist_ring_policy(ref, action.params, tx.transactionId, snap, after_ring)) {
-		let restore = ring_restore(ref, snap);
-		let restored = restore.rc == 0 && ring_matches(ref, snap);
-		tx.verification.rollbackReadBack = restored ? 'pass' : 'fail';
-		tx.state = restored ? 'rolled_back' : 'failed';
-		tx.result = { error: 'persistence-failed', rollback: restored ? 'restored' : 'failed' };
-		tx_save(tx); release_locks(tx.requiredLocks, tx.transactionId);
-		history(restored ? 'transaction.rollback' : 'transaction.rollback_failed', tx);
-		return { ok: false, transaction: tx };
-	}
-	tx.state = 'committed'; tx.result = { ring: after_ring };
-	if (!tx_save(tx)) {
-		/* Do not report success if terminal journal/pending-marker cleanup failed.
-		 * For PM-owned policy writes, restore both runtime and policy ownership. */
-		let policy=json_read(ring_policy_path(ref.stableId),null); if (policy?.ownerTransactionId == tx.transactionId) fs.unlink(ring_policy_path(ref.stableId));
-		let restore=ring_restore(ref,snap), restored=restore.rc == 0 && ring_matches(ref,snap);
-		tx.state=restored?'rolled_back':'failed'; tx.result={error:'commit-journal-write-failed',rollback:restored?'restored':'failed'}; tx.verification.rollbackReadBack=restored?'pass':'fail'; tx_save(tx);
-		cancel_tx_timer(tx.transactionId); release_locks(tx.requiredLocks,tx.transactionId); history(restored?'transaction.rollback':'transaction.rollback_failed',tx); return {ok:false,error:'commit-journal-write-failed',transaction:tx};
-	}
-	cancel_tx_timer(tx.transactionId); release_locks(tx.requiredLocks, tx.transactionId);
-	(options.runtimeOnly ? runtime_history : history)('transaction.commit', tx);
-	if (!options.runtimeOnly)
-		rill_send(rill_outcome_payload(action.id,'health_only',0.0,tx.transactionId,{ capabilityHash:capability_hash(capabilities()), topologyGeneration:topology_generation, pathId:topology().paths?.[0]?.id ?? 'path:lan-to-wan', routeIdentity:topology().paths?.[0]?.routeIdentity ?? 'unresolved', workloadClass:topology().paths?.[0]?.workloadClass ?? ['plain_forwarding'], integrationFingerprint:integration_fingerprint([]) }));
-	return { ok: true, transaction: tx };
-}
-
-function find_action(action_id, target) {
-	for (let a in candidate_actions())
-		if (a.id == action_id && (!target || a.applyTarget == target))
-			return a;
-	return null;
-}
-
-function apply_action(msg) {
-	let action_id = msg?.actionId;
-	if (action_id == 'nic.ring.floor') {
-		let a = find_action(action_id, msg?.target);
-		if (!a) return { ok: false, error: 'no-legal-candidate' };
-		return apply_ring(a);
-	}
-	return { ok: false, error: 'action-not-allowlisted-for-direct-apply', actionId: action_id };
-}
-
 function sysctl_value(path) {
 	let v = trimstr(read(path));
 	return length(v) ? v : null;
@@ -1533,6 +1193,686 @@ function uci_set_runtime(path, value) {
 	return run([ 'uci', '-q', 'set', `${path}=${value}` ]);
 }
 
+function benchmark_provider_apply(plan, value) {
+	if (plan.kind == 'sysctl') return sysctl_set(plan.path, value);
+	if (plan.kind == 'txqueuelen') return run([ 'ip', 'link', 'set', 'dev', plan.targetRef.runtimeName, 'txqueuelen', `${value}` ]);
+	if (plan.kind == 'coalescing') return run([ 'ethtool', '-C', plan.targetRef.runtimeName, 'rx-usecs', `${value}` ]);
+	if (plan.kind == 'service') return run([ `/etc/init.d/${plan.service}`, value == 'running' ? 'start' : 'stop' ]);
+	if (plan.kind == 'uci-firewall') {
+		let r=uci_set_runtime(plan.key, value); if (r.rc != 0) return r;
+		return run([ '/etc/init.d/firewall', 'reload' ]);
+	}
+	if (plan.kind == 'governor') {
+		for (let row in plan.rows) {
+			let target = value == 'candidate' ? row.candidate : row.before;
+			let r=sysctl_set(row.path, target); if (r.rc != 0) return r;
+		}
+		return { rc:0, out:'' };
+	}
+	return { rc:1, out:'unsupported-provider-kind' };
+}
+
+function benchmark_provider_matches(plan, value) {
+	if (plan.kind == 'sysctl') return sysctl_value(plan.path) == `${value}`;
+	if (plan.kind == 'txqueuelen') return sysctl_value(`/sys/class/net/${plan.targetRef.runtimeName}/tx_queue_len`) == `${value}`;
+	if (plan.kind == 'coalescing') {
+		let r=run([ 'ethtool', '-c', plan.targetRef.runtimeName ]), m=match(r.out, /rx-usecs:\s*([0-9]+)/);
+		return r.rc == 0 && m && m[1] == `${value}`;
+	}
+	if (plan.kind == 'service') return (service_running(plan.service) ? 'running' : 'stopped') == value;
+	if (plan.kind == 'uci-firewall') { let cur=uci_get(plan.key); return value == null ? cur == null : cur == `${value}`; }
+	if (plan.kind == 'governor') {
+		for (let row in plan.rows) if (sysctl_value(row.path) != (value == 'candidate' ? row.candidate : row.before)) return false;
+		return true;
+	}
+	return false;
+}
+
+function benchmark_restore_transaction(tx, reason) {
+	let plan=tx.before?.benchmark;
+	if (!plan) return { ok:false, error:'benchmark-snapshot-missing' };
+	/* Refuse to overwrite somebody else's same-knob change. */
+	let expected = plan.kind == 'governor' ? 'candidate' : plan.candidate;
+	if (!benchmark_provider_matches(plan, expected)) return { ok:false, error:'live-state-drift-refuses-stale-rollback' };
+	let restore_value = plan.kind == 'governor' ? 'before' : plan.before;
+	let r=benchmark_provider_apply(plan, restore_value);
+	let restored=r.rc == 0 && benchmark_provider_matches(plan, restore_value);
+	if (!restored) return { ok:false, error:'rollback-apply-or-readback-failed', output:r.out ?? '' };
+	return { ok:true, reason:reason ?? 'benchmark-rollback' };
+}
+
+function transaction_list() {
+	let items = [];
+	for (let p in fs.glob(`${state_dir()}/transactions/*.json`) ?? []) {
+		let tx = json_read(p, null); if (tx) push(items, tx);
+	}
+	sort(items, function(a,b) { return (b.updatedMonotonicMs ?? 0) - (a.updatedMonotonicMs ?? 0); });
+	return items;
+}
+
+function lock_list() {
+	let items = [];
+	for (let p in fs.glob(`${state_dir()}/locks/*.json`) ?? []) {
+		let x = json_read(p, null); if (x) push(items, x);
+	}
+	return items;
+}
+
+function clean_stale_locks() {
+	for (let p in fs.glob(`${state_dir()}/locks/*.json`) ?? []) {
+		let lock = json_read(p, null);
+		if (!lock || lock.bootId != boot_id()) { fs.unlink(p); continue; }
+		let tx = json_read(tx_path(lock.transactionId), null);
+		if (!tx || !tx_is_active(tx)) fs.unlink(p);
+	}
+}
+
+function recover_persistent_markers() {
+	ensure_dir(`${persist_dir()}/pending`);
+	for (let p in fs.glob(`${persist_dir()}/pending/*.json`) ?? []) {
+		let marker = json_read(p, null);
+		if (!marker) { fs.unlink(p); continue; }
+		if (marker.bootId != boot_id()) {
+			/* Runtime-only and uncommitted UCI deltas reset across reboot. Never
+			 * replay a stale snapshot into a newly resolved target. The marker is
+			 * durable evidence that recovery happened. */
+			history('transaction.boot_recovered', { transactionId: marker.transactionId, actionId: marker.actionId, previousBootId: marker.bootId, state: marker.state, result: { reason: 'boot-recovery-runtime-reset-no-stale-replay' } });
+			fs.unlink(p);
+			continue;
+		}
+		let local = json_read(tx_path(marker.transactionId), null);
+		if (!local) json_write(tx_path(marker.transactionId), marker);
+	}
+}
+
+function benchmark_path(id) {
+	return `${state_dir()}/benchmarks/${safe_name(id)}.json`;
+}
+
+function benchmark_lock_dir() {
+	return `${state_dir()}/benchmark-locks`;
+}
+
+function benchmark_lock_path(domain) {
+	return `${benchmark_lock_dir()}/${safe_name(domain)}.json`;
+}
+
+function benchmark_lock_domain(action_id, plan, path_id) {
+	/* Active A/B experiments are globally exclusive.  Any two simultaneous
+	 * candidates — backlog+budget, irqbalance+governor, or coalescing on two
+	 * different NICs — would attribute one throughput delta to two changed
+	 * variables and feed a polluted result into Rill.  System/service and
+	 * device/path experiments therefore share one experiment domain lock; the
+	 * per-resource transaction lock is applied on top at candidate time. */
+	return 'benchmark:global';
+}
+
+function benchmark_session_active(s) {
+	return index([ 'awaiting_control', 'candidate_applied' ], s?.state) >= 0;
+}
+
+function benchmark_session_expired(s, now) {
+	if (s?.state == 'awaiting_control' && s.createdMonotonicMs != null)
+		return now - s.createdMonotonicMs > max(60, int_cfg('benchmark.session_idle_seconds', 600)) * 1000;
+	return false;
+}
+
+function acquire_benchmark_lock(domain, session_id) {
+	ensure_dir(benchmark_lock_dir());
+	let p = benchmark_lock_path(domain);
+	let existing = json_read(p, null);
+	if (existing && existing.bootId == boot_id() && existing.sessionId != session_id)
+		return { ok: false, conflict: existing };
+	if (!json_write(p, { schemaVersion: 1, domain: domain, sessionId: session_id, bootId: boot_id(), acquiredMonotonicMs: monotonic_ms() }))
+		return { ok: false, conflict: null };
+	return { ok: true };
+}
+
+function release_benchmark_lock(domain, session_id) {
+	if (!domain || !session_id) return;
+	let p = benchmark_lock_path(domain);
+	let cur = json_read(p, null);
+	if (!cur || cur.sessionId == session_id)
+		fs.unlink(p);
+}
+
+function rollback_transaction(txid, reason) {
+	let tx = json_read(tx_path(txid), null);
+	if (!tx) return { ok: false, error: 'transaction-not-found' };
+	if (tx.state == 'rolled_back') return { ok: false, error: 'transaction-already-rolled-back' };
+	if (tx.bootId != boot_id()) return { ok: false, error: 'rollback-snapshot-from-different-boot' };
+	cancel_tx_timer(tx.transactionId);
+	let lock = acquire_locks(tx.requiredLocks ?? [], tx.transactionId);
+	if (!lock.ok) return { ok:false, error:'rollback-lock-conflict', detail:lock };
+	if (tx.actionId == 'nic.ring.floor' && tx.before?.targetRef && tx.before?.ring) {
+		let ref = resolve_target(tx.before.targetRef.stableId);
+		if (!ref) { release_locks(tx.requiredLocks,tx.transactionId); return { ok: false, error: 'rollback-target-unresolved' }; }
+		if (tx.state == 'committed') {
+			let policy = json_read(ring_policy_path(ref.stableId), null);
+			if (!policy || policy.owner != 'performance_manager' || policy.ownerTransactionId != tx.transactionId) { release_locks(tx.requiredLocks,tx.transactionId); return { ok: false, error: 'stale-transaction-policy-owner-changed' }; }
+			if (tx.result?.ring && !ring_matches(ref, tx.result.ring)) { release_locks(tx.requiredLocks,tx.transactionId); return { ok: false, error: 'live-state-drift-refuses-stale-rollback' }; }
+		}
+		let r = ring_restore(ref, tx.before.ring);
+		let restored = r.rc == 0 && ring_matches(ref, tx.before.ring);
+		if (!restored) {
+			tx.state = 'failed'; tx.result = { error: 'rollback-apply-or-readback-failed', output: r.out ?? '' };
+			tx.verification.rollbackReadBack = 'fail'; tx_save(tx); release_locks(tx.requiredLocks, tx.transactionId);
+			history('transaction.rollback_failed', tx); return { ok: false, transaction: tx };
+		}
+		let policy = json_read(ring_policy_path(ref.stableId), null);
+		if (policy?.ownerTransactionId == tx.transactionId) fs.unlink(ring_policy_path(ref.stableId));
+		tx.verification.rollbackReadBack = 'pass';
+	} else if (tx.before?.benchmark) {
+		let r=benchmark_restore_transaction(tx, reason);
+		if (!r.ok) {
+			tx.state='failed'; tx.verification.rollbackReadBack='fail'; tx.result={error:r.error,output:r.output ?? '',benchmarkSessionId:tx.result?.benchmarkSessionId ?? tx.applied?.benchmarkSessionId ?? null};
+			tx_save(tx); release_locks(tx.requiredLocks,tx.transactionId); history('transaction.rollback_failed',tx); return {ok:false,transaction:tx};
+		}
+		tx.verification.rollbackReadBack='pass';
+	}
+	let bench_id=tx.result?.benchmarkSessionId ?? tx.applied?.benchmarkSessionId ?? null;
+	tx.state = 'rolled_back'; tx.deadlineMonotonicMs=null; tx.result = { reason: reason ?? 'manual', benchmarkSessionId:bench_id }; tx_save(tx); release_locks(tx.requiredLocks, tx.transactionId);
+	history('transaction.rollback', tx);
+	if (bench_id) {
+		let sp=benchmark_path(bench_id), sess=json_read(sp,null);
+		if (sess && sess.state == 'candidate_applied' && reason != 'benchmark-complete') {
+			sess.state='failed'; sess.result={validated:false,error:reason ?? 'candidate-rolled-back'}; json_write(sp,sess);
+		}
+		/* A terminal session must release its experiment-domain lock; the next
+		 * benchmark may then start.  The benchmark-complete reason is the
+		 * success path and releases in benchmark_start itself. */
+		if (reason != 'benchmark-complete')
+			release_benchmark_lock(sess?.benchmarkLock?.domain, bench_id);
+	}
+	return { ok: true, transaction: tx };
+}
+
+function arm_tx_timer(tx) {
+	cancel_tx_timer(tx.transactionId);
+	if (tx.state != 'awaiting_confirm' || tx.deadlineMonotonicMs == null) return false;
+	let remaining = max(1, tx.deadlineMonotonicMs - monotonic_ms());
+	tx_timers[tx.transactionId] = uloop.timer(remaining, function() {
+		rollback_transaction(tx.transactionId, 'confirm-timeout');
+		delete tx_timers[tx.transactionId];
+	});
+	return true;
+}
+
+function arm_commit_confirm(tx, timeout_ms) {
+	tx.deadlineMonotonicMs = monotonic_ms() + max(1000, timeout_ms);
+	tx.verification.commitConfirm = 'pending';
+	tx.state = 'awaiting_confirm';
+	if (!tx_save(tx)) return { ok: false, error: 'pending-marker-write-failed' };
+	arm_tx_timer(tx);
+	return { ok: true, transaction: tx };
+}
+
+function confirm_transaction(txid) {
+	let tx = json_read(tx_path(txid), null);
+	if (!tx) return { ok: false, error: 'transaction-not-found' };
+	if (tx.state != 'awaiting_confirm') return { ok: false, error: 'not-awaiting-confirm' };
+	if (tx.bootId != boot_id()) return rollback_transaction(txid, 'boot-changed-before-confirm');
+	if (tx.deadlineMonotonicMs == null) return rollback_transaction(txid, 'missing-confirm-deadline');
+	if (monotonic_ms() > tx.deadlineMonotonicMs) return rollback_transaction(txid, 'confirm-timeout');
+	if (tx.commitPolicy == 'rollback_after_benchmark')
+		return { ok: false, error: 'benchmark-transactions-cannot-be-manually-committed' };
+	if (tx.actionId == 'nic.ring.floor' && tx.before?.targetRef) {
+		let ref = resolve_target(tx.before.targetRef.stableId);
+		if (!ref) return rollback_transaction(txid, 'confirm-target-unresolved');
+		if (!persist_ring_policy(ref, tx.applied ?? {}, tx.transactionId, tx.before?.ring, tx.result?.ring))
+			return rollback_transaction(txid, 'confirm-persistence-failed');
+	}
+	tx.verification.commitConfirm = 'confirmed'; tx.state = 'committed'; tx.deadlineMonotonicMs = null;
+	if (!tx_save(tx)) {
+		/* The durable marker/journal must agree before a connectivity-critical
+		 * change can be considered committed. Fall back to the previous journal
+		 * state and restore through the normal stale-safe rollback path. */
+		let rr=rollback_transaction(txid,'confirm-journal-write-failed');
+		return {ok:false,error:'confirm-journal-write-failed',rollback:rr};
+	}
+	cancel_tx_timer(tx.transactionId); release_locks(tx.requiredLocks, tx.transactionId);
+	history('transaction.commit', tx);
+	return { ok: true, transaction: tx };
+}
+
+function clean_stale_benchmark_locks() {
+	for (let p in fs.glob(`${benchmark_lock_dir()}/*.json`) ?? []) {
+		let lock = json_read(p, null);
+		if (!lock || lock.bootId != boot_id()) { fs.unlink(p); continue; }
+		let session = json_read(benchmark_path(lock.sessionId), null);
+		if (!session || !benchmark_session_active(session) || benchmark_session_expired(session, monotonic_ms())) {
+			if (session && session.state == 'awaiting_control' && benchmark_session_expired(session, monotonic_ms())) {
+				session.state = 'failed'; session.result = { validated: false, error: 'benchmark-session-idle-expired' };
+				json_write(benchmark_path(lock.sessionId), session);
+			}
+			fs.unlink(p);
+		}
+	}
+}
+
+function recover_pending() {
+	ensure_dir(`${state_dir()}/transactions`);
+	recover_persistent_markers();
+	clean_stale_locks();
+	for (let tx in transaction_list()) {
+		if (!tx_is_active(tx)) continue;
+		if (tx.bootId != boot_id()) {
+			tx.state = 'rolled_back'; tx.deadlineMonotonicMs = null;
+			tx.verification.rollbackReadBack = 'not_applicable_new_boot';
+			tx.result = { reason: 'boot-recovery-runtime-reset-no-stale-replay' };
+			tx_save(tx); release_locks(tx.requiredLocks, tx.transactionId); history('transaction.boot_recovered', tx);
+			continue;
+		}
+		if (tx.state == 'awaiting_confirm') {
+			if (tx.deadlineMonotonicMs == null) {
+				rollback_transaction(tx.transactionId, 'missing-confirm-deadline-recovery');
+				continue;
+			}
+			if (monotonic_ms() >= tx.deadlineMonotonicMs) {
+				rollback_transaction(tx.transactionId, 'confirm-timeout-recovery');
+				continue;
+			}
+			arm_tx_timer(tx);
+			continue;
+		}
+		/* A same-boot daemon crash during pending/applied/verified has no trusted
+		 * caller left to finish the transaction. Fail closed and restore now. */
+		rollback_transaction(tx.transactionId, 'core-crash-recovery');
+	}
+	clean_stale_locks();
+	/* Benchmark experiment locks belong to sessions; any session that died with
+	 * the daemon is no longer active and must not block the next experiment. */
+	clean_stale_benchmark_locks();
+}
+
+function cleanup_owned(reason) {
+	let summary={ok:true,reason:reason ?? 'package-remove',activeTransactions:[],policies:[],remainingLocks:[]};
+	/* First close every live transaction through the normal stale-safe rollback
+	 * engine. Never delete its recovery marker merely to make uninstall look
+	 * clean: a failed rollback is evidence that needs operator attention. */
+	for (let tx in transaction_list()) {
+		if (!tx_is_active(tx)) continue;
+		let r=rollback_transaction(tx.transactionId,'package-remove');
+		push(summary.activeTransactions,{transactionId:tx.transactionId,ok:r.ok,error:r.error ?? null});
+		if (!r.ok) summary.ok=false;
+	}
+
+	for (let p in fs.glob(`${persist_dir()}/policies/*.json`) ?? []) {
+		let pol=json_read(p,null);
+		if (!pol || pol.owner != 'performance_manager') continue;
+		if (pol.actionId != 'nic.ring.floor') {
+			/* Unknown PM policy is safer to make non-replayable than to guess a
+			 * runtime inverse for a provider this build does not own. */
+			fs.unlink(p); push(summary.policies,{actionId:pol.actionId,status:'intent-removed-runtime-untouched'}); continue;
+		}
+		let ref=resolve_target(pol.targetRef?.stableId), lease=pol.runtimeLease;
+		if (!ref || !lease || lease.bootId != boot_id() || !lease.beforeRing || !lease.ownedRing) {
+			fs.unlink(p); push(summary.policies,{actionId:pol.actionId,target:pol.targetRef?.stableId ?? null,status:'intent-removed-runtime-untouched'}); continue;
+		}
+		/* If the live knob no longer equals the exact PM-owned value, somebody
+		 * else has taken ownership. Preserve that state and only remove replay
+		 * intent; never stale-rollback over user/external changes. */
+		if (!ring_matches(ref,lease.ownedRing)) {
+			fs.unlink(p); push(summary.policies,{actionId:pol.actionId,target:ref.stableId,status:'live-drift-preserved-intent-removed'}); continue;
+		}
+		let cleanup_id=sprintf('cleanup-%d',monotonic_ms()), resources=[`netdev:${ref.stableId}`], lock=acquire_locks(resources,cleanup_id);
+		if (!lock.ok) { summary.ok=false; push(summary.policies,{actionId:pol.actionId,target:ref.stableId,status:'lock-conflict',detail:lock}); continue; }
+		let rr=ring_restore(ref,lease.beforeRing), restored=rr.rc==0 && ring_matches(ref,lease.beforeRing);
+		release_locks(resources,cleanup_id);
+		if (!restored) { summary.ok=false; push(summary.policies,{actionId:pol.actionId,target:ref.stableId,status:'runtime-restore-failed',output:rr.out ?? ''}); continue; }
+		fs.unlink(p); push(summary.policies,{actionId:pol.actionId,target:ref.stableId,status:'runtime-restored-and-intent-removed'});
+	}
+	clean_stale_locks();
+	clean_stale_benchmark_locks();
+	for (let x in lock_list()) push(summary.remainingLocks,x);
+	if (length(summary.remainingLocks)) summary.ok=false;
+	history('ownership.cleanup',summary);
+	return summary;
+}
+
+function benchmark_fail_session(sp, sid, error) {
+	let sess = json_read(sp, null);
+	if (!sess) return;
+	if (benchmark_session_active(sess)) {
+		sess.state = 'failed'; sess.result = { validated: false, error: error };
+		json_write(sp, sess);
+	}
+	release_benchmark_lock(sess.benchmarkLock?.domain, sid);
+}
+
+function benchmark_context_frozen(session) {
+	return {
+		capabilityHash: session?.capabilityHash, topologyGeneration: session?.topologyGeneration,
+		routeIdentity: session?.routeIdentity, routeProvider: null,
+		integrationState: session?.integrationState, integrationFingerprint: session?.integrationFingerprint,
+		workloadClass: session?.workloadClass, goal: session?.goal
+	};
+}
+
+/* -- Goal semantics (Blocker 2) -------------------------------------------
+ * The configured goal must genuinely partition the model, select benchmark
+ * measurement, drive reward and appear in the Rill request and UI.  A goal
+ * with no measurable methodology fails-closed instead of silently degrading
+ * to throughput. */
+function goal() {
+	let g = cfg('main.goal', 'balanced');
+	return index(GOALS, g) >= 0 ? g : 'balanced';
+}
+
+function goal_measurable(g) {
+	return GOAL_MEASURABLE[g] ?? null;
+}
+
+/* -- Controlled A/B measurement methodology fingerprint (Blocker 3) -------
+ * A controlled experiment is one-variable-at-a-time only if the measurement
+ * methodology is identical between control and candidate.  The canonical
+ * fingerprint covers endpoint identity, port, direction, parallel streams,
+ * duration, protocol/mode and tool version.  A mismatch invalidates the
+ * experiment: no reward is emitted and no Rill outcome is sent. */
+function measurement_methodology(e) {
+	let m = e?.methodology ?? {};
+	let ep = e?.endpoint ?? {};
+	return {
+		host: m.host ?? ep.host ?? null,
+		port: m.port ?? ep.port ?? null,
+		reverse: (m.reverse ?? ep.reverse) ? true : false,
+		parallel: max(1, +((m.parallel ?? ep.parallel) ?? 1)),
+		duration: +((m.duration ?? e?.resultDuration) ?? 0),
+		protocol: m.protocol ?? 'iperf3-tcp',
+		tool: (m.tool ?? ep.tool) ?? 'iperf3',
+		toolVersion: m.toolVersion ?? null
+	};
+}
+
+function methodology_key(m) {
+	return sprintf('m:%s|%s|%s|%d|%d|%s|%s|%s',
+		m.host ?? '', m.port ?? '', m.reverse ? 'R' : 'F', m.parallel, m.duration,
+		m.protocol ?? '', m.tool ?? '', m.toolVersion ?? '');
+}
+
+function methodology_matches(a, b) {
+	return methodology_key(measurement_methodology(a)) == methodology_key(measurement_methodology(b));
+}
+
+function companion_evidence_valid(e, session, phase) {
+	if (!e || e.contract != 'pm-companion/v2' || e.role != session.companion?.requiredRole || e.ok != true || !(+e.bitsPerSecond > 0)) return {ok:false,error:'invalid-companion-evidence'};
+	if (e.sessionId != session.sessionId || e.phase != phase || e.actionId != session.actionId || e.pathId != session.evaluationPath)
+		return {ok:false,error:'companion-context-mismatch'};
+	if (+e.topologyGeneration != +session.topologyGeneration || e.routeIdentity != session.routeIdentity || e.capabilityHash != session.capabilityHash)
+		return {ok:false,error:'companion-context-drift'};
+	return {ok:true};
+}
+
+function benchmark_list() {
+	let out=[]; for (let p in fs.glob(`${state_dir()}/benchmarks/*.json`) ?? []) { let x=json_read(p,null); if (x) push(out,x); }
+	sort(out,function(a,b){return (b.sessionId??'') > (a.sessionId??'') ? 1 : -1;}); return out;
+}
+
+function benchmark_stop(session_id) {
+	let session=session_id ? json_read(benchmark_path(session_id),null) : null;
+	if (!session) return {ok:false,error:'benchmark-session-not-found'};
+	if (session.state == 'candidate_applied' && session.transactionId) {
+		let r=rollback_transaction(session.transactionId,'benchmark-stopped');
+		if (!r.ok) return {ok:false,error:'candidate-rollback-failed',detail:r};
+	}
+	if (session.state == 'completed' || session.state == 'failed' || session.state == 'stopped') return {ok:false,error:'benchmark-session-not-running',session:session};
+	session.state='stopped'; session.result={validated:false,error:'stopped-by-user'};
+	if (!json_write(benchmark_path(session_id),session)) return {ok:false,error:'benchmark-session-write-failed-after-stop',session:session};
+	release_benchmark_lock(session.benchmarkLock?.domain, session_id);
+	history('benchmark.stopped',session); return {ok:true,session:session};
+}
+
+function rill_socket_path() {
+	return cfg('shadow.socket', '/run/performance-manager/rill.sock');
+}
+
+function rill_recv_frame(s, maxMsg, timeout) {
+	/* Read ONE newline-delimited JSON frame from the Rill socket, bounded and
+	 * fail-closed.  Handles partial reads, oversized replies, empty replies,
+	 * a peer that closes early, and a read timeout — none of which may be
+	 * parsed as a truncated/garbage JSON.  Returns the raw frame body (without
+	 * the trailing newline) on success, or an error object { state } on
+	 * failure.  The protocol is strictly framed by a single trailing newline;
+	 * trailing bytes after the first frame are ignored for this request. */
+	let buf = '';
+	let deadline = monotonic_ms() + max(1, timeout);
+	let closed = false, timed_out = false;
+	while (length(buf) < maxMsg) {
+		let remaining = max(1, deadline - monotonic_ms());
+		let events = socket.poll(remaining, s);
+		if (!events || !length(events) || !((events[0][1] ?? 0) & socket.POLLIN)) {
+			timed_out = true;
+			break;
+		}
+		let chunk = s.recv(max(1, maxMsg - length(buf)));
+		if (chunk == null || chunk == '') { closed = true; break; }
+		buf += chunk;
+		if (index(buf, '\n') >= 0) break;
+	}
+	if (closed) return { state: 'peer-closed' };
+	if (timed_out) return { state: 'timeout-or-peer-error' };
+	/* Frame never terminated within the per-message bound. */
+	if (index(buf, '\n') < 0) return { state: length(buf) >= maxMsg ? 'oversized-response' : 'truncated-frame' };
+	let body = trimstr(slice(buf, 0, index(buf, '\n')));
+	if (!length(body)) return { state: 'empty-response' };
+	return { body: body };
+}
+
+function rill_send(payload) {
+	if (!bool_cfg('shadow.enabled', true)) return { ok: false, state: 'disabled' };
+	let maxMsg = min(262144, max(4096, int_cfg('shadow.max_message', 65536)));
+	let timeout = min(5000, max(100, int_cfg('shadow.timeout_ms', 1000)));
+	let wire = sprintf('%.J\n', payload);
+	if (length(wire) > maxMsg) return { ok: false, state: 'oversized-local-context' };
+	let s = socket.connect({ path: rill_socket_path() }, null, null, timeout);
+	if (!s) return { ok: false, state: 'unavailable' };
+	let sent = s.send(wire);
+	if (sent == null || sent != length(wire)) { s.close(); return { ok: false, state: 'send-failed' }; }
+	let frame = rill_recv_frame(s, maxMsg, timeout);
+	s.close();
+	if (frame.state) return { ok: false, state: frame.state };
+	/* Strict single-frame JSON parse; any malformed body fails closed. */
+	let parsed = null;
+	try { parsed = json(frame.body); } catch (e) { return { ok: false, state: 'bad-response' }; }
+	if (parsed == null) return { ok: false, state: 'bad-response' };
+	return { ok: true, response: parsed };
+}
+
+function rill_context_key_build(profile, capability_hash, topo_gen, path_id, route_identity, workload_class, integ_fingerprint, goal_id) {
+	/* Canonical bounded ContextKey.  The same construction must be used by
+	 * observe and by every outcome so Rill can partition its model per
+	 * context.  Identity components are hashed to keep the key bounded.
+	 * Goal is a first-class partition component (Blocker 2). */
+	let route_class = route_identity == 'unresolved' ? 'unresolved' : fnv1a32(route_identity);
+	let integ_class = fnv1a32(integ_fingerprint ?? '');
+	let workload_class_h = stable_list_hash('w', workload_class ?? [ 'plain_forwarding' ]);
+	let goal_class = safe_name(goal_id ?? 'balanced');
+	return sprintf('ctx-v1:profile=%s;cap=%s;topo=%d;path=%s;route=%s;workload=%s;integ=%s;goal=%s',
+		safe_name(profile ?? 'recommended'), capability_hash ?? 'unknown', topo_gen ?? 0,
+		safe_name(path_id ?? 'path:lan-to-wan'), route_class, workload_class_h, integ_class, goal_class);
+}
+
+function rill_status() {
+	let enabled = bool_cfg('shadow.enabled', true);
+	if (!enabled) return { enabled: false, mode: 'shadow', status: 'Shadow · Disabled', state: RILL_STATES.disabled, reason: 'disabled', compatibility: 'not-applicable', transport: 'unavailable' };
+	/* External dependency check: the integration package must be provisioned
+	 * (installed adapter or configured binary) before it can be available. */
+	let binary = str_cfg('shadow.binary', '');
+	let socket_path = rill_socket_path();
+	if (binary == '' && !file_exists('/usr/bin/rill-pm-adapter') && !file_exists('/usr/sbin/rill-pm-adapter'))
+		return { enabled: true, mode: 'shadow', status: 'Shadow · Not provisioned', state: RILL_STATES.notProvisioned, reason: 'external-runtime-not-provisioned', compatibility: 'not-provisioned', transport: 'unavailable' };
+	if (binary != '' && !file_exists(binary))
+		return { enabled: true, mode: 'shadow', status: 'Shadow · Not provisioned', state: RILL_STATES.notProvisioned, reason: 'external-runtime-missing', compatibility: 'not-provisioned', transport: 'unavailable' };
+	let r = rill_send({ contract: RILL_CONTRACT, protocolVersion: RILL_PROTOCOL_VERSION, requestId: sprintf('status-%d', monotonic_ms()), op: 'status' });
+	if (!r.ok) return { enabled: true, mode: 'shadow', status: 'Shadow · Unavailable', state: RILL_STATES.unavailable, reason: r.state ?? 'unavailable', compatibility: 'unknown', transport: r.state ?? 'unavailable' };
+	/* Contract + protocol negotiation: a wrong contract name or a
+	 * higher/foreign protocol major must not be assumed compatible. */
+	let resp = r.response ?? {};
+	if (resp.contract != RILL_CONTRACT)
+		return { enabled: true, mode: 'shadow', status: 'Shadow · Incompatible contract', state: RILL_STATES.incompatible, reason: 'contract-mismatch', compatibility: 'incompatible', transport: 'connected', requestedContract: RILL_CONTRACT, advertisedContract: resp.contract ?? null, detail: r.response };
+	if ((resp.protocolVersion ?? 0) != RILL_PROTOCOL_VERSION)
+		return { enabled: true, mode: 'shadow', status: 'Shadow · Incompatible protocol', state: RILL_STATES.incompatible, reason: 'protocol-version-mismatch', compatibility: 'incompatible', transport: 'connected', requestedProtocolVersion: RILL_PROTOCOL_VERSION, advertisedProtocolVersion: resp.protocolVersion ?? null, detail: r.response };
+	/* Required capabilities: the adapter must declare every capability the
+	 * integration depends on; a missing one is fail-closed. */
+	let caps = resp.capabilities ?? [];
+	for (let need in RILL_REQUIRED_CAPABILITIES)
+		if (index(caps, need) < 0)
+			return { enabled: true, mode: 'shadow', status: 'Shadow · Missing capabilities', state: RILL_STATES.incompatible, reason: 'missing-required-capability', compatibility: 'incompatible', transport: 'connected', missingCapability: need, detail: r.response };
+	/* Model health: advisory is only allowed when the adapter reports a
+	 * healthy model; a degraded adapter is fail-closed unhealthy. */
+	let health = resp.modelHealth ?? {};
+	if (health.overall != 'healthy')
+		return { enabled: true, mode: 'shadow', status: 'Shadow · Unhealthy', state: RILL_STATES.unhealthy, reason: 'model-unhealthy', compatibility: 'compatible', transport: 'connected', modelHealth: health, detail: r.response };
+	let learning = resp.state == 'learning';
+	return { enabled: true, mode: 'shadow', status: learning ? 'Shadow · Learning' : 'Shadow · Available', state: learning ? RILL_STATES.learning : RILL_STATES.available, reason: null, compatibility: 'compatible', transport: 'connected', adapterVersion: resp.adapterVersion, rillVersion: resp.rillVersion, detail: r.response };
+}
+
+function push_unique(dst, value) {
+	if (index(dst, value) < 0) push(dst, value);
+}
+
+function merge_profile(id, seen) {
+	if (seen[id]) return { ok: false, error: `profile-cycle:${id}` };
+	seen[id] = true;
+	let p = json_read(`${PROFILE_DIR}/${safe_name(id)}.json`, null);
+	if (!p) return { ok: false, error: `profile-not-found:${id}` };
+	let out = {
+		id: id, chain: [], requiredPackages: [], recommendedPackages: [], conditionalPackages: [],
+		expectedCommands: [], expectedCapabilities: [], targets: []
+	};
+	for (let parent in p.extends ?? []) {
+		let m = merge_profile(parent, seen);
+		if (!m.ok) return m;
+		for (let x in m.profile.chain) push_unique(out.chain, x);
+		for (let x in m.profile.requiredPackages) push_unique(out.requiredPackages, x);
+		for (let x in m.profile.recommendedPackages) push_unique(out.recommendedPackages, x);
+		for (let x in m.profile.expectedCommands) push_unique(out.expectedCommands, x);
+		for (let x in m.profile.expectedCapabilities) push_unique(out.expectedCapabilities, x);
+		for (let x in m.profile.targets) push_unique(out.targets, x);
+		for (let x in m.profile.conditionalPackages) push(out.conditionalPackages, x);
+	}
+	push_unique(out.chain, id);
+	for (let x in p.requiredPackages ?? []) push_unique(out.requiredPackages, x);
+	for (let x in p.recommendedPackages ?? []) push_unique(out.recommendedPackages, x);
+	for (let x in p.expectedCommands ?? []) push_unique(out.expectedCommands, x);
+	for (let x in p.expectedCapabilities ?? []) push_unique(out.expectedCapabilities, x);
+	for (let x in p.targets ?? []) push_unique(out.targets, x);
+	for (let x in p.conditionalPackages ?? []) push(out.conditionalPackages, x);
+	seen[id] = false;
+	return { ok: true, profile: out };
+}
+
+function command_exists(name) {
+	if (!match(name, /^[A-Za-z0-9_.+-]+$/)) return false;
+	for (let dir in [ '/usr/sbin', '/usr/bin', '/sbin', '/bin' ])
+		if (fs.access(`${dir}/${name}`, 'x')) return true;
+	return false;
+}
+
+function route_context(wan) {
+	let fallback = wan ? sprintf('%s:%s:%s', wan.interface, wan.proto ?? 'unknown', wan.device ?? wan.l3_device ?? 'unknown') : 'unresolved';
+	if (!command_exists('ip'))
+		return { identity: fallback == 'unresolved' ? 'unresolved' : `netifd:${fnv1a32(fallback)}`, provider: 'netifd-fallback', resolved: fallback != 'unresolved', evidence: { fallback: fallback } };
+	let v4 = run([ 'ip', '-j', '-4', 'route', 'show', 'table', 'all', 'default' ]);
+	let v6 = run([ 'ip', '-j', '-6', 'route', 'show', 'table', 'all', 'default' ]);
+	let rules4 = run([ 'ip', '-j', '-4', 'rule', 'show' ]), rules6 = run([ 'ip', '-j', '-6', 'rule', 'show' ]);
+	let v4rows=json_rows(v4.out), v6rows=json_rows(v6.out), r4rows=json_rows(rules4.out), r6rows=json_rows(rules6.out);
+	let devices=[];
+	if (wan) for (let d in [ wan.device, wan.l3_device ]) if (d && index(devices,d)<0) push(devices,d);
+	let selected4 = wan ? filter(v4rows,function(r){return route_row_matches_devices(r,devices);}) : v4rows;
+	let selected6 = wan ? filter(v6rows,function(r){return route_row_matches_devices(r,devices);}) : v6rows;
+	let resolved = length(selected4) > 0 || length(selected6) > 0;
+	if (!resolved)
+		return { identity: fallback == 'unresolved' ? 'unresolved' : `netifd:${fnv1a32(fallback)}`, provider: 'netifd-fallback', resolved: false, evidence: { fallback:fallback, expectedDevices:devices, ipErrors:[v4.rc,v6.rc,rules4.rc,rules6.rc] } };
+	let c4=canonical_rows(selected4), c6=canonical_rows(selected6), cr4=canonical_rows(r4rows), cr6=canonical_rows(r6rows);
+	let raw=sprintf('wan=%s\ndevices=%s\nv4=%s\nv6=%s\nrules4=%s\nrules6=%s',wan?.interface ?? 'global',join(',',devices),join('|',c4),join('|',c6),join('|',cr4),join('|',cr6));
+	return {
+		identity:`route-v3:${fnv1a32(raw)}`, provider:'ip-full+rtnl-events', resolved:true,
+		evidence:{ expectedDevices:devices, ipv4Default:selected4, ipv6Default:selected6, ipv4Rules:r4rows, ipv6Rules:r6rows }
+	};
+}
+
+function topology() {
+	let dump=interface_dump(), interfaces=[], lan=null;
+	for (let i in dump.interface ?? []) {
+		let name=i.interface, l3=i.l3_device ?? i.device ?? null;
+		push(interfaces,{name:name,l3Device:l3,up:i.up ?? false,proto:i.proto ?? null,device:i.device ?? null});
+		if (name == 'lan') lan=i;
+	}
+	/* WAN candidates come from runtime route/rule evidence first; the old
+	 * name-based wan/wan-N discovery is only a fallback on images with no ip
+	 * route evidence, so custom-named WANs are never dropped for failing a
+	 * name pattern.  An explicit `wan` interface still wins as primary. */
+	let wans = wan_candidates_evidence();
+	if (!length(wans)) {
+		for (let i in dump.interface ?? [])
+			if (i.interface == 'wan' || match(i.interface ?? '', /^wan[0-9]+$/)) push(wans, i);
+	}
+	sort(wans,function(a,b){ if (a.interface == 'wan') return -1; if (b.interface == 'wan') return 1; return `${a.interface}` > `${b.interface}` ? 1 : -1; });
+	let devices=netdevs(), paths=[];
+	for (let wi=0; wi<length(wans); wi++) {
+		let wan=wans[wi], path_targets=[], underlay=underlay_chain(wan);
+		let wan_target=underlay?.target?.stableId ?? null;
+		if (!wan_target) for (let r in target_refs()) if (r.logicalRole == 'wan-underlay' && (r.selector?.interface == wan.interface || wi == 0)) { wan_target=r.stableId; break; }
+		if (wan_target) push(path_targets,wan_target);
+		let route=route_context(wan), specific=`path:lan-to-${safe_name(wan.interface ?? `wan${wi}`)}`;
+		let entry={id:specific,workloadClass:derive_workload({id:specific,proto:wan?.proto ?? null,underlayChain:underlay?.chain ?? []}),lanInterface:lan?.interface ?? 'lan',wanInterface:wan?.interface ?? `wan${wi}`,routeIdentity:route.identity,routeProvider:route.provider,routeResolved:route.resolved,routeEvidence:route.evidence,targetRefs:path_targets,underlayChain:underlay?.chain ?? []};
+		if (wi == 0) {
+			let primary={}; for (let k in keys(entry)) primary[k]=entry[k]; primary.id='path:lan-to-wan'; push(paths,primary);
+			if (specific != 'path:lan-to-wan') push(paths,entry);
+		} else push(paths,entry);
+	}
+	if (!length(paths)) {
+		let route=route_context(null);
+		push(paths,{id:'path:lan-to-wan',workloadClass:['plain_forwarding'],lanInterface:lan?.interface ?? 'lan',wanInterface:'wan',routeIdentity:route.identity,routeProvider:route.provider,routeResolved:route.resolved,routeEvidence:route.evidence,targetRefs:[],underlayChain:[]});
+	}
+	let primary=paths[0], local_targets=primary?.targetRefs ?? [];
+	/* The local-endpoint path has no LAN interface.  Emit the empty string so
+	 * the runtime output conforms to the formal topology schema which declares
+	 * lanInterface as a string (never null). */
+	push(paths,{id:'path:local-endpoint',workloadClass:derive_workload({id:'path:local-endpoint'}),lanInterface:'',wanInterface:primary?.wanInterface ?? 'wan',routeIdentity:primary?.routeIdentity ?? 'unresolved',routeProvider:primary?.routeProvider ?? 'unresolved',routeResolved:primary?.routeResolved ?? false,routeEvidence:primary?.routeEvidence ?? {},targetRefs:local_targets,underlayChain:[]});
+	return {schemaVersion:2,topologyGeneration:topology_generation,interfaces:interfaces,devices:devices,wanCandidates:map(wans,function(w){return w.interface;}),paths:paths};
+}
+
+function nft_snapshot() {
+	/* Canonical structural snapshot of the live nft ruleset.  Volatile fields
+	 * (handle/packets/bytes) are dropped so the snapshot reflects topology,
+	 * not transient traffic.  Returns { items, parsed, canonical } or null. */
+	if (!command_exists('nft')) return null;
+	let r = run([ 'nft', '-j', 'list', 'ruleset' ]);
+	if (r.rc != 0) return null;
+	let root = null;
+	try { root = json(r.out); } catch (e) { return null; }
+	let items = root?.nftables ?? [];
+	if (!length(items)) return null;
+	let parsed = [], parts = [];
+	for (let it in items) {
+		let kind = length(keys(it)) ? keys(it)[0] : null;
+		if (kind == 'metainfo') continue;
+		push(parsed, it);
+		push(parts, nft_canon(it));
+	}
+	if (!length(parts)) return null;
+	sort(parts);
+	return { items: parts, parsed: parsed, canonical: join('\n', parts) };
+}
+
+function nft_ruleset_fingerprint() {
+	/* Canonical live nft ruleset identity, no flow masking (Blocker B).
+	 * Returns the structural hash of the FULL ruleset or null when nft is
+	 * unavailable. */
+	let snap = nft_snapshot();
+	if (snap == null) return null;
+	return sprintf('nft-v2:%s', fnv1a32(snap.canonical));
+}
+
+function dns_health() {
+	if (!command_exists('nslookup')) return null;
+	let host = cfg('main.health_dns_name', 'openwrt.org');
+	if (!match(host, /^[A-Za-z0-9.-]+$/)) return null;
+	return run([ 'nslookup', host ]).rc == 0;
+}
+
 function primary_path(path_id) {
 	/* An explicit path id must resolve exactly.  A caller-provided path that
 	 * does not exist is an error, never a silent fallback to the primary path:
@@ -1544,6 +1884,140 @@ function primary_path(path_id) {
 		return null;
 	}
 	return topology().paths?.[0] ?? null;
+}
+
+function workload_for_paths(path_ids) {
+	/* An action's workload is the union of its affected/evaluation paths'
+	 * workload classes, never a hard-coded default. */
+	let wl = [];
+	for (let path_id in path_ids ?? []) {
+		let p = primary_path(path_id);
+		for (let w in p?.workloadClass ?? []) push_unique_wl(wl, w);
+	}
+	if (!length(wl)) push_unique_wl(wl, 'plain_forwarding');
+	return wl;
+}
+
+function baseline_health(path_id) {
+	let mem = meminfo();
+	let load = split(trimstr(read('/proc/loadavg') ?? '0 0 0'), ' ');
+	let dump = interface_dump();
+	let wan_up = null, lan_up = null;
+	let ipv4 = null, ipv6 = null;
+	let path = path_id != null ? primary_path(path_id) : null;
+	for (let i in dump.interface ?? []) {
+		if (i.interface == 'lan') lan_up = i.up ?? false;
+		let is_wan = i.interface == 'wan' || match(i.interface ?? '', /^wan[0-9]*$/);
+		/* Path-specific health must watch the WAN interface of the evaluated
+		 * path, not just the primary WAN.  A secondary-wan experiment must be
+		 * guarded against regressions on that same interface. */
+		if (path && i.interface == path.wanInterface) {
+			wan_up = i.up ?? false;
+			ipv4 = length(i['ipv4-address'] ?? []) > 0;
+			ipv6 = length(i['ipv6-address'] ?? []) > 0 || length(i['ipv6-prefix'] ?? []) > 0;
+		} else if (!path && (i.interface == 'wan' || (wan_up == null && is_wan))) {
+			wan_up = i.up ?? false;
+			ipv4 = length(i['ipv4-address'] ?? []) > 0;
+			ipv6 = length(i['ipv6-address'] ?? []) > 0 || length(i['ipv6-prefix'] ?? []) > 0;
+		}
+	}
+	let topo = topology();
+	return {
+		schemaVersion: 2, capturedMonotonicMs: monotonic_ms(), bootId: boot_id(),
+		lan: lan_up, wan: wan_up, dns: dns_health(), ipv4: ipv4, ipv6: ipv6,
+		proxy: proxy_health(), vpn: vpn_health(), route: ((path?.routeResolved ?? topo.paths[0]?.routeResolved ?? false) === true) ? true : false,
+		evaluationPath: path?.id ?? null,
+		memAvailableKiB: mem.MemAvailable ?? 0,
+		load1: +(load[0] ?? '0'), cpu: cpu_stat(), recentOom: recent_oom_state(),
+		stateStorageWritable: storage_writable(state_dir()), persistentStorageWritable: storage_writable(persist_dir()),
+		thermal: thermal_health()
+	};
+}
+
+function system_guard() {
+	let h = baseline_health();
+	let reasons = [];
+	let max_load_per_cpu = max(1, int_cfg('main.max_load_per_cpu', 2));
+	let max_steal_pct = max(1, int_cfg('main.max_cpu_steal_percent', 20)) / 100;
+	let max_temp = max(60000, int_cfg('main.max_thermal_millicelsius', 90000));
+	if (h.memAvailableKiB > 0 && h.memAvailableKiB < 16384) push(reasons, 'low-memory');
+	if (h.recentOom) push(reasons, 'recent-oom');
+	if (h.load1 > (h.cpu?.count ?? 1) * max_load_per_cpu) push(reasons, 'high-cpu-load');
+	if ((h.cpu?.stealPct ?? 0) > max_steal_pct) push(reasons, 'high-cpu-steal');
+	if (h.thermal?.available && (h.thermal.maxMilliCelsius ?? 0) >= max_temp) push(reasons, 'thermal-hot');
+	if (!h.stateStorageWritable) push(reasons, 'state-storage-unavailable');
+	if (!h.persistentStorageWritable) push(reasons, 'persistent-storage-unavailable');
+	return { pass: length(reasons) == 0, reasons: reasons, health: h };
+}
+
+function telemetry_snapshot() {
+	let dev = {};
+	for (let line in split(read('/proc/net/dev') ?? '', '\n')) {
+		let m = match(line, /^\s*([^:]+):\s*([0-9]+)\s+[0-9]+\s+[0-9]+\s+([0-9]+).*?\s([0-9]+)\s+[0-9]+\s+[0-9]+\s+([0-9]+)/);
+		if (m) dev[trimstr(m[1])] = { rxBytes: +m[2], rxDrop: +m[3], txBytes: +m[4], txDrop: +m[5] };
+	}
+	return {
+		monotonicMs: monotonic_ms(), bootId: boot_id(), topologyGeneration: topology_generation,
+		softnet: softnet(), interfaces: dev, health: baseline_health()
+	};
+}
+
+function compatibility(action_id, target, path_id) {
+	let integ = integration_state();
+	let explicit = path_id != null && length(`${path_id}`);
+	let eval_path = explicit ? primary_path(path_id) : (topology().paths?.[0] ?? null);
+	let blockers = [], warnings = [];
+	if (explicit && !eval_path)
+		push(blockers, 'evaluation-path-not-found');
+	if (action_id == 'fastpath.hardware_flow_offload' && integ.sqm)
+		push(blockers, 'HFO + SQM is blocked');
+	if (action_id == 'qdisc.replace' && (integ.sqm || integ.qosify))
+		push(blockers, 'qdisc replacement conflicts with SQM/qosify');
+	if ((action_id == 'fastpath.software_flow_offload' || action_id == 'fastpath.third_party_sfe') && integ.openclash)
+		push(warnings, 'SFE/SFO with OpenClash is benchmark-only');
+	if ((integ.mwan3 || integ.pbr) && ((eval_path?.routeResolved ?? false) != true || eval_path?.routeProvider != 'ip-full+rtnl-events'))
+		push(blockers, 'multi-WAN/PBR evaluation path has no resolved WAN-specific route identity');
+	if (target && match(target.runtimeName ?? '', /^(veth|docker|br-)/))
+		push(blockers, 'virtual/container device is not a physical NIC tuning target');
+	return { allowed: length(blockers) == 0, blockers: blockers, warnings: warnings };
+}
+
+function candidate_actions() {
+	let actions = [];
+	let plat = platform_info();
+	for (let ref in target_refs()) {
+		let ring = ethtool_ring(ref.runtimeName);
+		if (plat.hyperv && ref.driver == 'hv_netvsc' && ring) {
+			let rx_need = ring.rxCurrent != null && ring.rxCurrent < 1024 && ring.rxMax != null && ring.rxMax >= 1024;
+			let tx_need = ring.txCurrent != null && ring.txCurrent < 1024 && ring.txMax != null && ring.txMax >= 1024;
+			if (rx_need || tx_need) {
+				let affected_paths=[];
+				for (let p in topology().paths ?? [])
+					if (p.id != 'path:local-endpoint' && index(p.targetRefs ?? [], ref.stableId) >= 0) push_unique(affected_paths,p.id);
+				if (!length(affected_paths)) continue;
+				push(actions, {
+					schemaVersion: 2,
+					id: 'nic.ring.floor', applyScope: 'device', applyTarget: ref.stableId,
+					affectedTargets: [ ref.stableId ], affectedPaths: affected_paths,
+					evaluationPaths: affected_paths, workloadClass: workload_for_paths(affected_paths),
+					params: { rxFloor: rx_need ? 1024 : ring.rxCurrent, txFloor: tx_need ? 1024 : ring.txCurrent },
+					risk: 'safe', requiresBenchmark: false, persistenceClass: 'pm_policy_replay',
+					commitPolicy: 'policy_replay_on_accept', reapplyTriggers: [ 'boot', 'device_up', 'topology_change' ],
+					requiredLocks: [ `netdev:${ref.stableId}` ], requiresCommitConfirm: false,
+					requiresLinkVerification: true,
+					reason: 'Hyper-V hv_netvsc ring is below the conservative 1024 floor while hardware maximum supports it.'
+				});
+			}
+		}
+	}
+	return actions;
+}
+
+function find_action(action_id, target) {
+	for (let a in candidate_actions())
+		if (a.id == action_id && (!target || a.applyTarget == target))
+			return a;
+	return null;
 }
 
 function benchmark_netdev(path_id) {
@@ -1644,39 +2118,47 @@ function benchmark_provider_plan(action_id, path_id) {
 	return { ok:false, error:'provider-unavailable:unknown-action' };
 }
 
-function benchmark_provider_apply(plan, value) {
-	if (plan.kind == 'sysctl') return sysctl_set(plan.path, value);
-	if (plan.kind == 'txqueuelen') return run([ 'ip', 'link', 'set', 'dev', plan.targetRef.runtimeName, 'txqueuelen', `${value}` ]);
-	if (plan.kind == 'coalescing') return run([ 'ethtool', '-C', plan.targetRef.runtimeName, 'rx-usecs', `${value}` ]);
-	if (plan.kind == 'service') return run([ `/etc/init.d/${plan.service}`, value == 'running' ? 'start' : 'stop' ]);
-	if (plan.kind == 'uci-firewall') {
-		let r=uci_set_runtime(plan.key, value); if (r.rc != 0) return r;
-		return run([ '/etc/init.d/firewall', 'reload' ]);
-	}
-	if (plan.kind == 'governor') {
-		for (let row in plan.rows) {
-			let target = value == 'candidate' ? row.candidate : row.before;
-			let r=sysctl_set(row.path, target); if (r.rc != 0) return r;
+function benchmark_catalog() {
+	let topo=topology(), integ=integration_state(), ids=[
+		'service.irqbalance','network.backlog','network.budget','network.buffers','network.busy_poll','netdev.tx_queue_len','nic.coalescing','tcp.cc','qdisc.replace','fastpath.software_flow_offload','fastpath.hardware_flow_offload','fastpath.third_party_sfe','cpu.governor'
+	], out=[];
+	let forwarding=[];
+	for (let p in topo.paths ?? []) if (p.id != 'path:local-endpoint' && (p.routeResolved ?? false)) push(forwarding,p.id);
+	for (let id in ids) {
+		let semantics=benchmark_semantics(id), paths=semantics=='local' ? ['path:local-endpoint'] : forwarding, usable=[], provider_rows=[], blockers=[];
+		for (let path_id in paths) {
+			let path=primary_path(path_id), c=compatibility(id,null,path_id), plan=c.allowed ? benchmark_provider_plan(id,path_id) : {ok:false,error:'compatibility-blocked'};
+			if (c.allowed && plan.ok && path) { push(usable,path_id); push(provider_rows,{pathId:path_id,kind:plan.kind,resource:plan.resource}); }
+			else push(blockers,{pathId:path_id,error:plan.error ?? 'compatibility-blocked',compatibility:c});
 		}
-		return { rc:0, out:'' };
+		/* Keep provider-level refusals visible even when no route is currently
+		 * usable, so qdisc/SFE absence is a capability decision, not a hidden gap. */
+		if (!length(paths)) {
+			let path_id=semantics=='local'?'path:local-endpoint':'path:lan-to-wan', c=compatibility(id,null,path_id), plan=c.allowed?benchmark_provider_plan(id,path_id):{ok:false,error:'compatibility-blocked'};
+			push(blockers,{pathId:path_id,error:plan.error ?? 'route-unresolved',compatibility:c});
+		}
+		push(out,{id:id,applyScope:length(provider_rows) && match(provider_rows[0].resource ?? '',/^netdev:/)?'device':'system',risk:'benchmark',oneVariableDefault:true,evaluationSemantics:semantics,evaluationPaths:usable,requiresExplicitEndpoints:true,requiredClientRole:semantics=='local'?'router-local-client':'lan-client',status:length(usable)?'endpoint-required':'blocked',providers:provider_rows,blockers:blockers,integrationState:integ});
 	}
-	return { rc:1, out:'unsupported-provider-kind' };
+	return out;
 }
 
-function benchmark_provider_matches(plan, value) {
-	if (plan.kind == 'sysctl') return sysctl_value(plan.path) == `${value}`;
-	if (plan.kind == 'txqueuelen') return sysctl_value(`/sys/class/net/${plan.targetRef.runtimeName}/tx_queue_len`) == `${value}`;
-	if (plan.kind == 'coalescing') {
-		let r=run([ 'ethtool', '-c', plan.targetRef.runtimeName ]), m=match(r.out, /rx-usecs:\s*([0-9]+)/);
-		return r.rc == 0 && m && m[1] == `${value}`;
-	}
-	if (plan.kind == 'service') return (service_running(plan.service) ? 'running' : 'stopped') == value;
-	if (plan.kind == 'uci-firewall') { let cur=uci_get(plan.key); return value == null ? cur == null : cur == `${value}`; }
-	if (plan.kind == 'governor') {
-		for (let row in plan.rows) if (sysctl_value(row.path) != (value == 'candidate' ? row.candidate : row.before)) return false;
-		return true;
-	}
-	return false;
+function recommendations() {
+	let acts = candidate_actions();
+	let packet = packet_steering_capability();
+	let notes = [];
+	if (packet.availability == 'available')
+		push(notes, { id: 'network.packet_steering.native', disposition: 'respect', detail: 'Native OpenWrt provider detected; no ownership seizure.' });
+	let port = port_capacity_capability();
+	let po = port.evidence[0]?.observed;
+	if ((po?.conntrackPressure ?? 0) >= 0.70 || integration_state().transparentProxy)
+		push(notes, { id: 'network.local_port_capacity', disposition: 'analyze', detail: 'Local port capacity is relevant under proxy/high-connection pressure; reserved ports and ownership must be preserved. Any change remains benchmark-only.' });
+	let rill = rill_status();
+	return {
+		topologyGeneration: topology_generation, actions: acts, observations: notes,
+		benchmarkActions: benchmark_catalog(),
+		rill: rill,
+		learnedAdvisory: rill.detail?.recommendations ?? []
+	};
 }
 
 function benchmark_action_contract(action_id, path_id, plan) {
@@ -1740,220 +2222,163 @@ function benchmark_apply_candidate(action_id, path_id, session_id) {
 	return { ok:true, transaction:tx, plan:plan };
 }
 
-function benchmark_restore_transaction(tx, reason) {
-	let plan=tx.before?.benchmark;
-	if (!plan) return { ok:false, error:'benchmark-snapshot-missing' };
-	/* Refuse to overwrite somebody else's same-knob change. */
-	let expected = plan.kind == 'governor' ? 'candidate' : plan.candidate;
-	if (!benchmark_provider_matches(plan, expected)) return { ok:false, error:'live-state-drift-refuses-stale-rollback' };
-	let restore_value = plan.kind == 'governor' ? 'before' : plan.before;
-	let r=benchmark_provider_apply(plan, restore_value);
-	let restored=r.rc == 0 && benchmark_provider_matches(plan, restore_value);
-	if (!restored) return { ok:false, error:'rollback-apply-or-readback-failed', output:r.out ?? '' };
-	return { ok:true, reason:reason ?? 'benchmark-rollback' };
+function benchmark_context(path_id, masked_keys) {
+	let caps=capabilities(), topo=topology(), path=primary_path(path_id);
+	/* Blocker B: fastpath sessions verify the live nft ruleset via expected
+	 * delta (nft_comparable) and therefore exclude the nft row from the raw
+	 * fingerprint; everything else must match exactly.  The snapshot is stored
+	 * on the session so the candidate leg can compute the structural delta. */
+	let fastpath = index(masked_keys ?? [], 'fastpath-expected-delta') >= 0;
+	let nft = nft_snapshot();
+	return {
+		capabilityHash:capability_hash(caps), topologyGeneration:topology_generation,
+		routeIdentity:path?.routeIdentity ?? 'unresolved', routeProvider:path?.routeProvider ?? null,
+		integrationState:integration_state(), integrationFingerprint:integration_fingerprint(masked_keys, fastpath ? null : nft),
+		nftSnapshot:nft,
+		workloadClass:path?.workloadClass ?? [ 'plain_forwarding' ], goal:goal()
+	};
 }
 
-function rollback_transaction(txid, reason) {
-	let tx = json_read(tx_path(txid), null);
-	if (!tx) return { ok: false, error: 'transaction-not-found' };
-	if (tx.state == 'rolled_back') return { ok: false, error: 'transaction-already-rolled-back' };
-	if (tx.bootId != boot_id()) return { ok: false, error: 'rollback-snapshot-from-different-boot' };
-	cancel_tx_timer(tx.transactionId);
-	let lock = acquire_locks(tx.requiredLocks ?? [], tx.transactionId);
-	if (!lock.ok) return { ok:false, error:'rollback-lock-conflict', detail:lock };
-	if (tx.actionId == 'nic.ring.floor' && tx.before?.targetRef && tx.before?.ring) {
-		let ref = resolve_target(tx.before.targetRef.stableId);
-		if (!ref) { release_locks(tx.requiredLocks,tx.transactionId); return { ok: false, error: 'rollback-target-unresolved' }; }
-		if (tx.state == 'committed') {
-			let policy = json_read(ring_policy_path(ref.stableId), null);
-			if (!policy || policy.owner != 'performance_manager' || policy.ownerTransactionId != tx.transactionId) { release_locks(tx.requiredLocks,tx.transactionId); return { ok: false, error: 'stale-transaction-policy-owner-changed' }; }
-			if (tx.result?.ring && !ring_matches(ref, tx.result.ring)) { release_locks(tx.requiredLocks,tx.transactionId); return { ok: false, error: 'live-state-drift-refuses-stale-rollback' }; }
-		}
-		let r = ring_restore(ref, tx.before.ring);
-		let restored = r.rc == 0 && ring_matches(ref, tx.before.ring);
-		if (!restored) {
-			tx.state = 'failed'; tx.result = { error: 'rollback-apply-or-readback-failed', output: r.out ?? '' };
-			tx.verification.rollbackReadBack = 'fail'; tx_save(tx); release_locks(tx.requiredLocks, tx.transactionId);
-			history('transaction.rollback_failed', tx); return { ok: false, transaction: tx };
-		}
-		let policy = json_read(ring_policy_path(ref.stableId), null);
-		if (policy?.ownerTransactionId == tx.transactionId) fs.unlink(ring_policy_path(ref.stableId));
-		tx.verification.rollbackReadBack = 'pass';
-	} else if (tx.before?.benchmark) {
-		let r=benchmark_restore_transaction(tx, reason);
-		if (!r.ok) {
-			tx.state='failed'; tx.verification.rollbackReadBack='fail'; tx.result={error:r.error,output:r.output ?? '',benchmarkSessionId:tx.result?.benchmarkSessionId ?? tx.applied?.benchmarkSessionId ?? null};
-			tx_save(tx); release_locks(tx.requiredLocks,tx.transactionId); history('transaction.rollback_failed',tx); return {ok:false,transaction:tx};
-		}
-		tx.verification.rollbackReadBack='pass';
+function rill_available_actions() {
+	let out = map(candidate_actions(), function(a) {
+		return { id: a.id, applyScope: a.applyScope, applyTarget: a.applyTarget, evaluationPaths: a.evaluationPaths, risk: a.risk, authority: 'safe-direct' };
+	});
+	for (let b in benchmark_catalog()) {
+		if (b.status == 'blocked') continue;
+		push(out, { id: b.id, applyScope: b.applyScope ?? 'system', applyTarget: null, evaluationPaths: b.evaluationPaths ?? ['path:lan-to-wan'], risk: 'benchmark', authority: 'advisory-only' });
 	}
-	let bench_id=tx.result?.benchmarkSessionId ?? tx.applied?.benchmarkSessionId ?? null;
-	tx.state = 'rolled_back'; tx.deadlineMonotonicMs=null; tx.result = { reason: reason ?? 'manual', benchmarkSessionId:bench_id }; tx_save(tx); release_locks(tx.requiredLocks, tx.transactionId);
-	history('transaction.rollback', tx);
-	if (bench_id) {
-		let sp=benchmark_path(bench_id), sess=json_read(sp,null);
-		if (sess && sess.state == 'candidate_applied' && reason != 'benchmark-complete') {
-			sess.state='failed'; sess.result={validated:false,error:reason ?? 'candidate-rolled-back'}; json_write(sp,sess);
-		}
-		/* A terminal session must release its experiment-domain lock; the next
-		 * benchmark may then start.  The benchmark-complete reason is the
-		 * success path and releases in benchmark_start itself. */
-		if (reason != 'benchmark-complete')
-			release_benchmark_lock(sess?.benchmarkLock?.domain, bench_id);
-	}
-	return { ok: true, transaction: tx };
+	return out;
 }
 
-function confirm_transaction(txid) {
-	let tx = json_read(tx_path(txid), null);
-	if (!tx) return { ok: false, error: 'transaction-not-found' };
-	if (tx.state != 'awaiting_confirm') return { ok: false, error: 'not-awaiting-confirm' };
-	if (tx.bootId != boot_id()) return rollback_transaction(txid, 'boot-changed-before-confirm');
-	if (tx.deadlineMonotonicMs == null) return rollback_transaction(txid, 'missing-confirm-deadline');
-	if (monotonic_ms() > tx.deadlineMonotonicMs) return rollback_transaction(txid, 'confirm-timeout');
-	if (tx.commitPolicy == 'rollback_after_benchmark')
-		return { ok: false, error: 'benchmark-transactions-cannot-be-manually-committed' };
-	if (tx.actionId == 'nic.ring.floor' && tx.before?.targetRef) {
-		let ref = resolve_target(tx.before.targetRef.stableId);
-		if (!ref) return rollback_transaction(txid, 'confirm-target-unresolved');
-		if (!persist_ring_policy(ref, tx.applied ?? {}, tx.transactionId, tx.before?.ring, tx.result?.ring))
-			return rollback_transaction(txid, 'confirm-persistence-failed');
+function rill_context_key_observe() {
+	let caps = capabilities(), topo = topology(), path = topo.paths[0];
+	return rill_context_key_build(cfg('main.profile','recommended'), capability_hash(caps), topology_generation,
+		path?.id ?? 'path:lan-to-wan', path?.routeIdentity ?? 'unresolved', path?.workloadClass ?? [ 'plain_forwarding' ],
+		integration_fingerprint([], nft_snapshot()), goal());
+}
+
+function rill_outcome_payload(action_id, measurement, reward, session_id, ctx) {
+	ctx = ctx ?? {};
+	let g = ctx.goal ?? goal();
+	return {
+		contract: RILL_CONTRACT, protocolVersion: RILL_PROTOCOL_VERSION, requestId: sprintf('outcome-%d', monotonic_ms()), op: 'outcome', validated: true,
+		decisionId: ctx.decisionId ?? 'pm-managed-apply', actionId: action_id, measurementClass: measurement, reward: reward, sessionId: session_id,
+		modelGeneration: ctx.modelGeneration ?? 1,
+		deviceProfile: cfg('main.profile','recommended'), goal: g,
+		capabilityHash: ctx.capabilityHash ?? 'unknown', topologyGeneration: ctx.topologyGeneration ?? 0,
+		pathId: ctx.pathId ?? 'path:lan-to-wan', routeIdentity: ctx.routeIdentity ?? 'unresolved',
+		workloadClass: ctx.workloadClass ?? [ 'plain_forwarding' ],
+		integrationFingerprint: ctx.integrationFingerprint ?? integration_fingerprint([], nft_snapshot()),
+		contextKey: rill_context_key_build(cfg('main.profile','recommended'), ctx.capabilityHash ?? 'unknown',
+			ctx.topologyGeneration ?? 0, ctx.pathId ?? 'path:lan-to-wan', ctx.routeIdentity ?? 'unresolved',
+			ctx.workloadClass ?? [ 'plain_forwarding' ], ctx.integrationFingerprint ?? '', g)
+	};
+}
+
+function apply_ring(action, options) {
+	options = options ?? {};
+	let ref = resolve_target(action.applyTarget);
+	if (!ref) return { ok: false, error: 'target-unresolved' };
+	let comp = compatibility(action.id, ref, action.evaluationPaths?.[0]);
+	if (!comp.allowed) return { ok: false, error: 'compatibility-blocked', compatibility: comp };
+	let guard = system_guard();
+	if (!guard.pass) return { ok: false, error: 'health-guard-blocked', guard: guard };
+
+	let tx = tx_new(action);
+	if (!tx_save(tx)) return { ok: false, error: 'transaction-journal-write-failed' };
+	let lock = acquire_locks(action.requiredLocks, tx.transactionId);
+	if (!lock.ok) {
+		tx.state = 'failed'; tx.result = { error: 'lock-conflict', detail: lock }; tx_save(tx);
+		return { ok: false, transaction: tx };
 	}
-	tx.verification.commitConfirm = 'confirmed'; tx.state = 'committed'; tx.deadlineMonotonicMs = null;
+	tx.state = 'locked'; if (!tx_save(tx)) { release_locks(tx.requiredLocks, tx.transactionId); return { ok: false, error: 'transaction-journal-write-failed' }; }
+	let before_health = baseline_health();
+	let snap = ring_snapshot(ref);
+	if (!snap) {
+		tx.state = 'failed'; tx.result = { error: 'snapshot-failed' }; tx_save(tx); release_locks(tx.requiredLocks, tx.transactionId);
+		return { ok: false, transaction: tx };
+	}
+	tx.before = { ring: snap, health: before_health, targetRef: ref };
+	tx.state = 'snapshotted'; if (!tx_save(tx)) { release_locks(tx.requiredLocks, tx.transactionId); return { ok: false, error: 'transaction-journal-write-failed' }; }
+	tx.state = 'pending';
+	if (!tx_save(tx)) { tx.state = 'failed'; tx.result = { error: 'pending-marker-write-failed' }; tx_save(tx); release_locks(tx.requiredLocks, tx.transactionId); return { ok: false, transaction: tx }; }
+	let ap = ring_apply(ref, action.params);
+	if (ap.rc != 0) {
+		tx.state = 'failed'; tx.result = { error: 'apply-failed', output: ap.out }; tx_save(tx); release_locks(tx.requiredLocks, tx.transactionId);
+		return { ok: false, transaction: tx };
+	}
+	tx.state = 'applied'; tx.applied = action.params;
 	if (!tx_save(tx)) {
-		/* The durable marker/journal must agree before a connectivity-critical
-		 * change can be considered committed. Fall back to the previous journal
-		 * state and restore through the normal stale-safe rollback path. */
-		let rr=rollback_transaction(txid,'confirm-journal-write-failed');
-		return {ok:false,error:'confirm-journal-write-failed',rollback:rr};
+		let restore=ring_restore(ref,snap), restored=restore.rc == 0 && ring_matches(ref,snap);
+		tx.verification.rollbackReadBack=restored?'pass':'fail'; tx.state=restored?'rolled_back':'failed'; tx.result={error:'transaction-journal-write-failed-after-apply',rollback:restored?'restored':'failed'};
+		tx_save(tx); release_locks(tx.requiredLocks,tx.transactionId); return {ok:false,error:'transaction-journal-write-failed-after-apply',transaction:tx};
+	}
+	let after_ring = ring_snapshot(ref);
+	let after_health = baseline_health();
+	let hcmp = compare_health(before_health, after_health);
+	let readback = after_ring &&
+		(action.params.rxFloor == null || after_ring.rxCurrent >= action.params.rxFloor) &&
+		(action.params.txFloor == null || after_ring.txCurrent >= action.params.txFloor);
+	let link = link_ok(ref);
+	if (!readback || !link || !hcmp.pass) {
+		let restore = ring_restore(ref, snap);
+		let restored = restore.rc == 0 && ring_matches(ref, snap);
+		tx.verification = { readBack: readback ? 'pass' : 'fail', link: link ? 'pass' : 'fail', healthRegression: hcmp.pass ? 'none' : hcmp.failures, rollbackReadBack: restored ? 'pass' : 'fail', commitConfirm: 'not_required' };
+		tx.state = restored ? 'rolled_back' : 'failed';
+		tx.result = { error: 'verification-failed', rollback: restored ? 'restored' : 'failed', rollbackOutput: restore.out ?? '' };
+		tx_save(tx); release_locks(tx.requiredLocks, tx.transactionId);
+		(options.runtimeOnly ? runtime_history : history)(restored ? 'transaction.rollback' : 'transaction.rollback_failed', tx);
+		if (!options.runtimeOnly && restored)
+			rill_send(rill_outcome_payload(action.id,'health_only',-1.0,tx.transactionId,{ capabilityHash:capability_hash(capabilities()), topologyGeneration:topology_generation, pathId:topology().paths?.[0]?.id ?? 'path:lan-to-wan', routeIdentity:topology().paths?.[0]?.routeIdentity ?? 'unresolved', workloadClass:topology().paths?.[0]?.workloadClass ?? ['plain_forwarding'], integrationFingerprint:integration_fingerprint([], nft_snapshot()) }));
+		return { ok: false, transaction: tx };
+	}
+	tx.verification = { readBack: 'pass', link: 'pass', healthRegression: 'none', commitConfirm: action.requiresCommitConfirm ? 'pending' : 'not_required' };
+	tx.state = 'verified'; tx.result = { ring: after_ring };
+	if (!tx_save(tx)) {
+		let restore = ring_restore(ref, snap);
+		let restored = restore.rc == 0 && ring_matches(ref, snap);
+		tx.state = restored ? 'rolled_back' : 'failed'; tx.result = { error: 'transaction-journal-write-failed', rollback: restored ? 'restored' : 'failed' };
+		tx_save(tx); release_locks(tx.requiredLocks, tx.transactionId); return { ok: false, transaction: tx };
+	}
+	if (action.requiresCommitConfirm) {
+		let armed = arm_commit_confirm(tx, max(5, int_cfg('main.commit_confirm_seconds', 30)) * 1000);
+		if (!armed.ok) { rollback_transaction(tx.transactionId, 'commit-confirm-arm-failed'); return { ok: false, error: armed.error, transaction: tx }; }
+		return { ok: true, awaitingConfirm: true, transaction: tx };
+	}
+	if (!options.skipPersistence && !persist_ring_policy(ref, action.params, tx.transactionId, snap, after_ring)) {
+		let restore = ring_restore(ref, snap);
+		let restored = restore.rc == 0 && ring_matches(ref, snap);
+		tx.verification.rollbackReadBack = restored ? 'pass' : 'fail';
+		tx.state = restored ? 'rolled_back' : 'failed';
+		tx.result = { error: 'persistence-failed', rollback: restored ? 'restored' : 'failed' };
+		tx_save(tx); release_locks(tx.requiredLocks, tx.transactionId);
+		history(restored ? 'transaction.rollback' : 'transaction.rollback_failed', tx);
+		return { ok: false, transaction: tx };
+	}
+	tx.state = 'committed'; tx.result = { ring: after_ring };
+	if (!tx_save(tx)) {
+		/* Do not report success if terminal journal/pending-marker cleanup failed.
+		 * For PM-owned policy writes, restore both runtime and policy ownership. */
+		let policy=json_read(ring_policy_path(ref.stableId),null); if (policy?.ownerTransactionId == tx.transactionId) fs.unlink(ring_policy_path(ref.stableId));
+		let restore=ring_restore(ref,snap), restored=restore.rc == 0 && ring_matches(ref,snap);
+		tx.state=restored?'rolled_back':'failed'; tx.result={error:'commit-journal-write-failed',rollback:restored?'restored':'failed'}; tx.verification.rollbackReadBack=restored?'pass':'fail'; tx_save(tx);
+		cancel_tx_timer(tx.transactionId); release_locks(tx.requiredLocks,tx.transactionId); history(restored?'transaction.rollback':'transaction.rollback_failed',tx); return {ok:false,error:'commit-journal-write-failed',transaction:tx};
 	}
 	cancel_tx_timer(tx.transactionId); release_locks(tx.requiredLocks, tx.transactionId);
-	history('transaction.commit', tx);
+	(options.runtimeOnly ? runtime_history : history)('transaction.commit', tx);
+	if (!options.runtimeOnly)
+		rill_send(rill_outcome_payload(action.id,'health_only',0.0,tx.transactionId,{ capabilityHash:capability_hash(capabilities()), topologyGeneration:topology_generation, pathId:topology().paths?.[0]?.id ?? 'path:lan-to-wan', routeIdentity:topology().paths?.[0]?.routeIdentity ?? 'unresolved', workloadClass:topology().paths?.[0]?.workloadClass ?? ['plain_forwarding'], integrationFingerprint:integration_fingerprint([], nft_snapshot()) }));
 	return { ok: true, transaction: tx };
 }
 
-function transaction_list() {
-	let items = [];
-	for (let p in fs.glob(`${state_dir()}/transactions/*.json`) ?? []) {
-		let tx = json_read(p, null); if (tx) push(items, tx);
+function apply_action(msg) {
+	let action_id = msg?.actionId;
+	if (action_id == 'nic.ring.floor') {
+		let a = find_action(action_id, msg?.target);
+		if (!a) return { ok: false, error: 'no-legal-candidate' };
+		return apply_ring(a);
 	}
-	sort(items, function(a,b) { return (b.updatedMonotonicMs ?? 0) - (a.updatedMonotonicMs ?? 0); });
-	return items;
-}
-
-function lock_list() {
-	let items = [];
-	for (let p in fs.glob(`${state_dir()}/locks/*.json`) ?? []) {
-		let x = json_read(p, null); if (x) push(items, x);
-	}
-	return items;
-}
-
-function clean_stale_locks() {
-	for (let p in fs.glob(`${state_dir()}/locks/*.json`) ?? []) {
-		let lock = json_read(p, null);
-		if (!lock || lock.bootId != boot_id()) { fs.unlink(p); continue; }
-		let tx = json_read(tx_path(lock.transactionId), null);
-		if (!tx || !tx_is_active(tx)) fs.unlink(p);
-	}
-}
-
-function recover_persistent_markers() {
-	ensure_dir(`${persist_dir()}/pending`);
-	for (let p in fs.glob(`${persist_dir()}/pending/*.json`) ?? []) {
-		let marker = json_read(p, null);
-		if (!marker) { fs.unlink(p); continue; }
-		if (marker.bootId != boot_id()) {
-			/* Runtime-only and uncommitted UCI deltas reset across reboot. Never
-			 * replay a stale snapshot into a newly resolved target. The marker is
-			 * durable evidence that recovery happened. */
-			history('transaction.boot_recovered', { transactionId: marker.transactionId, actionId: marker.actionId, previousBootId: marker.bootId, state: marker.state, result: { reason: 'boot-recovery-runtime-reset-no-stale-replay' } });
-			fs.unlink(p);
-			continue;
-		}
-		let local = json_read(tx_path(marker.transactionId), null);
-		if (!local) json_write(tx_path(marker.transactionId), marker);
-	}
-}
-
-function recover_pending() {
-	ensure_dir(`${state_dir()}/transactions`);
-	recover_persistent_markers();
-	clean_stale_locks();
-	for (let tx in transaction_list()) {
-		if (!tx_is_active(tx)) continue;
-		if (tx.bootId != boot_id()) {
-			tx.state = 'rolled_back'; tx.deadlineMonotonicMs = null;
-			tx.verification.rollbackReadBack = 'not_applicable_new_boot';
-			tx.result = { reason: 'boot-recovery-runtime-reset-no-stale-replay' };
-			tx_save(tx); release_locks(tx.requiredLocks, tx.transactionId); history('transaction.boot_recovered', tx);
-			continue;
-		}
-		if (tx.state == 'awaiting_confirm') {
-			if (tx.deadlineMonotonicMs == null) {
-				rollback_transaction(tx.transactionId, 'missing-confirm-deadline-recovery');
-				continue;
-			}
-			if (monotonic_ms() >= tx.deadlineMonotonicMs) {
-				rollback_transaction(tx.transactionId, 'confirm-timeout-recovery');
-				continue;
-			}
-			arm_tx_timer(tx);
-			continue;
-		}
-		/* A same-boot daemon crash during pending/applied/verified has no trusted
-		 * caller left to finish the transaction. Fail closed and restore now. */
-		rollback_transaction(tx.transactionId, 'core-crash-recovery');
-	}
-	clean_stale_locks();
-	/* Benchmark experiment locks belong to sessions; any session that died with
-	 * the daemon is no longer active and must not block the next experiment. */
-	clean_stale_benchmark_locks();
-}
-
-function cleanup_owned(reason) {
-	let summary={ok:true,reason:reason ?? 'package-remove',activeTransactions:[],policies:[],remainingLocks:[]};
-	/* First close every live transaction through the normal stale-safe rollback
-	 * engine. Never delete its recovery marker merely to make uninstall look
-	 * clean: a failed rollback is evidence that needs operator attention. */
-	for (let tx in transaction_list()) {
-		if (!tx_is_active(tx)) continue;
-		let r=rollback_transaction(tx.transactionId,'package-remove');
-		push(summary.activeTransactions,{transactionId:tx.transactionId,ok:r.ok,error:r.error ?? null});
-		if (!r.ok) summary.ok=false;
-	}
-
-	for (let p in fs.glob(`${persist_dir()}/policies/*.json`) ?? []) {
-		let pol=json_read(p,null);
-		if (!pol || pol.owner != 'performance_manager') continue;
-		if (pol.actionId != 'nic.ring.floor') {
-			/* Unknown PM policy is safer to make non-replayable than to guess a
-			 * runtime inverse for a provider this build does not own. */
-			fs.unlink(p); push(summary.policies,{actionId:pol.actionId,status:'intent-removed-runtime-untouched'}); continue;
-		}
-		let ref=resolve_target(pol.targetRef?.stableId), lease=pol.runtimeLease;
-		if (!ref || !lease || lease.bootId != boot_id() || !lease.beforeRing || !lease.ownedRing) {
-			fs.unlink(p); push(summary.policies,{actionId:pol.actionId,target:pol.targetRef?.stableId ?? null,status:'intent-removed-runtime-untouched'}); continue;
-		}
-		/* If the live knob no longer equals the exact PM-owned value, somebody
-		 * else has taken ownership. Preserve that state and only remove replay
-		 * intent; never stale-rollback over user/external changes. */
-		if (!ring_matches(ref,lease.ownedRing)) {
-			fs.unlink(p); push(summary.policies,{actionId:pol.actionId,target:ref.stableId,status:'live-drift-preserved-intent-removed'}); continue;
-		}
-		let cleanup_id=sprintf('cleanup-%d',monotonic_ms()), resources=[`netdev:${ref.stableId}`], lock=acquire_locks(resources,cleanup_id);
-		if (!lock.ok) { summary.ok=false; push(summary.policies,{actionId:pol.actionId,target:ref.stableId,status:'lock-conflict',detail:lock}); continue; }
-		let rr=ring_restore(ref,lease.beforeRing), restored=rr.rc==0 && ring_matches(ref,lease.beforeRing);
-		release_locks(resources,cleanup_id);
-		if (!restored) { summary.ok=false; push(summary.policies,{actionId:pol.actionId,target:ref.stableId,status:'runtime-restore-failed',output:rr.out ?? ''}); continue; }
-		fs.unlink(p); push(summary.policies,{actionId:pol.actionId,target:ref.stableId,status:'runtime-restored-and-intent-removed'});
-	}
-	clean_stale_locks();
-	clean_stale_benchmark_locks();
-	for (let x in lock_list()) push(summary.remainingLocks,x);
-	if (length(summary.remainingLocks)) summary.ok=false;
-	history('ownership.cleanup',summary);
-	return summary;
+	return { ok: false, error: 'action-not-allowlisted-for-direct-apply', actionId: action_id };
 }
 
 function replay_policies(reason) {
@@ -2004,155 +2429,6 @@ function replay_policies(reason) {
 	return results;
 }
 
-function benchmark_path(id) {
-	return `${state_dir()}/benchmarks/${safe_name(id)}.json`;
-}
-
-function benchmark_lock_dir() {
-	return `${state_dir()}/benchmark-locks`;
-}
-
-function benchmark_lock_path(domain) {
-	return `${benchmark_lock_dir()}/${safe_name(domain)}.json`;
-}
-
-function benchmark_lock_domain(action_id, plan, path_id) {
-	/* Active A/B experiments are globally exclusive.  Any two simultaneous
-	 * candidates — backlog+budget, irqbalance+governor, or coalescing on two
-	 * different NICs — would attribute one throughput delta to two changed
-	 * variables and feed a polluted result into Rill.  System/service and
-	 * device/path experiments therefore share one experiment domain lock; the
-	 * per-resource transaction lock is applied on top at candidate time. */
-	return 'benchmark:global';
-}
-
-function benchmark_session_active(s) {
-	return index([ 'awaiting_control', 'candidate_applied' ], s?.state) >= 0;
-}
-
-function benchmark_session_expired(s, now) {
-	if (s?.state == 'awaiting_control' && s.createdMonotonicMs != null)
-		return now - s.createdMonotonicMs > max(60, int_cfg('benchmark.session_idle_seconds', 600)) * 1000;
-	return false;
-}
-
-function acquire_benchmark_lock(domain, session_id) {
-	ensure_dir(benchmark_lock_dir());
-	let p = benchmark_lock_path(domain);
-	let existing = json_read(p, null);
-	if (existing && existing.bootId == boot_id() && existing.sessionId != session_id)
-		return { ok: false, conflict: existing };
-	if (!json_write(p, { schemaVersion: 1, domain: domain, sessionId: session_id, bootId: boot_id(), acquiredMonotonicMs: monotonic_ms() }))
-		return { ok: false, conflict: null };
-	return { ok: true };
-}
-
-function release_benchmark_lock(domain, session_id) {
-	if (!domain || !session_id) return;
-	let p = benchmark_lock_path(domain);
-	let cur = json_read(p, null);
-	if (!cur || cur.sessionId == session_id)
-		fs.unlink(p);
-}
-
-function clean_stale_benchmark_locks() {
-	for (let p in fs.glob(`${benchmark_lock_dir()}/*.json`) ?? []) {
-		let lock = json_read(p, null);
-		if (!lock || lock.bootId != boot_id()) { fs.unlink(p); continue; }
-		let session = json_read(benchmark_path(lock.sessionId), null);
-		if (!session || !benchmark_session_active(session) || benchmark_session_expired(session, monotonic_ms())) {
-			if (session && session.state == 'awaiting_control' && benchmark_session_expired(session, monotonic_ms())) {
-				session.state = 'failed'; session.result = { validated: false, error: 'benchmark-session-idle-expired' };
-				json_write(benchmark_path(lock.sessionId), session);
-			}
-			fs.unlink(p);
-		}
-	}
-}
-
-function benchmark_fail_session(sp, sid, error) {
-	let sess = json_read(sp, null);
-	if (!sess) return;
-	if (benchmark_session_active(sess)) {
-		sess.state = 'failed'; sess.result = { validated: false, error: error };
-		json_write(sp, sess);
-	}
-	release_benchmark_lock(sess.benchmarkLock?.domain, sid);
-}
-
-function benchmark_context(path_id, masked_keys) {
-	let caps=capabilities(), topo=topology(), path=primary_path(path_id);
-	return {
-		capabilityHash:capability_hash(caps), topologyGeneration:topology_generation,
-		routeIdentity:path?.routeIdentity ?? 'unresolved', routeProvider:path?.routeProvider ?? null,
-		integrationState:integration_state(), integrationFingerprint:integration_fingerprint(masked_keys),
-		workloadClass:path?.workloadClass ?? [ 'plain_forwarding' ], goal:goal()
-	};
-}
-
-function benchmark_context_frozen(session) {
-	return {
-		capabilityHash: session?.capabilityHash, topologyGeneration: session?.topologyGeneration,
-		routeIdentity: session?.routeIdentity, routeProvider: null,
-		integrationState: session?.integrationState, integrationFingerprint: session?.integrationFingerprint,
-		workloadClass: session?.workloadClass, goal: session?.goal
-	};
-}
-
-/* -- Goal semantics (Blocker 2) -------------------------------------------
- * The configured goal must genuinely partition the model, select benchmark
- * measurement, drive reward and appear in the Rill request and UI.  A goal
- * with no measurable methodology fails-closed instead of silently degrading
- * to throughput. */
-function goal() {
-	let g = cfg('main.goal', 'balanced');
-	return index(GOALS, g) >= 0 ? g : 'balanced';
-}
-
-function goal_measurable(g) {
-	return GOAL_MEASURABLE[g] ?? null;
-}
-
-/* -- Controlled A/B measurement methodology fingerprint (Blocker 3) -------
- * A controlled experiment is one-variable-at-a-time only if the measurement
- * methodology is identical between control and candidate.  The canonical
- * fingerprint covers endpoint identity, port, direction, parallel streams,
- * duration, protocol/mode and tool version.  A mismatch invalidates the
- * experiment: no reward is emitted and no Rill outcome is sent. */
-function measurement_methodology(e) {
-	let m = e?.methodology ?? {};
-	let ep = e?.endpoint ?? {};
-	return {
-		host: m.host ?? ep.host ?? null,
-		port: m.port ?? ep.port ?? null,
-		reverse: (m.reverse ?? ep.reverse) ? true : false,
-		parallel: max(1, +((m.parallel ?? ep.parallel) ?? 1)),
-		duration: +((m.duration ?? e?.resultDuration) ?? 0),
-		protocol: m.protocol ?? 'iperf3-tcp',
-		tool: (m.tool ?? ep.tool) ?? 'iperf3',
-		toolVersion: m.toolVersion ?? null
-	};
-}
-
-function methodology_key(m) {
-	return sprintf('m:%s|%s|%s|%d|%d|%s|%s|%s',
-		m.host ?? '', m.port ?? '', m.reverse ? 'R' : 'F', m.parallel, m.duration,
-		m.protocol ?? '', m.tool ?? '', m.toolVersion ?? '');
-}
-
-function methodology_matches(a, b) {
-	return methodology_key(measurement_methodology(a)) == methodology_key(measurement_methodology(b));
-}
-
-function companion_evidence_valid(e, session, phase) {
-	if (!e || e.contract != 'pm-companion/v2' || e.role != session.companion?.requiredRole || e.ok != true || !(+e.bitsPerSecond > 0)) return {ok:false,error:'invalid-companion-evidence'};
-	if (e.sessionId != session.sessionId || e.phase != phase || e.actionId != session.actionId || e.pathId != session.evaluationPath)
-		return {ok:false,error:'companion-context-mismatch'};
-	if (+e.topologyGeneration != +session.topologyGeneration || e.routeIdentity != session.routeIdentity || e.capabilityHash != session.capabilityHash)
-		return {ok:false,error:'companion-context-drift'};
-	return {ok:true};
-}
-
 function benchmark_start(msg) {
 	if (!bool_cfg('benchmark.require_explicit_start', true)) return { ok:false, error:'invalid-config-explicit-start-disabled' };
 	let phase=msg?.phase ?? 'begin';
@@ -2165,10 +2441,18 @@ function benchmark_start(msg) {
 		let nowctx=benchmark_context(session.evaluationPath, benchmark_masked_keys(session.actionId));
 		let workload_drift=stable_list_hash('workload',nowctx.workloadClass) != stable_list_hash('workload',session.workloadClass);
 		let goal_drift=nowctx.goal != session.goal;
-		if (nowctx.capabilityHash != session.capabilityHash || nowctx.topologyGeneration != session.topologyGeneration || nowctx.routeIdentity != session.routeIdentity || nowctx.integrationFingerprint != session.integrationFingerprint || workload_drift || goal_drift) {
+		/* Blocker B: fastpath sessions verify the live nft ruleset by expected
+		 * delta — the candidate may toggle EXACTLY the PM flowtable/flow-rule
+		 * and nothing else (unrelated flowtable/rule changes fail closed). */
+		let nft_drift=false, nft_cmp=null;
+		if (index(benchmark_masked_keys(session.actionId) ?? [], 'fastpath-expected-delta') >= 0) {
+			nft_cmp=nft_comparable(session.nftSnapshot ?? null, nowctx.nftSnapshot ?? null);
+			nft_drift=!nft_cmp.comparable;
+		}
+		if (nowctx.capabilityHash != session.capabilityHash || nowctx.topologyGeneration != session.topologyGeneration || nowctx.routeIdentity != session.routeIdentity || nowctx.integrationFingerprint != session.integrationFingerprint || nft_drift || workload_drift || goal_drift) {
 			if (session.transactionId) rollback_transaction(session.transactionId,'benchmark-context-drift');
 			release_benchmark_lock(session.benchmarkLock?.domain, session.sessionId);
-			session.state='failed'; session.result={validated:false,error:'benchmark-context-drift'}; json_write(benchmark_path(sid),session); return {ok:false,error:'benchmark-context-drift',session:session};
+			session.state='failed'; session.result={validated:false,error:'benchmark-context-drift',nftDelta:nft_cmp}; json_write(benchmark_path(sid),session); return {ok:false,error:'benchmark-context-drift',session:session,nftDelta:nft_cmp};
 		}
 		if (phase == 'control') {
 			if (session.state != 'awaiting_control') return {ok:false,error:'benchmark-not-awaiting-control'};
@@ -2232,6 +2516,12 @@ function benchmark_start(msg) {
 		if (!bool_cfg('benchmark.one_variable',true)) return {ok:false,error:'one-variable-contract-disabled'};
 		let comp=compatibility(action,null,path_id); if (!comp.allowed) return {ok:false,error:'compatibility-blocked',compatibility:comp};
 		let plan=benchmark_provider_plan(action,path_id); if (!plan.ok) return {ok:false,error:plan.error,provider:plan};
+		/* Blocker B: fastpath A/B attribution requires the live nft ruleset so
+		 * the candidate delta can be verified against the EXACT expected
+		 * flowtable/flow-rule toggle.  Without nft the experiment fails closed
+		 * instead of expanding a mask. */
+		if ((action == 'fastpath.software_flow_offload' || action == 'fastpath.hardware_flow_offload') && nft_snapshot() == null)
+			return {ok:false,error:'provider-unavailable:nft-ruleset-required-for-fastpath-delta'};
 		/* Forwarding A/B requires a REAL resolved route identity with explicit
 		 * ip/rule evidence.  netifd-fallback identity is not evidence. */
 		if (semantics == 'forwarding' && (!(selected_path.routeResolved === true) || selected_path.routeProvider != 'ip-full+rtnl-events'))
@@ -2242,141 +2532,17 @@ function benchmark_start(msg) {
 		let lock_domain=benchmark_lock_domain(action, plan, path_id);
 		let lock=acquire_benchmark_lock(lock_domain, id);
 		if (!lock.ok) return {ok:false,error:'benchmark-domain-lock-conflict',conflict:lock.conflict,domain:lock_domain};
-		let session={schemaVersion:2,sessionId:id,state:'awaiting_control',userInitiated:true,actionId:action,applyTarget:plan.targetRef?.stableId ?? null,evaluationPath:path_id,workloadClass:ctx.workloadClass,capabilityHash:ctx.capabilityHash,topologyGeneration:ctx.topologyGeneration,routeIdentity:ctx.routeIdentity,integrationState:ctx.integrationState,integrationFingerprint:ctx.integrationFingerprint,deviceProfile:cfg('main.profile','recommended'),goal:cur_goal,benchmarkLock:{domain:lock_domain,sessionId:id},createdMonotonicMs:monotonic_ms(),measurementClass:'controlled_ab',variableCount:1,transactionId:null,controlEvidence:null,candidateEvidence:null,result:null,companion:{contract:'pm-companion/v2',requiredRole:semantics=='local'?'router-local-client':'lan-client',phases:['control','candidate'],methodology:null,metadata:{sessionId:id,actionId:action,pathId:path_id,topologyGeneration:ctx.topologyGeneration,routeIdentity:ctx.routeIdentity,capabilityHash:ctx.capabilityHash,goal:cur_goal}}};
+		let session={schemaVersion:2,sessionId:id,state:'awaiting_control',userInitiated:true,actionId:action,applyTarget:plan.targetRef?.stableId ?? null,evaluationPath:path_id,workloadClass:ctx.workloadClass,capabilityHash:ctx.capabilityHash,topologyGeneration:ctx.topologyGeneration,routeIdentity:ctx.routeIdentity,integrationState:ctx.integrationState,integrationFingerprint:ctx.integrationFingerprint,nftSnapshot:ctx.nftSnapshot,deviceProfile:cfg('main.profile','recommended'),goal:cur_goal,benchmarkLock:{domain:lock_domain,sessionId:id},createdMonotonicMs:monotonic_ms(),measurementClass:'controlled_ab',variableCount:1,transactionId:null,controlEvidence:null,candidateEvidence:null,result:null,companion:{contract:'pm-companion/v2',requiredRole:semantics=='local'?'router-local-client':'lan-client',phases:['control','candidate'],methodology:null,metadata:{sessionId:id,actionId:action,pathId:path_id,topologyGeneration:ctx.topologyGeneration,routeIdentity:ctx.routeIdentity,capabilityHash:ctx.capabilityHash,goal:cur_goal}}};
 		ensure_dir(`${state_dir()}/benchmarks`);
 		if (!json_write(benchmark_path(id),session)) { release_benchmark_lock(lock_domain,id); return {ok:false,error:'benchmark-session-write-failed'}; }
 		history('benchmark.started',session);
 		return {ok:true,stage:'control',session:session,companion:session.companion};
 	}
 	let snap=telemetry_snapshot();
-	let session={schemaVersion:2,sessionId:id,state:'completed',userInitiated:true,actionId:action,applyTarget:msg?.target ?? null,evaluationPath:path_id,workloadClass:ctx.workloadClass,capabilityHash:ctx.capabilityHash,topologyGeneration:ctx.topologyGeneration,routeIdentity:ctx.routeIdentity,integrationState:ctx.integrationState,integrationFingerprint:ctx.integrationFingerprint,deviceProfile:cfg('main.profile','recommended'),measurementClass:measurement,variableCount:0,before:snap,after:snap,result:{validated:false,changedSystemState:false,note:measurement=='health_only'?'Health snapshot captured; this is not a performance validation.':'Passive observation captured; no A/B intervention occurred.'}};
+	let session={schemaVersion:2,sessionId:id,state:'completed',userInitiated:true,actionId:action,applyTarget:msg?.target ?? null,evaluationPath:path_id,workloadClass:ctx.workloadClass,capabilityHash:ctx.capabilityHash,topologyGeneration:ctx.topologyGeneration,routeIdentity:ctx.routeIdentity,integrationState:ctx.integrationState,integrationFingerprint:ctx.integrationFingerprint,nftSnapshot:ctx.nftSnapshot,deviceProfile:cfg('main.profile','recommended'),measurementClass:measurement,variableCount:0,before:snap,after:snap,result:{validated:false,changedSystemState:false,note:measurement=='health_only'?'Health snapshot captured; this is not a performance validation.':'Passive observation captured; no A/B intervention occurred.'}};
 	ensure_dir(`${state_dir()}/benchmarks`);
 	if (!json_write(benchmark_path(id),session)) return {ok:false,error:'benchmark-session-write-failed'};
 	history('benchmark.observed',session); return {ok:true,session:session};
-}
-
-function benchmark_list() {
-	let out=[]; for (let p in fs.glob(`${state_dir()}/benchmarks/*.json`) ?? []) { let x=json_read(p,null); if (x) push(out,x); }
-	sort(out,function(a,b){return (b.sessionId??'') > (a.sessionId??'') ? 1 : -1;}); return out;
-}
-
-function benchmark_stop(session_id) {
-	let session=session_id ? json_read(benchmark_path(session_id),null) : null;
-	if (!session) return {ok:false,error:'benchmark-session-not-found'};
-	if (session.state == 'candidate_applied' && session.transactionId) {
-		let r=rollback_transaction(session.transactionId,'benchmark-stopped');
-		if (!r.ok) return {ok:false,error:'candidate-rollback-failed',detail:r};
-	}
-	if (session.state == 'completed' || session.state == 'failed' || session.state == 'stopped') return {ok:false,error:'benchmark-session-not-running',session:session};
-	session.state='stopped'; session.result={validated:false,error:'stopped-by-user'};
-	if (!json_write(benchmark_path(session_id),session)) return {ok:false,error:'benchmark-session-write-failed-after-stop',session:session};
-	release_benchmark_lock(session.benchmarkLock?.domain, session_id);
-	history('benchmark.stopped',session); return {ok:true,session:session};
-}
-
-function rill_socket_path() {
-	return cfg('shadow.socket', '/run/performance-manager/rill.sock');
-}
-
-function rill_recv_frame(s, maxMsg, timeout) {
-	/* Read ONE newline-delimited JSON frame from the Rill socket, bounded and
-	 * fail-closed.  Handles partial reads, oversized replies, empty replies,
-	 * a peer that closes early, and a read timeout — none of which may be
-	 * parsed as a truncated/garbage JSON.  Returns the raw frame body (without
-	 * the trailing newline) on success, or an error object { state } on
-	 * failure.  The protocol is strictly framed by a single trailing newline;
-	 * trailing bytes after the first frame are ignored for this request. */
-	let buf = '';
-	let deadline = monotonic_ms() + max(1, timeout);
-	let closed = false, timed_out = false;
-	while (length(buf) < maxMsg) {
-		let remaining = max(1, deadline - monotonic_ms());
-		let events = socket.poll(remaining, s);
-		if (!events || !length(events) || !((events[0][1] ?? 0) & socket.POLLIN)) {
-			timed_out = true;
-			break;
-		}
-		let chunk = s.recv(max(1, maxMsg - length(buf)));
-		if (chunk == null || chunk == '') { closed = true; break; }
-		buf += chunk;
-		if (index(buf, '\n') >= 0) break;
-	}
-	if (closed) return { state: 'peer-closed' };
-	if (timed_out) return { state: 'timeout-or-peer-error' };
-	/* Frame never terminated within the per-message bound. */
-	if (index(buf, '\n') < 0) return { state: length(buf) >= maxMsg ? 'oversized-response' : 'truncated-frame' };
-	let body = trimstr(slice(buf, 0, index(buf, '\n')));
-	if (!length(body)) return { state: 'empty-response' };
-	return { body: body };
-}
-
-function rill_send(payload) {
-	if (!bool_cfg('shadow.enabled', true)) return { ok: false, state: 'disabled' };
-	let maxMsg = min(262144, max(4096, int_cfg('shadow.max_message', 65536)));
-	let timeout = min(5000, max(100, int_cfg('shadow.timeout_ms', 1000)));
-	let wire = sprintf('%.J\n', payload);
-	if (length(wire) > maxMsg) return { ok: false, state: 'oversized-local-context' };
-	let s = socket.connect({ path: rill_socket_path() }, null, null, timeout);
-	if (!s) return { ok: false, state: 'unavailable' };
-	let sent = s.send(wire);
-	if (sent == null || sent != length(wire)) { s.close(); return { ok: false, state: 'send-failed' }; }
-	let frame = rill_recv_frame(s, maxMsg, timeout);
-	s.close();
-	if (frame.state) return { ok: false, state: frame.state };
-	/* Strict single-frame JSON parse; any malformed body fails closed. */
-	let parsed = null;
-	try { parsed = json(frame.body); } catch (e) { return { ok: false, state: 'bad-response' }; }
-	if (parsed == null) return { ok: false, state: 'bad-response' };
-	return { ok: true, response: parsed };
-}
-
-function rill_available_actions() {
-	let out = map(candidate_actions(), function(a) {
-		return { id: a.id, applyScope: a.applyScope, applyTarget: a.applyTarget, evaluationPaths: a.evaluationPaths, risk: a.risk, authority: 'safe-direct' };
-	});
-	for (let b in benchmark_catalog()) {
-		if (b.status == 'blocked') continue;
-		push(out, { id: b.id, applyScope: b.applyScope ?? 'system', applyTarget: null, evaluationPaths: b.evaluationPaths ?? ['path:lan-to-wan'], risk: 'benchmark', authority: 'advisory-only' });
-	}
-	return out;
-}
-
-function rill_context_key_build(profile, capability_hash, topo_gen, path_id, route_identity, workload_class, integ_fingerprint, goal_id) {
-	/* Canonical bounded ContextKey.  The same construction must be used by
-	 * observe and by every outcome so Rill can partition its model per
-	 * context.  Identity components are hashed to keep the key bounded.
-	 * Goal is a first-class partition component (Blocker 2). */
-	let route_class = route_identity == 'unresolved' ? 'unresolved' : fnv1a32(route_identity);
-	let integ_class = fnv1a32(integ_fingerprint ?? '');
-	let workload_class_h = stable_list_hash('w', workload_class ?? [ 'plain_forwarding' ]);
-	let goal_class = safe_name(goal_id ?? 'balanced');
-	return sprintf('ctx-v1:profile=%s;cap=%s;topo=%d;path=%s;route=%s;workload=%s;integ=%s;goal=%s',
-		safe_name(profile ?? 'recommended'), capability_hash ?? 'unknown', topo_gen ?? 0,
-		safe_name(path_id ?? 'path:lan-to-wan'), route_class, workload_class_h, integ_class, goal_class);
-}
-
-function rill_context_key_observe() {
-	let caps = capabilities(), topo = topology(), path = topo.paths[0];
-	return rill_context_key_build(cfg('main.profile','recommended'), capability_hash(caps), topology_generation,
-		path?.id ?? 'path:lan-to-wan', path?.routeIdentity ?? 'unresolved', path?.workloadClass ?? [ 'plain_forwarding' ],
-		integration_fingerprint([]), goal());
-}
-
-function rill_outcome_payload(action_id, measurement, reward, session_id, ctx) {
-	ctx = ctx ?? {};
-	let g = ctx.goal ?? goal();
-	return {
-		api: 2, requestId: sprintf('outcome-%d', monotonic_ms()), op: 'outcome', validated: true,
-		actionId: action_id, measurementClass: measurement, reward: reward, sessionId: session_id,
-		deviceProfile: cfg('main.profile','recommended'), goal: g,
-		capabilityHash: ctx.capabilityHash ?? 'unknown', topologyGeneration: ctx.topologyGeneration ?? 0,
-		pathId: ctx.pathId ?? 'path:lan-to-wan', routeIdentity: ctx.routeIdentity ?? 'unresolved',
-		workloadClass: ctx.workloadClass ?? [ 'plain_forwarding' ],
-		integrationFingerprint: ctx.integrationFingerprint ?? integration_fingerprint([]),
-		contextKey: rill_context_key_build(cfg('main.profile','recommended'), ctx.capabilityHash ?? 'unknown',
-			ctx.topologyGeneration ?? 0, ctx.pathId ?? 'path:lan-to-wan', ctx.routeIdentity ?? 'unresolved',
-			ctx.workloadClass ?? [ 'plain_forwarding' ], ctx.integrationFingerprint ?? '', g)
-	};
 }
 
 function rill_observe() {
@@ -2384,10 +2550,10 @@ function rill_observe() {
 	let topo = topology();
 	let path = topo.paths[0];
 	let integ = integration_state();
-	let integ_fp = integration_fingerprint([]);
+	let integ_fp = integration_fingerprint([], nft_snapshot());
 	let g = goal();
 	let payload = {
-		api: 2, requestId: sprintf('obs-%d', monotonic_ms()), op: 'observe', deviceProfile: cfg('main.profile','recommended'),
+		contract: RILL_CONTRACT, protocolVersion: RILL_PROTOCOL_VERSION, requestId: sprintf('obs-%d', monotonic_ms()), op: 'observe', deviceProfile: cfg('main.profile','recommended'),
 		capabilityHash: capability_hash(caps), topologyGeneration: topology_generation,
 		pathId: path?.id ?? 'path:lan-to-wan', routeIdentity: path?.routeIdentity ?? 'unresolved', workloadClass: path?.workloadClass ?? ['plain_forwarding'],
 		measurementClass: 'passive_before_after', context: telemetry_snapshot(), integrations: integ, goal: g,
@@ -2397,65 +2563,6 @@ function rill_observe() {
 		availableActions: rill_available_actions()
 	};
 	return rill_send(payload);
-}
-
-function rill_status() {
-	let enabled = bool_cfg('shadow.enabled', true);
-	/* External dependency check: a configured/installed upstream Rill runtime
-	 * must exist before the integration can be available. */
-	let binary = str_cfg('shadow.binary', '');
-	if (enabled && binary != '' && !file_exists(binary))
-		return { enabled: enabled, mode: 'shadow', status: 'Shadow · External dependency blocked', state: 'blocked', reason: 'external-runtime-missing', compatibility: 'incompatible', transport: 'unavailable' };
-	let r = rill_send({ api: RILL_PROTOCOL_API, requestId: sprintf('status-%d', monotonic_ms()), op: 'status' });
-	if (!r.ok) return { enabled: enabled, mode: 'shadow', status: 'Shadow · Collecting', state: 'unavailable', reason: r.state ?? 'unavailable', compatibility: 'unknown', transport: r.state ?? 'unavailable' };
-	/* Protocol major negotiation: a higher/foreign major must not be assumed
-	 * compatible; the handshake must echo the required API version. */
-	if ((r.response?.api ?? 0) != RILL_PROTOCOL_API)
-		return { enabled: enabled, mode: 'shadow', status: 'Shadow · Incompatible protocol', state: 'incompatible', reason: 'protocol-major-mismatch', compatibility: 'incompatible', transport: 'connected', requestedApi: RILL_PROTOCOL_API, advertisedApi: r.response?.api ?? null, detail: r.response };
-	let learning = r.response?.state == 'learning';
-	return { enabled: true, mode: 'shadow', status: learning ? 'Shadow · Learning' : 'Shadow · Collecting', state: 'available', reason: null, compatibility: 'compatible', transport: 'connected', detail: r.response };
-}
-
-function push_unique(dst, value) {
-	if (index(dst, value) < 0) push(dst, value);
-}
-
-function merge_profile(id, seen) {
-	if (seen[id]) return { ok: false, error: `profile-cycle:${id}` };
-	seen[id] = true;
-	let p = json_read(`${PROFILE_DIR}/${safe_name(id)}.json`, null);
-	if (!p) return { ok: false, error: `profile-not-found:${id}` };
-	let out = {
-		id: id, chain: [], requiredPackages: [], recommendedPackages: [], conditionalPackages: [],
-		expectedCommands: [], expectedCapabilities: [], targets: []
-	};
-	for (let parent in p.extends ?? []) {
-		let m = merge_profile(parent, seen);
-		if (!m.ok) return m;
-		for (let x in m.profile.chain) push_unique(out.chain, x);
-		for (let x in m.profile.requiredPackages) push_unique(out.requiredPackages, x);
-		for (let x in m.profile.recommendedPackages) push_unique(out.recommendedPackages, x);
-		for (let x in m.profile.expectedCommands) push_unique(out.expectedCommands, x);
-		for (let x in m.profile.expectedCapabilities) push_unique(out.expectedCapabilities, x);
-		for (let x in m.profile.targets) push_unique(out.targets, x);
-		for (let x in m.profile.conditionalPackages) push(out.conditionalPackages, x);
-	}
-	push_unique(out.chain, id);
-	for (let x in p.requiredPackages ?? []) push_unique(out.requiredPackages, x);
-	for (let x in p.recommendedPackages ?? []) push_unique(out.recommendedPackages, x);
-	for (let x in p.expectedCommands ?? []) push_unique(out.expectedCommands, x);
-	for (let x in p.expectedCapabilities ?? []) push_unique(out.expectedCapabilities, x);
-	for (let x in p.targets ?? []) push_unique(out.targets, x);
-	for (let x in p.conditionalPackages ?? []) push(out.conditionalPackages, x);
-	seen[id] = false;
-	return { ok: true, profile: out };
-}
-
-function command_exists(name) {
-	if (!match(name, /^[A-Za-z0-9_.+-]+$/)) return false;
-	for (let dir in [ '/usr/sbin', '/usr/bin', '/sbin', '/bin' ])
-		if (fs.access(`${dir}/${name}`, 'x')) return true;
-	return false;
 }
 
 function package_installed(name) {

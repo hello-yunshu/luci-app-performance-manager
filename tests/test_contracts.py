@@ -36,7 +36,7 @@ class ContractTests(unittest.TestCase):
     def test_rill_ipc_per_op_branches_enforce_full_context_binding(self):
         sch=json.loads((ROOT/'contracts/rill-ipc.schema.json').read_text())
         v=jsonschema.Draft202012Validator(sch)
-        outcome={ 'api':2,'requestId':'o1','op':'outcome','validated':True,'actionId':'nic.ring.floor',
+        outcome={ 'contract':'pm-rill-shadow','protocolVersion':1,'requestId':'o1','op':'outcome','validated':True,'actionId':'nic.ring.floor','decisionId':'d1','goal':'balanced','modelGeneration':1,
                   'measurementClass':'controlled_ab','reward':0.25,'sessionId':'s1',
                   'deviceProfile':'p','capabilityHash':'c','topologyGeneration':1,'pathId':'path:lan-to-wan',
                   'routeIdentity':'r','workloadClass':['plain_forwarding'],'integrationFingerprint':'f',

@@ -2,8 +2,8 @@
   "areas": {
     "core": {
       "files": 38,
-      "sourceBytes": 183018,
-      "knownStaticPayloadBytes": 179896
+      "sourceBytes": 191547,
+      "knownStaticPayloadBytes": 188425
     },
     "luci": {
       "files": 14,

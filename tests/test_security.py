@@ -29,12 +29,13 @@ class SecurityTests(unittest.TestCase):
         for forbidden in ['apply','rollback','uci']:
             self.assertNotIn(forbidden,ops)
     def test_rill_capability_gate_is_fail_closed(self):
-        # Missing runtime / unreachable service / protocol-major mismatch must
-        # be fail-closed (unavailable/incompatible), never silently assumed OK.
+        # Missing runtime / unreachable service / contract or protocol mismatch
+        # must be fail-closed (unavailable/incompatible), never silently OK.
         self.assertIn('external-runtime-missing',CORE)
-        self.assertIn('protocol-major-mismatch',CORE)
-        self.assertIn('RILL_PROTOCOL_API',CORE)
-        self.assertIn("(r.response?.api ?? 0) != RILL_PROTOCOL_API",CORE)
+        self.assertIn('contract-mismatch',CORE)
+        self.assertIn('protocol-version-mismatch',CORE)
+        self.assertIn('RILL_CONTRACT',CORE)
+        self.assertIn('RILL_PROTOCOL_VERSION',CORE)
     def test_rill_has_no_direct_write_authority(self):
         # The Core never grants Rill write authority: no apply op, no root
         # apply path, and the integration is advisory-only.
@@ -44,6 +45,6 @@ class SecurityTests(unittest.TestCase):
     def test_rill_missing_is_not_whole_rc_pass(self):
         # A missing/incompatible Rill integration must surface as a distinct
         # compatibility state, not hide behind a healthy Core.
-        self.assertIn("state: 'incompatible'",CORE)
-        self.assertIn("reason: 'protocol-major-mismatch'",CORE)
+        self.assertIn("state: RILL_STATES.incompatible",CORE)
+        self.assertIn("reason: 'protocol-version-mismatch'",CORE)
 if __name__=='__main__': unittest.main()

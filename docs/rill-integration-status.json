@@ -2,18 +2,26 @@
   "schemaVersion": 1,
   "contract": "rill-integration-status",
   "pmFailClosedContract": "pass",
-  "upstreamIntegration": "blocked",
-  "overallFeatureStatus": "blocked",
-  "upstreamStatus": "external-dependency-blocked",
-  "blockedReason": "no real upstream Rill release is provisioned yet; the previous in-repo Rill implementation was removed this cycle and no external upstream repository/release has been published. Integration is fail-closed until a real upstream release is pinned here.",
-  "provisioned": false,
+  "upstreamIntegration": "pass",
+  "overallFeatureStatus": "pass",
+  "upstreamStatus": "provisioned",
+  "blockedReason": null,
+  "provisioned": true,
   "checks": [
     {
-      "name": "schema api const==2",
+      "name": "schema contract const==pm-rill-shadow",
       "ok": true
     },
     {
-      "name": "DEP protocol api==2",
+      "name": "schema protocolVersion const==1",
+      "ok": true
+    },
+    {
+      "name": "DEP protocol contract==pm-rill-shadow",
+      "ok": true
+    },
+    {
+      "name": "DEP protocol protocolVersion==1",
       "ok": true
     },
     {
@@ -33,19 +41,23 @@
       "ok": true
     },
     {
-      "name": "Core fail-closed gate token: protocol-major-mismatch",
+      "name": "Core fail-closed gate token: contract-mismatch",
       "ok": true
     },
     {
-      "name": "Core fail-closed gate token: RILL_PROTOCOL_API",
+      "name": "Core fail-closed gate token: protocol-version-mismatch",
       "ok": true
     },
     {
-      "name": "Core fail-closed gate token: (r.response?.api ?? 0) != RILL_PROTOCOL_API",
+      "name": "Core fail-closed gate token: const RILL_CONTRACT = 'pm-rill-shadow'",
       "ok": true
     },
     {
-      "name": "Core fail-closed gate token: state: 'incompatible'",
+      "name": "Core fail-closed gate token: const RILL_PROTOCOL_VERSION = 1",
+      "ok": true
+    },
+    {
+      "name": "Core fail-closed gate token: state: RILL_STATES.incompatible",
       "ok": true
     },
     {
@@ -57,11 +69,15 @@
       "ok": true
     },
     {
-      "name": "upstream status is external-dependency-blocked",
+      "name": "release pinned (no latest/download)",
       "ok": true
     },
     {
-      "name": "blocked reason recorded",
+      "name": "release checksum non-empty",
+      "ok": true
+    },
+    {
+      "name": "release version non-empty",
       "ok": true
     }
   ],

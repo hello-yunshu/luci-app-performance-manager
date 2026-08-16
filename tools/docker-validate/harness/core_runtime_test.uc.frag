@@ -1,6 +1,7 @@
 /* ============================================================================
  * REAL Core runtime harness test driver.
- * Appended by build-harness.py to the hoisted, main-stripped Core library so it
+ * Appended by build-harness.py to the forward-reference-free, main-stripped
+ * Core library so it
  * executes the ACTUAL performance-manager.uc logic. The data-provider seam
  * (conn/run/read/command_exists/interface_dump/device_dump/netdevs/stable_target/
  * integration_state) is re-seated to runtime-shaped fixtures; every function

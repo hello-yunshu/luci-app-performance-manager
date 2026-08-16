@@ -1,6 +1,6 @@
 # External Validation Required for 1.0 Stable
 
-`1.0.0-rc.4` closes the source blockers found by the strict rc.1 audit, the 2026-08-14 independent re-audit, and the 2026-08-16 rc.4 single-repo remediation (including the real Core ucode runtime harness), but Stable still requires evidence that cannot be fabricated inside the current offline/non-OpenWrt assembly container.
+`1.0.0-rc.5` closes the source blockers found by the strict rc.1 audit, the 2026-08-14 independent re-audit, and the 2026-08-16 rc.4 single-repo remediation (including the real Core ucode runtime harness), but Stable still requires evidence that cannot be fabricated inside the current offline/non-OpenWrt assembly container.
 
 The current official 25.12.x x86/64 target is available as OpenWrt 25.12.5, including an x86/64 rootfs and SDK. CI is pinned to that release for ucode and three-package build gates.
 
@@ -12,7 +12,7 @@ Required target evidence:
 4. Explicit LAN→Router→WAN and router-local controlled A/B sessions where the action semantics require them.
 5. Sysupgrade preservation via `scripts/openwrt-sysupgrade-gate.sh prepare` before the upgrade and `verify` after reboot, plus `scripts/openwrt-resource-soak.sh` for 24h or longer.
 
-Until those evidence files actually pass, the correct label is **1.0.0-rc.4**, not Stable.
+Until those evidence files actually pass, the correct label is **1.0.0-rc.5**, not Stable.
 
 ## Docker-based Evidence Progress
 
@@ -26,4 +26,4 @@ Status:
 
 Not yet satisfied (require real hypervisor or router hardware): items 3 (Hyper-V/KVM fixtures) and 4 (LAN/WAN A/B sessions), plus the full 24h soak and sysupgrade round-trip from item 5.
 
-Docker notes: the OpenWrt container's netifd bridges `eth0` into `br-lan` and drops the docker default route, so it is offline by design; gates must not depend on `apk add`. The container busybox lacks float sleep, so `tools/docker-validate/sleep-shim` is installed ahead of the gate. The Core artifact is converted host-side to ucode-hoisted arrow-function form by `tools/docker-validate/build-core.sh` before runtime gates.
+Docker notes: the OpenWrt container's netifd bridges `eth0` into `br-lan` and drops the docker default route, so it is offline by design; gates must not depend on `apk add`. The container busybox lacks float sleep, so `tools/docker-validate/sleep-shim` is installed ahead of the gate. The shipped Core is written callee-before-caller (zero forward references, verified), so runtime gates install it verbatim — there is deliberately no `convert_hoist.py` transform (CORE BLOCKER C).

@@ -17,11 +17,14 @@ def branch_required(op):
 
 class RillContextTests(unittest.TestCase):
     def test_api_version_and_context_key_bounds_match(self):
-        # The formal IPC schema and the Core must agree on the protocol API and
-        # the bounded ContextKey the Core constructs for every observe/outcome.
-        self.assertEqual(SCHEMA['properties']['api']['const'], 2)
+        # The formal IPC schema and the Core must agree on the protocol contract
+        # (pm-rill-shadow v1) and the bounded ContextKey the Core constructs for
+        # every observe/outcome.
+        self.assertEqual(SCHEMA['properties']['contract']['const'], 'pm-rill-shadow')
+        self.assertEqual(SCHEMA['properties']['protocolVersion']['const'], 1)
         self.assertEqual(SCHEMA['properties']['contextKey']['maxLength'], 512)
-        self.assertIn('const RILL_PROTOCOL_API = 2', CORE)
+        self.assertIn("const RILL_CONTRACT = 'pm-rill-shadow'", CORE)
+        self.assertIn('const RILL_PROTOCOL_VERSION = 1', CORE)
         self.assertIn('const RILL_REQUIRED_OPS = [ \'status\', \'observe\', \'outcome\' ]', CORE)
 
     def test_context_key_pattern_matches_core(self):

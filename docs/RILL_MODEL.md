@@ -1,4 +1,4 @@
-# Rill Shadow Learning Model — 1.0.0-rc.4
+# Rill Shadow Learning Model — 1.0.0-rc.5
 
 Since 1.0.0-rc.4 Rill is an **external runtime dependency**: Performance Manager consumes the Rill binary built and released by the Rill upstream repository; this repository no longer vendors, compiles, cross-compiles or natively tests Rill's Rust implementation. The PM↔Rill dependency contract is formalized in `contracts/rill-dependency.json` and validated by `scripts/rill_contract_check.py`.
 

@@ -35,14 +35,12 @@ chmod +x /etc/init.d/performance-manager
 cp /tmp/pm-src/package/performance-manager/files/etc/config/performance-manager /etc/config/
 cp /tmp/pm-src/package/performance-manager/files/etc/uci-defaults/90-performance-manager /etc/uci-defaults/
 chmod +x /etc/uci-defaults/90-performance-manager
-# Install the ucode-hoisted artifact (runtime-correct) generated host-side by
-# tools/docker-validate/build-core.sh; the readable source crashes at runtime.
-if [ -r /home/pm-src/tools/docker-validate/build/performance-manager.uc ]; then
-  cp /home/pm-src/tools/docker-validate/build/performance-manager.uc /usr/sbin/
-else
-  echo "ERROR: converted Core artifact missing; run 'sh tools/docker-validate/build-core.sh' on the host first" >&2
-  exit 1
-fi
+# Install the RAW shipped Core verbatim.  The production source is written
+# callee-before-caller (ucode resolves free-variable bindings at function
+# DEFINITION time and does not hoist function declarations), so it runs as a
+# daemon without any transform.  There is deliberately NO convert_hoist step
+# (CORE BLOCKER C): what is tested == what is shipped == what the APK installs.
+cp /tmp/pm-src/package/performance-manager/files/usr/sbin/performance-manager.uc /usr/sbin/
 chmod +x /usr/sbin/performance-manager.uc
 cp /tmp/pm-src/package/performance-manager/files/usr/share/performance-manager/contracts.uc /usr/share/performance-manager/
 mkdir -p /usr/share/performance-manager/profiles

@@ -1,8 +1,8 @@
-# Final Audit — 1.0.0-rc.4
+# Final Audit — 1.0.0-rc.5
 
 ## Decision
 
-**PASS — 1.0.0-rc.4 Core/LuCI source candidate; Rill external integration BLOCKED; Stable remains blocked by explicit external target/testbed gates and a provisioned upstream Rill release.**
+**PASS — 1.0.0-rc.5 source + Rill integration candidate; Stable remains blocked by explicit external target/testbed gates.**
 
 This audit is a single self-contained orchestrator: contract validation, host syntax checks, source gates, resource budget and the unittest suite are all rerun in this process, and only the freshly generated reports are consumed. Source completion is deliberately separated from real target evidence.
 
@@ -41,7 +41,7 @@ This audit is a single self-contained orchestrator: contract validation, host sy
 
 ## Rill integration (external runtime)
 
-Rill is an external runtime dependency owned, built and released by its upstream repository. This repository does not compile or natively test Rill. The PM-side fail-closed contract **PASSES** (the Core never crashes, never fakes a recommendation, and never auto-applies from an unavailable/incompatible runtime), but because no upstream Rill release is provisioned this cycle the **external integration is BLOCKED** (`docs/rill-integration-status.json`). This is reported honestly: **pmFailClosedContract=pass, upstreamIntegration=blocked, overallFeatureStatus=blocked** — never PASS.
+Rill is an external runtime dependency owned, built and released by its upstream repository. This repository does not compile or natively test Rill. The PM-side fail-closed contract **PASSES** (the Core never crashes, never fakes a recommendation, and never auto-applies from an unavailable/incompatible runtime). The freshly regenerated gate (`docs/rill-integration-status.json`, written by the `rill-contract` step) reports: **pmFailClosedContract=pass, upstreamIntegration=pass, overallFeatureStatus=pass** (provisioned=true). This is derived from the pinned upstream release entry and never hardcoded; the remaining Stable gates (booted target, real A/B testbed, soak) are still explicit external gates.
 
 ## Real Core runtime harness
 

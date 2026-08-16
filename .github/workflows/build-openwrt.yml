@@ -70,7 +70,7 @@ jobs:
           set -euo pipefail
           cd "$SDKDIR"
           find bin -name '*.apk' -o -name '*.ipk' | sort
-          # Version part of the APK pkgver: VERSION is 1.0.0-rc.4 -> 1.0.0_rc4.
+          # Version part of the APK pkgver: VERSION is 1.0.0-rc.5 -> 1.0.0_rc5.
           apk_version="$(sed -E 's/-rc\./_rc/' "$GITHUB_WORKSPACE/VERSION")"
           # Exact verification reads .PKGINFO (pkgname/pkgver/arch/deps) instead
           # of filename prefix, so performance-manager and performance-manager-rill
