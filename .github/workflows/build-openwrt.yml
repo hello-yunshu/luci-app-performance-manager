@@ -38,7 +38,9 @@ jobs:
           grep -e "\\*$sdk$" /tmp/sha256sums | sha256sum -c -
           # Capture the REAL official SDK archive digest from sha256sums (not a
           # weak filename hash) so build evidence records sdkArchiveSha256.
-          sdk_archive_sha=$(awk -v f="*$sdk$" '$2==f {print $1}' /tmp/sha256sums)
+          # Note: no trailing '$' here — bash would keep it as a literal and the
+          # == string comparison would never match the actual field.
+          sdk_archive_sha=$(awk -v f="*$sdk" '$2==f {print $1}' /tmp/sha256sums)
           test -n "$sdk_archive_sha"
           echo "SDK_ARCHIVE_SHA256=$sdk_archive_sha" >> "$GITHUB_ENV"
           tar --zstd -xf "$sdk"
