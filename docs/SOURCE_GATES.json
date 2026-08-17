@@ -93,7 +93,7 @@
       "status": "pass",
       "checks": 9,
       "failed": [],
-      "evidence": "structural: PM-side fail-closed contract wiring present; Rill unavailable/malformed fail-closed and status honesty are verified by the runtime harness [7] and scripts/rill_contract_check.py. Upstream external integration is BLOCKED (see docs/rill-integration-status.json).",
+      "evidence": "structural: PM-side fail-closed contract wiring present; Rill unavailable/malformed fail-closed and status honesty are verified by the runtime harness [7] and scripts/rill_contract_check.py. Upstream external integration status is read from the freshly regenerated docs/rill-integration-status.json (provisioned/pass this cycle).",
       "verificationLayer": "structural-source"
     },
     "9": {

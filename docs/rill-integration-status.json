@@ -81,5 +81,5 @@
       "ok": true
     }
   ],
-  "note": "A blocked upstream integration is NOT a PASS; the Core/runtime fail-closed contract is verified separately and the overall feature status remains blocked until a compatible upstream release is provisioned and verified."
+  "note": "provisioned=True: upstream=pass; the PM-side fail-closed contract and the pinned upstream adapter release are verified separately. overall=pass — a blocked upstream is never reported as a PASS, and a provisioned+verified release is reported as pass rather than blocked."
 }
