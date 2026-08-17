@@ -29,6 +29,9 @@ const GOALS = [ 'balanced', 'throughput', 'latency', 'cpu_efficiency' ];
 const GOAL_MEASURABLE = { balanced: 'throughput', throughput: 'throughput', latency: null, cpu_efficiency: null };
 
 let topology_generation = 1;
+let topology_cache = null;
+let topology_cache_ms = 0;
+const TOPOLOGY_MIN_INTERVAL_MS = 5000;
 let tx_counter = 0;
 let event_timer = null;
 let telemetry_timer = null;
@@ -1793,6 +1796,9 @@ function route_context(wan) {
 }
 
 function topology() {
+	let now = monotonic_ms();
+	if (topology_cache != null && (now - topology_cache_ms) < TOPOLOGY_MIN_INTERVAL_MS)
+		return topology_cache;
 	let dump=interface_dump(), interfaces=[], lan=null;
 	for (let i in dump.interface ?? []) {
 		let name=i.interface, l3=i.l3_device ?? i.device ?? null;
@@ -1831,7 +1837,9 @@ function topology() {
 	 * the runtime output conforms to the formal topology schema which declares
 	 * lanInterface as a string (never null). */
 	push(paths,{id:'path:local-endpoint',workloadClass:derive_workload({id:'path:local-endpoint'}),lanInterface:'',wanInterface:primary?.wanInterface ?? 'wan',routeIdentity:primary?.routeIdentity ?? 'unresolved',routeProvider:primary?.routeProvider ?? 'unresolved',routeResolved:primary?.routeResolved ?? false,routeEvidence:primary?.routeEvidence ?? {},targetRefs:local_targets,underlayChain:[]});
-	return {schemaVersion:2,topologyGeneration:topology_generation,interfaces:interfaces,devices:devices,wanCandidates:map(wans,function(w){return w.interface;}),paths:paths};
+	topology_cache = {schemaVersion:2,topologyGeneration:topology_generation,interfaces:interfaces,devices:devices,wanCandidates:map(wans,function(w){return w.interface;}),paths:paths};
+	topology_cache_ms = now;
+	return topology_cache;
 }
 
 function nft_snapshot() {
