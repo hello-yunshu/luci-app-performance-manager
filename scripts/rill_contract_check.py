@@ -91,7 +91,9 @@ status = {
     'blockedReason': up.get('blockedReason'),
     'provisioned': provisioned,
     'checks': [{'name': n, 'ok': o} for n, o in checks],
-    'note': 'A blocked upstream integration is NOT a PASS; the Core/runtime fail-closed contract is verified separately and the overall feature status remains blocked until a compatible upstream release is provisioned and verified.'
+    'note': (f"provisioned={provisioned}: upstream={upstream_integration}; the PM-side fail-closed contract and the pinned upstream adapter release are verified separately. "
+             f"overall={overall} — a blocked upstream is never reported as a PASS, and a provisioned+verified release is reported as pass rather than blocked.") if provisioned else
+            'A blocked upstream integration is NOT a PASS; the Core/runtime fail-closed contract is verified separately and the overall feature status remains blocked until a compatible upstream release is provisioned and verified.'
 }
 out = ROOT/'docs/rill-integration-status.json'
 out.write_text(json.dumps(status, ensure_ascii=False, indent=2) + '\n')

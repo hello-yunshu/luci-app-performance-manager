@@ -36,6 +36,11 @@ jobs:
           curl -fsSL "$base/sha256sums" -o /tmp/sha256sums
           curl -fsSLO "$base/$sdk"
           grep -e "\\*$sdk$" /tmp/sha256sums | sha256sum -c -
+          # Capture the REAL official SDK archive digest from sha256sums (not a
+          # weak filename hash) so build evidence records sdkArchiveSha256.
+          sdk_archive_sha=$(awk -v f="*$sdk$" '$2==f {print $1}' /tmp/sha256sums)
+          test -n "$sdk_archive_sha"
+          echo "SDK_ARCHIVE_SHA256=$sdk_archive_sha" >> "$GITHUB_ENV"
           tar --zstd -xf "$sdk"
           sdkdir=$(find . -maxdepth 1 -type d -name "openwrt-sdk-${OPENWRT_VERSION}-x86-64_*" | head -n1)
           test -n "$sdkdir"

@@ -199,7 +199,12 @@ def main(argv):
         'target': target,
         'sdkIdentity': sdk_identity,
         'sdkDir': sdk_dir or None,
-        'sdkSha256': sdk_digest(sdk_dir) if sdk_dir else None,
+        # sdkTreeAnchorSha256 is the digest of the SDK root Makefile (a stable
+        # identity anchor for the SDK tree).  sdkArchiveSha256 is the REAL digest
+        # of the official SDK archive, captured from downloads.openwrt.org
+        # sha256sums and exported as SDK_ARCHIVE_SHA256 by the build job.
+        'sdkTreeAnchorSha256': sdk_digest(sdk_dir) if sdk_dir else None,
+        'sdkArchiveSha256': env('SDK_ARCHIVE_SHA256') or None,
         'feedsCommits': feeds_commits(sdk_dir) if sdk_dir else {},
         'packageManagerFormat': pkg_manager,
         'packages': packages_meta,
