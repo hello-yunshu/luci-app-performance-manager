@@ -68,7 +68,7 @@ class Phase712Tests(unittest.TestCase):
         self.assertIn("const RILL_CONTRACT = 'pm-rill-shadow'",CORE)
         self.assertIn('const RILL_PROTOCOL_VERSION = 1',CORE)
         self.assertIn('const RILL_REQUIRED_OPS',CORE)
-        self.assertIn('external-runtime-missing',CORE)
+        self.assertIn('external-runtime-not-provisioned',CORE)
         self.assertIn('contract-mismatch',CORE)
         self.assertIn('protocol-version-mismatch',CORE)
         self.assertIn("state: RILL_STATES.incompatible",CORE)

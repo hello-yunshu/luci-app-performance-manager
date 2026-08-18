@@ -87,6 +87,34 @@ def main(argv):
     rill_checksum = (up.get('artifact') or {}).get('sha256') or None
     rill_status = up.get('status') or 'external-dependency-blocked'
 
+    # Evidence / runtime verdicts consumed from docs/rill-integration-evidence.json
+    # (written by scripts/rill_runtime_harness.py locally and by CI
+    # pm-rill-provenance / pm-rill-runtime / pm-core-rill-roundtrip for the real
+    # adapter). The static status doc never records a runtime or provenance PASS,
+    # so we read the evidence here; any missing/unknown verdict is BLOCKED (never
+    # fabricated PASS).
+    _ev_path = ROOT / 'docs' / 'rill-integration-evidence.json'
+    _ev = {}
+    if _ev_path.exists():
+        try:
+            _ev = json.loads(_ev_path.read_text())
+        except Exception:
+            _ev = {}
+    _ril = (_ev.get('rill', {}) or {}) if isinstance(_ev, dict) else {}
+    _rt = (_ev.get('runtime', {}) or {}) if isinstance(_ev, dict) else {}
+
+    def _norm(v):
+        v = str(v or 'BLOCKED').upper()
+        return v if v in ('PASS', 'FAIL', 'BLOCKED') else 'BLOCKED'
+
+    def _worst(src, fields):
+        vals = [_norm(src.get(f) or 'BLOCKED') for f in fields]
+        if 'FAIL' in vals:
+            return 'FAIL'
+        if 'PASS' in vals and all(v != 'FAIL' for v in vals):
+            return 'PASS'
+        return 'BLOCKED'
+
     packages = ['performance-manager', 'luci-app-performance-manager', 'performance-manager-rill']
     package_shas = {}
     for name in packages:
@@ -119,37 +147,38 @@ def main(argv):
     # Rill Gate 1 — Artifact Provenance: pinned release tag/URL/SHA256/asset and
     # tag commit, never `latest`/`main`.  A not-provisioned (blocked) upstream is
     # an honest state (the Core fails closed); a provisioned-but-broken pin FAILS.
+    # A provisioned pin is the baseline; an authoritative PASS additionally
+    # requires the signed upstream evidence verdicts (tag identity, Ed25519 index
+    # signature, artifact integrity) from docs/rill-integration-evidence.json --
+    # a hand-written SHA alone is never enough (prompt \u00a712/\u00a729).
     artifact = up.get('artifact') or {}
     artifact_url = artifact.get('url') or ''
     provisioned = bool(up.get('releaseVersion') or artifact_url)
     if not provisioned:
         rill_provenance = 'BLOCKED'
         rill_provenance_reason = 'no upstream Rill release provisioned (external-dependency-blocked)'
-    elif (artifact.get('sha256') and artifact_url and 'latest/download' not in artifact_url
-          and up.get('releaseVersion') and up.get('tagCommitSha')):
-        rill_provenance = 'PASS'
-        rill_provenance_reason = None
-    else:
+    elif not (artifact.get('sha256') and artifact_url and 'latest/download' not in artifact_url
+              and up.get('releaseVersion') and up.get('tagCommitSha')):
         rill_provenance = 'FAIL'
         rill_provenance_reason = 'upstream Rill release entry is incomplete or unpinned'
+    else:
+        _evidence_prov = _worst(_ril, ['tagIdentityVerdict', 'indexSignatureVerdict', 'artifactIntegrityVerdict'])
+        if _evidence_prov == 'FAIL':
+            rill_provenance = 'FAIL'
+            rill_provenance_reason = 'evidence provenance verdict FAIL (tag identity / index signature / artifact integrity)'
+        elif _evidence_prov == 'PASS':
+            rill_provenance = 'PASS'
+            rill_provenance_reason = None
+        else:
+            rill_provenance = 'BLOCKED'
+            rill_provenance_reason = 'pin present but signed upstream evidence not resolved in this job'
 
     # Rill Gates 2 (Runtime Compatibility) and 3 (Functional Integration) require
-    # executing the real adapter and are recorded by the gate jobs; this SDK build
-    # job does not execute them, so they default to BLOCKED (never fabricated PASS)
-    # unless the gate status document already records an explicit verdict.
-    rill_status_doc = {}
-    rill_status_path = ROOT / 'docs' / 'rill-integration-status.json'
-    if rill_status_path.exists():
-        try:
-            rill_status_doc = json.loads(rill_status_path.read_text())
-        except Exception:
-            rill_status_doc = {}
-    rill_runtime_verdict = str(rill_status_doc.get('runtimeCompatibility', 'BLOCKED')).upper()
-    rill_functional_verdict = str(rill_status_doc.get('functionalIntegration', 'BLOCKED')).upper()
-    if rill_runtime_verdict not in ('PASS', 'FAIL', 'BLOCKED'):
-        rill_runtime_verdict = 'BLOCKED'
-    if rill_functional_verdict not in ('PASS', 'FAIL', 'BLOCKED'):
-        rill_functional_verdict = 'BLOCKED'
+    # executing the real adapter and are recorded by the gate jobs. The signed
+    # evidence verdicts come from docs/rill-integration-evidence.json (loaded
+    # above); any missing/unknown verdict is BLOCKED (never fabricated PASS).
+    rill_runtime_verdict = _worst(_rt, ['executableVerdict', 'versionVerdict', 'startupVerdict', 'statusVerdict'])
+    rill_functional_verdict = _worst(_rt, ['observeVerdict', 'outcomeVerdict', 'failClosedVerdict', 'pmCoreRoundtripVerdict'])
 
     verdicts = {
         'pmPackagesBuildVerdict': pm_build_verdict,

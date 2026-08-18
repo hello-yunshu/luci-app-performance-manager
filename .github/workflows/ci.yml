@@ -20,7 +20,7 @@ jobs:
       - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
         with:
           python-version: "3.13"
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@1d0ff469b7ec7b3eed9c4d3e94baad0c9a588e43
         with:
           node-version: "22"
       - run: python -m pip install --disable-pip-version-check jsonschema pyyaml
@@ -52,58 +52,30 @@ jobs:
           if-no-files-found: error
 
   # Rill is an EXTERNAL runtime owned, built and released by its upstream
-  # repository. This repository never compiles or natively tests Rill, so there
-  # is deliberately NO Rust toolchain/cargo job here. This job verifies only the
-  # PM-side fail-closed contract (pm-rill-contract): the pinned upstream Rill
-  # release provenance when provisioned (never `latest`, never empty checksum),
-  # and the PM<->Rill protocol/capability contract, failing closed when the
-  # contract is violated. Because no upstream Rill release is provisioned this
-  # cycle, the PM-side contract passes while the external integration is
-  # reported as BLOCKED (docs/rill-integration-status.json) — never as PASS.
-  pm-rill-contract:
+  # repository (hello-yunshu/rill-ml). This repository never compiles or natively
+  # tests Rill, so there is deliberately NO Rust toolchain/cargo job here.
+  #
+  # Provenance (this job): verifies the immutable v1.2.0 Stable pin end-to-end —
+  # tag identity (v1.2.0 -> dc96fdb3...) -> signed stable-index (Ed25519) ->
+  # exact x86_64-musl pm-adapter -> size+SHA integrity — via
+  # scripts/verify_rill_release.py, and runs the mock-adapter pm-rill-shadow v1
+  # wire harness for the PM-side fail-closed decision table. The verified
+  # adapter artifact is uploaded here and consumed (never re-downloaded with
+  # `latest`) by the runtime / roundtrip jobs below.
+  pm-rill-provenance:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
       - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
         with:
           python-version: "3.13"
-      - run: python -m pip install --disable-pip-version-check pyyaml
-      - name: Verify PM<->Rill dependency contract (external runtime)
+      - run: python -m pip install --disable-pip-version-check pyyaml jsonschema pynacl
+      - name: Verify PM<->Rill static dependency/protocol contract
         run: python scripts/rill_contract_check.py
-      - name: Verify pinned upstream Rill release provenance when provisioned
-        shell: bash
-        run: |
-          set -euo pipefail
-          python3 - "$GITHUB_WORKSPACE" <<'PY'
-          import json, sys, urllib.request, hashlib
-          root = sys.argv[1]
-          dep = json.load(open(f"{root}/contracts/rill-dependency.json"))
-          up = dep.get("upstream") or {}
-          art = (up.get("artifact") or {}) if isinstance(up.get("artifact"), dict) else {}
-          if not (up.get("releaseVersion") or art.get("url") or art.get("sha256")):
-              status = up.get("status")
-              expected = "external-dependency-blocked"
-              if status != expected:
-                  print(f"FAIL: upstream status is {status!r}, expected {expected!r}")
-                  sys.exit(1)
-              print(f"rill-contract: upstream not provisioned (status={status}); PM fails closed — no release gate asserted")
-              sys.exit(0)
-          url = art.get("url")
-          sha = art.get("sha256")
-          if not url or "latest/download" in url:
-              print("FAIL: provisioned upstream release must pin a versioned artifact URL, never latest/download")
-              sys.exit(1)
-          if not sha:
-              print("FAIL: provisioned upstream release must carry a non-empty artifactSha256")
-              sys.exit(1)
-          print(f"rill-contract: verifying upstream {up.get('releaseVersion')} from {url}")
-          data = urllib.request.urlopen(url, timeout=120).read()
-          digest = hashlib.sha256(data).hexdigest()
-          if digest != sha:
-              print(f"FAIL: artifact SHA-256 mismatch — expected {sha}, got {digest}")
-              sys.exit(1)
-          print(f"rill-contract: artifact SHA-256 verified ({digest})")
-          PY
+      - name: Verify v1.2.0 Stable release provenance (tag + signed index + artifact)
+        run: python scripts/verify_rill_release.py --out-dir docs
+      - name: Run pm-rill-shadow v1 wire harness (fail-closed decision table)
+        run: python scripts/rill_runtime_harness.py
       - name: Generate Rill consumed manifest
         shell: bash
         run: |
@@ -112,37 +84,180 @@ jobs:
           import json, sys
           root = sys.argv[1]
           dep = json.load(open(f"{root}/contracts/rill-dependency.json"))
-          up = dep.get("upstream") or {}
-          art = (up.get("artifact") or {}) if isinstance(up.get("artifact"), dict) else {}
+          proto = dep.get("protocol", {})
+          up = dep.get("upstream", {})
+          idx = up.get("releaseIndex", {}) or {}
+          art = up.get("artifact", {}) or {}
+          adv = up.get("adapter", {}) or {}
+          tgt = adv.get("target", {}) or {}
           manifest = {
             "schemaVersion": 1,
             "contract": "pm<->rill-consumed-release",
             "upstreamRepository": up.get("repository"),
-            "consumedVersion": up.get("releaseVersion"),
-            "artifactUrl": art.get("url"),
-            "artifactSha256": art.get("sha256"),
-            "manifestUrl": up.get("manifestUrl"),
-            "status": up.get("status") or "external-dependency-blocked",
+            "protocolContract": proto.get("contract"),
+            "protocolVersion": proto.get("protocolVersion"),
+            "releaseVersion": up.get("releaseVersion"),
+            "releaseTag": up.get("releaseTag"),
+            "releaseCommitSha": up.get("tagCommitSha"),
+            "releaseIndexSchemaVersion": idx.get("schemaVersion"),
+            "releaseChannel": idx.get("channel"),
+            "adapterReleaseAssetVersion": adv.get("releaseAssetVersion"),
+            "adapterVersion": adv.get("adapterVersion"),
+            "adapterArtifactId": adv.get("id"),
+            "adapterTargetOs": tgt.get("os"),
+            "adapterTargetArch": tgt.get("arch"),
+            "adapterTargetLibc": tgt.get("libc"),
+            "artifactName": art.get("name") or adv.get("name"),
+            "artifactSha256": art.get("sha256") or adv.get("sha256"),
+            "artifactSize": art.get("size") or adv.get("size"),
+            "status": up.get("status", "external-dependency-blocked"),
             "blockedReason": up.get("blockedReason"),
-            "protocolApi": dep.get("protocol", {}).get("api"),
-            "requiredCapabilities": dep.get("capabilities", {}).get("required"),
-            "minimumRillVersion": dep.get("minimumRillVersion"),
-            "note": "PM never compiles Rill; this manifest records the upstream release this repo consumes. When null the integration is external-dependency-blocked and the Core capability gate fails closed."
+            "provisioned": bool(adv.get("sha256")),
+            "tagIdentityVerdict": "verified by scripts/verify_rill_release.py -> docs/rill-provenance.json",
+            "note": "PM never compiles Rill; this manifest records the immutable v1.2.0 Stable release this repo consumes. The Rill release bundle version (1.2.0), the rill-pm-adapter crate/binary version (0.15.0) and the pm-rill-shadow protocol version (1) are deliberately kept distinct; minimumRillVersion is a deprecated alias for minimumReleaseVersion and must never be compared against adapter --version."
           }
           with open(f"{root}/rill-consumed-manifest.json", "w") as f:
               json.dump(manifest, f, ensure_ascii=False, indent=2)
               f.write("\n")
-          print(json.dumps({"status": manifest["status"], "consumedVersion": manifest["consumedVersion"]}))
+          print(json.dumps({"status": manifest["status"], "releaseVersion": manifest["releaseVersion"],
+                            "protocolContract": manifest["protocolContract"], "protocolVersion": manifest["protocolVersion"]}))
           PY
-      - name: Upload Rill consumed manifest and integration status
+      - name: Upload Rill provenance + verified adapter artifact
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
-          name: rill-consumed-manifest
+          name: rill-provenance
           path: |
-            rill-consumed-manifest.json
+            docs/rill-provenance.json
+            docs/rill-stable-index.json
             docs/rill-integration-status.json
+            docs/rill-integration-evidence.json
+            docs/rill-pm-adapter-1.2.0-linux-x86_64-musl
+            rill-consumed-manifest.json
           if-no-files-found: error
-      - run: python -m py_compile companion/pm_companion_agent.py
+
+  # Real released adapter execution inside the official OpenWrt rootfs.
+  # Consumes the EXACT verified v1.2.0 x86_64-musl pm-adapter from provenance,
+  # executes it (--version -> 0.15.0), starts it and drives the real
+  # pm-rill-shadow v1 status/observe/outcome roundtrips plus fail-closed
+  # negatives through scripts/rill_adapter_runtime.py. No mock, no Core mirror.
+  pm-rill-runtime:
+    runs-on: ubuntu-latest
+    needs: pm-rill-provenance
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - name: Download verified adapter artifact from provenance
+        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16
+        with:
+          name: rill-provenance
+          path: rill-evidence
+      - name: Set up official OpenWrt rootfs (musl x86_64)
+        shell: bash
+        run: |
+          set -euo pipefail
+          base="https://downloads.openwrt.org/releases/${OPENWRT_VERSION}/targets/${OPENWRT_TARGET}"
+          rootfs="openwrt-${OPENWRT_VERSION}-x86-64-rootfs.tar.gz"
+          curl -fsSLO "$base/sha256sums"
+          curl -fsSLO "$base/$rootfs"
+          grep -e "\\*$rootfs$" sha256sums | sha256sum -c -
+          mkdir rootfs
+          sudo tar -xzf "$rootfs" -C rootfs
+          sudo rm -f rootfs/etc/resolv.conf
+          sudo cp /etc/resolv.conf rootfs/etc/resolv.conf
+          sudo chroot rootfs /bin/sh -c 'apk update --no-check-certificate && apk add --no-check-certificate ucode ucode-mod-ubus ucode-mod-uci ucode-mod-ulib ucode-mod-socket ucode-mod-log' || \
+          sudo chroot rootfs /bin/sh -c 'opkg update && opkg install ucode ucode-mod-ubus ucode-mod-uci ucode-mod-socket ucode-mod-log'
+      - name: Execute released adapter + real protocol roundtrip
+        shell: bash
+        run: |
+          set -euo pipefail
+          chmod +x rill-evidence/docs/rill-pm-adapter-1.2.0-linux-x86_64-musl
+          sudo install -D -m 0755 rill-evidence/docs/rill-pm-adapter-1.2.0-linux-x86_64-musl rootfs/usr/bin/rill-pm-adapter
+          sudo mkdir -p rootfs/run rootfs/etc/performance-manager/rill
+          # Start the EXACT released adapter inside the musl rootfs.
+          sudo nohup chroot rootfs /usr/bin/rill-pm-adapter --socket /run/pm-rill.sock --state-dir /etc/performance-manager/rill --max-message 65536 --timeout-ms 1000 >/dev/null 2>&1 &
+          ADAPTER_PID=$!
+          trap 'sudo pkill -f "rill-pm-adapter.*pm-rill.sock" 2>/dev/null || true' EXIT
+          # Wait for the socket.
+          for i in $(seq 1 20); do
+            [ -S rootfs/run/pm-rill.sock ] && break
+            sleep 0.5
+          done
+          # Real protocol client against the REAL binary (no mock).
+          # The host path to the running socket is rootfs/run/pm-rill.sock.
+          sudo python3 scripts/rill_adapter_runtime.py \
+            --adapter rootfs/usr/bin/rill-pm-adapter \
+            --socket rootfs/run/pm-rill.sock \
+            --state-dir rootfs/etc/performance-manager/rill \
+            --out-dir docs
+      - name: Upload real adapter runtime + protocol evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: rill-runtime-evidence
+          path: |
+            docs/rill-adapter-version.txt
+            docs/rill-adapter-runtime.log
+            docs/rill-protocol-roundtrip.json
+            docs/rill-integration-evidence.json
+          if-no-files-found: error
+
+  # Real shipped PM Core <-> real released v1.2.0 adapter inside the rootfs.
+  # Installs the RAW performance-manager.uc + the verified adapter at the shared
+  # empty-binary default path, starts ubusd + adapter + Core, then asserts
+  # `ubus call performance-manager rill_status` negotiated the real adapter
+  # (available, release 1.2.0, adapter 0.15.0, protocol 1, binary /usr/bin/...).
+  pm-core-rill-roundtrip:
+    runs-on: ubuntu-latest
+    needs: pm-rill-provenance
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - name: Download verified adapter artifact from provenance
+        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16
+        with:
+          name: rill-provenance
+          path: rill-evidence
+      - name: Set up official OpenWrt rootfs with ubus + ucode (x86_64)
+        shell: bash
+        run: |
+          set -euo pipefail
+          base="https://downloads.openwrt.org/releases/${OPENWRT_VERSION}/targets/${OPENWRT_TARGET}"
+          rootfs="openwrt-${OPENWRT_VERSION}-x86-64-rootfs.tar.gz"
+          curl -fsSLO "$base/sha256sums"
+          curl -fsSLO "$base/$rootfs"
+          grep -e "\\*$rootfs$" sha256sums | sha256sum -c -
+          mkdir rootfs
+          sudo tar -xzf "$rootfs" -C rootfs
+          sudo rm -f rootfs/etc/resolv.conf
+          sudo cp /etc/resolv.conf rootfs/etc/resolv.conf
+          sudo chroot rootfs /bin/sh -c 'apk update --no-check-certificate && apk add --no-check-certificate ucode ucode-mod-fs ucode-mod-ubus ucode-mod-uci ucode-mod-rtnl ucode-mod-uloop ucode-mod-socket ucode-mod-log' || \
+          sudo chroot rootfs /bin/sh -c 'opkg update && opkg install ucode ucode-mod-fs ucode-mod-ubus ucode-mod-uci ucode-mod-rtnl ucode-mod-uloop ucode-mod-socket ucode-mod-log'
+      - name: Real Core <-> released adapter roundtrip
+        shell: bash
+        run: |
+          set -euo pipefail
+          chmod +x rill-evidence/docs/rill-pm-adapter-1.2.0-linux-x86_64-musl
+          sudo python3 scripts/rill_core_roundtrip.py "$PWD/rootfs" "$PWD/rill-evidence/docs/rill-pm-adapter-1.2.0-linux-x86_64-musl"
+      - name: Verify roundtrip evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - "$GITHUB_WORKSPACE" <<'PY'
+          import json, sys
+          ev = json.load(open(f"{sys.argv[1]}/docs/pm-core-rill-roundtrip.json"))
+          if ev.get("verdict") != "PASS":
+              print(f"FAIL: pm-core-rill-roundtrip verdict={ev.get('verdict')}: {ev.get('checks')}")
+              sys.exit(1)
+          print(f"pm-core-rill-roundtrip: PASS state={ev['checks']}")
+          PY
+      - name: Upload real Core<->adapter roundtrip evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: pm-core-rill-roundtrip
+          path: |
+            pm-core-rill-roundtrip.log
+            docs/pm-core-rill-roundtrip.json
+            docs/rill-integration-evidence.json
+          if-no-files-found: error
 
   openwrt-ucode:
     runs-on: ubuntu-latest

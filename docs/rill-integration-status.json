@@ -1,12 +1,20 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 3,
   "contract": "rill-integration-status",
+  "scope": "PM-side static protocol/dependency contract + immutable Stable release pin only",
   "pmFailClosedContract": "pass",
-  "upstreamIntegration": "pass",
+  "upstreamEntitlement": "pass",
   "overallFeatureStatus": "pass",
+  "functionalIntegrationVerification": "see docs/rill-integration-evidence.json (written by scripts/verify_rill_release.py + pm-rill-runtime + pm-core-rill-roundtrip); NEVER derived from this static check",
   "upstreamStatus": "provisioned",
-  "blockedReason": null,
+  "upstreamReleaseVersion": "1.2.0",
+  "upstreamReleaseTag": "v1.2.0",
+  "upstreamReleaseCommitSha": "dc96fdb3bf55eacdd1c093f1be08d1c9daed4400",
+  "upstreamAdapterReleaseAssetVersion": "1.2.0",
+  "upstreamAdapterBinaryVersion": "0.15.0",
+  "upstreamProtocolVersion": 1,
   "provisioned": true,
+  "blockedReason": null,
   "checks": [
     {
       "name": "schema contract const==pm-rill-shadow",
@@ -25,7 +33,11 @@
       "ok": true
     },
     {
-      "name": "schema ops == status/observe/outcome",
+      "name": "DEP protocol schemaFile present",
+      "ok": true
+    },
+    {
+      "name": "schema ops == {status,observe,outcome}",
       "ok": true
     },
     {
@@ -37,7 +49,31 @@
       "ok": true
     },
     {
-      "name": "Core fail-closed gate token: external-runtime-missing",
+      "name": "schema contextKey pattern ^ctx-v1:",
+      "ok": true
+    },
+    {
+      "name": "schema contextKey maxLength 512",
+      "ok": true
+    },
+    {
+      "name": "DEP contextKey pattern <=> schema",
+      "ok": true
+    },
+    {
+      "name": "Core contextKey wiring",
+      "ok": true
+    },
+    {
+      "name": "Core fail-closed gate token: binary-invalid",
+      "ok": true
+    },
+    {
+      "name": "Core fail-closed gate token: external-runtime-not-provisioned",
+      "ok": true
+    },
+    {
+      "name": "Core fail-closed gate token: protocol-version-mismatch",
       "ok": true
     },
     {
@@ -45,7 +81,7 @@
       "ok": true
     },
     {
-      "name": "Core fail-closed gate token: protocol-version-mismatch",
+      "name": "Core fail-closed gate token: missing-required-capability",
       "ok": true
     },
     {
@@ -57,7 +93,47 @@
       "ok": true
     },
     {
-      "name": "Core fail-closed gate token: state: RILL_STATES.incompatible",
+      "name": "Core fail-closed gate token: RILL_STATES.incompatible",
+      "ok": true
+    },
+    {
+      "name": "Core fail-closed gate token: RILL_STATES.notProvisioned",
+      "ok": true
+    },
+    {
+      "name": "Core declares shared rill_binary_path resolver",
+      "ok": true
+    },
+    {
+      "name": "Core resolver checks both default paths",
+      "ok": true
+    },
+    {
+      "name": "Core resolver fails closed on explicit binary",
+      "ok": true
+    },
+    {
+      "name": "init declares resolve_binary resolver",
+      "ok": true
+    },
+    {
+      "name": "init resolver checks both default paths",
+      "ok": true
+    },
+    {
+      "name": "init fails closed on explicit binary",
+      "ok": true
+    },
+    {
+      "name": "minimumReleaseVersion present",
+      "ok": true
+    },
+    {
+      "name": "minimumAdapterVersion present",
+      "ok": true
+    },
+    {
+      "name": "minimumRillVersion kept only as deprecated alias",
       "ok": true
     },
     {
@@ -69,17 +145,57 @@
       "ok": true
     },
     {
-      "name": "release pinned (no latest/download)",
+      "name": "release pinned (no latest/download/branch)",
       "ok": true
     },
     {
-      "name": "release checksum non-empty",
+      "name": "tag commit non-empty",
       "ok": true
     },
     {
-      "name": "release version non-empty",
+      "name": "release tag == v1.2.0",
+      "ok": true
+    },
+    {
+      "name": "release channel == stable (never candidate)",
+      "ok": true
+    },
+    {
+      "name": "release index schemaVersion == 3 (fail-closed on unknown)",
+      "ok": true
+    },
+    {
+      "name": "publisher identity present",
+      "ok": true
+    },
+    {
+      "name": "adapter protocol version == 1",
+      "ok": true
+    },
+    {
+      "name": "adapter target == linux/x86_64/musl",
+      "ok": true
+    },
+    {
+      "name": "adapter release asset version vs binary version distinct",
+      "ok": true
+    },
+    {
+      "name": "adapter name exact",
+      "ok": true
+    },
+    {
+      "name": "adapter sha256 matches artifact",
+      "ok": true
+    },
+    {
+      "name": "adapter size matches artifact",
+      "ok": true
+    },
+    {
+      "name": "no branch URL / main / HEAD",
       "ok": true
     }
   ],
-  "note": "provisioned=True: upstream=pass; the PM-side fail-closed contract and the pinned upstream adapter release are verified separately. overall=pass — a blocked upstream is never reported as a PASS, and a provisioned+verified release is reported as pass rather than blocked."
+  "note": "STATIC contract + release-pin only; never a functional-integration claim. Real tag identity, signed-index signature and artifact integrity: scripts/verify_rill_release.py. Real adapter runtime and PM Core roundtrip: pm-rill-runtime / pm-core-rill-roundtrip jobs. A blocked upstream is never a Rill PASS."
 }
