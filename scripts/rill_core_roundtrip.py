@@ -81,7 +81,9 @@ def main() -> int:
         sh('sudo', 'install', '-D', '-m', '0755', str(CORE), str(rootfs / 'usr/sbin/performance-manager.uc'))
         sh('sudo', 'install', '-D', '-m', '0644', str(CONTRACTS), str(rootfs / 'usr/share/performance-manager/contracts.uc'))
         sh('sudo', 'install', '-D', '-m', '0755', str(adapter), str(rootfs / 'usr/bin/rill-pm-adapter'))
-        for d in ('var/run/ubus', 'var/run', 'tmp/performance-manager', 'etc/performance-manager', 'etc/performance-manager/rill'):
+        # The adapter binds /run/pm-rill.sock, so the chroot needs /run (in the
+        # official rootfs /run is not guaranteed to pre-exist in the tar).
+        for d in ('run', 'var/run/ubus', 'var/run', 'tmp/performance-manager', 'etc/performance-manager', 'etc/performance-manager/rill'):
             sh('sudo', 'mkdir', '-p', str(rootfs / d))
 
         log('starting ubusd')
@@ -101,7 +103,14 @@ def main() -> int:
         time.sleep(1.5)
         ev['adapterStarted'] = a.poll() is None
         if not ev['adapterStarted']:
-            log('FATAL: rill-pm-adapter exited early rc=%s' % a.poll()); return 1
+            rc = a.poll()
+            out = ''
+            try:
+                out, _ = a.communicate(timeout=3)
+            except Exception:
+                pass
+            log('FATAL: rill-pm-adapter exited early rc=%s output=%r' % (rc, (out or '')[-800:]))
+            return 1
 
         # Adapter publishes the socket (shared empty-binary default path is the
         # installed /usr/bin/rill-pm-adapter; socket is the Core's default).

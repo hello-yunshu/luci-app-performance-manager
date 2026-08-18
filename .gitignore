@@ -7,6 +7,10 @@ docs/planning-v0.3.2/
 OpenWrt_Performance_Manager_1.0.0-rc.2_Independent_Reaudit_2026-08-13.md
 OpenWrt_Performance_Manager_*_Prompt_2026-08-15.md
 OpenWrt_Performance_Manager_*_Prompt_2026-08-16.md
+OpenWrt_Performance_Manager_*_Prompt_2026-08-18.md
+
+# Downloaded Rill adapter artifact (provenance job re-fetches it; never committed)
+docs/rill-pm-adapter-*
 
 # One-off development tooling / staging (never shipped, never committed)
 .rill-adapter-staging/
