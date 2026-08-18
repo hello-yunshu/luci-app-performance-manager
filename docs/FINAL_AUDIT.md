@@ -1,8 +1,8 @@
-# Final Audit — 1.0.0-rc.5
+# Final Audit — 1.0.0-rc.6
 
 ## Decision
 
-**PASS — 1.0.0-rc.5 source + Rill integration candidate; Stable remains blocked by explicit external target/testbed gates.**
+**PASS — 1.0.0-rc.6 source + Rill integration candidate; Stable remains blocked by explicit external target/testbed gates.**
 
 This audit is a single self-contained orchestrator: contract validation, host syntax checks, source gates, resource budget and the unittest suite are all rerun in this process, and only the freshly generated reports are consumed. Source completion is deliberately separated from real target evidence.
 
@@ -12,6 +12,7 @@ This audit is a single self-contained orchestrator: contract validation, host sy
 - host-syntax: **PASS**
 - source-gates: **PASS**
 - rill-contract: **PASS**
+- rill-runtime: **PASS**
 - resource-budget: **PASS**
 
 
@@ -41,7 +42,7 @@ This audit is a single self-contained orchestrator: contract validation, host sy
 
 ## Rill integration (external runtime)
 
-Rill is an external runtime dependency owned, built and released by its upstream repository. This repository does not compile or natively test Rill. The PM-side fail-closed contract **PASSES** (the Core never crashes, never fakes a recommendation, and never auto-applies from an unavailable/incompatible runtime). The freshly regenerated gate (`docs/rill-integration-status.json`, written by the `rill-contract` step) reports: **pmFailClosedContract=pass, upstreamIntegration=pass, overallFeatureStatus=pass** (provisioned=true). This is derived from the pinned upstream release entry and never hardcoded; the remaining Stable gates (booted target, real A/B testbed, soak) are still explicit external gates.
+Rill is an external runtime dependency owned, built and released by its upstream repository. This repository does not compile or natively test Rill. The PM-side fail-closed contract **PASSES** (the Core never crashes, never fakes a recommendation, and never auto-applies from an unavailable/incompatible runtime). The freshly regenerated gate (`docs/rill-integration-status.json`, written by the `rill-contract` step) reports: **pmFailClosedContract=pass, upstreamEntitlement=pass, overallFeatureStatus=pass** (provisioned=true). This is derived from the pinned upstream release entry and never hardcoded; the remaining Stable gates (booted target, real A/B testbed, soak) are still explicit external gates.
 
 ## Real Core runtime harness
 

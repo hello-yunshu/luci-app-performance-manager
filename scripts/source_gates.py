@@ -92,7 +92,7 @@ phases['8']=gate('Rill Intelligence (external runtime)',[
  ('integration package never compiles Rill',all_tokens(RILL_MAKE,['Build/Compile','PKG_BUILD_DEPENDS:=']) and 'cargo' not in RILL_MAKE and 'rust' not in RILL_MAKE.lower()),
  ('shadow-only ops contract declared',all_tokens(CORE,["const RILL_REQUIRED_OPS = [ 'status', 'observe', 'outcome' ]"])),
  ('protocol gate wiring',all_tokens(CORE,['const RILL_CONTRACT = \'pm-rill-shadow\'','const RILL_PROTOCOL_VERSION = 1','contract-mismatch','protocol-version-mismatch'])),
- ('external runtime fail-closed wiring',all_tokens(CORE,['external-runtime-missing','shadow.binary'])),
+ ('external runtime fail-closed wiring',all_tokens(CORE,['binary-invalid','rill_binary_path','external-runtime-not-provisioned'])),
  ('no apply/uci op in protocol',"'apply' not in RILL_SCHEMA and 'uci' not in RILL_SCHEMA"),
  ('bounded context-key partition wiring',all_tokens(CORE,['rill_context_key_build','ctx-v1:','goal=%s'])),
  ('goal is first-class partition wiring',all_tokens(CORE,['const GOALS =',"goal_class = safe_name(goal_id ?? 'balanced')"])),

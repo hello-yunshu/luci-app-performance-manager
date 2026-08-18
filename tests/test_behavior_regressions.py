@@ -154,7 +154,8 @@ class BehavioralRegressions(unittest.TestCase):
         self.assertIn('const RILL_PROTOCOL_VERSION = 1', CORE)
         self.assertIn('contract-mismatch', CORE)
         self.assertIn('protocol-version-mismatch', CORE)
-        self.assertIn('external-runtime-missing', CORE)
+        self.assertIn('external-runtime-not-provisioned', CORE)
+        self.assertIn('binary-invalid', CORE)
         self.assertIn("state: RILL_STATES.incompatible", CORE)
 
     # 11. Upstream Rill artifact checksum/manifest gate is a real contract check.

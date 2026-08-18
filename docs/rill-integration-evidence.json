@@ -1,0 +1,110 @@
+{
+  "schemaVersion": 2,
+  "pm": {
+    "version": "1.0.0-rc.6"
+  },
+  "rill": {
+    "releaseVersion": "1.2.0",
+    "releaseTag": "v1.2.0",
+    "expectedCommitSha": "dc96fdb3bf55eacdd1c093f1be08d1c9daed4400",
+    "resolvedCommitSha": "dc96fdb3bf55eacdd1c093f1be08d1c9daed4400",
+    "tagType": "annotated",
+    "tagIdentityVerdict": "PASS",
+    "adapterReleaseAssetVersion": "1.2.0",
+    "adapterBinaryVersion": "0.15.0",
+    "adapterProtocolVersion": 1
+  },
+  "release": {
+    "tag": "v1.2.0",
+    "draft": false,
+    "prerelease": false,
+    "publishedAt": "2026-08-18T13:36:11Z",
+    "htmlUrl": "https://github.com/hello-yunshu/rill-ml/releases/tag/v1.2.0"
+  },
+  "releaseIndex": {
+    "schemaVersion": 3,
+    "channel": "stable",
+    "publisherKeyId": "rillml-examples-2026-001",
+    "generatedAt": "2026-08-18T13:36:06Z",
+    "indexSignatureVerdict": "PASS"
+  },
+  "artifact": {
+    "name": "rill-pm-adapter-1.2.0-linux-x86_64-musl",
+    "url": "https://github.com/hello-yunshu/rill-ml/releases/download/v1.2.0/rill-pm-adapter-1.2.0-linux-x86_64-musl",
+    "targetOs": "linux",
+    "targetArch": "x86_64",
+    "targetLibc": "musl",
+    "pmAdapterProtocolVersion": 1,
+    "releaseAssetVersion": "1.2.0",
+    "adapterVersion": "0.15.0",
+    "signedIndexSize": 1278136,
+    "actualSize": 1278136,
+    "signedIndexSha256": "84fcfa65c59639281b9d33f39d480ea063b3093857101dcc3bcf9462d96f9579",
+    "actualSha256": "84fcfa65c59639281b9d33f39d480ea063b3093857101dcc3bcf9462d96f9579",
+    "sha256Match": true,
+    "sizeMatch": true,
+    "artifactIntegrityVerdict": "PASS"
+  },
+  "runtime": {
+    "executableVerdict": "BLOCKED",
+    "versionVerdict": "BLOCKED",
+    "startupVerdict": "BLOCKED",
+    "statusVerdict": "PASS",
+    "observeVerdict": "PASS",
+    "outcomeVerdict": "BLOCKED",
+    "failClosedVerdict": "PASS",
+    "pmCoreRoundtripVerdict": "BLOCKED",
+    "wireHarnessVerdict": "PASS",
+    "harnessMode": "mock-adapter protocol harness (no rootfs); real Core<->adapter in CI"
+  },
+  "overallVerdict": "BLOCKED",
+  "errors": [],
+  "harnessChecks": [
+    {
+      "name": "positive status roundtrip accepted",
+      "ok": true,
+      "detail": "ok"
+    },
+    {
+      "name": "status releaseVersion == 1.2.0",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "status adapterVersion == 0.15.0",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "observe request frame validates against schema",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "fail-closed wrong contract",
+      "ok": true,
+      "detail": "contract-mismatch"
+    },
+    {
+      "name": "fail-closed foreign protocolVersion",
+      "ok": true,
+      "detail": "protocol-version-mismatch"
+    },
+    {
+      "name": "fail-closed missing required capability",
+      "ok": true,
+      "detail": "missing-required-capability"
+    },
+    {
+      "name": "fail-closed unhealthy model",
+      "ok": true,
+      "detail": "model-unhealthy"
+    },
+    {
+      "name": "binary-resolution contract matrix (Core==init)",
+      "ok": true,
+      "detail": "{\"explicit-absolute-present\": \"binary-ok\", \"explicit-absolute-missing\": \"binary-invalid\", \"explicit-relative\": \"binary-invalid\", \"empty-default-present\": \"binary-ok\", \"empty-default-missing\": \"not-provisioned\"}"
+    }
+  ],
+  "note": "Runtime verdicts for real adapter exec/version/startup/outcome and the real Core<->adapter roundtrip are filled by CI pm-rill-runtime / pm-core-rill-roundtrip inside the OpenWrt rootfs; they stay BLOCKED here. status/observe/fail-closed are proven at the wire-protocol level by this mock-adapter harness against the shipped contract artifacts."
+}

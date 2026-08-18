@@ -22,7 +22,7 @@ const RILL_CONTRACT = 'pm-rill-shadow';
 const RILL_PROTOCOL_VERSION = 1;
 const RILL_REQUIRED_CAPABILITIES = [ 'context-partitioned-model', 'goal-partition', 'validated-outcome', 'decision-ledger', 'model-health' ];
 const RILL_REQUIRED_OPS = [ 'status', 'observe', 'outcome' ];
-const RILL_STATES = { disabled: 'disabled', notProvisioned: 'not-provisioned', starting: 'starting', available: 'available', learning: 'learning', incompatible: 'incompatible', unhealthy: 'unhealthy', unavailable: 'unavailable' };
+const RILL_STATES = { disabled: 'disabled', notProvisioned: 'not-provisioned', binaryInvalid: 'binary-invalid', starting: 'starting', available: 'available', learning: 'learning', incompatible: 'incompatible', unhealthy: 'unhealthy', unavailable: 'unavailable' };
 const GOALS = [ 'balanced', 'throughput', 'latency', 'cpu_efficiency' ];
 /* Only throughput A/B is measurable with the current iperf3 methodology.
  * Other goals fail-closed rather than silently degrading to throughput. */
@@ -1695,39 +1695,62 @@ function rill_context_key_build(profile, capability_hash, topo_gen, path_id, rou
 		safe_name(path_id ?? 'path:lan-to-wan'), route_class, workload_class_h, integ_class, goal_class);
 }
 
+function rill_binary_path() {
+	/* UNIQUE PM<->init binary resolution contract.  Kept in sync with
+	 * resolve_binary() in the performance-manager-rill init guard.  An
+	 * explicit shadow.binary wins EXCLUSIVELY (must be absolute and present,
+	 * otherwise reason 'binary-invalid', never a silent fallback); an empty
+	 * shadow.binary resolves the default install path (/usr/bin then
+	 * /usr/sbin); none found -> reason 'not-provisioned'.
+	 * Returns { ok, binary, effective, source, reason }. */
+	let configured = str_cfg('shadow.binary', '');
+	if (configured != '') {
+		if (substr(configured, 0, 1) != '/' || !file_exists(configured))
+			return { ok: false, binary: configured, effective: null, source: 'explicit', reason: 'binary-invalid' };
+		return { ok: true, binary: configured, effective: configured, source: 'explicit', reason: 'ok' };
+	}
+	for (let path in [ '/usr/bin/rill-pm-adapter', '/usr/sbin/rill-pm-adapter' ])
+		if (file_exists(path))
+			return { ok: true, binary: path, effective: path, source: 'default', reason: 'ok' };
+	return { ok: false, binary: '', effective: null, source: 'default', reason: 'not-provisioned' };
+}
+
 function rill_status() {
 	let enabled = bool_cfg('shadow.enabled', true);
-	if (!enabled) return { enabled: false, mode: 'shadow', status: 'Shadow · Disabled', state: RILL_STATES.disabled, reason: 'disabled', compatibility: 'not-applicable', transport: 'unavailable' };
-	/* External dependency check: the integration package must be provisioned
-	 * (installed adapter or configured binary) before it can be available. */
-	let binary = str_cfg('shadow.binary', '');
-	let socket_path = rill_socket_path();
-	if (binary == '' && !file_exists('/usr/bin/rill-pm-adapter') && !file_exists('/usr/sbin/rill-pm-adapter'))
-		return { enabled: true, mode: 'shadow', status: 'Shadow · Not provisioned', state: RILL_STATES.notProvisioned, reason: 'external-runtime-not-provisioned', compatibility: 'not-provisioned', transport: 'unavailable' };
-	if (binary != '' && !file_exists(binary))
-		return { enabled: true, mode: 'shadow', status: 'Shadow · Not provisioned', state: RILL_STATES.notProvisioned, reason: 'external-runtime-missing', compatibility: 'not-provisioned', transport: 'unavailable' };
+	if (!enabled) return { enabled: false, mode: 'shadow', status: 'Shadow · Disabled', state: RILL_STATES.disabled, reason: 'disabled', compatibility: 'not-applicable', transport: 'unavailable', protocolVersion: RILL_PROTOCOL_VERSION, binary: { configured: str_cfg('shadow.binary', ''), effective: null, source: 'n/a' } };
+	/* External dependency check driven by the unique binary-resolution
+	 * contract.  Explicit binary wins exclusively and must be absolute and
+	 * present; an empty binary resolves the default install path; a missing
+	 * runtime is reported not-provisioned, never assumed available. */
+	let bin = rill_binary_path();
+	let bmeta = { configured: str_cfg('shadow.binary', ''), effective: bin.effective, source: bin.source };
+	if (!bin.ok) {
+		if (bin.reason == 'binary-invalid')
+			return { enabled: true, mode: 'shadow', status: 'Shadow · Binary invalid', state: RILL_STATES.binaryInvalid, reason: 'binary-invalid', compatibility: 'not-provisioned', transport: 'unavailable', protocolVersion: RILL_PROTOCOL_VERSION, binary: bmeta };
+		return { enabled: true, mode: 'shadow', status: 'Shadow · Not provisioned', state: RILL_STATES.notProvisioned, reason: 'external-runtime-not-provisioned', compatibility: 'not-provisioned', transport: 'unavailable', protocolVersion: RILL_PROTOCOL_VERSION, binary: bmeta };
+	}
 	let r = rill_send({ contract: RILL_CONTRACT, protocolVersion: RILL_PROTOCOL_VERSION, requestId: sprintf('status-%d', monotonic_ms()), op: 'status' });
-	if (!r.ok) return { enabled: true, mode: 'shadow', status: 'Shadow · Unavailable', state: RILL_STATES.unavailable, reason: r.state ?? 'unavailable', compatibility: 'unknown', transport: r.state ?? 'unavailable' };
+	if (!r.ok) return { enabled: true, mode: 'shadow', status: 'Shadow · Unavailable', state: RILL_STATES.unavailable, reason: r.state ?? 'unavailable', compatibility: 'unknown', transport: r.state ?? 'unavailable', protocolVersion: RILL_PROTOCOL_VERSION, binary: bmeta };
 	/* Contract + protocol negotiation: a wrong contract name or a
 	 * higher/foreign protocol major must not be assumed compatible. */
 	let resp = r.response ?? {};
 	if (resp.contract != RILL_CONTRACT)
-		return { enabled: true, mode: 'shadow', status: 'Shadow · Incompatible contract', state: RILL_STATES.incompatible, reason: 'contract-mismatch', compatibility: 'incompatible', transport: 'connected', requestedContract: RILL_CONTRACT, advertisedContract: resp.contract ?? null, detail: r.response };
+		return { enabled: true, mode: 'shadow', status: 'Shadow · Incompatible contract', state: RILL_STATES.incompatible, reason: 'contract-mismatch', compatibility: 'incompatible', transport: 'connected', requestedContract: RILL_CONTRACT, advertisedContract: resp.contract ?? null, protocolVersion: RILL_PROTOCOL_VERSION, binary: bmeta, detail: r.response };
 	if ((resp.protocolVersion ?? 0) != RILL_PROTOCOL_VERSION)
-		return { enabled: true, mode: 'shadow', status: 'Shadow · Incompatible protocol', state: RILL_STATES.incompatible, reason: 'protocol-version-mismatch', compatibility: 'incompatible', transport: 'connected', requestedProtocolVersion: RILL_PROTOCOL_VERSION, advertisedProtocolVersion: resp.protocolVersion ?? null, detail: r.response };
+		return { enabled: true, mode: 'shadow', status: 'Shadow · Incompatible protocol', state: RILL_STATES.incompatible, reason: 'protocol-version-mismatch', compatibility: 'incompatible', transport: 'connected', requestedProtocolVersion: RILL_PROTOCOL_VERSION, advertisedProtocolVersion: resp.protocolVersion ?? null, protocolVersion: RILL_PROTOCOL_VERSION, binary: bmeta, detail: r.response };
 	/* Required capabilities: the adapter must declare every capability the
 	 * integration depends on; a missing one is fail-closed. */
 	let caps = resp.capabilities ?? [];
 	for (let need in RILL_REQUIRED_CAPABILITIES)
 		if (index(caps, need) < 0)
-			return { enabled: true, mode: 'shadow', status: 'Shadow · Missing capabilities', state: RILL_STATES.incompatible, reason: 'missing-required-capability', compatibility: 'incompatible', transport: 'connected', missingCapability: need, detail: r.response };
+			return { enabled: true, mode: 'shadow', status: 'Shadow · Missing capabilities', state: RILL_STATES.incompatible, reason: 'missing-required-capability', compatibility: 'incompatible', transport: 'connected', missingCapability: need, protocolVersion: RILL_PROTOCOL_VERSION, binary: bmeta, detail: r.response };
 	/* Model health: advisory is only allowed when the adapter reports a
 	 * healthy model; a degraded adapter is fail-closed unhealthy. */
 	let health = resp.modelHealth ?? {};
 	if (health.overall != 'healthy')
-		return { enabled: true, mode: 'shadow', status: 'Shadow · Unhealthy', state: RILL_STATES.unhealthy, reason: 'model-unhealthy', compatibility: 'compatible', transport: 'connected', modelHealth: health, detail: r.response };
+		return { enabled: true, mode: 'shadow', status: 'Shadow · Unhealthy', state: RILL_STATES.unhealthy, reason: 'model-unhealthy', compatibility: 'compatible', transport: 'connected', modelHealth: health, protocolVersion: RILL_PROTOCOL_VERSION, binary: bmeta, detail: r.response };
 	let learning = resp.state == 'learning';
-	return { enabled: true, mode: 'shadow', status: learning ? 'Shadow · Learning' : 'Shadow · Available', state: learning ? RILL_STATES.learning : RILL_STATES.available, reason: null, compatibility: 'compatible', transport: 'connected', adapterVersion: resp.adapterVersion, rillVersion: resp.rillVersion, detail: r.response };
+	return { enabled: true, mode: 'shadow', status: learning ? 'Shadow · Learning' : 'Shadow · Available', state: learning ? RILL_STATES.learning : RILL_STATES.available, reason: null, compatibility: 'compatible', transport: 'connected', releaseVersion: resp.releaseVersion ?? null, adapterVersion: resp.adapterVersion ?? null, protocolVersion: resp.protocolVersion ?? RILL_PROTOCOL_VERSION, binary: bmeta, detail: r.response };
 }
 
 function push_unique(dst, value) {

@@ -132,9 +132,9 @@ for token in ['rust/host','rust-package.mk','RUST_PKG_LOCKED:=1','cargo']:
 # The integration package still guards the external runtime and stays fail-closed.
 for token in ['Build/Compile','PKG_BUILD_DEPENDS:=']:
     if token not in rill_mk: fail(f'integration Makefile mechanism missing: {token}')
-for token in ['external Rill runtime not installed','[ -n "$binary" ] && [ -x "$binary" ]','--state-dir "$state_dir"','procd_set_param user "$SERVICE_USER"','chmod 0750']:
+for token in ['resolve_binary','BINARY_STATE=','binary-invalid','external Rill runtime not provisioned','--state-dir "$state_dir"','procd_set_param user "$SERVICE_USER"','chmod 0750']:
     if token not in rill_init: fail(f'Rill integration-guard invariant missing: {token}')
-for token in ["const RILL_REQUIRED_OPS = [ 'status', 'observe', 'outcome' ]","const RILL_CONTRACT = 'pm-rill-shadow'","const RILL_PROTOCOL_VERSION = 1","contract-mismatch","protocol-version-mismatch","external-runtime-missing","state: RILL_STATES.incompatible"]:
+for token in ["const RILL_REQUIRED_OPS = [ 'status', 'observe', 'outcome' ]","const RILL_CONTRACT = 'pm-rill-shadow'","const RILL_PROTOCOL_VERSION = 1","contract-mismatch","protocol-version-mismatch","binary-invalid","external-runtime-not-provisioned","state: RILL_STATES.incompatible"]:
     if token not in core: fail(f'Core Rill capability/protocol gate mechanism missing: {token}')
 
 companion=(ROOT/'companion/pm_companion_agent.py').read_text()

@@ -1,0 +1,209 @@
+{
+  "payload": {
+    "schemaVersion": 3,
+    "channel": "stable",
+    "generatedAt": "2026-08-18T13:36:06Z",
+    "publisherKeyId": "rillml-examples-2026-001",
+    "artifacts": [
+      {
+        "kind": "runtime",
+        "id": "rill-runtime",
+        "version": "1.2.0",
+        "runtimeApiVersion": 2,
+        "targetOs": "linux",
+        "targetArch": "x86_64",
+        "targetLibc": "gnu",
+        "url": "https://github.com/hello-yunshu/rill-ml/releases/download/v1.2.0/rill-runtime-1.2.0-linux-x86_64",
+        "sha256": "c54f59b74d881078129221139408685601edc48f9c59f1d4e2b67c7e41702c0d",
+        "size": 19025592
+      },
+      {
+        "kind": "runtime",
+        "id": "rill-runtime-musl",
+        "version": "1.2.0",
+        "runtimeApiVersion": 2,
+        "targetOs": "linux",
+        "targetArch": "x86_64",
+        "targetLibc": "musl",
+        "url": "https://github.com/hello-yunshu/rill-ml/releases/download/v1.2.0/rill-runtime-1.2.0-linux-x86_64-musl",
+        "sha256": "9e404a400fa9fa52be01e82b0bd9e0190414858095acc19a99d80681522cc1bf",
+        "size": 14208584
+      },
+      {
+        "kind": "runtime",
+        "id": "rill-runtime",
+        "version": "1.2.0",
+        "runtimeApiVersion": 2,
+        "targetOs": "linux",
+        "targetArch": "aarch64",
+        "targetLibc": "gnu",
+        "url": "https://github.com/hello-yunshu/rill-ml/releases/download/v1.2.0/rill-runtime-1.2.0-linux-aarch64",
+        "sha256": "d7553dd49dc83dd5e01e92c30899eb39059167233819c62a26ecf2764f8e43a3",
+        "size": 11030480
+      },
+      {
+        "kind": "runtime",
+        "id": "rill-runtime-musl",
+        "version": "1.2.0",
+        "runtimeApiVersion": 2,
+        "targetOs": "linux",
+        "targetArch": "aarch64",
+        "targetLibc": "musl",
+        "url": "https://github.com/hello-yunshu/rill-ml/releases/download/v1.2.0/rill-runtime-1.2.0-linux-aarch64-musl",
+        "sha256": "27bb138bef419f2dc00f6c0f84f89ca60d0b422219feb140e092e04795206201",
+        "size": 10711032
+      },
+      {
+        "kind": "runtime",
+        "id": "rill-runtime",
+        "version": "1.2.0",
+        "runtimeApiVersion": 2,
+        "targetOs": "linux",
+        "targetArch": "riscv64",
+        "targetLibc": "gnu",
+        "url": "https://github.com/hello-yunshu/rill-ml/releases/download/v1.2.0/rill-runtime-1.2.0-linux-riscv64",
+        "sha256": "fb39faedfad504208f2352a3b94a1f7a8a583a162e5b6e5e6940ec84ca3640a8",
+        "size": 10851936
+      },
+      {
+        "kind": "runtime",
+        "id": "rill-runtime",
+        "version": "1.2.0",
+        "runtimeApiVersion": 2,
+        "targetOs": "linux",
+        "targetArch": "armv7",
+        "targetLibc": "gnu",
+        "url": "https://github.com/hello-yunshu/rill-ml/releases/download/v1.2.0/rill-runtime-1.2.0-linux-armv7",
+        "sha256": "5229bc8af88e1538ddc4f33b84416578e90bc7ce473407de548baa9494b7d414",
+        "size": 9489020
+      },
+      {
+        "kind": "runtime",
+        "id": "rill-runtime",
+        "version": "1.2.0",
+        "runtimeApiVersion": 2,
+        "targetOs": "linux",
+        "targetArch": "s390x",
+        "targetLibc": "gnu",
+        "url": "https://github.com/hello-yunshu/rill-ml/releases/download/v1.2.0/rill-runtime-1.2.0-linux-s390x",
+        "sha256": "4b8ce466ceab5f388c682b41eec52b4c3acc646e8000ba61ccc8963fbe3527f7",
+        "size": 12885992
+      },
+      {
+        "kind": "runtime",
+        "id": "rill-runtime",
+        "version": "1.2.0",
+        "runtimeApiVersion": 2,
+        "targetOs": "linux",
+        "targetArch": "powerpc64le",
+        "targetLibc": "gnu",
+        "url": "https://github.com/hello-yunshu/rill-ml/releases/download/v1.2.0/rill-runtime-1.2.0-linux-powerpc64le",
+        "sha256": "8af16926488dffced71ebf37fe0d078071b8375c8673f2450b994d95df9489fa",
+        "size": 13896368
+      },
+      {
+        "kind": "runtime",
+        "id": "rill-runtime",
+        "version": "1.2.0",
+        "runtimeApiVersion": 2,
+        "targetOs": "linux",
+        "targetArch": "loongarch64",
+        "targetLibc": "gnu",
+        "url": "https://github.com/hello-yunshu/rill-ml/releases/download/v1.2.0/rill-runtime-1.2.0-linux-loongarch64",
+        "sha256": "ca93ac74fba7deccf03f97ebad00c0bd25063e7fd2301cc2aefc7e331c7224df",
+        "size": 11823848
+      },
+      {
+        "kind": "runtime",
+        "id": "rill-runtime",
+        "version": "1.2.0",
+        "runtimeApiVersion": 2,
+        "targetOs": "freebsd",
+        "targetArch": "x86_64",
+        "url": "https://github.com/hello-yunshu/rill-ml/releases/download/v1.2.0/rill-runtime-1.2.0-freebsd-x86_64",
+        "sha256": "c4e073c53f6fc7e9ba9de152a34827a32efd3dc550c770835395ba167fc9ee2e",
+        "size": 14654440
+      },
+      {
+        "kind": "runtime",
+        "id": "rill-runtime",
+        "version": "1.2.0",
+        "runtimeApiVersion": 2,
+        "targetOs": "macos",
+        "targetArch": "aarch64",
+        "url": "https://github.com/hello-yunshu/rill-ml/releases/download/v1.2.0/rill-runtime-1.2.0-macos-aarch64",
+        "sha256": "658920ef31f6d1ca1b6a95b9f0b88aa5811d87460b8002257a9e35f497319db8",
+        "size": 13909376
+      },
+      {
+        "kind": "runtime",
+        "id": "rill-runtime",
+        "version": "1.2.0",
+        "runtimeApiVersion": 2,
+        "targetOs": "windows",
+        "targetArch": "x86_64",
+        "url": "https://github.com/hello-yunshu/rill-ml/releases/download/v1.2.0/rill-runtime-1.2.0-windows-x86_64.exe",
+        "sha256": "7ad471f958ef689abece0587cff3ee64be7c46fcfc18cf08255aba0fff6eb9fe",
+        "size": 14404096
+      },
+      {
+        "kind": "runtime",
+        "id": "rill-runtime",
+        "version": "1.2.0",
+        "runtimeApiVersion": 2,
+        "targetOs": "windows",
+        "targetArch": "aarch64",
+        "url": "https://github.com/hello-yunshu/rill-ml/releases/download/v1.2.0/rill-runtime-1.2.0-windows-aarch64.exe",
+        "sha256": "3c159799e92840e259f539bb70f3c3f48564a1ea8ab3a54322a00546e30e3fe5",
+        "size": 10052608
+      },
+      {
+        "kind": "pm-adapter",
+        "id": "rill-pm-adapter",
+        "version": "1.2.0",
+        "runtimeApiVersion": 0,
+        "targetOs": "linux",
+        "targetArch": "x86_64",
+        "targetLibc": "musl",
+        "pmAdapterProtocolVersion": 1,
+        "url": "https://github.com/hello-yunshu/rill-ml/releases/download/v1.2.0/rill-pm-adapter-1.2.0-linux-x86_64-musl",
+        "sha256": "84fcfa65c59639281b9d33f39d480ea063b3093857101dcc3bcf9462d96f9579",
+        "size": 1278136
+      },
+      {
+        "kind": "pm-adapter",
+        "id": "rill-pm-adapter",
+        "version": "1.2.0",
+        "runtimeApiVersion": 0,
+        "targetOs": "linux",
+        "targetArch": "aarch64",
+        "targetLibc": "musl",
+        "pmAdapterProtocolVersion": 1,
+        "url": "https://github.com/hello-yunshu/rill-ml/releases/download/v1.2.0/rill-pm-adapter-1.2.0-linux-aarch64-musl",
+        "sha256": "c0a9bb9639561ca6f90501a4f9a4f7e18bb0e44e7bee684b41bec748a2851dea",
+        "size": 1126048
+      },
+      {
+        "kind": "model",
+        "id": "rillml.example.default",
+        "version": "1.2.0",
+        "runtimeApiVersion": 2,
+        "url": "https://github.com/hello-yunshu/rill-ml/releases/download/v1.2.0/example-default-1.2.0.rillpack",
+        "sha256": "97f2537e7dae3872033741771ee43d9bd6772f140b2f1438145048638e4afb9a",
+        "size": 924
+      },
+      {
+        "kind": "handler",
+        "id": "rillml.echo.handler",
+        "version": "1.2.0",
+        "runtimeApiVersion": 2,
+        "handlerApiVersion": 1,
+        "minRuntimeVersion": "1.2.0",
+        "url": "https://github.com/hello-yunshu/rill-ml/releases/download/v1.2.0/echo-handler-1.2.0.rillhandler",
+        "sha256": "04a213e9684f054fcb2b3c382481e682c7f658bdf42d1330d6341af212b34c95",
+        "size": 8832
+      }
+    ]
+  },
+  "signature": "a38d20b9e72e2764c9825d4ecfa335e134f63910e4034ebcecff57b13f4a036e3f7467e1f123abcebd7947008fb40a35095bc9eed9278f052ef17e20de64670b"
+}

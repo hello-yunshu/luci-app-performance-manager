@@ -1,0 +1,31 @@
+{
+  "schemaVersion": 1,
+  "contract": "pm<->rill-release-provenance",
+  "releaseVersion": "1.2.0",
+  "releaseTag": "v1.2.0",
+  "releaseCommitSha": "dc96fdb3bf55eacdd1c093f1be08d1c9daed4400",
+  "tagIdentityVerdict": "PASS",
+  "releaseIndexSchemaVersion": 3,
+  "releaseChannel": "stable",
+  "publisherKeyId": "rillml-examples-2026-001",
+  "indexSignatureVerdict": "PASS",
+  "adapterReleaseAssetVersion": "1.2.0",
+  "adapterBinaryVersion": "0.15.0",
+  "adapterProtocolVersion": 1,
+  "artifact": {
+    "kind": "pm-adapter",
+    "id": "rill-pm-adapter",
+    "targetOs": "linux",
+    "targetArch": "x86_64",
+    "targetLibc": "musl",
+    "name": "rill-pm-adapter-1.2.0-linux-x86_64-musl",
+    "url": "https://github.com/hello-yunshu/rill-ml/releases/download/v1.2.0/rill-pm-adapter-1.2.0-linux-x86_64-musl",
+    "signedIndexSize": 1278136,
+    "actualSize": 1278136,
+    "signedIndexSha256": "84fcfa65c59639281b9d33f39d480ea063b3093857101dcc3bcf9462d96f9579",
+    "actualSha256": "84fcfa65c59639281b9d33f39d480ea063b3093857101dcc3bcf9462d96f9579",
+    "artifactIntegrityVerdict": "PASS"
+  },
+  "provenanceVerdict": "PASS",
+  "errors": []
+}

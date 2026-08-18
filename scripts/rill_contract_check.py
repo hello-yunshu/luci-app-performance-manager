@@ -1,103 +1,140 @@
 #!/usr/bin/env python3
-"""PM<->Rill dependency contract gate (external runtime).
+"""PM<->Rill PM-side STATIC dependency/protocol contract gate (external runtime).
 
 Rill is owned, built and released by its upstream repository.  This repository
-never compiles or natively tests Rill.  This check verifies only the PM-side
-contract:
+never compiles or natively tests Rill.  This script verifies ONLY the PM-side
+static contract and the well-formedness/immutability of the pinned upstream
+release entry:
 
-  1. the pinned upstream Rill release entry is well-formed and, when a release
-     is provisioned, carries a non-empty pinned version + artifact URL + SHA-256
-     (never `latest` and never an empty checksum);
-  2. the formal IPC schema and the Core agree on protocol contract
-     'pm-rill-shadow' v1 and the shadow-only required ops (exactly
-     status/observe/outcome);
-  3. the Core capability gate is fail-closed: missing runtime, unreachable
-     service and contract/protocol mismatch are surfaced as unavailable/
-     incompatible, never silently assumed OK.
+  1. the formal IPC schema and the Core agree on the pm-rill-shadow v1 protocol
+     and the shadow-only required ops (exactly status/observe/outcome), with the
+     bounded ContextKey pattern `^ctx-v1:` (max 512);
+  2. the Core capability gate is fail-closed (missing runtime, unreachable
+     service, protocol mismatch and capability mismatch are surfaced as
+     unavailable/incompatible, never silently assumed OK) and the Core/init
+     binary resolver implement the same resolution contract;
+  3. the pinned upstream release entry is well-formed and immutable: pinned
+     versioned tag (v1.2.0), resolved tag commit (dc96fdb3...), signed Stable
+     release index (channel stable, schemaVersion 3, publisher identity) and an
+     exact adapter URL + SHA-256 (never `latest`/`main`/branch, never empty).
 
-When the upstream release entry is null (external-dependency-blocked), that is
-a legitimate, honest state as long as the Core fails closed and the integration
-package never compiles/bundles Rill.  This script does NOT fabricate a pass for
-a missing release: it reports the blocked status verbatim and separates the
-PM-side fail-closed contract (pass) from the upstream integration (blocked), so
-the overall feature status is blocked rather than a claimed Rill PASS.
+This script NEVER outputs `functionalIntegration = PASS`.  Real tag identity,
+signed-index signature and artifact integrity must come from
+scripts/verify_rill_release.py, and real adapter runtime / PM Core roundtrip
+must come from the runtime jobs (pm-rill-runtime, pm-core-rill-roundtrip).  All
+those verdicts are recorded in docs/rill-integration-evidence.json.  A
+blocked/not-provisioned upstream is a legitimate honest state as long as the
+Core fails closed and the integration package never compiles/bundles Rill.
 """
 from __future__ import annotations
 import json, sys
 from pathlib import Path
 ROOT=Path(__file__).resolve().parents[1]
 CORE=(ROOT/'package/performance-manager/files/usr/sbin/performance-manager.uc').read_text()
+INIT=(ROOT/'package/performance-manager-rill/files/etc/init.d/performance-manager-rill').read_text()
 SCHEMA=json.loads((ROOT/'contracts/rill-ipc.schema.json').read_text())
 DEP=json.loads((ROOT/'contracts/rill-dependency.json').read_text())
 RILL_MAKE=(ROOT/'package/performance-manager-rill/Makefile').read_text()
-
-def fail(msg): print('FAIL:', msg); return False
 
 checks=[]
 def check(name, ok):
     checks.append((name, bool(ok)))
     if not ok: print('FAIL:', name)
 
-# 1. Protocol contract + shadow-only ops agreement between schema and Core.
+# 1. Formal IPC schema + Core protocol agreement (pm-rill-shadow v1).
 check('schema contract const==pm-rill-shadow', SCHEMA['properties']['contract']['const']=='pm-rill-shadow')
 check('schema protocolVersion const==1', SCHEMA['properties']['protocolVersion']['const']==1)
 check('DEP protocol contract==pm-rill-shadow', DEP['protocol']['contract']=='pm-rill-shadow')
 check('DEP protocol protocolVersion==1', DEP['protocol']['protocolVersion']==1)
+check('DEP protocol schemaFile present', bool(DEP['protocol']['schemaFile']))
 ops=set(SCHEMA['properties']['op']['enum'])
-check('schema ops == status/observe/outcome', ops=={'status','observe','outcome'})
-check('Core shadow-only ops contract', "const RILL_REQUIRED_OPS = [ 'status', 'observe', 'outcome' ]" in CORE
-      and "RILL_REQUIRED_OPS" in CORE)
+check('schema ops == {status,observe,outcome}', ops=={'status','observe','outcome'})
+check('Core shadow-only ops contract', "const RILL_REQUIRED_OPS = [ 'status', 'observe', 'outcome' ]" in CORE)
 check('DEP requiredOps match', set(DEP['protocol']['requiredOps'])==ops)
+check('schema contextKey pattern ^ctx-v1:', SCHEMA['properties']['contextKey']['pattern']=='^ctx-v1:')
+check('schema contextKey maxLength 512', SCHEMA['properties']['contextKey']['maxLength']==512)
+check('DEP contextKey pattern <=> schema', DEP['protocol'].get('contextKeyPattern')=='^ctx-v1:' and DEP['protocol'].get('contextKeyMaxLength')==512)
+check('Core contextKey wiring', 'ctx-v1:' in CORE and 'rill_context_key_build' in CORE)
 
-# 2. Core fail-closed capability gate.
-for token in ['external-runtime-missing','contract-mismatch','protocol-version-mismatch',
-              "const RILL_CONTRACT = 'pm-rill-shadow'",'const RILL_PROTOCOL_VERSION = 1',
-              "state: RILL_STATES.incompatible"]:
-    check(f'Core fail-closed gate token: {token}', token in CORE)
+# 2. Core + init fail-closed and the unique binary-resolution contract.
+# NOTE: 'external-runtime-missing' was merged into the unified binary resolver
+# (explicit-missing -> 'binary-invalid', default-missing -> 'not-provisioned'), so it
+# is no longer a distinct surfaced reason.
+for token in [ 'binary-invalid', 'external-runtime-not-provisioned',
+               'protocol-version-mismatch', 'contract-mismatch', 'missing-required-capability',
+               "const RILL_CONTRACT = 'pm-rill-shadow'", 'const RILL_PROTOCOL_VERSION = 1',
+               'RILL_STATES.incompatible', 'RILL_STATES.notProvisioned' ]:
+    check('Core fail-closed gate token: '+token, token in CORE)
+check('Core declares shared rill_binary_path resolver', 'function rill_binary_path(' in CORE)
+check('Core resolver checks both default paths', '/usr/bin/rill-pm-adapter' in CORE and '/usr/sbin/rill-pm-adapter' in CORE)
+check('Core resolver fails closed on explicit binary', "'binary-invalid'" in CORE and "source: 'explicit'" in CORE)
+check('init declares resolve_binary resolver', 'resolve_binary()' in INIT)
+check('init resolver checks both default paths', '/usr/bin/rill-pm-adapter' in INIT and '/usr/sbin/rill-pm-adapter' in INIT)
+check('init fails closed on explicit binary', 'binary-invalid' in INIT and 'BINARY_STATE=' in INIT)
 
-# 3. Integration package never compiles/bundles Rill.
+# 3. Version-field distinction (release bundle 1.2.0 vs adapter crate/binary 0.15.0).
+check('minimumReleaseVersion present', DEP.get('minimumReleaseVersion')=='1.2.0')
+check('minimumAdapterVersion present', DEP.get('minimumAdapterVersion')=='0.15.0')
+check('minimumRillVersion kept only as deprecated alias', DEP.get('minimumRillVersion')==DEP.get('minimumReleaseVersion') and 'DEPRECATED' in str(DEP.get('minimumRillVersionDeprecatedNote','')))
+
+# 4. Integration package never compiles/bundles Rill.
 check('integration package never compiles Rill', 'cargo' not in RILL_MAKE and 'rust' not in RILL_MAKE.lower()
       and 'PKG_BUILD_DEPENDS:=' in RILL_MAKE)
 check('no bundled Rust source', not (ROOT/'package/performance-manager-rill/src').exists())
 
-# 4. Upstream release entry policy.
+# 5. Upstream release entry policy (immutable Stable dependency).
 up=DEP.get('upstream',{})
-if up.get('releaseVersion') or up.get('artifact'):
-    check('release pinned (no latest/download)', (up.get('artifact') or {}).get('url') and 'latest/download' not in ((up.get('artifact') or {}).get('url') or ''))
-    check('release checksum non-empty', bool((up.get('artifact') or {}).get('sha256')))
-    check('release version non-empty', bool(up.get('releaseVersion')))
+adapter=up.get('adapter') or {}
+art=up.get('artifact') or {}
+ri=up.get('releaseIndex') or {}
+target=(adapter.get('target') or {})
+pinned = bool(up.get('releaseVersion')) and bool(up.get('releaseTag')) and bool(up.get('tagCommitSha')) \
+        and bool(adapter.get('url')) and bool(adapter.get('sha256')) and bool(adapter.get('size'))
+if pinned:
+    check('release pinned (no latest/download/branch)', 'latest/download' not in (adapter.get('url') or '') and 'latest/' not in (adapter.get('url') or ''))
+    check('tag commit non-empty', bool(up.get('tagCommitSha')))
+    check('release tag == v1.2.0', up.get('releaseTag')=='v1.2.0')
+    check('release channel == stable (never candidate)', ri.get('channel')=='stable')
+    check('release index schemaVersion == 3 (fail-closed on unknown)', ri.get('schemaVersion')==3)
+    check('publisher identity present', bool(ri.get('publisherKeyId')) and bool(ri.get('publicKeyHex')))
+    check('adapter protocol version == 1', adapter.get('pmAdapterProtocolVersion')==1)
+    check('adapter target == linux/x86_64/musl', target.get('os')=='linux' and target.get('arch')=='x86_64' and target.get('libc')=='musl')
+    check('adapter release asset version vs binary version distinct', adapter.get('releaseAssetVersion')=='1.2.0' and adapter.get('adapterVersion')=='0.15.0')
+    check('adapter name exact', adapter.get('name')=='rill-pm-adapter-1.2.0-linux-x86_64-musl')
+    check('adapter sha256 matches artifact', adapter.get('sha256')==(art or {}).get('sha256'))
+    check('adapter size matches artifact', adapter.get('size')==(art or {}).get('size'))
+    check('no branch URL / main / HEAD', all(x not in (adapter.get('url') or '') for x in ['/latest', 'main', 'master', 'HEAD', 'nightly', 'raw/main']))
 else:
-    # No upstream release provisioned: legitimate blocked state, reported verbatim.
-    status=up.get('status')
-    check('upstream status is external-dependency-blocked', status=='external-dependency-blocked')
-    check('blocked reason recorded', bool(up.get('blockedReason')))
+    status_key=up.get('status','external-dependency-blocked')
+    check('upstream status is blocked/not-provisioned', status_key in ('external-dependency-blocked','blocked','not-provisioned','provisioned'))
+    check('blocked reason recorded', bool(up.get('blockedReason')) or status_key=='provisioned')
 
 ok=all(ok for _,ok in checks)
-# 5. Honest feature status: the PM-side fail-closed contract can pass while the
-#    upstream Rill integration stays blocked.  These MUST be reported separately
-#    so a missing upstream is never surfaced as a working Rill integration.
-up=DEP.get('upstream',{})
-provisioned = bool(up.get('releaseVersion') or up.get('artifact'))
 pm_contract = 'pass' if ok else 'fail'
-upstream_integration = 'pass' if (provisioned and ok) else 'blocked'
-overall = 'pass' if (pm_contract == 'pass' and upstream_integration == 'pass') else 'blocked'
-status = {
-    'schemaVersion': 1,
+upstream_entitlement = 'pass' if (pinned and ok) else ('blocked' if not pinned else 'fail')
+overall = 'pass' if (pm_contract=='pass' and upstream_entitlement=='pass') else 'blocked'
+status={
+    'schemaVersion': 3,
     'contract': 'rill-integration-status',
+    'scope': 'PM-side static protocol/dependency contract + immutable Stable release pin only',
     'pmFailClosedContract': pm_contract,
-    'upstreamIntegration': upstream_integration,
+    'upstreamEntitlement': upstream_entitlement,
     'overallFeatureStatus': overall,
+    'functionalIntegrationVerification': 'see docs/rill-integration-evidence.json (written by scripts/verify_rill_release.py + pm-rill-runtime + pm-core-rill-roundtrip); NEVER derived from this static check',
     'upstreamStatus': up.get('status'),
-    'blockedReason': up.get('blockedReason'),
-    'provisioned': provisioned,
+    'upstreamReleaseVersion': up.get('releaseVersion'),
+    'upstreamReleaseTag': up.get('releaseTag'),
+    'upstreamReleaseCommitSha': up.get('tagCommitSha'),
+    'upstreamAdapterReleaseAssetVersion': adapter.get('releaseAssetVersion'),
+    'upstreamAdapterBinaryVersion': adapter.get('adapterVersion'),
+    'upstreamProtocolVersion': adapter.get('pmAdapterProtocolVersion'),
+    'provisioned': bool(pinned),
+    'blockedReason': 'upstream release entry incomplete or unpinned' if (not pinned and ok) else up.get('blockedReason'),
     'checks': [{'name': n, 'ok': o} for n, o in checks],
-    'note': (f"provisioned={provisioned}: upstream={upstream_integration}; the PM-side fail-closed contract and the pinned upstream adapter release are verified separately. "
-             f"overall={overall} — a blocked upstream is never reported as a PASS, and a provisioned+verified release is reported as pass rather than blocked.") if provisioned else
-            'A blocked upstream integration is NOT a PASS; the Core/runtime fail-closed contract is verified separately and the overall feature status remains blocked until a compatible upstream release is provisioned and verified.'
+    'note': 'STATIC contract + release-pin only; never a functional-integration claim. Real tag identity, signed-index signature and artifact integrity: scripts/verify_rill_release.py. Real adapter runtime and PM Core roundtrip: pm-rill-runtime / pm-core-rill-roundtrip jobs. A blocked upstream is never a Rill PASS.'
 }
-out = ROOT/'docs/rill-integration-status.json'
-out.write_text(json.dumps(status, ensure_ascii=False, indent=2) + '\n')
-print(f"rill-contract: {sum(1 for _,ok in checks if ok)}/{len(checks)} checks passed; "
-      f"pmFailClosedContract={pm_contract} upstreamIntegration={upstream_integration} overallFeatureStatus={overall}")
-print(json.dumps(status, ensure_ascii=False, indent=2))
+out=ROOT/'docs/rill-integration-status.json'
+out.write_text(json.dumps(status, ensure_ascii=False, indent=2) + chr(10))
+print('rill-contract (static): %d/%d checks passed; pmFailClosedContract=%s upstreamEntitlement=%s overallFeatureStatus=%s' % (
+    sum(1 for _,ok in checks if ok), len(checks), pm_contract, upstream_entitlement, overall))
 if not ok: sys.exit(1)

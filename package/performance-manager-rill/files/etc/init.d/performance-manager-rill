@@ -17,19 +17,59 @@ STOP=88
 SERVICE_USER='performance-manager-rill'
 SERVICE_GROUP='performance-manager-rill'
 
+# Unique PM<->Core binary resolution contract.  Kept in sync with
+# rill_binary_path() in performance-manager.uc.  An explicit shadow.binary wins
+# EXCLUSIVELY (must be absolute + executable, otherwise binary-invalid, never a
+# silent fallback); an empty binary resolves the default install location; a
+# missing runtime is not-provisioned (integration blocked, fail-closed).
+# On success prints the effective binary and sets:
+#   BINARY_RESOLVED, BINARY_SOURCE ('default'|'explicit'), BINARY_STATE.
+resolve_binary() {
+	local configured="$1"
+	BINARY_RESOLVED=''
+	BINARY_SOURCE='default'
+	BINARY_STATE='not-provisioned'
+	if [ -n "$configured" ]; then
+		BINARY_SOURCE='explicit'
+		case "$configured" in
+			/*) ;;
+			*) BINARY_STATE='binary-invalid'; return 1 ;;
+		esac
+		if [ -x "$configured" ]; then
+			BINARY_RESOLVED="$configured"
+			BINARY_STATE='ok'
+			return 0
+		fi
+		BINARY_STATE='binary-invalid'
+		return 1
+	fi
+	if [ -x /usr/bin/rill-pm-adapter ]; then
+		BINARY_RESOLVED=/usr/bin/rill-pm-adapter
+		BINARY_STATE='ok'
+		return 0
+	fi
+	if [ -x /usr/sbin/rill-pm-adapter ]; then
+		BINARY_RESOLVED=/usr/sbin/rill-pm-adapter
+		BINARY_STATE='ok'
+		return 0
+	fi
+	return 1
+}
+
 start_service() {
 	config_load performance-manager
 	local enabled socket max_message timeout_ms state_dir binary
 	config_get_bool enabled shadow enabled 1
 	[ "$enabled" -eq 1 ] || return 0
 	config_get binary shadow binary ''
-	# No upstream Rill runtime configured/installed: external dependency
-	# blocked.  Fail-closed and silent; the Core reports the reason via its
-	# capability gate rather than starting a non-existent binary.
-	[ -n "$binary" ] && [ -x "$binary" ] || {
-		logger -t performance-manager-rill 'external Rill runtime not installed; integration blocked (fail-closed)'
+	# Resolve the exact adapter binary via the unique PM<->init resolution
+	# contract (fail-closed and silent when the runtime is not provisioned; the
+	# Core reports the reason via its capability gate).
+	if ! resolve_binary "$binary"; then
+		logger -t performance-manager-rill "external Rill runtime not provisioned (${BINARY_STATE}); integration blocked (fail-closed)"
 		return 0
-	}
+	fi
+	binary="$BINARY_RESOLVED"
 	config_get socket shadow socket '/run/performance-manager/rill.sock'
 	config_get max_message shadow max_message '65536'
 	config_get timeout_ms shadow timeout_ms '1000'

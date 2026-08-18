@@ -31,7 +31,7 @@ class SecurityTests(unittest.TestCase):
     def test_rill_capability_gate_is_fail_closed(self):
         # Missing runtime / unreachable service / contract or protocol mismatch
         # must be fail-closed (unavailable/incompatible), never silently OK.
-        self.assertIn('external-runtime-missing',CORE)
+        self.assertIn('external-runtime-not-provisioned',CORE)
         self.assertIn('contract-mismatch',CORE)
         self.assertIn('protocol-version-mismatch',CORE)
         self.assertIn('RILL_CONTRACT',CORE)
