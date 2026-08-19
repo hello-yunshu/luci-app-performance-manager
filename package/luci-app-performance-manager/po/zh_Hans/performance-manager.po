@@ -340,6 +340,9 @@ msgstr "结果"
 msgid "Rill Intelligence"
 msgstr "Rill 智能"
 
+msgid "RillML (Rill) Intelligence"
+msgstr "RillML（Rill）智能"
+
 msgid "Rill Shadow"
 msgstr "Rill Shadow"
 
