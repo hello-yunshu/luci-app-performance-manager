@@ -8,7 +8,7 @@ return view.extend({
 	render: function(r) {
 		r = r || {};
 		return E([], [
-			E('h2', {}, [ _('Rill Intelligence') ]),
+			E('h2', {}, [ _('RillML (Rill) Intelligence') ]),
 			pu.card(_('Shadow boundary'), pu.kv([
 				[_('State'), r.status || _('Shadow · Collecting')], [_('Transport'), r.transport || '—'], [_('Mode'), _('Observe / learn / recommend only')], [_('Apply authority'), _('None')]
 			])),
