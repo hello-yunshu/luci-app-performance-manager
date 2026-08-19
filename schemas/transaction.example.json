@@ -3,6 +3,8 @@
   "transactionId": "tx-example",
   "state": "awaiting_confirm",
   "actionId": "fastpath.software_flow_offload",
+  "executionSource": "manual",
+  "rillDecision": null,
   "applyScope": "service",
   "applyTarget": "firewall:defaults",
   "evaluationPaths": [

@@ -37,6 +37,7 @@ Usage:
 """
 from __future__ import annotations
 import argparse
+import hashlib
 import json
 import os
 import re
@@ -270,6 +271,15 @@ def reject_gate(res, expect_code):
         return (True, f"fail-closed: connection closed, nothing parsed ({res['status']})")
     if expect_code == 'close':
         return (False, f"oversized frame: unexpected transport {res['status']}")
+    # A syntactically incomplete frame without a trailing newline is not a
+    # complete NDJSON request.  The upstream adapter must therefore wait for
+    # the rest of the frame; the client-side deadline proves a bounded,
+    # fail-closed outcome.  It would be incorrect to require invalidJson before
+    # the frame terminator has arrived.
+    if expect_code == 'incomplete-frame':
+        if res['status'] in ('timeout', 'eof', 'conn-error'):
+            return (True, f"fail-closed incomplete frame ({res['status']}); no response accepted")
+        return (False, f"incomplete frame produced unexpected result {res['status']}")
     # Any other transport problem for a code-expecting negative is a FAIL (the
     # adapter must answer, not vanish, for non-oversized requests).
     return (False, f"transport {res['status']} ({res.get('note', '')})")
@@ -477,9 +487,11 @@ def main(argv=None) -> int:
         # Oversized frame -> the adapter closes the connection without parsing.
         oversized = b'x' * 65537 + b'\n'  # > --max-message 65536 used by CI
         neg('oversized-frame', 'close', bus.send_raw(oversized))
-        # Malformed / truncated JSON -> invalidJson (fail-closed, no silent accept).
+        # A newline-terminated malformed frame is invalidJson.  A truncated
+        # frame without its NDJSON terminator is incomplete input, so the
+        # bounded client timeout/close is the correct fail-closed behavior.
         neg('malformed-json', 'invalidJson', bus.send_raw(b'{not-json\n'))
-        neg('truncated-json', 'invalidJson', bus.send_raw(b'{"contract":"pm-rill-shadow"'))
+        neg('truncated-json', 'incomplete-frame', bus.send_raw(b'{"contract":"pm-rill-shadow"'))
 
         # Decision-bound rejects need a REAL pending decision (fresh observe).
         neg_binding = None
@@ -541,8 +553,13 @@ def main(argv=None) -> int:
             if state_file.exists():
                 st = json.loads(state_file.read_text())
                 pers_ok = (st.get('schemaVersion') == 1 and st.get('adapterVersion') == EXPECTED_ADAPTER
-                           and isinstance(st.get('modelGeneration'), int))
-                roundtrip['persistence'] = {'status': 'PASS' if pers_ok else 'FAIL', 'path': str(state_file)}
+                           and st.get('modelGeneration') == 1)
+                roundtrip['persistence'] = {
+                    'status': 'PASS' if pers_ok else 'FAIL',
+                    'path': str(state_file),
+                    'auditedModelGeneration': st.get('modelGeneration'),
+                    'expectedModelGeneration': 1,
+                }
                 record(log, 'adapter persisted state (adapter-state.json)', 'PASS' if pers_ok else 'FAIL', str(state_file))
             else:
                 roundtrip['persistence'] = {'status': 'BLOCKED', 'path': str(state_file), 'note': 'no state file found'}
@@ -594,6 +611,7 @@ def main(argv=None) -> int:
         'pmVersion': (ROOT / 'VERSION').read_text().strip(),
         'pmCommitSha': os.environ.get('GITHUB_SHA', None) or _pm_commit(),
         'adapterBinary': str(adapter),
+        'adapterSha256': hashlib.sha256(adapter.read_bytes()).hexdigest() if adapter.is_file() else None,
         'adapterSocket': sock_path,
         'adapterStateDir': args.state_dir,
         'releaseVersion': EXPECTED_RELEASE,

@@ -91,9 +91,9 @@
     "8": {
       "name": "Rill Intelligence (external runtime)",
       "status": "pass",
-      "checks": 9,
+      "checks": 11,
       "failed": [],
-      "evidence": "structural: PM-side fail-closed contract wiring present; Rill unavailable/malformed fail-closed and status honesty are verified by the runtime harness [7] and scripts/rill_contract_check.py. Upstream external integration status is read from the freshly regenerated docs/rill-integration-status.json (provisioned/pass this cycle).",
+      "evidence": "structural only: PM-side fail-closed contract and exact-decision lifecycle wiring are present. The static Rill report is non-promotable and reports functionalIntegrationVerdict=NOT_EVALUATED; real functional status belongs exclusively to same-commit runtime aggregation.",
       "verificationLayer": "structural-source"
     },
     "9": {

@@ -110,6 +110,20 @@ def main(argv):
     _rt_job = _read_json('rill-runtime.json')
     _core_job = _read_json('rill-core-integration.json')
     _ev = _read_json('rill-integration-evidence.json')
+
+    # Tracked reports are documentation snapshots, not current-run evidence.
+    # Consume them only when their embedded PM commit matches this exact SDK
+    # build commit; otherwise the corresponding runtime/provenance verdict is
+    # BLOCKED and must be supplied by the CI run's per-job artifacts.
+    def _evidence_commit(data):
+        if not isinstance(data, dict):
+            return None
+        return data.get('pmCommitSha') or ((data.get('pm') or {}).get('commitSha'))
+
+    _prov_job = _prov_job if _evidence_commit(_prov_job) == commit else {}
+    _rt_job = _rt_job if _evidence_commit(_rt_job) == commit else {}
+    _core_job = _core_job if _evidence_commit(_core_job) == commit else {}
+    _ev = _ev if _evidence_commit(_ev) == commit else {}
     _ril = (_ev.get('rill', {}) or {}) if isinstance(_ev, dict) else {}
     _relidx = (_ev.get('releaseIndex', {}) or {}) if isinstance(_ev, dict) else {}
     _art = (_ev.get('artifact', {}) or {}) if isinstance(_ev, dict) else {}

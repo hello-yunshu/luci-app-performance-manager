@@ -78,7 +78,7 @@ make package/performance-manager-rill/compile V=s
 |---|---|
 | Package name | `luci-app-performance-manager` (Core: `performance-manager`) |
 | Target | OpenWrt 25.12.x / x86_64 |
-| Current source candidate | `1.0.0-rc.7` |
+| Current source candidate | `1.0.0-rc.8` |
 | Service script | `/etc/init.d/performance-manager` |
 | UCI config | `/etc/config/performance-manager` |
 | Core binary | `/usr/sbin/performance-manager.uc` |
@@ -257,7 +257,7 @@ make package        # build release artifacts
 - Resource / write soak: `scripts/openwrt-resource-soak.sh`
 - External validation evidence: `docs/EXTERNAL_VALIDATION.md`
 
-> `1.0.0-rc.7` is intentionally not called Stable until the official OpenWrt SDK / runtime / soak and real forwarding A/B gates have actually passed. See `docs/RELEASE_CHECKLIST.md` and `docs/EXTERNAL_VALIDATION.md`.
+> `1.0.0-rc.8` is only a source candidate. `v1.0.0` is authorized only when the same-commit official SDK/APKs, exact Rill runtime, Generic/Hyper-V/KVM targets, real A/B, sysupgrade, lifecycle, and 24-hour Rill-present soak all PASS the Stable aggregator.
 
 ## Documentation
 

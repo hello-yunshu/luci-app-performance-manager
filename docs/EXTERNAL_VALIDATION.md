@@ -1,6 +1,6 @@
 # External Validation Required for 1.0 Stable
 
-`1.0.0-rc.7` builds on the rc.6 Rill v1.2.0 Stable real integration (authoritative provenance, real-adapter runtime/roundtrip evidence, unified fail-closed binary resolver), the rc.4 single-repo remediation (real Core ucode runtime harness), rc.5 (raw Core callee-before-caller startup smoke, fastpath nft Expected-Delta attribution), and upgrades the external Rill integration to the immutable **Rill Stable release v1.2.0** (rc.1 candidate removed): `scripts/verify_rill_release.py` proves tag identity, Ed25519 `stable`-index signature, unique `pm-adapter`/`linux`/`x86_64`/`musl` artifact selection and size+SHA256 integrity, and CI `pm-rill-provenance` → `pm-rill-runtime` → `pm-core-rill-roundtrip` execute the exact released adapter inside the official 25.12.5 x86/64 rootfs with real `status`/`observe`/`outcome` roundtrips and fail-closed negatives — but Stable still requires evidence that cannot be fabricated inside the current offline/non-OpenWrt assembly container.
+`1.0.0-rc.8` adds the exact Rill decision lifecycle, response-loss reconciliation, telemetry/Observe decoupling, audited resource counters, and a non-promotable source audit plus same-commit Stable evidence aggregator. The external integration remains pinned to immutable **Rill Stable v1.2.0**. Stable still requires real target/testbed/hypervisor/sysupgrade/lifecycle/24-hour evidence that cannot be fabricated by source or container checks.
 
 The current official 25.12.x x86/64 target is available as OpenWrt 25.12.5, including an x86/64 rootfs and SDK. CI is pinned to that release for ucode and three-package build gates.
 
@@ -12,7 +12,7 @@ Required target evidence:
 4. Explicit LAN→Router→WAN and router-local controlled A/B sessions where the action semantics require them.
 5. Sysupgrade preservation via `scripts/openwrt-sysupgrade-gate.sh prepare` before the upgrade and `verify` after reboot, plus `scripts/openwrt-resource-soak.sh` for 24h or longer.
 
-Until those evidence files actually pass, the correct label is **1.0.0-rc.7**, not Stable.
+Until those evidence files actually pass, the correct label is **1.0.0-rc.8**, not Stable.
 
 ## Docker-based Evidence Progress
 
@@ -22,7 +22,7 @@ Status:
 
 - **1. GitHub CI** — owned by `.github/workflows/ci.yml` (`static` incl. LuCI render smoke, `pm-rill-provenance` with pinned upstream Rill provenance, `pm-rill-runtime` with real adapter execution, `pm-core-rill-roundtrip` with raw Core ↔ verified adapter, `openwrt-ucode` official 25.12.5 rootfs compile of Core) and `.github/workflows/build-openwrt.yml` → `openwrt-sdk-build` (official SDK builds only the packages this repository owns: `performance-manager`, `luci-app-performance-manager`, `performance-manager-rill`; emits build-metadata.json + checksums.txt). No local SDK build is required, and no native Rust build is performed.
 - **2. Booted OpenWrt runtime gate** — PASSED inside the `owrt-pm-gate` container (25.12.5 x86/64): `scripts/openwrt-target-gate.sh` CORE-ONLY, 11/11 assertions green. Evidence: `evidence/openwrt-target-gate-25.12.5.json`.
-- **5. Resource soak (dev check)** — script viability verified for 120s (12 samples): `coreMaxRssKiB` 4744, `coreMeanCpuPercentApprox` 0.083, 0 persistent writes, `executionPassed true`. This is a development check only; the 24h+ Stable gate (`stableDurationSatisfied`) remains outstanding. Evidence: `evidence/openwrt-resource-soak-120s-dev.json`.
+- **5. Historical resource soak (dev check only)** — the old 120-second sample is not Stable evidence and is not reused by the aggregator. The rc.8 gate requires ≥86400 seconds with Core and exact Rill RSS/CPU, restart counts, logical persistence counters, state bounds, and zero idle Observe/persistence deltas; missing counters are `BLOCKED`, never zero-filled.
 
 Not yet satisfied (require real hypervisor or router hardware): items 3 (Hyper-V/KVM fixtures) and 4 (LAN/WAN A/B sessions), plus the full 24h soak and sysupgrade round-trip from item 5.
 

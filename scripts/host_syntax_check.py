@@ -22,11 +22,15 @@ for rel in [
     'scripts/openwrt-sysupgrade-gate.sh',
 ]: run(f'sh -n {rel}', ['sh','-n',rel])
 
-try:
-    py_compile.compile(str(ROOT/'companion/pm_companion_agent.py'), doraise=True)
-    checks.append({'name':'companion py_compile','status':'pass'})
-except Exception as e:
-    errors.append(f'companion py_compile: {e}'); checks.append({'name':'companion py_compile','status':'fail','output':str(e)})
+with tempfile.TemporaryDirectory() as pycache:
+    for script in [ROOT/'companion/pm_companion_agent.py', *sorted((ROOT/'scripts').glob('*.py'))]:
+        try:
+            cache_name = script.relative_to(ROOT).as_posix().replace('/', '_') + 'c'
+            py_compile.compile(str(script), cfile=str(Path(pycache)/cache_name), doraise=True)
+            checks.append({'name':f'py_compile {script.relative_to(ROOT)}','status':'pass'})
+        except Exception as e:
+            errors.append(f'py_compile {script.relative_to(ROOT)}: {e}')
+            checks.append({'name':f'py_compile {script.relative_to(ROOT)}','status':'fail','output':str(e)})
 
 # Scan only the repository's own JSON files.  In CI the workspace also contains
 # the downloaded OpenWrt SDK tree (a subdirectory whose feeds include non-JSON
@@ -44,11 +48,13 @@ for p in sorted(x for x in _tracked if x.suffix == '.json'):
     except Exception as e: errors.append(f'json {p.relative_to(ROOT)}: {e}')
 checks.append({'name': 'JSON parse', 'status': 'fail' if any(e.startswith('json ') for e in errors) else 'pass'})
 
-try:
-    yaml.safe_load((ROOT/'.github/workflows/ci.yml').read_text())
-    checks.append({'name':'CI YAML parse','status':'pass'})
-except Exception as e:
-    errors.append(f'CI YAML: {e}'); checks.append({'name':'CI YAML parse','status':'fail','output':str(e)})
+for workflow in sorted((ROOT/'.github/workflows').glob('*.yml')):
+    try:
+        yaml.safe_load(workflow.read_text())
+        checks.append({'name':f'YAML parse {workflow.name}','status':'pass'})
+    except Exception as e:
+        errors.append(f'YAML {workflow.name}: {e}')
+        checks.append({'name':f'YAML parse {workflow.name}','status':'fail','output':str(e)})
 
 node=shutil.which('node')
 if node:

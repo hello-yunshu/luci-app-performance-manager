@@ -47,7 +47,7 @@ class SecurityTests(unittest.TestCase):
         # The Core never grants Rill write authority: no apply op, no root
         # apply path, and the integration is advisory-only.
         self.assertIn("authority: 'advisory-only'",CORE)
-        self.assertIn("authority: 'safe-direct'",CORE)
+        self.assertIn("executionAuthority: 'safe-direct'",CORE)
         self.assertNotIn('apply',allowed_ops())
     def test_rill_missing_is_not_whole_rc_pass(self):
         # A missing/incompatible Rill integration must surface as a distinct

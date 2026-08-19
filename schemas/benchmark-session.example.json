@@ -4,6 +4,8 @@
   "state": "awaiting_control",
   "userInitiated": true,
   "actionId": "network.backlog",
+  "executionSource": "manual",
+  "rillDecision": null,
   "applyTarget": null,
   "evaluationPath": "path:lan-to-wan",
   "workloadClass": [

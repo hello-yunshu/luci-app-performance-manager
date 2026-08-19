@@ -36,7 +36,119 @@
       "output": ""
     },
     {
-      "name": "companion py_compile",
+      "name": "py_compile companion/pm_companion_agent.py",
+      "status": "pass"
+    },
+    {
+      "name": "py_compile scripts/_rc7_core_patch.py",
+      "status": "pass"
+    },
+    {
+      "name": "py_compile scripts/_rc7_docs_patch.py",
+      "status": "pass"
+    },
+    {
+      "name": "py_compile scripts/_rc7_fix_advisory.py",
+      "status": "pass"
+    },
+    {
+      "name": "py_compile scripts/_rc7_fix_nesting.py",
+      "status": "pass"
+    },
+    {
+      "name": "py_compile scripts/_rc7_fix_rill_contract.py",
+      "status": "pass"
+    },
+    {
+      "name": "py_compile scripts/_rc7_fix_sopeercred.py",
+      "status": "pass"
+    },
+    {
+      "name": "py_compile scripts/_rc7_inspect_core.py",
+      "status": "pass"
+    },
+    {
+      "name": "py_compile scripts/aggregate_final_evidence.py",
+      "status": "pass"
+    },
+    {
+      "name": "py_compile scripts/aggregate_stable_evidence.py",
+      "status": "pass"
+    },
+    {
+      "name": "py_compile scripts/build_evidence.py",
+      "status": "pass"
+    },
+    {
+      "name": "py_compile scripts/collect_stable_evidence.py",
+      "status": "pass"
+    },
+    {
+      "name": "py_compile scripts/contract_model.py",
+      "status": "pass"
+    },
+    {
+      "name": "py_compile scripts/final_audit.py",
+      "status": "pass"
+    },
+    {
+      "name": "py_compile scripts/final_release_audit.py",
+      "status": "pass"
+    },
+    {
+      "name": "py_compile scripts/generate_rill_consumed_manifest.py",
+      "status": "pass"
+    },
+    {
+      "name": "py_compile scripts/host_syntax_check.py",
+      "status": "pass"
+    },
+    {
+      "name": "py_compile scripts/make_release.py",
+      "status": "pass"
+    },
+    {
+      "name": "py_compile scripts/pin_feeds.py",
+      "status": "pass"
+    },
+    {
+      "name": "py_compile scripts/resource_budget.py",
+      "status": "pass"
+    },
+    {
+      "name": "py_compile scripts/rill_adapter_runtime.py",
+      "status": "pass"
+    },
+    {
+      "name": "py_compile scripts/rill_contract_check.py",
+      "status": "pass"
+    },
+    {
+      "name": "py_compile scripts/rill_core_roundtrip.py",
+      "status": "pass"
+    },
+    {
+      "name": "py_compile scripts/rill_runtime_harness.py",
+      "status": "pass"
+    },
+    {
+      "name": "py_compile scripts/source_gates.py",
+      "status": "pass"
+    },
+    {
+      "name": "py_compile scripts/validate_contracts.py",
+      "status": "pass"
+    },
+    {
+      "name": "py_compile scripts/validate_external_evidence.py",
+      "status": "pass"
+    },
+    {
+      "name": "py_compile scripts/verify_apks.py",
+      "status": "pass"
+    },
+    {
+      "name": "py_compile scripts/verify_rill_release.py",
       "status": "pass"
     },
     {
@@ -44,7 +156,23 @@
       "status": "pass"
     },
     {
-      "name": "CI YAML parse",
+      "name": "YAML parse build-openwrt.yml",
+      "status": "pass"
+    },
+    {
+      "name": "YAML parse ci.yml",
+      "status": "pass"
+    },
+    {
+      "name": "YAML parse stable-aggregate.yml",
+      "status": "pass"
+    },
+    {
+      "name": "YAML parse stable-release.yml",
+      "status": "pass"
+    },
+    {
+      "name": "YAML parse stable-target-matrix.yml",
       "status": "pass"
     },
     {

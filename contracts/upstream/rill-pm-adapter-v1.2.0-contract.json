@@ -1,0 +1,41 @@
+{
+  "schemaVersion": 1,
+  "scope": "pm-side-audited-upstream-snapshot",
+  "repository": "hello-yunshu/rill-ml",
+  "releaseTag": "v1.2.0",
+  "releaseCommitSha": "dc96fdb3bf55eacdd1c093f1be08d1c9daed4400",
+  "sourcePath": "crates/rill-pm-adapter/src/lib.rs",
+  "contract": "pm-rill-shadow",
+  "protocolVersion": 1,
+  "adapterVersion": "0.15.0",
+  "requestFields": {
+    "status": ["contract", "protocolVersion", "requestId", "op"],
+    "observe": ["contract", "protocolVersion", "requestId", "op", "deviceProfile", "capabilityHash", "topologyGeneration", "pathId", "routeIdentity", "workloadClass", "measurementClass", "context", "integrations", "goal", "integrationFingerprint", "contextKey", "availableActions"],
+    "outcome": ["contract", "protocolVersion", "requestId", "op", "decisionId", "contextKey", "actionId", "sessionId", "goal", "modelGeneration", "validated", "reward"]
+  },
+  "responseFields": {
+    "envelope": ["contract", "protocolVersion", "requestId", "ok"],
+    "status": ["adapterVersion", "rillVersion", "state", "capabilities", "modelHealth"],
+    "observe": ["decisionId", "recommendation"],
+    "outcome": ["accepted"],
+    "error": ["code", "message", "retryable"]
+  },
+  "errorCodes": ["invalidJson", "wrongContract", "wrongProtocolVersion", "unsupportedOp", "invalidRequestId", "invalidRequest", "requestExpired", "requestTimeout", "frameTooLarge", "invalidDecisionId", "unknownDecision", "duplicateFeedback", "actionMismatch", "contextMismatch", "generationMismatch", "expiredDecision", "invalidTimestamp", "nonValidated", "nonFiniteReward", "ledgerCapacity", "partitionCapacity", "stateLoad", "statePersistence", "internal"],
+  "retryableErrorCodes": ["requestTimeout", "statePersistence", "stateLoad", "ledgerCapacity", "partitionCapacity", "internal"],
+  "decisionTtlMs": 3600000,
+  "modelGeneration": {
+    "fresh": 1,
+    "persistedReloadMinimum": 1,
+    "normalV1PathIncrements": false,
+    "sourceEvidence": ["AdapterState::new", "AdapterState::from_disk", "AdapterState::persist"]
+  },
+  "persistence": {
+    "observe": "ledger.register then persist",
+    "outcome": "ledger.apply_feedback and model update then persist",
+    "stateFile": "adapter-state.json",
+    "stateSchemaVersion": 1,
+    "maxStateFileBytes": 4194304,
+    "accounting": "logical-inference-only-not-physical-flash-block-writes"
+  },
+  "note": "Audited PM-side snapshot of immutable upstream v1.2.0. It is not an upstream-owned contract file and must be re-audited before any Rill upgrade."
+}

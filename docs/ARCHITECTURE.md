@@ -1,4 +1,4 @@
-# Architecture — 1.0.0-rc.7
+# Architecture — 1.0.0-rc.8
 
 ## Authority boundary
 
