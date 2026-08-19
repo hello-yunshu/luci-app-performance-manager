@@ -7,8 +7,8 @@
     },
     "luci": {
       "files": 14,
-      "sourceBytes": 33888,
-      "knownStaticPayloadBytes": 33016
+      "sourceBytes": 33965,
+      "knownStaticPayloadBytes": 33093
     },
     "rill": {
       "files": 3,
