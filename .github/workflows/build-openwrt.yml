@@ -108,35 +108,7 @@ jobs:
           cd "$GITHUB_WORKSPACE"
           cat checksums.txt
       - name: Generate Rill consumed manifest
-        shell: bash
-        run: |
-          set -euo pipefail
-          python3 - "$GITHUB_WORKSPACE" <<'PY'
-          import json, sys
-          root = sys.argv[1]
-          dep = json.load(open(f"{root}/contracts/rill-dependency.json"))
-          up = dep.get("upstream") or {}
-          art = (up.get("artifact") or {}) if isinstance(up.get("artifact"), dict) else {}
-          manifest = {
-            "schemaVersion": 1,
-            "contract": "pm<->rill-consumed-release",
-            "upstreamRepository": up.get("repository"),
-            "consumedVersion": up.get("releaseVersion"),
-            "artifactUrl": art.get("url"),
-            "artifactSha256": art.get("sha256"),
-            "manifestUrl": up.get("manifestUrl"),
-            "status": up.get("status") or "external-dependency-blocked",
-            "blockedReason": up.get("blockedReason"),
-            "protocolApi": dep.get("protocol", {}).get("api"),
-            "requiredCapabilities": dep.get("capabilities", {}).get("required"),
-            "minimumRillVersion": dep.get("minimumRillVersion"),
-            "note": "PM never compiles Rill; this manifest records the upstream release this repo consumes. When null the integration is external-dependency-blocked and the Core capability gate fails closed."
-          }
-          with open(f"{root}/rill-consumed-manifest.json", "w") as f:
-              json.dump(manifest, f, ensure_ascii=False, indent=2)
-              f.write("\n")
-          print(json.dumps({"status": manifest["status"], "consumedVersion": manifest["consumedVersion"]}))
-          PY
+        run: python scripts/generate_rill_consumed_manifest.py --out rill-consumed-manifest.json
       - name: Upload package artifacts and build evidence
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
@@ -157,4 +129,39 @@ jobs:
             docs/RESOURCE_BUDGET.json
             docs/rill-integration-status.json
             docs/apk-verification.json
+          if-no-files-found: error
+
+  # Final build evidence aggregation (rc.7 prompt 29/43): gates this workflow on
+  # the SDK/APK chain ONLY (--scope build) — build-metadata.json verdicts +
+  # the exact apk-verification.json report, both tied to the same PM commit.
+  # The Rill runtime/functional chain is owned by the ci.yml workflow's own
+  # aggregator job, so neither workflow can falsely PASS what the other alone
+  # can prove.  A broken same-commit chain or any non-PASS verdict fails closed.
+  final-release-evidence:
+    runs-on: ubuntu-latest
+    needs: openwrt-sdk-build
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - name: Download SDK build evidence
+        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16
+        with:
+          name: openwrt-25.12.5-x86-64-packages-and-evidence
+          path: evidence
+      - name: Aggregate final build evidence (same-commit SDK/APK chain)
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p docs
+          cp evidence/build-metadata.json docs/ 2>/dev/null || true
+          cp evidence/apk-verification.json docs/ 2>/dev/null || true
+          cp evidence/rill-consumed-manifest.json docs/ 2>/dev/null || true
+          python3 scripts/aggregate_final_evidence.py \
+            --evidence-dir docs --scope build \
+            --expected-commit "$GITHUB_SHA" \
+            --out docs/final-release-evidence.json
+      - name: Upload final build evidence
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: final-release-evidence-build
+          path: docs/final-release-evidence.json
           if-no-files-found: error

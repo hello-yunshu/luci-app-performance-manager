@@ -19,10 +19,17 @@
     "softnetDropRate": 0,
     "cpuBusy": 0.62
   },
-  "integrations": {
-    "sqm": false,
-    "packetSteering": "observe-respect"
-  },
+  "integrations": [
+    {
+      "id": "sqm",
+      "present": false
+    },
+    {
+      "id": "packetSteering",
+      "present": true
+    }
+  ],
+  "goal": "balanced",
   "integrationFingerprint": "integ-fp-1",
   "contextKey": "ctx-v1:profile=profile-hash;cap=cap-hash;topo=42;path=path:lan-to-wan;route=r1;workload=plain_forwarding;integ=integ-fp-1",
   "availableActions": [

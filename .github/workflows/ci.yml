@@ -74,51 +74,7 @@ jobs:
       - name: Run pm-rill-shadow v1 wire harness (fail-closed decision table)
         run: python scripts/rill_runtime_harness.py
       - name: Generate Rill consumed manifest
-        shell: bash
-        run: |
-          set -euo pipefail
-          python3 - "$GITHUB_WORKSPACE" <<'PY'
-          import json, sys
-          root = sys.argv[1]
-          dep = json.load(open(f"{root}/contracts/rill-dependency.json"))
-          proto = dep.get("protocol", {})
-          up = dep.get("upstream", {})
-          idx = up.get("releaseIndex", {}) or {}
-          art = up.get("artifact", {}) or {}
-          adv = up.get("adapter", {}) or {}
-          tgt = adv.get("target", {}) or {}
-          manifest = {
-            "schemaVersion": 1,
-            "contract": "pm<->rill-consumed-release",
-            "upstreamRepository": up.get("repository"),
-            "protocolContract": proto.get("contract"),
-            "protocolVersion": proto.get("protocolVersion"),
-            "releaseVersion": up.get("releaseVersion"),
-            "releaseTag": up.get("releaseTag"),
-            "releaseCommitSha": up.get("tagCommitSha"),
-            "releaseIndexSchemaVersion": idx.get("schemaVersion"),
-            "releaseChannel": idx.get("channel"),
-            "adapterReleaseAssetVersion": adv.get("releaseAssetVersion"),
-            "adapterVersion": adv.get("adapterVersion"),
-            "adapterArtifactId": adv.get("id"),
-            "adapterTargetOs": tgt.get("os"),
-            "adapterTargetArch": tgt.get("arch"),
-            "adapterTargetLibc": tgt.get("libc"),
-            "artifactName": art.get("name") or adv.get("name"),
-            "artifactSha256": art.get("sha256") or adv.get("sha256"),
-            "artifactSize": art.get("size") or adv.get("size"),
-            "status": up.get("status", "external-dependency-blocked"),
-            "blockedReason": up.get("blockedReason"),
-            "provisioned": bool(adv.get("sha256")),
-            "tagIdentityVerdict": "verified by scripts/verify_rill_release.py -> docs/rill-provenance.json",
-            "note": "PM never compiles Rill; this manifest records the immutable v1.2.0 Stable release this repo consumes. The Rill release bundle version (1.2.0), the rill-pm-adapter crate/binary version (0.15.0) and the pm-rill-shadow protocol version (1) are deliberately kept distinct; minimumRillVersion is a deprecated alias for minimumReleaseVersion and must never be compared against adapter --version."
-          }
-          with open(f"{root}/rill-consumed-manifest.json", "w") as f:
-              json.dump(manifest, f, ensure_ascii=False, indent=2)
-              f.write("\n")
-          print(json.dumps({"status": manifest["status"], "releaseVersion": manifest["releaseVersion"],
-                            "protocolContract": manifest["protocolContract"], "protocolVersion": manifest["protocolVersion"]}))
-          PY
+        run: python scripts/generate_rill_consumed_manifest.py --out rill-consumed-manifest.json
       - name: Upload Rill provenance + verified adapter artifact
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
@@ -128,6 +84,7 @@ jobs:
             docs/rill-stable-index.json
             docs/rill-integration-status.json
             docs/rill-integration-evidence.json
+            docs/rill-wire-harness.json
             docs/rill-pm-adapter-1.2.0-linux-x86_64-musl
             rill-consumed-manifest.json
           if-no-files-found: error
@@ -194,7 +151,7 @@ jobs:
             docs/rill-adapter-version.txt
             docs/rill-adapter-runtime.log
             docs/rill-protocol-roundtrip.json
-            docs/rill-integration-evidence.json
+            docs/rill-runtime.json
           if-no-files-found: error
 
   # Real shipped PM Core <-> real released v1.2.0 adapter inside the rootfs.
@@ -253,7 +210,7 @@ jobs:
           path: |
             pm-core-rill-roundtrip.log
             docs/pm-core-rill-roundtrip.json
-            docs/rill-integration-evidence.json
+            docs/rill-core-integration.json
           if-no-files-found: error
 
   openwrt-ucode:
@@ -348,4 +305,44 @@ jobs:
           path: |
             core-startup-smoke.log
             docs/core-startup-smoke.json
+          if-no-files-found: error
+
+  # Final release evidence aggregation (rc.7 prompt 29/43): downloads the
+  # per-job Rill evidence from the three Rill jobs and runs the authoritative
+  # aggregator, which enforces (1) a same-commit evidence chain and (2)
+  # combine_required verdict combination (ANY FAIL -> FAIL; ALL PASS -> PASS;
+  # otherwise BLOCKED).  This job gates ci.yml on the Rill chain ONLY
+  # (--scope rill); the SDK/APK chain is gated by the build-openwrt.yml
+  # workflow's own aggregator job, so neither workflow can falsely PASS what
+  # the other workflow alone can prove.
+  final-release-evidence:
+    runs-on: ubuntu-latest
+    needs: [pm-rill-provenance, pm-rill-runtime, pm-core-rill-roundtrip]
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - name: Download all Rill per-job evidence
+        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16
+        with:
+          pattern: "*"
+          path: evidence
+          merge-multiple: true
+      - name: Aggregate final release evidence (same-commit Rill chain)
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p docs
+          cp evidence/docs/rill-provenance.json docs/ 2>/dev/null || true
+          cp evidence/docs/rill-runtime.json docs/ 2>/dev/null || true
+          cp evidence/docs/rill-core-integration.json docs/ 2>/dev/null || true
+          cp evidence/docs/rill-wire-harness.json docs/ 2>/dev/null || true
+          cp evidence/rill-consumed-manifest.json docs/ 2>/dev/null || true
+          python3 scripts/aggregate_final_evidence.py \
+            --evidence-dir docs --scope rill \
+            --expected-commit "$GITHUB_SHA" \
+            --out docs/final-release-evidence.json
+      - name: Upload final release evidence
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: final-release-evidence
+          path: docs/final-release-evidence.json
           if-no-files-found: error

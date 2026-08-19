@@ -1,6 +1,6 @@
 # External Validation Required for 1.0 Stable
 
-`1.0.0-rc.6` builds on the rc.4 single-repo remediation (real Core ucode runtime harness), rc.5 (raw Core callee-before-caller startup smoke, fastpath nft Expected-Delta attribution), and upgrades the external Rill integration to the immutable **Rill Stable release v1.2.0** (rc.1 candidate removed): `scripts/verify_rill_release.py` proves tag identity, Ed25519 `stable`-index signature, unique `pm-adapter`/`linux`/`x86_64`/`musl` artifact selection and size+SHA256 integrity, and CI `pm-rill-provenance` → `pm-rill-runtime` → `pm-core-rill-roundtrip` execute the exact released adapter inside the official 25.12.5 x86/64 rootfs with real `status`/`observe`/`outcome` roundtrips and fail-closed negatives — but Stable still requires evidence that cannot be fabricated inside the current offline/non-OpenWrt assembly container.
+`1.0.0-rc.7` builds on the rc.6 Rill v1.2.0 Stable real integration (authoritative provenance, real-adapter runtime/roundtrip evidence, unified fail-closed binary resolver), the rc.4 single-repo remediation (real Core ucode runtime harness), rc.5 (raw Core callee-before-caller startup smoke, fastpath nft Expected-Delta attribution), and upgrades the external Rill integration to the immutable **Rill Stable release v1.2.0** (rc.1 candidate removed): `scripts/verify_rill_release.py` proves tag identity, Ed25519 `stable`-index signature, unique `pm-adapter`/`linux`/`x86_64`/`musl` artifact selection and size+SHA256 integrity, and CI `pm-rill-provenance` → `pm-rill-runtime` → `pm-core-rill-roundtrip` execute the exact released adapter inside the official 25.12.5 x86/64 rootfs with real `status`/`observe`/`outcome` roundtrips and fail-closed negatives — but Stable still requires evidence that cannot be fabricated inside the current offline/non-OpenWrt assembly container.
 
 The current official 25.12.x x86/64 target is available as OpenWrt 25.12.5, including an x86/64 rootfs and SDK. CI is pinned to that release for ucode and three-package build gates.
 
@@ -12,7 +12,7 @@ Required target evidence:
 4. Explicit LAN→Router→WAN and router-local controlled A/B sessions where the action semantics require them.
 5. Sysupgrade preservation via `scripts/openwrt-sysupgrade-gate.sh prepare` before the upgrade and `verify` after reboot, plus `scripts/openwrt-resource-soak.sh` for 24h or longer.
 
-Until those evidence files actually pass, the correct label is **1.0.0-rc.6**, not Stable.
+Until those evidence files actually pass, the correct label is **1.0.0-rc.7**, not Stable.
 
 ## Docker-based Evidence Progress
 

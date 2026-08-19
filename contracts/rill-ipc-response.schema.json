@@ -1,0 +1,297 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openwrt-performance-manager.local/schema/rill-ipc-response.json",
+  "title": "PmRillShadowResponse",
+  "description": "Formal v1 response protocol from the pinned Rill PM adapter (rill-pm-adapter v1.2.0, commit dc96fdb3bf55eacdd1c093f1be08d1c9daed4400). Mirrors the uniform `Response` envelope in crates/rill-pm-adapter/src/lib.rs: contract, protocolVersion, requestId echo, ok, plus per-op optional fields (adapterVersion/rillVersion/state/capabilities/modelHealth for status, decisionId/recommendation for observe, accepted for outcome) and error{code,message,retryable}. The four variants are mutually exclusive by field presence.",
+  "type": "object",
+  "oneOf": [
+    {
+      "$ref": "#/$defs/statusResponse"
+    },
+    {
+      "$ref": "#/$defs/observeResponse"
+    },
+    {
+      "$ref": "#/$defs/outcomeResponse"
+    },
+    {
+      "$ref": "#/$defs/errorResponse"
+    }
+  ],
+  "$defs": {
+    "requestId": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "envelope": {
+      "type": "object",
+      "required": [
+        "contract",
+        "protocolVersion",
+        "requestId",
+        "ok"
+      ],
+      "properties": {
+        "contract": {
+          "const": "pm-rill-shadow"
+        },
+        "protocolVersion": {
+          "const": 1
+        },
+        "requestId": {
+          "$ref": "#/$defs/requestId"
+        },
+        "ok": {
+          "type": "boolean"
+        }
+      }
+    },
+    "modelHealth": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "overall",
+        "partitions",
+        "totalSamples",
+        "stalePartitions",
+        "maxPartitionSamples",
+        "minPartitionSamples"
+      ],
+      "properties": {
+        "overall": {
+          "type": "string",
+          "enum": [
+            "healthy",
+            "degraded"
+          ]
+        },
+        "partitions": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "totalSamples": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "stalePartitions": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "maxPartitionSamples": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "minPartitionSamples": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "note": {
+          "type": "string"
+        }
+      }
+    },
+    "recommendation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "actionId",
+        "confidence",
+        "advisory"
+      ],
+      "properties": {
+        "actionId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "confidence": {
+          "type": "number"
+        },
+        "advisory": {
+          "const": true
+        }
+      }
+    },
+    "error": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "code",
+        "message",
+        "retryable"
+      ],
+      "properties": {
+        "code": {
+          "type": "string",
+          "minLength": 1
+        },
+        "message": {
+          "type": "string"
+        },
+        "retryable": {
+          "type": "boolean"
+        }
+      }
+    },
+    "statusResponse": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/envelope"
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "ok",
+            "adapterVersion",
+            "rillVersion",
+            "state",
+            "capabilities",
+            "modelHealth"
+          ],
+          "properties": {
+            "contract": {
+              "const": "pm-rill-shadow"
+            },
+            "protocolVersion": {
+              "const": 1
+            },
+            "requestId": {
+              "$ref": "#/$defs/requestId"
+            },
+            "ok": {
+              "const": true
+            },
+            "adapterVersion": {
+              "type": "string",
+              "minLength": 1
+            },
+            "rillVersion": {
+              "type": "string",
+              "minLength": 1
+            },
+            "state": {
+              "type": "string",
+              "enum": [
+                "collecting",
+                "learning",
+                "degraded"
+              ]
+            },
+            "capabilities": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "type": "string"
+              }
+            },
+            "modelHealth": {
+              "$ref": "#/$defs/modelHealth"
+            }
+          }
+        }
+      ]
+    },
+    "observeResponse": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/envelope"
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "ok",
+            "decisionId",
+            "recommendation"
+          ],
+          "properties": {
+            "contract": {
+              "const": "pm-rill-shadow"
+            },
+            "protocolVersion": {
+              "const": 1
+            },
+            "requestId": {
+              "$ref": "#/$defs/requestId"
+            },
+            "ok": {
+              "const": true
+            },
+            "decisionId": {
+              "type": "string",
+              "minLength": 1
+            },
+            "recommendation": {
+              "$ref": "#/$defs/recommendation"
+            }
+          }
+        }
+      ]
+    },
+    "outcomeResponse": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/envelope"
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "ok",
+            "accepted"
+          ],
+          "properties": {
+            "contract": {
+              "const": "pm-rill-shadow"
+            },
+            "protocolVersion": {
+              "const": 1
+            },
+            "requestId": {
+              "$ref": "#/$defs/requestId"
+            },
+            "ok": {
+              "const": true
+            },
+            "accepted": {
+              "const": true
+            }
+          }
+        }
+      ]
+    },
+    "errorResponse": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/envelope"
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "ok",
+            "error"
+          ],
+          "properties": {
+            "contract": {
+              "const": "pm-rill-shadow"
+            },
+            "protocolVersion": {
+              "const": 1
+            },
+            "requestId": {
+              "$ref": "#/$defs/requestId"
+            },
+            "ok": {
+              "const": false
+            },
+            "error": {
+              "$ref": "#/$defs/error"
+            }
+          }
+        }
+      ]
+    }
+  }
+}

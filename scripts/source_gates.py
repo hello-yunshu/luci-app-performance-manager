@@ -96,10 +96,10 @@ phases['8']=gate('Rill Intelligence (external runtime)',[
  ('no apply/uci op in protocol',"'apply' not in RILL_SCHEMA and 'uci' not in RILL_SCHEMA"),
  ('bounded context-key partition wiring',all_tokens(CORE,['rill_context_key_build','ctx-v1:','goal=%s'])),
  ('goal is first-class partition wiring',all_tokens(CORE,['const GOALS =',"goal_class = safe_name(goal_id ?? 'balanced')"])),
- ('per-op send/status/observe/outcome wiring',all_tokens(CORE,['rill_send','rill_status','rill_observe','rill_outcome_payload']))])
+ ('per-op send/status/observe/outcome wiring',all_tokens(CORE,['rill_send','rill_status','rill_observe','rill_report_outcome']))])
 phases['8'].update({'evidence':'structural: PM-side fail-closed contract wiring present; Rill unavailable/malformed fail-closed and status honesty are verified by the runtime harness [7] and scripts/rill_contract_check.py. Upstream external integration status is read from the freshly regenerated docs/rill-integration-status.json (provisioned/pass this cycle).'})
 phases['9']=gate('Recommend',[
- ('learned advisory wiring',all_tokens(CORE,['learnedAdvisory','rill.detail?.recommendations']))])
+ ('learned advisory wiring',all_tokens(CORE,['learnedAdvisory','rill_advisory_get']))])
 phases['9'].update({'evidence':'structural: advisory wiring present; generate-advice behavior is gated by Rill availability (fail-closed when external runtime blocked).'})
 phases['10']=gate('Assisted Auto',[
  ('default off',"option assisted_auto '0'" in CFG),('double opt-in',all_tokens(CORE,["!= 'assisted'","bool_cfg('main.assisted_auto', false)"])),('maintenance + health gates wiring',all_tokens(CORE,['in_maintenance_window()','system_guard()'])),('action selected before traffic gate',CORE.index('let action = actions[0]')<CORE.index('assisted_low_traffic(current, target_ref?.runtimeName ?? null)')),('target-specific low-traffic gate wiring',all_tokens(CORE,['assisted_low_traffic(current, runtime)','assisted-previous-','resolve_target(action.applyTarget)'])),('safe allowlist only','index(SAFE_ACTIONS, action.id)' in CORE)])

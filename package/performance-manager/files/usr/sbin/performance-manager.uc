@@ -23,6 +23,14 @@ const RILL_PROTOCOL_VERSION = 1;
 const RILL_REQUIRED_CAPABILITIES = [ 'context-partitioned-model', 'goal-partition', 'validated-outcome', 'decision-ledger', 'model-health' ];
 const RILL_REQUIRED_OPS = [ 'status', 'observe', 'outcome' ];
 const RILL_STATES = { disabled: 'disabled', notProvisioned: 'not-provisioned', binaryInvalid: 'binary-invalid', starting: 'starting', available: 'available', learning: 'learning', incompatible: 'incompatible', unhealthy: 'unhealthy', unavailable: 'unavailable' };
+const RILL_BINDINGS_SCHEMA_VERSION = 1;
+const RILL_BINDINGS_MAX = 64;
+const RILL_BINDINGS_TTL_MS = 3600000;
+const RILL_ADVISORY_TTL_MS = 3600000;
+const RILL_MODEL_GENERATION = 1;
+const RILL_OBSERVE_MIN_INTERVAL_MS = 30000;
+const RILL_PINNED_RELEASE_VERSION = '1.2.0';
+const RILL_PINNED_ADAPTER_VERSION = '0.15.0';
 const GOALS = [ 'balanced', 'throughput', 'latency', 'cpu_efficiency' ];
 /* Only throughput A/B is measurable with the current iperf3 methodology.
  * Other goals fail-closed rather than silently degrading to throughput. */
@@ -51,7 +59,7 @@ function shell_quote(arg) {
 	let s = `${arg}`;
 	/* Plain safe characters need no quoting; everything else is single-quoted
 	 * with the POSIX \' escape so argv elements survive the shell round-trip. */
-	if (match(s, /^[A-Za-z0-9_@%+=:,.|/\-]+$/))
+	if (match(s, /^[A-Za-z0-9_@%+=:,./\-]+$/))
 		return s;
 	return sprintf("'%s'", replace(s, /'/g, "'\\''"));
 }
@@ -80,6 +88,15 @@ function read(path, limit) {
 
 function file_exists(path) {
 	return fs.stat(path) != null;
+}
+
+function file_executable(path) {
+	/* Regular (non-directory) existing file with the executable bit set,
+	 * matching resolve_binary() in the performance-manager-rill init guard.
+	 * A directory is never a usable adapter binary. */
+	if (!file_exists(path)) return false;
+	if (run([ 'test', '-d', path ]).rc == 0) return false;
+	return run([ 'test', '-x', path ]).rc == 0;
 }
 
 function ensure_dir(path) {
@@ -1698,19 +1715,20 @@ function rill_context_key_build(profile, capability_hash, topo_gen, path_id, rou
 function rill_binary_path() {
 	/* UNIQUE PM<->init binary resolution contract.  Kept in sync with
 	 * resolve_binary() in the performance-manager-rill init guard.  An
-	 * explicit shadow.binary wins EXCLUSIVELY (must be absolute and present,
-	 * otherwise reason 'binary-invalid', never a silent fallback); an empty
-	 * shadow.binary resolves the default install path (/usr/bin then
-	 * /usr/sbin); none found -> reason 'not-provisioned'.
-	 * Returns { ok, binary, effective, source, reason }. */
+	 * explicit shadow.binary wins EXCLUSIVELY (must be absolute and
+	 * executable, otherwise reason 'binary-invalid', never a silent
+	 * fallback); an empty shadow.binary resolves the default install
+	 * path (/usr/bin then /usr/sbin); none found -> reason
+	 * 'not-provisioned'.  Returns { ok, binary, effective, source,
+	 * reason }. */
 	let configured = str_cfg('shadow.binary', '');
 	if (configured != '') {
-		if (substr(configured, 0, 1) != '/' || !file_exists(configured))
+		if (substr(configured, 0, 1) != '/' || !file_executable(configured))
 			return { ok: false, binary: configured, effective: null, source: 'explicit', reason: 'binary-invalid' };
 		return { ok: true, binary: configured, effective: configured, source: 'explicit', reason: 'ok' };
 	}
 	for (let path in [ '/usr/bin/rill-pm-adapter', '/usr/sbin/rill-pm-adapter' ])
-		if (file_exists(path))
+		if (file_executable(path))
 			return { ok: true, binary: path, effective: path, source: 'default', reason: 'ok' };
 	return { ok: false, binary: '', effective: null, source: 'default', reason: 'not-provisioned' };
 }
@@ -1729,11 +1747,16 @@ function rill_status() {
 			return { enabled: true, mode: 'shadow', status: 'Shadow · Binary invalid', state: RILL_STATES.binaryInvalid, reason: 'binary-invalid', compatibility: 'not-provisioned', transport: 'unavailable', protocolVersion: RILL_PROTOCOL_VERSION, binary: bmeta };
 		return { enabled: true, mode: 'shadow', status: 'Shadow · Not provisioned', state: RILL_STATES.notProvisioned, reason: 'external-runtime-not-provisioned', compatibility: 'not-provisioned', transport: 'unavailable', protocolVersion: RILL_PROTOCOL_VERSION, binary: bmeta };
 	}
-	let r = rill_send({ contract: RILL_CONTRACT, protocolVersion: RILL_PROTOCOL_VERSION, requestId: sprintf('status-%d', monotonic_ms()), op: 'status' });
+	let requestId = sprintf('status-%d', monotonic_ms());
+	let r = rill_send({ contract: RILL_CONTRACT, protocolVersion: RILL_PROTOCOL_VERSION, requestId: requestId, op: 'status' });
 	if (!r.ok) return { enabled: true, mode: 'shadow', status: 'Shadow · Unavailable', state: RILL_STATES.unavailable, reason: r.state ?? 'unavailable', compatibility: 'unknown', transport: r.state ?? 'unavailable', protocolVersion: RILL_PROTOCOL_VERSION, binary: bmeta };
 	/* Contract + protocol negotiation: a wrong contract name or a
 	 * higher/foreign protocol major must not be assumed compatible. */
 	let resp = r.response ?? {};
+	/* Fail-closed response integrity: a status response that is not ok=true or
+	 * that fails to echo our requestId is an adapter error, never availability. */
+	if (resp.ok !== true || (resp.requestId ?? '') != requestId)
+		return { enabled: true, mode: 'shadow', status: 'Shadow · Adapter error', state: RILL_STATES.unhealthy, reason: resp.error?.code ?? 'adapter-response-invalid', compatibility: 'incompatible', transport: 'connected', protocolVersion: RILL_PROTOCOL_VERSION, binary: bmeta, detail: r.response };
 	if (resp.contract != RILL_CONTRACT)
 		return { enabled: true, mode: 'shadow', status: 'Shadow · Incompatible contract', state: RILL_STATES.incompatible, reason: 'contract-mismatch', compatibility: 'incompatible', transport: 'connected', requestedContract: RILL_CONTRACT, advertisedContract: resp.contract ?? null, protocolVersion: RILL_PROTOCOL_VERSION, binary: bmeta, detail: r.response };
 	if ((resp.protocolVersion ?? 0) != RILL_PROTOCOL_VERSION)
@@ -1750,7 +1773,148 @@ function rill_status() {
 	if (health.overall != 'healthy')
 		return { enabled: true, mode: 'shadow', status: 'Shadow · Unhealthy', state: RILL_STATES.unhealthy, reason: 'model-unhealthy', compatibility: 'compatible', transport: 'connected', modelHealth: health, protocolVersion: RILL_PROTOCOL_VERSION, binary: bmeta, detail: r.response };
 	let learning = resp.state == 'learning';
-	return { enabled: true, mode: 'shadow', status: learning ? 'Shadow · Learning' : 'Shadow · Available', state: learning ? RILL_STATES.learning : RILL_STATES.available, reason: null, compatibility: 'compatible', transport: 'connected', releaseVersion: resp.releaseVersion ?? null, adapterVersion: resp.adapterVersion ?? null, protocolVersion: resp.protocolVersion ?? RILL_PROTOCOL_VERSION, binary: bmeta, detail: r.response };
+	return { enabled: true, mode: 'shadow', status: learning ? 'Shadow · Learning' : 'Shadow · Available', state: learning ? RILL_STATES.learning : RILL_STATES.available, reason: null, compatibility: 'compatible', transport: 'connected', adapterVersion: resp.adapterVersion ?? RILL_PINNED_ADAPTER_VERSION, rillVersion: resp.rillVersion ?? RILL_PINNED_RELEASE_VERSION, releaseVersion: RILL_PINNED_RELEASE_VERSION, protocolVersion: resp.protocolVersion ?? RILL_PROTOCOL_VERSION, binary: bmeta, detail: r.response };
+}
+
+function rill_integrations_payload() {
+	/* Stable, bounded array projection of integration_state() for the Rill
+	 * wire contract.  Rill v1.2.0 Observe.integrations is Vec<Value> (an
+	 * array), never an object; a deterministic key order keeps the payload
+	 * reproducible across observes. */
+	let st = integration_state();
+	let order = [ 'openclash', 'passwall', 'homeproxy', 'sqm', 'qosify', 'mwan3', 'pbr', 'wireguard', 'openvpn', 'docker' ];
+	return map(order, function(k) { return { id: k, present: !!st[k] }; });
+}
+
+function rill_bindings_path() {
+	return `${persist_dir()}/rill-bindings.json`;
+}
+
+function rill_bindings_save() {
+	json_write(rill_bindings_path(), { schemaVersion: RILL_BINDINGS_SCHEMA_VERSION, bindings: rill_bindings });
+}
+
+function rill_bindings_load() {
+	let p = json_read(rill_bindings_path(), null);
+	if (!p || p.schemaVersion != RILL_BINDINGS_SCHEMA_VERSION) return {};
+	return p.bindings ?? {};
+}
+
+function rill_binding_register(payload, resp) {
+	/* Observe succeeded: the adapter registered a pending decision for the
+	 * recommended action.  Persist the PM-side binding so a later outcome can
+	 * resolve exactly that decision — contextKey/actionId/goal/generation must
+	 * echo the observe or Rill's ledger rejects the outcome.  One binding per
+	 * actionId; a newer observe for the same action replaces the older one. */
+	let actionId = resp?.recommendation?.actionId;
+	if (!actionId || !resp?.decisionId || !payload?.contextKey) return null;
+	rill_bindings[actionId] = {
+		schemaVersion: RILL_BINDINGS_SCHEMA_VERSION,
+		decisionId: resp.decisionId, contextKey: payload.contextKey,
+		actionId: actionId, goal: payload.goal ?? goal(),
+		modelGeneration: RILL_MODEL_GENERATION,
+		advisory: resp.recommendation?.advisory ?? false,
+		confidence: resp.recommendation?.confidence ?? 0,
+		atMs: monotonic_ms()
+	};
+	rill_bindings_save();
+	return rill_bindings[actionId];
+}
+
+function rill_binding_take(action_id) {
+	/* Consume the live binding for an action.  Expired bindings are treated
+	 * as absent: the TTL is aligned with the adapter's own DECISION_TTL_MS so
+	 * a stale decision can never be resolved by a late outcome. */
+	let b = rill_bindings[action_id];
+	if (!b) return null;
+	if ((monotonic_ms() - b.atMs) > RILL_BINDINGS_TTL_MS) { rill_bindings[action_id] = null; rill_bindings_save(); return null; }
+	rill_bindings[action_id] = null;
+	rill_bindings_save();
+	return b;
+}
+
+function rill_bindings_prune() {
+	/* Opportunistic TTL sweep keeps the persisted store bounded.  Nulled
+	 * (consumed) entries are dropped here rather than growing forever. */
+	let now = monotonic_ms(), next = {}, changed = false;
+	for (let k in keys(rill_bindings)) {
+		let b = rill_bindings[k];
+		if (b && (now - b.atMs) <= RILL_BINDINGS_TTL_MS) next[k] = b;
+		else changed = true;
+	}
+	if (changed) { rill_bindings = next; rill_bindings_save(); }
+}
+
+let rill_bindings = rill_bindings_load();
+let rill_last_observe_ms = null;
+let rill_advisory = null;
+
+function rill_advisory_update(resp, payload) {
+	/* Remember the latest recommendation for UI display.  Fed ONLY from a
+	 * successful observe — status responses carry no recommendation, so the
+	 * advisory can never be confused with "runtime available".  The stored
+	 * drift-context (topology generation / route identity / integration
+	 * fingerprint / goal) lets rill_advisory_get() invalidate it if the world
+	 * changed under it, and expiresMonotonicMs bounds its lifetime. */
+	let rec = resp?.recommendation;
+	if (!rec || !resp?.decisionId) return null;
+	let now = monotonic_ms();
+	rill_advisory = {
+		decisionId: resp.decisionId, actionId: rec.actionId,
+		confidence: rec.confidence ?? 0, advisory: rec.advisory ?? true,
+		contextKey: payload?.contextKey ?? null, goal: payload?.goal ?? goal(),
+		topologyGeneration: payload?.topologyGeneration ?? topology_generation,
+		routeIdentity: payload?.routeIdentity ?? 'unresolved',
+		integrationFingerprint: payload?.integrationFingerprint ?? '',
+		createdMonotonicMs: now, expiresMonotonicMs: now + RILL_ADVISORY_TTL_MS
+	};
+	return rill_advisory;
+}
+
+function rill_advisory_get() {
+	/* Latest valid advisory for UI display.  Invalidated on ANY drift
+	 * (topology generation, route identity, integration fingerprint, goal) or
+	 * on action disappearance / decision TTL expiry — fail-closed: a stale
+	 * advisory is never surfaced as if it were current. */
+	if (!rill_advisory) return null;
+	let a = rill_advisory;
+	if (monotonic_ms() > a.expiresMonotonicMs) { rill_advisory = null; return null; }
+	let topo = topology();
+	if ((a.topologyGeneration ?? null) != topology_generation) { rill_advisory = null; return null; }
+	let route = topo?.paths?.[0]?.routeIdentity ?? 'unresolved';
+	if ((a.routeIdentity ?? 'unresolved') != route) { rill_advisory = null; return null; }
+	if ((a.integrationFingerprint ?? '') != integration_fingerprint([], nft_snapshot())) { rill_advisory = null; return null; }
+	if ((a.goal ?? '') != goal()) { rill_advisory = null; return null; }
+	if (find_action(a.actionId, null) == null) { rill_advisory = null; return null; }
+	return a;
+}
+function rill_report_outcome(action_id, measurement, reward, session_id, ctx) {
+	/* Report a validated outcome for a decision PM actually bound via a prior
+	 * successful observe.  Only the decision's own contextKey/actionId/goal/
+	 * generation may be sent (Rill's ledger validates action, context and
+	 * generation); any mismatch is rejected fail-closed.  When no live binding
+	 * exists for the action there is no decision to resolve, so the outcome is
+	 * deliberately skipped — shadow mode never fabricates one. */
+	ctx = ctx ?? {};
+	let b = rill_binding_take(action_id);
+	if (!b) {
+		runtime_history('rill.outcome.skipped', { actionId: action_id, reason: 'no-bound-decision' });
+		return { ok: false, state: 'no-bound-decision' };
+	}
+	let payload = {
+		contract: RILL_CONTRACT, protocolVersion: RILL_PROTOCOL_VERSION,
+		requestId: sprintf('outcome-%d', monotonic_ms()), op: 'outcome', validated: true,
+		decisionId: b.decisionId, contextKey: b.contextKey, actionId: b.actionId,
+		sessionId: session_id, goal: b.goal, modelGeneration: b.modelGeneration, reward: reward
+	};
+	let r = rill_send(payload);
+	if (!r.ok) {
+		runtime_history('rill.outcome.rejected', { actionId: action_id, decisionId: b.decisionId, measurementClass: measurement, state: r.state, response: r.response });
+		return r;
+	}
+	let accepted = r.response?.accepted;
+	runtime_history('rill.outcome.accepted', { actionId: action_id, decisionId: b.decisionId, accepted: accepted, measurementClass: measurement });
+	return { ok: true, accepted: accepted, decisionId: b.decisionId, response: r.response };
 }
 
 function push_unique(dst, value) {
@@ -2184,11 +2348,12 @@ function recommendations() {
 	if ((po?.conntrackPressure ?? 0) >= 0.70 || integration_state().transparentProxy)
 		push(notes, { id: 'network.local_port_capacity', disposition: 'analyze', detail: 'Local port capacity is relevant under proxy/high-connection pressure; reserved ports and ownership must be preserved. Any change remains benchmark-only.' });
 	let rill = rill_status();
+	let rill_advisory_live = rill_advisory_get();
 	return {
 		topologyGeneration: topology_generation, actions: acts, observations: notes,
 		benchmarkActions: benchmark_catalog(),
 		rill: rill,
-		learnedAdvisory: rill.detail?.recommendations ?? []
+		learnedAdvisory: rill_advisory_live ? [rill_advisory_live] : [],
 	};
 }
 
@@ -2288,23 +2453,6 @@ function rill_context_key_observe() {
 		integration_fingerprint([], nft_snapshot()), goal());
 }
 
-function rill_outcome_payload(action_id, measurement, reward, session_id, ctx) {
-	ctx = ctx ?? {};
-	let g = ctx.goal ?? goal();
-	return {
-		contract: RILL_CONTRACT, protocolVersion: RILL_PROTOCOL_VERSION, requestId: sprintf('outcome-%d', monotonic_ms()), op: 'outcome', validated: true,
-		decisionId: ctx.decisionId ?? 'pm-managed-apply', actionId: action_id, measurementClass: measurement, reward: reward, sessionId: session_id,
-		modelGeneration: ctx.modelGeneration ?? 1,
-		deviceProfile: cfg('main.profile','recommended'), goal: g,
-		capabilityHash: ctx.capabilityHash ?? 'unknown', topologyGeneration: ctx.topologyGeneration ?? 0,
-		pathId: ctx.pathId ?? 'path:lan-to-wan', routeIdentity: ctx.routeIdentity ?? 'unresolved',
-		workloadClass: ctx.workloadClass ?? [ 'plain_forwarding' ],
-		integrationFingerprint: ctx.integrationFingerprint ?? integration_fingerprint([], nft_snapshot()),
-		contextKey: rill_context_key_build(cfg('main.profile','recommended'), ctx.capabilityHash ?? 'unknown',
-			ctx.topologyGeneration ?? 0, ctx.pathId ?? 'path:lan-to-wan', ctx.routeIdentity ?? 'unresolved',
-			ctx.workloadClass ?? [ 'plain_forwarding' ], ctx.integrationFingerprint ?? '', g)
-	};
-}
 
 function apply_ring(action, options) {
 	options = options ?? {};
@@ -2360,7 +2508,7 @@ function apply_ring(action, options) {
 		tx_save(tx); release_locks(tx.requiredLocks, tx.transactionId);
 		(options.runtimeOnly ? runtime_history : history)(restored ? 'transaction.rollback' : 'transaction.rollback_failed', tx);
 		if (!options.runtimeOnly && restored)
-			rill_send(rill_outcome_payload(action.id,'health_only',-1.0,tx.transactionId,{ capabilityHash:capability_hash(capabilities()), topologyGeneration:topology_generation, pathId:topology().paths?.[0]?.id ?? 'path:lan-to-wan', routeIdentity:topology().paths?.[0]?.routeIdentity ?? 'unresolved', workloadClass:topology().paths?.[0]?.workloadClass ?? ['plain_forwarding'], integrationFingerprint:integration_fingerprint([], nft_snapshot()) }));
+			rill_report_outcome(action.id,'health_only',-1.0,tx.transactionId,{});
 		return { ok: false, transaction: tx };
 	}
 	tx.verification = { readBack: 'pass', link: 'pass', healthRegression: 'none', commitConfirm: action.requiresCommitConfirm ? 'pending' : 'not_required' };
@@ -2398,7 +2546,7 @@ function apply_ring(action, options) {
 	cancel_tx_timer(tx.transactionId); release_locks(tx.requiredLocks, tx.transactionId);
 	(options.runtimeOnly ? runtime_history : history)('transaction.commit', tx);
 	if (!options.runtimeOnly)
-		rill_send(rill_outcome_payload(action.id,'health_only',0.0,tx.transactionId,{ capabilityHash:capability_hash(capabilities()), topologyGeneration:topology_generation, pathId:topology().paths?.[0]?.id ?? 'path:lan-to-wan', routeIdentity:topology().paths?.[0]?.routeIdentity ?? 'unresolved', workloadClass:topology().paths?.[0]?.workloadClass ?? ['plain_forwarding'], integrationFingerprint:integration_fingerprint([], nft_snapshot()) }));
+		rill_report_outcome(action.id,'health_only',0.0,tx.transactionId,{});
 	return { ok: true, transaction: tx };
 }
 
@@ -2523,7 +2671,7 @@ function benchmark_start(msg) {
 			if (!json_write(benchmark_path(sid),session)) return {ok:false,error:'benchmark-result-write-failed-after-safe-rollback',session:session};
 			release_benchmark_lock(session.benchmarkLock?.domain, sid);
 			history('benchmark.completed',session);
-			rill_send(rill_outcome_payload(session.actionId,'controlled_ab',reward,sid,benchmark_context_frozen(session)));
+			rill_report_outcome(session.actionId,'controlled_ab',reward,sid,{});
 			return {ok:true,stage:'result',session:session};
 		}
 		return {ok:false,error:'invalid-benchmark-phase'};
@@ -2577,23 +2725,39 @@ function benchmark_start(msg) {
 }
 
 function rill_observe() {
+	/* Observe is a decision-registration call on the adapter's ledger.  It is
+	 * throttled so PM stays inside the adapter's pending-decision capacity
+	 * (each observe registers one pending decision that only an outcome or the
+	 * 1h TTL resolves). */
+	let now = monotonic_ms();
+	if (rill_last_observe_ms && (now - rill_last_observe_ms) < RILL_OBSERVE_MIN_INTERVAL_MS)
+		return { ok: false, state: 'throttled', retryAfterMs: RILL_OBSERVE_MIN_INTERVAL_MS };
 	let caps = capabilities();
 	let topo = topology();
 	let path = topo.paths[0];
-	let integ = integration_state();
 	let integ_fp = integration_fingerprint([], nft_snapshot());
 	let g = goal();
 	let payload = {
-		contract: RILL_CONTRACT, protocolVersion: RILL_PROTOCOL_VERSION, requestId: sprintf('obs-%d', monotonic_ms()), op: 'observe', deviceProfile: cfg('main.profile','recommended'),
+		contract: RILL_CONTRACT, protocolVersion: RILL_PROTOCOL_VERSION, requestId: sprintf('obs-%d', now), op: 'observe', deviceProfile: cfg('main.profile','recommended'),
 		capabilityHash: capability_hash(caps), topologyGeneration: topology_generation,
 		pathId: path?.id ?? 'path:lan-to-wan', routeIdentity: path?.routeIdentity ?? 'unresolved', workloadClass: path?.workloadClass ?? ['plain_forwarding'],
-		measurementClass: 'passive_before_after', context: telemetry_snapshot(), integrations: integ, goal: g,
+		measurementClass: 'passive_before_after', context: telemetry_snapshot(), integrations: rill_integrations_payload(), goal: g,
 		integrationFingerprint: integ_fp,
 		contextKey: rill_context_key_build(cfg('main.profile','recommended'), capability_hash(caps), topology_generation,
 			path?.id ?? 'path:lan-to-wan', path?.routeIdentity ?? 'unresolved', path?.workloadClass ?? ['plain_forwarding'], integ_fp, g),
 		availableActions: rill_available_actions()
 	};
-	return rill_send(payload);
+	rill_last_observe_ms = now;
+	let r = rill_send(payload);
+	if (!r.ok) return r;
+	let resp = r.response ?? {};
+	/* Fail-closed response validation: ok must be true and the adapter must
+	 * echo our requestId before we trust any decision it hands back. */
+	if (resp.ok !== true || (resp.requestId ?? '') != payload.requestId)
+		return { ok: false, state: 'invalid-observe-response', requestId: payload.requestId, response: r.response };
+	let binding = rill_binding_register(payload, resp);
+	rill_advisory_update(resp, payload);
+	return { ok: true, decisionId: resp.decisionId, recommendation: resp.recommendation, binding: binding, response: r.response };
 }
 
 function package_installed(name) {
@@ -2932,3 +3096,4 @@ if (route_listener) push(listeners, route_listener);
 schedule_telemetry();
 uloop.timer(1500, function() { refresh('boot'); });
 uloop.run();
+

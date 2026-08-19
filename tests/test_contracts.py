@@ -36,27 +36,30 @@ class ContractTests(unittest.TestCase):
     def test_rill_ipc_per_op_branches_enforce_full_context_binding(self):
         sch=json.loads((ROOT/'contracts/rill-ipc.schema.json').read_text())
         v=jsonschema.Draft202012Validator(sch)
+        # The schema is oneOf over per-op $defs with additionalProperties:false,
+        # mirroring the tagged Request enum (deny_unknown_fields) in
+        # crates/rill-pm-adapter/src/lib.rs v1.2.0: a valid outcome carries ONLY
+        # the outcomeRequest fields (no observe-only metadata).
         outcome={ 'contract':'pm-rill-shadow','protocolVersion':1,'requestId':'o1','op':'outcome','validated':True,'actionId':'nic.ring.floor','decisionId':'d1','goal':'balanced','modelGeneration':1,
-                  'measurementClass':'controlled_ab','reward':0.25,'sessionId':'s1',
-                  'deviceProfile':'p','capabilityHash':'c','topologyGeneration':1,'pathId':'path:lan-to-wan',
-                  'routeIdentity':'r','workloadClass':['plain_forwarding'],'integrationFingerprint':'f',
-                  'contextKey':'ctx-v1:profile=p;cap=c;topo=1;path=path:lan-to-wan;route=r;workload=plain_forwarding;integ=f' }
+                  'sessionId':'s1','reward':0.25,
+                  'contextKey':'ctx-v1:profile=p;cap=c;topo=1;path=path:lan-to-wan;route=r;workload=plain_forwarding;integ=f;goal=balanced' }
         self.assertTrue(v.is_valid(outcome))
-        for field in ['validated','contextKey','reward','integrationFingerprint','routeIdentity','sessionId','actionId']:
+        for field in ['validated','contextKey','reward','actionId','sessionId','decisionId','goal','modelGeneration','requestId']:
             with self.subTest(field=field):
                 broken=dict(outcome); del broken[field]
                 self.assertFalse(v.is_valid(broken),f'outcome must reject missing {field}')
         invalid_context=dict(outcome); invalid_context['contextKey']='v1:prefix'
         self.assertFalse(v.is_valid(invalid_context))
-        unvalidated=dict(outcome); unvalidated['validated']=False
-        self.assertFalse(v.is_valid(unvalidated))
+        # deny_unknown_fields: a foreign field is REJECTED, never ignored.
+        unknown=dict(outcome); unknown['deviceProfile']='p'
+        self.assertFalse(v.is_valid(unknown))
     def test_rill_ipc_observe_requires_full_metadata(self):
         sch=json.loads((ROOT/'contracts/rill-ipc.schema.json').read_text())
         v=jsonschema.Draft202012Validator(sch)
         observe=json.loads((ROOT/'schemas/rill-ipc.example.json').read_text())
         self.assertTrue(v.is_valid(observe))
         for field in ['deviceProfile','capabilityHash','topologyGeneration','pathId','routeIdentity',
-                      'workloadClass','measurementClass','context','integrations','integrationFingerprint',
+                      'workloadClass','measurementClass','context','integrations','goal','integrationFingerprint',
                       'contextKey','availableActions']:
             with self.subTest(field=field):
                 broken=dict(observe); del broken[field]
