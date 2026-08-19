@@ -26,7 +26,7 @@
 - **Telemetry + Health Guard**: evidence/confidence Analyzer, baseline-relative health gate, resource locks, durable pending markers, verified rollback and a real monotonic commit-confirm engine
 - **Phase-7 benchmark orchestration**: irqbalance, backlog/budget, buffers, busy poll, tx queue, coalescing, CC, qdisc, SFO/HFO/SFE and CPU governor; providers run only when an exact reversible contract exists
 - **Controlled A/B truthfulness**: persisted control evidence → one-variable transactional candidate → candidate evidence → verified rollback → result persistence → optional Rill outcome; missing/invalid evidence never becomes `validated=true`
-- **Rill Shadow learning**: Rill is an external runtime dependency built and released by its upstream repository; PM only consumes its advisory through a bounded shadow-only IPC protocol (context drift detection, validated-outcome weighting, Decision Ledger, model health), failing closed without faking recommendations when Rill is missing or incompatible
+- **RillML (Rill) Shadow learning**: RillML is an external runtime dependency built and released by its upstream repository; PM only consumes its advisory through a bounded shadow-only IPC protocol (context drift detection, validated-outcome weighting, Decision Ledger, model health), failing closed without faking recommendations when Rill is missing or incompatible
 - **Assisted Auto**: explicit opt-in only — maintenance window + low-traffic gate + safe allowlist
 - **Multi-platform guidance**: generic x86, Hyper-V and KVM (including Proxmox VE guest guidance)
 - **Companion Agent**: an explicit LAN/WAN iperf3 endpoint tool with no router-mutation authority
@@ -176,12 +176,12 @@ package/luci-app-performance-manager/
                           └───────────┬────────────┘
                                       │ consumes upstream release
                           ┌───────────▼────────────┐
-                          │   Rill upstream runtime │
-                          │ (built/released upstream)│
+                          │  RillML upstream runtime  │
+                          │ (built/released upstream) │
                           └────────────────────────┘
 ```
 
-> **Rill is an external runtime dependency.** Rill's source, Rust toolchain, cross-platform compilation and binary release all belong to the Rill upstream repository; this repository does not vendor, compile or natively test Rill's Rust implementation. `performance-manager-rill` is PM-specific integration glue (fail-closed capability gate + service glue) that only consumes and verifies the upstream release artifact.
+> **RillML (Rill) is an external runtime dependency.** RillML's source, Rust toolchain, cross-platform compilation and binary release all belong to the RillML upstream repository; this repository does not vendor, compile or natively test RillML's Rust implementation. `performance-manager-rill` is PM-specific integration glue (fail-closed capability gate + service glue) that only consumes and verifies the upstream release artifact.
 
 **Data flow**:
 
