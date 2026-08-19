@@ -1,28 +1,24 @@
-# Final Audit — 1.0.0-rc.7
+# Source Audit — 1.0.0-rc.8
 
 ## Decision
 
-**PASS — 1.0.0-rc.7 source + Rill integration candidate; Stable remains blocked by explicit external target/testbed gates.**
+**PASS — 1.0.0-rc.8 source candidate PASS; functional integration and Stable release are NOT_EVALUATED.**
 
-This audit is a single self-contained orchestrator: contract validation, host syntax checks, source gates, resource budget and the unittest suite are all rerun in this process, and only the freshly generated reports are consumed. Source completion is deliberately separated from real target evidence.
+This is a source-only, non-promotable audit. It does not consume old runtime
+artifacts and cannot claim functional-integration or Stable-release PASS.
 
-## Orchestrated gates
+## Orchestrated local gates
 
-- contract-validation: **PASS**
-- host-syntax: **PASS**
-- source-gates: **PASS**
-- rill-contract: **PASS**
-- rill-runtime: **PASS**
-- resource-budget: **PASS**
+- contract-validation: **PASS** (source)
+- host-syntax: **PASS** (source)
+- source-gates: **PASS** (source)
+- rill-static-contract: **PASS** (source)
+- resource-budget: **PASS** (source)
 
-
-## Local evidence
-
-- Executable unit/contract tests: **93**, status **PASS**.
-- Host syntax/JSON/JS/YAML checks: **21**, status **PASS**.
-- Formal schemas/examples and frozen profiles: validated by `scripts/validate_contracts.py`.
-- zh_Hans: all current literal LuCI msgids are covered.
-- Resource budget: generated; target-only RSS/CPU/writes/day/boot-time values remain explicitly unmeasured until a real OpenWrt VM is used.
+- Executable unit/contract tests: **132**, status **PASS**.
+- Rill static contract: **PASS**.
+- Rill release-pin structure: **PASS**.
+- Rill functional integration: **NOT_EVALUATED** in this report.
 
 ## Source phase gates
 
@@ -40,28 +36,17 @@ This audit is a single self-contained orchestrator: contract validation, host sy
 - Phase 11: **PASS** — Platforms
 - Phase 12: **PASS** — Companion
 
-## Rill integration (external runtime)
+## External gates intentionally not evaluated
 
-Rill is an external runtime dependency owned, built and released by its upstream repository. This repository does not compile or natively test Rill. The PM-side fail-closed contract **PASSES** (the Core never crashes, never fakes a recommendation, and never auto-applies from an unavailable/incompatible runtime). The freshly regenerated gate (`docs/rill-integration-status.json`, written by the `rill-contract` step) reports: **pmFailClosedContract=pass, upstreamEntitlement=pass, overallFeatureStatus=pass** (provisioned=true). This is derived from the pinned upstream release entry and never hardcoded; the remaining Stable gates (booted target, real A/B testbed, soak) are still explicit external gates.
+- same-commit official OpenWrt SDK/APK build: **NOT_EVALUATED**
+- exact Rill release provenance and binary runtime: **NOT_EVALUATED**
+- production Core to exact adapter Observe/Outcome lifecycle: **NOT_EVALUATED**
+- booted OpenWrt Core-only, full, and mutation target gates: **NOT_EVALUATED**
+- Hyper-V and KVM TargetRef/hotplug/replay/rollback: **NOT_EVALUATED**
+- LAN-WAN and router-local controlled A/B: **NOT_EVALUATED**
+- real sysupgrade preservation: **NOT_EVALUATED**
+- 24-hour resource, restart, idle-Observe, and persistence soak: **NOT_EVALUATED**
 
-## Real Core runtime harness
-
-Real OpenWrt ucode executes the actual `performance-manager.uc` (Layer 2) via `tools/docker-validate/harness` and asserts on: Multi-WAN/PBR discovery from route/rule evidence (custom `isp-b`/`fiber`), underlay resolution (PPPoE→VLAN→NIC), path-specific workload class (global WireGuard does not leak into plain WAN), nft candidate-only fingerprint masking, measurement-methodology mismatch, Conservative auto-tick gating, and Rill fail-closed on an unavailable socket. Report: `core-runtime-harness.log`.
-
-## Closed strict-audit blockers
-
-- Transaction Schema now covers the full frozen state machine and runtime-shaped null/awaiting-confirm states.
-- Persistence, Lock, Health, Benchmark Session and Companion Measurement contracts are formal schemas shipped with Core.
-- Commit-confirm now arms a real monotonic deadline and timer.
-- Active transaction state has a durable pending marker; same-boot daemon crash rolls back, while cross-boot recovery clears stale runtime intent without replay.
-- Health Guard includes baseline-relative LAN/WAN/DNS/IPv4/IPv6/proxy/VPN/route, load, steal, OOM, thermal and writable-state checks.
-- Route identity is based on `ip -j` default-route/rule evidence and rtnetlink route/link events; multi-WAN candidates are represented explicitly.
-- Runtime Topology conforms to the formal schema (string `lanInterface`), and paths resolve a real underlay NIC chain (VLAN/bridge/PPPoE/tunnel/radio) to a stable target.
-- Multi-WAN/PBR Path inventory is built from netifd/runtime route/rule evidence, not `wan[0-9]+` naming guesses.
-- Workload Class is derived from affected/evaluation path evidence (all seven frozen classes), never hard-coded to `plain_forwarding`.
-- Conservative automation carries real safety semantics: safe-allowlist-only auto-apply, never seizes preexisting, observe/respect packet steering, transactional ownership-backed writes, Rill advisory-only.
-- Controlled A/B freezes a canonical measurement methodology (host/port/direction/streams/duration/protocol/tool version); any control/candidate mismatch is rejected (`validated=false`, no reward, no Rill outcome).
-- Benchmark context includes a live nft ruleset fingerprint and route/rule identity; live-only control/candidate drift invalidates the experiment.
-- Policy replay cedes on live drift: if the value PM owns has changed, ownership is relinquished and the user/external value is not overwritten.
-- Assisted Auto gates on the selected action's own target traffic before applying, and remains safe-allowlist only.
-- Uninstall cleanup is fail-closed: package removal aborts unless the daemon confirms an ownership-safe cleanup; upgrades and staged roots are untouched.
+The only authority for a Stable verdict is `scripts/final_release_audit.py`,
+which requires same-commit build, runtime, target, hypervisor, testbed,
+sysupgrade, lifecycle, and 24-hour soak evidence.

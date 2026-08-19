@@ -10,6 +10,8 @@
     "state",
     "userInitiated",
     "actionId",
+    "executionSource",
+    "rillDecision",
     "applyTarget",
     "evaluationPath",
     "workloadClass",
@@ -46,6 +48,34 @@
     "actionId": {
       "type": "string",
       "minLength": 1
+    },
+    "executionSource": {
+      "enum": [
+        "manual",
+        "benchmark-rill"
+      ]
+    },
+    "rillDecision": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "required": [
+        "decisionId",
+        "actionId",
+        "contextKey",
+        "goal",
+        "modelGeneration",
+        "bootId"
+      ],
+      "properties": {
+        "decisionId": { "type": "string", "pattern": "^[0-9a-f]{32}$" },
+        "actionId": { "type": "string", "minLength": 1 },
+        "contextKey": { "type": "string", "minLength": 1 },
+        "goal": { "type": "string", "minLength": 1 },
+        "modelGeneration": { "const": 1 },
+        "bootId": { "type": "string", "minLength": 1 }
+      }
     },
     "applyTarget": {
       "type": [

@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.0.0-rc.8 — Exact Rill decision lifecycle + Stable evidence closure (2026-08-20)
+
+- binds every Rill-assisted execution to the exact `decisionId`/action/context/goal/generation and freezes it into the production transaction or benchmark journal;
+- validates every adapter response envelope and payload fail-closed, keeps retryable Outcome bindings, and reconciles `duplicateFeedback` only after a recorded same-attempt response loss;
+- removes telemetry-driven Observe/persistence amplification, keeps unexecuted advisories in runtime memory, and exposes audited logical persistence counters;
+- extends the real production Core↔exact-adapter gate through Observe, decision freeze, Core/adapter restart, controlled A/B, exact rollback, and accepted Outcome;
+- replaces source-report promotion with non-promotable source/static verdicts and a same-commit Stable aggregator covering SDK/APK, targets, hypervisors, A/B, sysupgrade, lifecycle, and 24-hour Rill-present soak;
+- replaces the unsupported socket inode-mode assertion with the implemented `0750` directory/dedicated-service-user access-control boundary.
+
 ## 1.0.0-rc.7 — Rill v1.2.0 real wire contract + decision ledger + evidence false-PASS closure (2026-08-19)
 
 - **Request schema rewritten to the real adapter contract.** `contracts/rill-ipc.schema.json` replaces the old root-level `allOf`/permissive shape with per-operation `oneOf` branches (`$defs/statusRequest|observeRequest|outcomeRequest`), each with `additionalProperties:false` mirroring upstream's `deny_unknown_fields`: extra fields are now **rejected**, not ignored. `observeRequest` gains `goal` in `required` and changes `integrations` to a bounded `array` of `{id,present}` objects; `outcomeRequest` is reduced to the exact upstream-accepted field set (`decisionId/contextKey/actionId/sessionId/goal/modelGeneration/validated/reward`), removing the previously sent topology/measurement/device/context fields. Package schema copy (`usr/share/performance-manager/schemas/`) is kept in sync.

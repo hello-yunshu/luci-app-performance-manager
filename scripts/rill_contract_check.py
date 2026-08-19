@@ -114,17 +114,17 @@ else:
     check('blocked reason recorded', bool(up.get('blockedReason')) or status_key=='provisioned')
 
 ok=all(ok for _,ok in checks)
-pm_contract = 'pass' if ok else 'fail'
-upstream_entitlement = 'pass' if (pinned and ok) else ('blocked' if not pinned else 'fail')
-overall = 'pass' if (pm_contract=='pass' and upstream_entitlement=='pass') else 'blocked'
+static_contract = 'PASS' if ok else 'FAIL'
+release_pin_structure = 'PASS' if (pinned and ok) else ('BLOCKED' if not pinned else 'FAIL')
 status={
     'schemaVersion': 3,
     'contract': 'rill-integration-status',
     'scope': 'PM-side static protocol/dependency contract + immutable Stable release pin only',
-    'pmFailClosedContract': pm_contract,
-    'upstreamEntitlement': upstream_entitlement,
-    'overallFeatureStatus': overall,
-    'functionalIntegrationVerification': 'see docs/rill-integration-evidence.json (written by scripts/verify_rill_release.py + pm-rill-runtime + pm-core-rill-roundtrip); NEVER derived from this static check',
+    'staticContractVerdict': static_contract,
+    'releasePinStructureVerdict': release_pin_structure,
+    'functionalIntegrationVerdict': 'NOT_EVALUATED',
+    'promotionPolicy': 'This source-only report is non-promotable. It cannot produce a feature, release-candidate, or Stable PASS.',
+    'functionalIntegrationVerification': 'Only the same-commit runtime/provenance/target evidence aggregator may evaluate functional integration.',
     'upstreamStatus': up.get('status'),
     'upstreamReleaseVersion': up.get('releaseVersion'),
     'upstreamReleaseTag': up.get('releaseTag'),
@@ -139,6 +139,6 @@ status={
 }
 out=ROOT/'docs/rill-integration-status.json'
 out.write_text(json.dumps(status, ensure_ascii=False, indent=2) + chr(10))
-print('rill-contract (static): %d/%d checks passed; pmFailClosedContract=%s upstreamEntitlement=%s overallFeatureStatus=%s' % (
-    sum(1 for _,ok in checks if ok), len(checks), pm_contract, upstream_entitlement, overall))
+print('rill-contract (static): %d/%d checks passed; staticContractVerdict=%s releasePinStructureVerdict=%s functionalIntegrationVerdict=NOT_EVALUATED' % (
+    sum(1 for _,ok in checks if ok), len(checks), static_contract, release_pin_structure))
 if not ok: sys.exit(1)

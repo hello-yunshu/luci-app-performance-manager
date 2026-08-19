@@ -23,7 +23,7 @@ const RILL_PROTOCOL_VERSION = 1;
 const RILL_REQUIRED_CAPABILITIES = [ 'context-partitioned-model', 'goal-partition', 'validated-outcome', 'decision-ledger', 'model-health' ];
 const RILL_REQUIRED_OPS = [ 'status', 'observe', 'outcome' ];
 const RILL_STATES = { disabled: 'disabled', notProvisioned: 'not-provisioned', binaryInvalid: 'binary-invalid', starting: 'starting', available: 'available', learning: 'learning', incompatible: 'incompatible', unhealthy: 'unhealthy', unavailable: 'unavailable' };
-const RILL_BINDINGS_SCHEMA_VERSION = 1;
+const RILL_BINDINGS_SCHEMA_VERSION = 2;
 const RILL_BINDINGS_MAX = 64;
 const RILL_BINDINGS_TTL_MS = 3600000;
 const RILL_ADVISORY_TTL_MS = 3600000;
@@ -49,6 +49,16 @@ let tx_timers = {};
 let last_topology_signature = null;
 let persistent_write_count = 0;
 let persistent_write_bytes = 0;
+let rill_runtime_counters = {
+	rillObserveAttempts: 0,
+	rillObserveAccepted: 0,
+	rillOutcomeAttempts: 0,
+	rillOutcomeAccepted: 0,
+	rillOutcomeReconciled: 0,
+	rillOutcomeRetryableFailures: 0,
+	rillOutcomeTerminalFailures: 0,
+	rillBindingHighWater: 0
+};
 let conn = ubusmod.connect();
 if (!conn) {
 	warn('performance-manager: unable to connect to ubus\n');
@@ -1127,11 +1137,12 @@ function runtime_history(event, data) {
 	compact_jsonl(path, MAX_HISTORY_LINES);
 }
 
-function tx_new(action) {
+function tx_new(action, execution_source, rill_decision) {
 	tx_counter++;
 	let id = sprintf('tx-%s-%d-%d', substr(boot_id(), 0, 8), monotonic_ms(), tx_counter);
 	return {
 		schemaVersion: 2, transactionId: id, state: 'planned', actionId: action.id,
+		executionSource: execution_source ?? 'manual', rillDecision: rill_decision ?? null,
 		applyScope: action.applyScope, applyTarget: action.applyTarget, evaluationPaths: action.evaluationPaths ?? [],
 		owner: 'performance_manager', topologyGeneration: topology_generation, bootId: boot_id(),
 		before: null, applied: null, requiredLocks: action.requiredLocks ?? [], deadlineMonotonicMs: null,
@@ -1452,6 +1463,8 @@ function confirm_transaction(txid) {
 	}
 	cancel_tx_timer(tx.transactionId); release_locks(tx.requiredLocks, tx.transactionId);
 	history('transaction.commit', tx);
+	if (tx.rillDecision)
+		rill_report_outcome(tx.rillDecision, 'health_only', 0.0, tx.transactionId, {});
 	return { ok: true, transaction: tx };
 }
 
@@ -1748,19 +1761,17 @@ function rill_status() {
 		return { enabled: true, mode: 'shadow', status: 'Shadow · Not provisioned', state: RILL_STATES.notProvisioned, reason: 'external-runtime-not-provisioned', compatibility: 'not-provisioned', transport: 'unavailable', protocolVersion: RILL_PROTOCOL_VERSION, binary: bmeta };
 	}
 	let requestId = sprintf('status-%d', monotonic_ms());
-	let r = rill_send({ contract: RILL_CONTRACT, protocolVersion: RILL_PROTOCOL_VERSION, requestId: requestId, op: 'status' });
+	let request = { contract: RILL_CONTRACT, protocolVersion: RILL_PROTOCOL_VERSION, requestId: requestId, op: 'status' };
+	let r = rill_send(request);
 	if (!r.ok) return { enabled: true, mode: 'shadow', status: 'Shadow · Unavailable', state: RILL_STATES.unavailable, reason: r.state ?? 'unavailable', compatibility: 'unknown', transport: r.state ?? 'unavailable', protocolVersion: RILL_PROTOCOL_VERSION, binary: bmeta };
-	/* Contract + protocol negotiation: a wrong contract name or a
-	 * higher/foreign protocol major must not be assumed compatible. */
 	let resp = r.response ?? {};
-	/* Fail-closed response integrity: a status response that is not ok=true or
-	 * that fails to echo our requestId is an adapter error, never availability. */
-	if (resp.ok !== true || (resp.requestId ?? '') != requestId)
-		return { enabled: true, mode: 'shadow', status: 'Shadow · Adapter error', state: RILL_STATES.unhealthy, reason: resp.error?.code ?? 'adapter-response-invalid', compatibility: 'incompatible', transport: 'connected', protocolVersion: RILL_PROTOCOL_VERSION, binary: bmeta, detail: r.response };
-	if (resp.contract != RILL_CONTRACT)
+	let valid = rill_validate_status_response(request, resp);
+	if (!valid.ok && valid.error == 'wrong-contract')
 		return { enabled: true, mode: 'shadow', status: 'Shadow · Incompatible contract', state: RILL_STATES.incompatible, reason: 'contract-mismatch', compatibility: 'incompatible', transport: 'connected', requestedContract: RILL_CONTRACT, advertisedContract: resp.contract ?? null, protocolVersion: RILL_PROTOCOL_VERSION, binary: bmeta, detail: r.response };
-	if ((resp.protocolVersion ?? 0) != RILL_PROTOCOL_VERSION)
+	if (!valid.ok && valid.error == 'wrong-protocol')
 		return { enabled: true, mode: 'shadow', status: 'Shadow · Incompatible protocol', state: RILL_STATES.incompatible, reason: 'protocol-version-mismatch', compatibility: 'incompatible', transport: 'connected', requestedProtocolVersion: RILL_PROTOCOL_VERSION, advertisedProtocolVersion: resp.protocolVersion ?? null, protocolVersion: RILL_PROTOCOL_VERSION, binary: bmeta, detail: r.response };
+	if (!valid.ok)
+		return { enabled: true, mode: 'shadow', status: 'Shadow · Adapter error', state: RILL_STATES.unhealthy, reason: valid.error, compatibility: 'incompatible', transport: 'connected', protocolVersion: RILL_PROTOCOL_VERSION, binary: bmeta, detail: r.response };
 	/* Required capabilities: the adapter must declare every capability the
 	 * integration depends on; a missing one is fail-closed. */
 	let caps = resp.capabilities ?? [];
@@ -1773,7 +1784,7 @@ function rill_status() {
 	if (health.overall != 'healthy')
 		return { enabled: true, mode: 'shadow', status: 'Shadow · Unhealthy', state: RILL_STATES.unhealthy, reason: 'model-unhealthy', compatibility: 'compatible', transport: 'connected', modelHealth: health, protocolVersion: RILL_PROTOCOL_VERSION, binary: bmeta, detail: r.response };
 	let learning = resp.state == 'learning';
-	return { enabled: true, mode: 'shadow', status: learning ? 'Shadow · Learning' : 'Shadow · Available', state: learning ? RILL_STATES.learning : RILL_STATES.available, reason: null, compatibility: 'compatible', transport: 'connected', adapterVersion: resp.adapterVersion ?? RILL_PINNED_ADAPTER_VERSION, rillVersion: resp.rillVersion ?? RILL_PINNED_RELEASE_VERSION, releaseVersion: RILL_PINNED_RELEASE_VERSION, protocolVersion: resp.protocolVersion ?? RILL_PROTOCOL_VERSION, binary: bmeta, detail: r.response };
+	return { enabled: true, mode: 'shadow', authority: 'advisory-only', status: learning ? 'Shadow · Learning' : 'Shadow · Available', state: learning ? RILL_STATES.learning : RILL_STATES.available, reason: null, compatibility: 'compatible', transport: 'connected', adapterVersion: resp.adapterVersion ?? RILL_PINNED_ADAPTER_VERSION, rillVersion: resp.rillVersion ?? RILL_PINNED_RELEASE_VERSION, releaseVersion: RILL_PINNED_RELEASE_VERSION, protocolVersion: resp.protocolVersion ?? RILL_PROTOCOL_VERSION, binary: bmeta, detail: r.response };
 }
 
 function rill_integrations_payload() {
@@ -1786,66 +1797,124 @@ function rill_integrations_payload() {
 	return map(order, function(k) { return { id: k, present: !!st[k] }; });
 }
 
-function rill_bindings_path() {
-	return `${persist_dir()}/rill-bindings.json`;
+function rill_validate_response_envelope(request, response) {
+	if (type(response) != 'object') return { ok: false, error: 'response-not-object' };
+	if (response.contract != RILL_CONTRACT) return { ok: false, error: 'wrong-contract' };
+	if (response.protocolVersion != RILL_PROTOCOL_VERSION) return { ok: false, error: 'wrong-protocol' };
+	if ((response.requestId ?? '') != (request?.requestId ?? '')) return { ok: false, error: 'request-id-mismatch' };
+	if (type(response.ok) != 'bool') return { ok: false, error: 'ok-not-boolean' };
+	return { ok: true };
 }
 
-function rill_bindings_save() {
-	json_write(rill_bindings_path(), { schemaVersion: RILL_BINDINGS_SCHEMA_VERSION, bindings: rill_bindings });
+function rill_validate_status_response(request, response) {
+	let envelope = rill_validate_response_envelope(request, response);
+	if (!envelope.ok) return envelope;
+	if (response.ok !== true) return { ok: false, error: response.error?.code ?? 'status-rejected' };
+	if (type(response.capabilities) != 'array' || type(response.modelHealth) != 'object') return { ok: false, error: 'status-fields-invalid' };
+	if (!length(response.adapterVersion ?? '') || !length(response.rillVersion ?? '')) return { ok: false, error: 'status-version-missing' };
+	return { ok: true };
 }
 
-function rill_bindings_load() {
-	let p = json_read(rill_bindings_path(), null);
-	if (!p || p.schemaVersion != RILL_BINDINGS_SCHEMA_VERSION) return {};
-	return p.bindings ?? {};
+function rill_validate_observe_response(request, response) {
+	let envelope = rill_validate_response_envelope(request, response);
+	if (!envelope.ok) return envelope;
+	if (response.ok !== true) return { ok: false, error: response.error?.code ?? 'observe-rejected' };
+	if (!match(response.decisionId ?? '', /^[0-9a-f]{32}$/)) return { ok: false, error: 'decision-id-invalid' };
+	let rec = response.recommendation;
+	if (type(rec) != 'object' || !length(rec.actionId ?? '') || rec.advisory !== true) return { ok: false, error: 'recommendation-invalid' };
+	let ct = type(rec.confidence);
+	if ((ct != 'int' && ct != 'double') || rec.confidence != rec.confidence || rec.confidence < 0 || rec.confidence > 1)
+		return { ok: false, error: 'confidence-invalid' };
+	let advertised = false;
+	for (let action in request.availableActions ?? []) if (action.id == rec.actionId) { advertised = true; break; }
+	if (!advertised || rill_action_descriptor(rec.actionId) == null) return { ok: false, error: 'recommendation-action-unknown' };
+	return { ok: true };
 }
 
-function rill_binding_register(payload, resp) {
-	/* Observe succeeded: the adapter registered a pending decision for the
-	 * recommended action.  Persist the PM-side binding so a later outcome can
-	 * resolve exactly that decision — contextKey/actionId/goal/generation must
-	 * echo the observe or Rill's ledger rejects the outcome.  One binding per
-	 * actionId; a newer observe for the same action replaces the older one. */
-	let actionId = resp?.recommendation?.actionId;
-	if (!actionId || !resp?.decisionId || !payload?.contextKey) return null;
-	rill_bindings[actionId] = {
-		schemaVersion: RILL_BINDINGS_SCHEMA_VERSION,
-		decisionId: resp.decisionId, contextKey: payload.contextKey,
-		actionId: actionId, goal: payload.goal ?? goal(),
-		modelGeneration: RILL_MODEL_GENERATION,
-		advisory: resp.recommendation?.advisory ?? false,
-		confidence: resp.recommendation?.confidence ?? 0,
-		atMs: monotonic_ms()
-	};
-	rill_bindings_save();
-	return rill_bindings[actionId];
+function rill_validate_outcome_response(request, response) {
+	let envelope = rill_validate_response_envelope(request, response);
+	if (!envelope.ok) return envelope;
+	if (response.ok !== true) return { ok: false, error: response.error?.code ?? 'outcome-rejected' };
+	if (response.accepted !== true) return { ok: false, error: 'outcome-not-accepted' };
+	return { ok: true };
 }
 
-function rill_binding_take(action_id) {
-	/* Consume the live binding for an action.  Expired bindings are treated
-	 * as absent: the TTL is aligned with the adapter's own DECISION_TTL_MS so
-	 * a stale decision can never be resolved by a late outcome. */
-	let b = rill_bindings[action_id];
-	if (!b) return null;
-	if ((monotonic_ms() - b.atMs) > RILL_BINDINGS_TTL_MS) { rill_bindings[action_id] = null; rill_bindings_save(); return null; }
-	rill_bindings[action_id] = null;
-	rill_bindings_save();
-	return b;
+/* Unexecuted advisories are runtime cache only.  Flash is used only when an
+ * exact decision is frozen into an already-durable transaction/session. */
+let rill_bindings = {};
+
+function rill_binding_valid(binding) {
+	if (type(binding) != 'object' || binding.schemaVersion != RILL_BINDINGS_SCHEMA_VERSION) return false;
+	if (!match(binding.decisionId ?? '', /^[0-9a-f]{32}$/) || !length(binding.actionId ?? '') || !length(binding.contextKey ?? '')) return false;
+	if (!length(binding.goal ?? '') || binding.modelGeneration != RILL_MODEL_GENERATION || binding.bootId != boot_id()) return false;
+	if (binding.atMs == null || binding.atMs > monotonic_ms() || (monotonic_ms() - binding.atMs) > RILL_BINDINGS_TTL_MS) return false;
+	return true;
 }
 
 function rill_bindings_prune() {
-	/* Opportunistic TTL sweep keeps the persisted store bounded.  Nulled
-	 * (consumed) entries are dropped here rather than growing forever. */
-	let now = monotonic_ms(), next = {}, changed = false;
-	for (let k in keys(rill_bindings)) {
-		let b = rill_bindings[k];
-		if (b && (now - b.atMs) <= RILL_BINDINGS_TTL_MS) next[k] = b;
-		else changed = true;
+	let rows = [];
+	for (let decision_id in keys(rill_bindings)) {
+		let binding = rill_bindings[decision_id];
+		if (!rill_binding_valid(binding)) delete rill_bindings[decision_id];
+		else push(rows, { decisionId: decision_id, atMs: binding.atMs });
 	}
-	if (changed) { rill_bindings = next; rill_bindings_save(); }
+	sort(rows, function(a, b) { return (a.atMs ?? 0) - (b.atMs ?? 0); });
+	while (length(rows) > RILL_BINDINGS_MAX) {
+		let oldest = rows[0];
+		rows = slice(rows, 1);
+		delete rill_bindings[oldest.decisionId];
+	}
 }
 
-let rill_bindings = rill_bindings_load();
+function rill_binding_register(payload, response) {
+	let rec = response.recommendation;
+	let binding = {
+		schemaVersion: RILL_BINDINGS_SCHEMA_VERSION,
+		decisionId: response.decisionId, contextKey: payload.contextKey,
+		actionId: rec.actionId, goal: payload.goal, modelGeneration: RILL_MODEL_GENERATION,
+		advisory: true, confidence: rec.confidence, bootId: boot_id(), atMs: monotonic_ms()
+	};
+	if (!rill_binding_valid(binding)) return null;
+	rill_bindings[binding.decisionId] = binding;
+	rill_bindings_prune();
+	rill_runtime_counters.rillBindingHighWater = max(rill_runtime_counters.rillBindingHighWater, length(keys(rill_bindings)));
+	return binding;
+}
+
+function rill_binding_peek(decision_id) {
+	rill_bindings_prune();
+	let binding = rill_bindings[decision_id];
+	return rill_binding_valid(binding) ? binding : null;
+}
+
+function rill_binding_freeze(decision_id, action_id, authority) {
+	let binding = rill_binding_peek(decision_id);
+	let descriptor = rill_action_descriptor(action_id);
+	if (!binding || binding.actionId != action_id || !descriptor || descriptor.executionAuthority != authority) return null;
+	return {
+		schemaVersion: binding.schemaVersion, decisionId: binding.decisionId, contextKey: binding.contextKey,
+		actionId: binding.actionId, goal: binding.goal, modelGeneration: binding.modelGeneration,
+		advisory: true, confidence: binding.confidence, bootId: binding.bootId, atMs: binding.atMs
+	};
+}
+
+function rill_binding_consume(binding) {
+	if (!binding?.decisionId) return;
+	delete rill_bindings[binding.decisionId];
+	if (rill_advisory?.decisionId == binding.decisionId) rill_advisory = null;
+}
+
+function rill_binding_retire(binding, reason) {
+	rill_binding_consume(binding);
+	runtime_history('rill.binding.retired', { decisionId: binding?.decisionId ?? null, actionId: binding?.actionId ?? null, reason: reason });
+}
+
+function rill_invalidate_runtime_decisions(reason) {
+	rill_bindings = {};
+	rill_advisory = null;
+	runtime_history('rill.runtime-decisions-invalidated', { reason: reason ?? 'context-drift' });
+}
+
 let rill_last_observe_ms = null;
 let rill_advisory = null;
 
@@ -1856,16 +1925,19 @@ function rill_advisory_update(resp, payload) {
 	 * drift-context (topology generation / route identity / integration
 	 * fingerprint / goal) lets rill_advisory_get() invalidate it if the world
 	 * changed under it, and expiresMonotonicMs bounds its lifetime. */
-	let rec = resp?.recommendation;
-	if (!rec || !resp?.decisionId) return null;
+	let rec = resp.recommendation;
+	let descriptor = rill_action_descriptor(rec.actionId);
+	if (!descriptor) return null;
 	let now = monotonic_ms();
 	rill_advisory = {
 		decisionId: resp.decisionId, actionId: rec.actionId,
-		confidence: rec.confidence ?? 0, advisory: rec.advisory ?? true,
-		contextKey: payload?.contextKey ?? null, goal: payload?.goal ?? goal(),
-		topologyGeneration: payload?.topologyGeneration ?? topology_generation,
-		routeIdentity: payload?.routeIdentity ?? 'unresolved',
-		integrationFingerprint: payload?.integrationFingerprint ?? '',
+		confidence: rec.confidence, advisory: true, authority: 'advisory-only',
+		executionAuthority: descriptor.executionAuthority, kind: descriptor.kind,
+		applyTarget: descriptor.action?.applyTarget ?? null, evaluationPaths: descriptor.action?.evaluationPaths ?? [],
+		contextKey: payload.contextKey, goal: payload.goal,
+		topologyGeneration: payload.topologyGeneration,
+		routeIdentity: payload.routeIdentity,
+		integrationFingerprint: payload.integrationFingerprint,
 		createdMonotonicMs: now, expiresMonotonicMs: now + RILL_ADVISORY_TTL_MS
 	};
 	return rill_advisory;
@@ -1885,36 +1957,112 @@ function rill_advisory_get() {
 	if ((a.routeIdentity ?? 'unresolved') != route) { rill_advisory = null; return null; }
 	if ((a.integrationFingerprint ?? '') != integration_fingerprint([], nft_snapshot())) { rill_advisory = null; return null; }
 	if ((a.goal ?? '') != goal()) { rill_advisory = null; return null; }
-	if (find_action(a.actionId, null) == null) { rill_advisory = null; return null; }
+	if (rill_action_descriptor(a.actionId) == null || rill_binding_peek(a.decisionId) == null) { rill_advisory = null; return null; }
 	return a;
 }
-function rill_report_outcome(action_id, measurement, reward, session_id, ctx) {
-	/* Report a validated outcome for a decision PM actually bound via a prior
-	 * successful observe.  Only the decision's own contextKey/actionId/goal/
-	 * generation may be sent (Rill's ledger validates action, context and
-	 * generation); any mismatch is rejected fail-closed.  When no live binding
-	 * exists for the action there is no decision to resolve, so the outcome is
-	 * deliberately skipped — shadow mode never fabricates one. */
-	ctx = ctx ?? {};
-	let b = rill_binding_take(action_id);
-	if (!b) {
-		runtime_history('rill.outcome.skipped', { actionId: action_id, reason: 'no-bound-decision' });
-		return { ok: false, state: 'no-bound-decision' };
+
+function rill_outcome_attempt_path(binding) {
+	return `${state_dir()}/rill-outcome-attempts/${safe_name(binding.decisionId)}.json`;
+}
+
+function rill_outcome_fingerprint(binding, session_id, reward) {
+	return sprintf('%.J', { decisionId: binding.decisionId, actionId: binding.actionId, contextKey: binding.contextKey,
+		goal: binding.goal, modelGeneration: binding.modelGeneration, sessionId: session_id, reward: reward, validated: true });
+}
+
+function rill_outcome_attempt(binding, measurement, session_id, reward) {
+	let path = rill_outcome_attempt_path(binding), fingerprint = rill_outcome_fingerprint(binding, session_id, reward);
+	let existing = json_read(path, null);
+	if (existing && existing.fingerprint != fingerprint) return { ok: false, state: 'outcome-attempt-mismatch', path: path };
+	let attempt = existing ?? { schemaVersion: 1, decisionId: binding.decisionId, bootId: binding.bootId,
+		fingerprint: fingerprint, binding: binding, measurementClass: measurement,
+		sessionId: session_id, reward: reward, responseLossObserved: false,
+		attemptCount: 0, nextRetryMonotonicMs: monotonic_ms(), createdMonotonicMs: monotonic_ms() };
+	if (attempt.bootId != boot_id() || !json_write(path, attempt)) return { ok: false, state: 'outcome-attempt-journal-failed', path: path };
+	return { ok: true, attempt: attempt, path: path, fingerprint: fingerprint };
+}
+
+function rill_outcome_retry_mark(attempt, state, response_loss) {
+	attempt.attempt.attemptCount = (attempt.attempt.attemptCount ?? 0) + 1;
+	attempt.attempt.lastTransportState = state;
+	if (response_loss) attempt.attempt.responseLossObserved = true;
+	let shift = min(6, attempt.attempt.attemptCount);
+	attempt.attempt.nextRetryMonotonicMs = monotonic_ms() + min(300000, 5000 * (1 << shift));
+	return json_write(attempt.path, attempt.attempt);
+}
+
+function rill_retry_pending_outcomes() {
+	let retried = 0, retired = 0;
+	for (let path in fs.glob(`${state_dir()}/rill-outcome-attempts/*.json`) ?? []) {
+		let attempt = json_read(path, null);
+		if (!attempt || attempt.bootId != boot_id() || !rill_binding_valid(attempt.binding)) {
+			fs.unlink(path); retired++; continue;
+		}
+		if ((attempt.nextRetryMonotonicMs ?? 0) > monotonic_ms()) continue;
+		rill_report_outcome(attempt.binding, attempt.measurementClass, attempt.reward, attempt.sessionId, { retry: true });
+		retried++;
 	}
+	return { retried: retried, retired: retired };
+}
+
+function rill_report_outcome(binding, measurement, reward, session_id, ctx) {
+	ctx = ctx ?? {};
+	if (!rill_binding_valid(binding)) {
+		runtime_history('rill.outcome.skipped', { actionId: binding?.actionId ?? null, reason: 'no-exact-frozen-decision' });
+		return { ok: false, state: 'no-exact-frozen-decision' };
+	}
+	let attempt = rill_outcome_attempt(binding, measurement, session_id, reward);
+	if (!attempt.ok) return attempt;
 	let payload = {
 		contract: RILL_CONTRACT, protocolVersion: RILL_PROTOCOL_VERSION,
 		requestId: sprintf('outcome-%d', monotonic_ms()), op: 'outcome', validated: true,
-		decisionId: b.decisionId, contextKey: b.contextKey, actionId: b.actionId,
-		sessionId: session_id, goal: b.goal, modelGeneration: b.modelGeneration, reward: reward
+		decisionId: binding.decisionId, contextKey: binding.contextKey, actionId: binding.actionId,
+		sessionId: session_id, goal: binding.goal, modelGeneration: binding.modelGeneration, reward: reward
 	};
+	rill_runtime_counters.rillOutcomeAttempts++;
 	let r = rill_send(payload);
 	if (!r.ok) {
-		runtime_history('rill.outcome.rejected', { actionId: action_id, decisionId: b.decisionId, measurementClass: measurement, state: r.state, response: r.response });
+		if (!rill_outcome_retry_mark(attempt, r.state, true))
+			return { ok: false, state: 'outcome-retry-journal-failed' };
+		rill_runtime_counters.rillOutcomeRetryableFailures++;
+		runtime_history('rill.outcome.retryable', { actionId: binding.actionId, decisionId: binding.decisionId, measurementClass: measurement, state: r.state });
 		return r;
 	}
-	let accepted = r.response?.accepted;
-	runtime_history('rill.outcome.accepted', { actionId: action_id, decisionId: b.decisionId, accepted: accepted, measurementClass: measurement });
-	return { ok: true, accepted: accepted, decisionId: b.decisionId, response: r.response };
+	let envelope = rill_validate_response_envelope(payload, r.response);
+	if (!envelope.ok) {
+		if (!rill_outcome_retry_mark(attempt, envelope.error, true))
+			return { ok: false, state: 'outcome-retry-journal-failed' };
+		rill_runtime_counters.rillOutcomeRetryableFailures++;
+		runtime_history('rill.outcome.retryable', { actionId: binding.actionId, decisionId: binding.decisionId, measurementClass: measurement, state: envelope.error });
+		return { ok: false, state: envelope.error, response: r.response };
+	}
+	let validated = rill_validate_outcome_response(payload, r.response);
+	if (validated.ok) {
+		fs.unlink(attempt.path);
+		rill_binding_consume(binding);
+		rill_runtime_counters.rillOutcomeAccepted++;
+		runtime_history('rill.outcome.accepted', { actionId: binding.actionId, decisionId: binding.decisionId, accepted: true, measurementClass: measurement });
+		return { ok: true, accepted: true, decisionId: binding.decisionId, response: r.response };
+	}
+	let code = r.response?.error?.code ?? validated.error;
+	if (code == 'duplicateFeedback' && attempt.attempt.responseLossObserved === true) {
+		fs.unlink(attempt.path);
+		rill_binding_consume(binding);
+		rill_runtime_counters.rillOutcomeReconciled++;
+		runtime_history('rill.outcome.reconciled', { actionId: binding.actionId, decisionId: binding.decisionId, measurementClass: measurement, reason: 'same-attempt-already-applied' });
+		return { ok: true, accepted: true, reconciled: true, decisionId: binding.decisionId, response: r.response };
+	}
+	if (r.response?.error?.retryable === true) {
+		if (!rill_outcome_retry_mark(attempt, code, false))
+			return { ok: false, state: 'outcome-retry-journal-failed' };
+		rill_runtime_counters.rillOutcomeRetryableFailures++;
+		runtime_history('rill.outcome.retryable', { actionId: binding.actionId, decisionId: binding.decisionId, measurementClass: measurement, state: code });
+		return { ok: false, state: code, retryable: true, response: r.response };
+	}
+	fs.unlink(attempt.path);
+	rill_binding_retire(binding, code);
+	rill_runtime_counters.rillOutcomeTerminalFailures++;
+	return { ok: false, state: code, retryable: false, response: r.response };
 }
 
 function push_unique(dst, value) {
@@ -2337,7 +2485,11 @@ function benchmark_catalog() {
 	return out;
 }
 
-function recommendations() {
+function recommendations(allow_observe) {
+	/* Only the explicit recommendations/rill_refresh surfaces may register a
+	 * decision. Diagnostics and periodic telemetry are read-only consumers of
+	 * the current cache and must never create an Observe/persistence storm. */
+	allow_observe = allow_observe !== false;
 	let acts = candidate_actions();
 	let packet = packet_steering_capability();
 	let notes = [];
@@ -2349,10 +2501,16 @@ function recommendations() {
 		push(notes, { id: 'network.local_port_capacity', disposition: 'analyze', detail: 'Local port capacity is relevant under proxy/high-connection pressure; reserved ports and ownership must be preserved. Any change remains benchmark-only.' });
 	let rill = rill_status();
 	let rill_advisory_live = rill_advisory_get();
+	let rill_observation = null;
+	if (allow_observe && !rill_advisory_live && (rill.state == RILL_STATES.available || rill.state == RILL_STATES.learning)) {
+		rill_observation = rill_observe();
+		rill_advisory_live = rill_advisory_get();
+	}
 	return {
 		topologyGeneration: topology_generation, actions: acts, observations: notes,
 		benchmarkActions: benchmark_catalog(),
 		rill: rill,
+		rillObservation: rill_observation,
 		learnedAdvisory: rill_advisory_live ? [rill_advisory_live] : [],
 	};
 }
@@ -2367,11 +2525,11 @@ function benchmark_action_contract(action_id, path_id, plan) {
 	};
 }
 
-function benchmark_apply_candidate(action_id, path_id, session_id) {
+function benchmark_apply_candidate(action_id, path_id, session_id, rill_decision) {
 	let plan=benchmark_provider_plan(action_id, path_id);
 	if (!plan.ok) return plan;
 	let action=benchmark_action_contract(action_id, path_id, plan);
-	let tx=tx_new(action); tx.result={ benchmarkSessionId:session_id };
+	let tx=tx_new(action, rill_decision ? 'benchmark-rill' : 'manual', rill_decision); tx.result={ benchmarkSessionId:session_id };
 	if (!tx_save(tx)) return { ok:false, error:'transaction-journal-write-failed' };
 	let lock=acquire_locks(action.requiredLocks, tx.transactionId);
 	if (!lock.ok) { tx.state='failed'; tx.result={error:'lock-conflict',detail:lock,benchmarkSessionId:session_id}; tx_save(tx); return {ok:false,error:'lock-conflict',transaction:tx}; }
@@ -2435,13 +2593,23 @@ function benchmark_context(path_id, masked_keys) {
 	};
 }
 
+function rill_action_descriptor(action_id) {
+	for (let action in candidate_actions())
+		if (action.id == action_id)
+			return { exists: true, kind: 'safe-direct', authority: 'advisory-only', executionAuthority: 'safe-direct', executionPath: 'apply', action: action };
+	for (let action in benchmark_catalog())
+		if (action.id == action_id && action.status != 'blocked')
+			return { exists: true, kind: 'benchmark', authority: 'advisory-only', executionAuthority: 'benchmark', executionPath: 'benchmark_start', action: action };
+	return null;
+}
+
 function rill_available_actions() {
 	let out = map(candidate_actions(), function(a) {
-		return { id: a.id, applyScope: a.applyScope, applyTarget: a.applyTarget, evaluationPaths: a.evaluationPaths, risk: a.risk, authority: 'safe-direct' };
+		return { id: a.id, applyScope: a.applyScope, applyTarget: a.applyTarget, evaluationPaths: a.evaluationPaths, risk: a.risk, authority: 'advisory-only', executionAuthority: 'safe-direct', executionPath: 'apply' };
 	});
 	for (let b in benchmark_catalog()) {
 		if (b.status == 'blocked') continue;
-		push(out, { id: b.id, applyScope: b.applyScope ?? 'system', applyTarget: null, evaluationPaths: b.evaluationPaths ?? ['path:lan-to-wan'], risk: 'benchmark', authority: 'advisory-only' });
+		push(out, { id: b.id, applyScope: b.applyScope ?? 'system', applyTarget: null, evaluationPaths: b.evaluationPaths ?? ['path:lan-to-wan'], risk: 'benchmark', authority: 'advisory-only', executionAuthority: 'benchmark', executionPath: 'benchmark_start' });
 	}
 	return out;
 }
@@ -2463,7 +2631,7 @@ function apply_ring(action, options) {
 	let guard = system_guard();
 	if (!guard.pass) return { ok: false, error: 'health-guard-blocked', guard: guard };
 
-	let tx = tx_new(action);
+	let tx = tx_new(action, options.executionSource ?? 'manual', options.rillDecision ?? null);
 	if (!tx_save(tx)) return { ok: false, error: 'transaction-journal-write-failed' };
 	let lock = acquire_locks(action.requiredLocks, tx.transactionId);
 	if (!lock.ok) {
@@ -2507,8 +2675,8 @@ function apply_ring(action, options) {
 		tx.result = { error: 'verification-failed', rollback: restored ? 'restored' : 'failed', rollbackOutput: restore.out ?? '' };
 		tx_save(tx); release_locks(tx.requiredLocks, tx.transactionId);
 		(options.runtimeOnly ? runtime_history : history)(restored ? 'transaction.rollback' : 'transaction.rollback_failed', tx);
-		if (!options.runtimeOnly && restored)
-			rill_report_outcome(action.id,'health_only',-1.0,tx.transactionId,{});
+		if (!options.runtimeOnly && restored && tx.rillDecision)
+			rill_report_outcome(tx.rillDecision,'health_only',-1.0,tx.transactionId,{});
 		return { ok: false, transaction: tx };
 	}
 	tx.verification = { readBack: 'pass', link: 'pass', healthRegression: 'none', commitConfirm: action.requiresCommitConfirm ? 'pending' : 'not_required' };
@@ -2545,8 +2713,8 @@ function apply_ring(action, options) {
 	}
 	cancel_tx_timer(tx.transactionId); release_locks(tx.requiredLocks, tx.transactionId);
 	(options.runtimeOnly ? runtime_history : history)('transaction.commit', tx);
-	if (!options.runtimeOnly)
-		rill_report_outcome(action.id,'health_only',0.0,tx.transactionId,{});
+	if (!options.runtimeOnly && tx.rillDecision)
+		rill_report_outcome(tx.rillDecision,'health_only',0.0,tx.transactionId,{});
 	return { ok: true, transaction: tx };
 }
 
@@ -2555,7 +2723,14 @@ function apply_action(msg) {
 	if (action_id == 'nic.ring.floor') {
 		let a = find_action(action_id, msg?.target);
 		if (!a) return { ok: false, error: 'no-legal-candidate' };
-		return apply_ring(a);
+		let source = msg?.executionSource ?? 'manual', frozen = null;
+		if (source == 'rill-advisory') {
+			frozen = rill_binding_freeze(msg?.decisionId, action_id, 'safe-direct');
+			if (!frozen) return { ok: false, error: 'rill-decision-binding-invalid' };
+		} else if (source != 'manual' || msg?.decisionId != null) {
+			return { ok: false, error: 'invalid-execution-source' };
+		}
+		return apply_ring(a, { executionSource: source, rillDecision: frozen });
 	}
 	return { ok: false, error: 'action-not-allowlisted-for-direct-apply', actionId: action_id };
 }
@@ -2640,7 +2815,7 @@ function benchmark_start(msg) {
 			/* Freeze the measurement methodology from the control leg so the
 			 * candidate must reproduce it exactly (Blocker 3). */
 			session.companion.methodology=measurement_methodology(msg.evidence);
-			let applied=benchmark_apply_candidate(session.actionId,session.evaluationPath,session.sessionId);
+			let applied=benchmark_apply_candidate(session.actionId,session.evaluationPath,session.sessionId,session.rillDecision);
 			if (!applied.ok) { benchmark_fail_session(benchmark_path(sid),sid,applied.error); return {ok:false,error:applied.error,session:session,detail:applied}; }
 			session.transactionId=applied.transaction.transactionId; session.state='candidate_applied'; session.candidateDeadlineMonotonicMs=applied.transaction.deadlineMonotonicMs;
 			if (!json_write(benchmark_path(sid),session)) {
@@ -2671,7 +2846,8 @@ function benchmark_start(msg) {
 			if (!json_write(benchmark_path(sid),session)) return {ok:false,error:'benchmark-result-write-failed-after-safe-rollback',session:session};
 			release_benchmark_lock(session.benchmarkLock?.domain, sid);
 			history('benchmark.completed',session);
-			rill_report_outcome(session.actionId,'controlled_ab',reward,sid,{});
+			if (session.rillDecision)
+				rill_report_outcome(session.rillDecision,'controlled_ab',reward,sid,{});
 			return {ok:true,stage:'result',session:session};
 		}
 		return {ok:false,error:'invalid-benchmark-phase'};
@@ -2709,16 +2885,23 @@ function benchmark_start(msg) {
 		 * define their own route requirement: the local endpoint path must
 		 * exist; no external WAN route evidence is required. */
 		let lock_domain=benchmark_lock_domain(action, plan, path_id);
+		let execution_source=msg?.executionSource ?? 'manual', frozen_decision=null;
+		if (execution_source == 'benchmark-rill') {
+			frozen_decision=rill_binding_freeze(msg?.decisionId,action,'benchmark');
+			if (!frozen_decision) return {ok:false,error:'rill-decision-binding-invalid'};
+		} else if (execution_source != 'manual' || msg?.decisionId != null) {
+			return {ok:false,error:'invalid-execution-source'};
+		}
 		let lock=acquire_benchmark_lock(lock_domain, id);
 		if (!lock.ok) return {ok:false,error:'benchmark-domain-lock-conflict',conflict:lock.conflict,domain:lock_domain};
-		let session={schemaVersion:2,sessionId:id,state:'awaiting_control',userInitiated:true,actionId:action,applyTarget:plan.targetRef?.stableId ?? null,evaluationPath:path_id,workloadClass:ctx.workloadClass,capabilityHash:ctx.capabilityHash,topologyGeneration:ctx.topologyGeneration,routeIdentity:ctx.routeIdentity,integrationState:ctx.integrationState,integrationFingerprint:ctx.integrationFingerprint,nftSnapshot:ctx.nftSnapshot,deviceProfile:cfg('main.profile','recommended'),goal:cur_goal,benchmarkLock:{domain:lock_domain,sessionId:id},createdMonotonicMs:monotonic_ms(),measurementClass:'controlled_ab',variableCount:1,transactionId:null,controlEvidence:null,candidateEvidence:null,result:null,companion:{contract:'pm-companion/v2',requiredRole:semantics=='local'?'router-local-client':'lan-client',phases:['control','candidate'],methodology:null,metadata:{sessionId:id,actionId:action,pathId:path_id,topologyGeneration:ctx.topologyGeneration,routeIdentity:ctx.routeIdentity,capabilityHash:ctx.capabilityHash,goal:cur_goal}}};
+		let session={schemaVersion:2,sessionId:id,state:'awaiting_control',userInitiated:true,actionId:action,executionSource:execution_source,rillDecision:frozen_decision,applyTarget:plan.targetRef?.stableId ?? null,evaluationPath:path_id,workloadClass:ctx.workloadClass,capabilityHash:ctx.capabilityHash,topologyGeneration:ctx.topologyGeneration,routeIdentity:ctx.routeIdentity,integrationState:ctx.integrationState,integrationFingerprint:ctx.integrationFingerprint,nftSnapshot:ctx.nftSnapshot,deviceProfile:cfg('main.profile','recommended'),goal:cur_goal,benchmarkLock:{domain:lock_domain,sessionId:id},createdMonotonicMs:monotonic_ms(),measurementClass:'controlled_ab',variableCount:1,transactionId:null,controlEvidence:null,candidateEvidence:null,result:null,companion:{contract:'pm-companion/v2',requiredRole:semantics=='local'?'router-local-client':'lan-client',phases:['control','candidate'],methodology:null,metadata:{sessionId:id,actionId:action,pathId:path_id,topologyGeneration:ctx.topologyGeneration,routeIdentity:ctx.routeIdentity,capabilityHash:ctx.capabilityHash,goal:cur_goal}}};
 		ensure_dir(`${state_dir()}/benchmarks`);
 		if (!json_write(benchmark_path(id),session)) { release_benchmark_lock(lock_domain,id); return {ok:false,error:'benchmark-session-write-failed'}; }
 		history('benchmark.started',session);
 		return {ok:true,stage:'control',session:session,companion:session.companion};
 	}
 	let snap=telemetry_snapshot();
-	let session={schemaVersion:2,sessionId:id,state:'completed',userInitiated:true,actionId:action,applyTarget:msg?.target ?? null,evaluationPath:path_id,workloadClass:ctx.workloadClass,capabilityHash:ctx.capabilityHash,topologyGeneration:ctx.topologyGeneration,routeIdentity:ctx.routeIdentity,integrationState:ctx.integrationState,integrationFingerprint:ctx.integrationFingerprint,nftSnapshot:ctx.nftSnapshot,deviceProfile:cfg('main.profile','recommended'),measurementClass:measurement,variableCount:0,before:snap,after:snap,result:{validated:false,changedSystemState:false,note:measurement=='health_only'?'Health snapshot captured; this is not a performance validation.':'Passive observation captured; no A/B intervention occurred.'}};
+	let session={schemaVersion:2,sessionId:id,state:'completed',userInitiated:true,actionId:action,executionSource:'manual',rillDecision:null,applyTarget:msg?.target ?? null,evaluationPath:path_id,workloadClass:ctx.workloadClass,capabilityHash:ctx.capabilityHash,topologyGeneration:ctx.topologyGeneration,routeIdentity:ctx.routeIdentity,integrationState:ctx.integrationState,integrationFingerprint:ctx.integrationFingerprint,nftSnapshot:ctx.nftSnapshot,deviceProfile:cfg('main.profile','recommended'),measurementClass:measurement,variableCount:0,before:snap,after:snap,result:{validated:false,changedSystemState:false,note:measurement=='health_only'?'Health snapshot captured; this is not a performance validation.':'Passive observation captured; no A/B intervention occurred.'}};
 	ensure_dir(`${state_dir()}/benchmarks`);
 	if (!json_write(benchmark_path(id),session)) return {ok:false,error:'benchmark-session-write-failed'};
 	history('benchmark.observed',session); return {ok:true,session:session};
@@ -2737,6 +2920,8 @@ function rill_observe() {
 	let path = topo.paths[0];
 	let integ_fp = integration_fingerprint([], nft_snapshot());
 	let g = goal();
+	let available_actions = rill_available_actions();
+	if (!length(available_actions)) return { ok: false, state: 'no-available-actions' };
 	let payload = {
 		contract: RILL_CONTRACT, protocolVersion: RILL_PROTOCOL_VERSION, requestId: sprintf('obs-%d', now), op: 'observe', deviceProfile: cfg('main.profile','recommended'),
 		capabilityHash: capability_hash(caps), topologyGeneration: topology_generation,
@@ -2745,18 +2930,20 @@ function rill_observe() {
 		integrationFingerprint: integ_fp,
 		contextKey: rill_context_key_build(cfg('main.profile','recommended'), capability_hash(caps), topology_generation,
 			path?.id ?? 'path:lan-to-wan', path?.routeIdentity ?? 'unresolved', path?.workloadClass ?? ['plain_forwarding'], integ_fp, g),
-		availableActions: rill_available_actions()
+		availableActions: available_actions
 	};
 	rill_last_observe_ms = now;
+	rill_runtime_counters.rillObserveAttempts++;
 	let r = rill_send(payload);
 	if (!r.ok) return r;
 	let resp = r.response ?? {};
-	/* Fail-closed response validation: ok must be true and the adapter must
-	 * echo our requestId before we trust any decision it hands back. */
-	if (resp.ok !== true || (resp.requestId ?? '') != payload.requestId)
-		return { ok: false, state: 'invalid-observe-response', requestId: payload.requestId, response: r.response };
+	let valid = rill_validate_observe_response(payload, resp);
+	if (!valid.ok)
+		return { ok: false, state: 'invalid-observe-response', reason: valid.error, requestId: payload.requestId, response: r.response };
 	let binding = rill_binding_register(payload, resp);
-	rill_advisory_update(resp, payload);
+	let advisory = binding ? rill_advisory_update(resp, payload) : null;
+	if (!binding || !advisory) return { ok: false, state: 'binding-registration-failed', requestId: payload.requestId };
+	rill_runtime_counters.rillObserveAccepted++;
 	return { ok: true, decisionId: resp.decisionId, recommendation: resp.recommendation, binding: binding, response: r.response };
 }
 
@@ -2900,7 +3087,7 @@ function conservative_auto_tick() {
 	return { enabled: true, state: result.ok ? 'applied' : 'failed', actionId: action.id, result: result };
 }
 
-function analysis_report() {
+function analysis_report(allow_observe) {
 	let caps=capabilities(), topo=topology(), guard=system_guard(), profile=profile_status(), findings=[], evidence=[];
 	let unresolved=[];
 	for (let p in topo.paths ?? []) {
@@ -2921,7 +3108,7 @@ function analysis_report() {
 	if (pressure != null && pressure >= 0.70) push(findings,{id:'network.local-port-capacity',severity:'observe',confidence:port.confidence ?? 'high',evidence:port.evidence,recommendation:'Capacity pressure is relevant; preserve reserved ports and use benchmark-only changes.'});
 	for (let a in candidate_actions()) push(findings,{id:`candidate.${a.id}`,severity:'recommend',confidence:'high',evidence:{applyTarget:a.applyTarget,affectedPaths:a.affectedPaths,params:a.params,risk:a.risk},recommendation:'Conservative candidate is supported by direct provider readback and remains transactional.'});
 	let confidence = !length(unresolved) && guard.pass ? 'high' : (length(topo.paths ?? []) ? 'medium' : 'low');
-	return {schemaVersion:2,topologyGeneration:topology_generation,confidence:confidence,evidence:evidence,findings:findings,guard:guard,profile:profile,integrations:integration_state(),platform:platform_info(),recommendations:recommendations()};
+	return {schemaVersion:2,topologyGeneration:topology_generation,confidence:confidence,evidence:evidence,findings:findings,guard:guard,profile:profile,integrations:integration_state(),platform:platform_info(),recommendations:recommendations(allow_observe)};
 }
 
 function conservative_disposition() {
@@ -2980,14 +3167,20 @@ function resource_usage() {
 	}
 	let rill_dir=cfg('shadow.state_dir',`${persist_dir()}/rill`);
 	let hs=fs.stat(`${persist_dir()}/history.jsonl`), outcomes=fs.stat(`${rill_dir}/validated-outcomes.tsv`), ledger=fs.stat(`${rill_dir}/decision-ledger.jsonl`);
-	return {corePid:pid,coreVmRssKiB:vmrss,coreVmSizeKiB:vmsize,corePersistentWritesSinceStart:persistent_write_count,corePersistentWriteBytesSinceStart:persistent_write_bytes,persistentHistoryBytes:hs?.size ?? 0,rillOutcomeBytes:outcomes?.size ?? 0,rillLedgerBytes:ledger?.size ?? 0,historyLineLimit:MAX_HISTORY_LINES,rillBounds:{validatedOutcomeLines:2048,decisionLedgerLines:4096,fileBytes:1048576}};
+	let counters = {};
+	for (let key in keys(rill_runtime_counters)) counters[key] = rill_runtime_counters[key];
+	counters.rillOutcomePending = length(fs.glob(`${state_dir()}/rill-outcome-attempts/*.json`) ?? []);
+	counters.pmPersistentWrites = persistent_write_count;
+	counters.expectedAdapterPersistenceEvents = rill_runtime_counters.rillObserveAccepted + rill_runtime_counters.rillOutcomeAccepted + rill_runtime_counters.rillOutcomeReconciled;
+	counters.persistenceAccounting = 'logical/inferred-from-pinned-rill-v1.2.0-contract';
+	return {corePid:pid,coreVmRssKiB:vmrss,coreVmSizeKiB:vmsize,corePersistentWritesSinceStart:persistent_write_count,corePersistentWriteBytesSinceStart:persistent_write_bytes,persistentHistoryBytes:hs?.size ?? 0,rillOutcomeBytes:outcomes?.size ?? 0,rillLedgerBytes:ledger?.size ?? 0,historyLineLimit:MAX_HISTORY_LINES,rillCounters:counters,rillBounds:{adapterStateFileBytes:4194304,bindingCacheEntries:RILL_BINDINGS_MAX}};
 }
 
 function diagnostics() {
 	return {
 		status: status(), capabilities: capabilities(), topology: topology(), targets: target_refs(), paths: topology().paths,
-		integrations: integration_state(), recommendations: recommendations(), transactions: transaction_list(), locks: lock_list(),
-		benchmarks: benchmark_list(), history: read_lines(`${persist_dir()}/history.jsonl`, 100), telemetry: telemetry_snapshot(), resources: resource_usage(), profile: profile_status(), analysis: analysis_report()
+		integrations: integration_state(), recommendations: recommendations(false), transactions: transaction_list(), locks: lock_list(),
+		benchmarks: benchmark_list(), history: read_lines(`${persist_dir()}/history.jsonl`, 100), telemetry: telemetry_snapshot(), resources: resource_usage(), profile: profile_status(), analysis: analysis_report(false)
 	};
 }
 
@@ -3005,9 +3198,15 @@ function refresh(reason) {
 	else if (signature != last_topology_signature) { topology_generation++; last_topology_signature=signature; changed=true; }
 	let replay_reason=reason == 'boot' ? 'boot' : (match(reason ?? '', /device|interface|rtnl/) ? 'device_up' : 'topology_change');
 	let replay=changed || reason == 'boot' ? replay_policies(replay_reason) : [];
-	let obs=rill_observe();
+	if (changed) rill_invalidate_runtime_decisions(reason ?? 'topology-change');
 	runtime_history('topology.refresh',{reason:reason ?? 'manual',changed:changed,topologySignature:signature,topologyGeneration:topology_generation,replay:replay});
-	return {ok:true,changed:changed,topologyGeneration:topology_generation,replay:replay,rill:obs};
+	return {ok:true,changed:changed,topologyGeneration:topology_generation,replay:replay,rillAdvisoryInvalidated:changed};
+}
+
+function rill_refresh_advisory() {
+	rill_invalidate_runtime_decisions('explicit-refresh');
+	rill_last_observe_ms = null;
+	return rill_observe();
 }
 
 function schedule_event(reason) {
@@ -3024,7 +3223,7 @@ function schedule_telemetry() {
 	telemetry_timer = uloop.timer(interval, function() {
 		let snap = telemetry_snapshot();
 		json_write(`${state_dir()}/telemetry/latest.json`, snap);
-		rill_observe();
+		rill_retry_pending_outcomes();
 		assisted_auto_tick(snap);
 		conservative_auto_tick();
 		this.set(interval);
@@ -3045,6 +3244,7 @@ ensure_dir(`${state_dir()}/locks`);
 ensure_dir(`${state_dir()}/benchmarks`);
 ensure_dir(`${state_dir()}/telemetry`);
 ensure_dir(`${state_dir()}/diagnostics`);
+ensure_dir(`${state_dir()}/rill-outcome-attempts`);
 uloop.init();
 recover_pending();
 let obj = conn.publish(UBUS_NAME, {
@@ -3070,6 +3270,7 @@ let obj = conn.publish(UBUS_NAME, {
 	} },
 	benchmark_stop: { call: function(req, msg) { reply(req, benchmark_stop(msg?.sessionId)); } },
 	rill_status: { call: function(req, msg) { reply(req, rill_status()); } },
+	rill_refresh: { call: function(req, msg) { reply(req, rill_refresh_advisory()); } },
 	diagnostics: { call: function(req, msg) { reply(req, diagnostics()); } },
 	cleanup: { call: function(req, msg) { reply(req, cleanup_owned(msg?.reason ?? 'package-remove')); } },
 	refresh: { call: function(req, msg) { reply(req, refresh(msg?.reason ?? 'manual')); } }
@@ -3096,4 +3297,3 @@ if (route_listener) push(listeners, route_listener);
 schedule_telemetry();
 uloop.timer(1500, function() { refresh('boot'); });
 uloop.run();
-

@@ -1,0 +1,67 @@
+name: Stable evidence aggregate
+
+on:
+  workflow_dispatch:
+    inputs:
+      expected_sha:
+        description: Full final PM commit SHA
+        required: true
+        type: string
+      ci_run_id:
+        description: Successful same-commit CI run ID
+        required: true
+        type: string
+      build_run_id:
+        description: Successful same-commit Build OpenWrt run ID
+        required: true
+        type: string
+      target_run_id:
+        description: Successful same-commit Stable target matrix run ID
+        required: true
+        type: string
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  aggregate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ inputs.expected_sha }}
+      - name: Verify exact checkout
+        run: test "$(git rev-parse HEAD)" = "${{ inputs.expected_sha }}"
+      - name: Download all three same-commit evidence runs
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p evidence/ci evidence/build evidence/target
+          gh run download "${{ inputs.ci_run_id }}" --dir evidence/ci
+          gh run download "${{ inputs.build_run_id }}" --dir evidence/build
+          gh run download "${{ inputs.target_run_id }}" --dir evidence/target
+      - name: Collect and aggregate without promotion shortcuts
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 scripts/collect_stable_evidence.py \
+            --ci-root evidence/ci --build-root evidence/build --target-root evidence/target \
+            --out stable-evidence
+          python3 scripts/final_release_audit.py \
+            --evidence-dir stable-evidence \
+            --expected-commit "${{ inputs.expected_sha }}"
+          cp docs/FINAL_AUDIT.json stable-evidence/
+          cp docs/FINAL_AUDIT.md stable-evidence/
+      - name: Upload authoritative Stable evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: final-stable-evidence-${{ inputs.expected_sha }}
+          path: |
+            stable-evidence/final-stable-evidence.json
+            stable-evidence/FINAL_AUDIT.json
+            stable-evidence/FINAL_AUDIT.md
+          if-no-files-found: error

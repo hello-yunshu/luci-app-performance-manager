@@ -474,3 +474,24 @@ msgstr "无"
 
 msgid "Evaluation path"
 msgstr "评估路径"
+
+msgid "Apply this exact Rill advisory"
+msgstr "应用这条精确绑定的 Rill 建议"
+
+msgid "Controlled benchmark"
+msgstr "受控基准测试"
+
+msgid "Exact Rill decision applied and verified."
+msgstr "已应用并验证精确绑定的 Rill 决策。"
+
+msgid "Execution path"
+msgstr "执行路径"
+
+msgid "Safe direct apply"
+msgstr "安全直接应用"
+
+msgid "The advisory was not applied; its exact decision binding was rejected or the safety gate failed."
+msgstr "建议未被应用；其精确决策绑定被拒绝，或未通过安全保护检查。"
+
+msgid "This advisory is benchmark-only. Open Performance Test and complete both Companion evidence legs; it can never enter direct Apply."
+msgstr "此建议仅限基准测试。请打开性能测试并完成两段 Companion 证据；它绝不会进入直接应用路径。"

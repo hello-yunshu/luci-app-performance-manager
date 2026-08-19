@@ -1,0 +1,142 @@
+name: Publish immutable Stable release
+
+on:
+  workflow_dispatch:
+    inputs:
+      expected_sha:
+        description: Full final PM commit SHA
+        required: true
+        type: string
+      aggregate_run_id:
+        description: Successful Stable evidence aggregate run ID
+        required: true
+        type: string
+      build_run_id:
+        description: Successful same-commit Build OpenWrt run ID
+        required: true
+        type: string
+
+permissions:
+  actions: read
+  contents: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    environment: stable-release
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ inputs.expected_sha }}
+          fetch-depth: 0
+      - name: Verify run and repository identities
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "${{ inputs.expected_sha }}"
+          test "$(cat VERSION)" = '1.0.0'
+          test "$(gh run view '${{ inputs.aggregate_run_id }}' --json conclusion --jq .conclusion)" = success
+          test "$(gh run view '${{ inputs.aggregate_run_id }}' --json headSha --jq .headSha)" = "${{ inputs.expected_sha }}"
+          test "$(gh run view '${{ inputs.build_run_id }}' --json conclusion --jq .conclusion)" = success
+          test "$(gh run view '${{ inputs.build_run_id }}' --json headSha --jq .headSha)" = "${{ inputs.expected_sha }}"
+      - name: Download exact build and final Stable evidence
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p release-input/build release-input/stable release-assets
+          gh run download "${{ inputs.build_run_id }}" --dir release-input/build
+          gh run download "${{ inputs.aggregate_run_id }}" --dir release-input/stable
+          evidence=$(find release-input/stable -name final-stable-evidence.json -type f -print -quit)
+          test -n "$evidence"
+          python3 - "$evidence" "${{ inputs.expected_sha }}" <<'PY'
+          import json, sys
+          data=json.load(open(sys.argv[1]))
+          assert data['overallVerdict']=='PASS' and data['stableReleaseAuthorized'] is True, data
+          assert data['pmCommitSha']==sys.argv[2], data
+          PY
+      - name: Prove source ZIP reproducibility from tracked files
+        shell: bash
+        run: |
+          set -euo pipefail
+          SOURCE_DATE_EPOCH=$(git show -s --format=%ct '${{ inputs.expected_sha }}')
+          export SOURCE_DATE_EPOCH
+          python3 scripts/make_release.py
+          first=''
+          first=$(sha256sum dist/openwrt-performance-manager-1.0.0.zip | awk '{print $1}')
+          cp dist/openwrt-performance-manager-1.0.0.zip /tmp/source-first.zip
+          python3 scripts/make_release.py
+          second=$(sha256sum dist/openwrt-performance-manager-1.0.0.zip | awk '{print $1}')
+          test "$first" = "$second"
+          cmp /tmp/source-first.zip dist/openwrt-performance-manager-1.0.0.zip
+      - name: Assemble exact release inventory and manifest
+        shell: bash
+        run: |
+          set -euo pipefail
+          find release-input/build -type f \( -name '*.apk' -o -name '*.ipk' \) -exec cp {} release-assets/ \;
+          for name in build-metadata.json apk-verification.json checksums.txt rill-consumed-manifest.json; do
+            file=$(find release-input/build -name "$name" -type f -print -quit)
+            test -n "$file"
+            cp "$file" release-assets/
+          done
+          for name in final-stable-evidence.json FINAL_AUDIT.json FINAL_AUDIT.md; do
+            file=$(find release-input/stable -name "$name" -type f -print -quit)
+            test -n "$file"
+            cp "$file" release-assets/
+          done
+          cp dist/openwrt-performance-manager-1.0.0.zip release-assets/
+          cp dist/openwrt-performance-manager-1.0.0.manifest.json release-assets/source-manifest.json
+          python3 - "${{ inputs.expected_sha }}" <<'PY'
+          import hashlib, json, pathlib, sys
+          root=pathlib.Path('release-assets')
+          build=json.load(open(root/'build-metadata.json'))
+          rill=json.load(open(root/'rill-consumed-manifest.json'))
+          final=json.load(open(root/'final-stable-evidence.json'))
+          def sha(p): return hashlib.sha256(p.read_bytes()).hexdigest()
+          files=[{'name':p.name,'bytes':p.stat().st_size,'sha256':sha(p)} for p in sorted(root.iterdir()) if p.is_file()]
+          manifest={
+            'schemaVersion':1,'version':'1.0.0','commit':sys.argv[1],'tag':'v1.0.0',
+            'openwrtRelease':build['openwrtVersion'],'sdkArchiveSha256':build.get('sdkArchiveSha256'),
+            'rill':{'releaseVersion':rill['releaseVersion'],'releaseTag':rill['releaseTag'],
+                    'releaseCommitSha':rill['releaseCommitSha'],'artifactSha256':rill['artifactSha256']},
+            'finalEvidenceSha256':sha(root/'final-stable-evidence.json'),
+            'sourceZipSha256':sha(root/'openwrt-performance-manager-1.0.0.zip'),
+            'files':files,
+          }
+          (root/'release-manifest.json').write_text(json.dumps(manifest,indent=2)+'\n')
+          PY
+          (cd release-assets && sha256sum ./* > release-checksums.txt)
+      - name: Refuse mutable/existing public identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -z "$(git ls-remote --tags origin refs/tags/v1.0.0)"
+          if gh release view v1.0.0 >/dev/null 2>&1; then
+            echo 'v1.0.0 release already exists; refusing overwrite' >&2
+            exit 1
+          fi
+        env:
+          GH_TOKEN: ${{ github.token }}
+      - name: Create immutable tag and GitHub Release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          git tag -a v1.0.0 "${{ inputs.expected_sha }}" -m 'OpenWrt Performance Manager v1.0.0'
+          git push origin refs/tags/v1.0.0
+          gh release create v1.0.0 release-assets/* \
+            --verify-tag --title 'OpenWrt Performance Manager v1.0.0' \
+            --notes-file release-assets/FINAL_AUDIT.md
+      - name: Re-download published assets and verify checksums
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir published
+          gh release download v1.0.0 --dir published
+          (cd published && sha256sum -c release-checksums.txt)

@@ -43,6 +43,7 @@ jobs:
           path: |
             docs/FINAL_AUDIT.md
             docs/FINAL_AUDIT.json
+            docs/source-audit.json
             docs/SOURCE_GATES.json
             docs/HOST_SYNTAX_REPORT.json
             docs/RESOURCE_BUDGET.json
@@ -125,21 +126,20 @@ jobs:
           set -euo pipefail
           chmod +x rill-evidence/docs/rill-pm-adapter-1.2.0-linux-x86_64-musl
           sudo install -D -m 0755 rill-evidence/docs/rill-pm-adapter-1.2.0-linux-x86_64-musl rootfs/usr/bin/rill-pm-adapter
-          sudo mkdir -p rootfs/run rootfs/etc/performance-manager/rill
+          sudo mkdir -p rootfs/run/performance-manager rootfs/etc/performance-manager/rill
           # Start the EXACT released adapter inside the musl rootfs.
-          sudo nohup chroot rootfs /usr/bin/rill-pm-adapter --socket /run/pm-rill.sock --state-dir /etc/performance-manager/rill --max-message 65536 --timeout-ms 1000 >/dev/null 2>&1 &
-          ADAPTER_PID=$!
-          trap 'sudo pkill -f "rill-pm-adapter.*pm-rill.sock" 2>/dev/null || true' EXIT
+          sudo nohup chroot rootfs /usr/bin/rill-pm-adapter --socket /run/performance-manager/rill.sock --state-dir /etc/performance-manager/rill --max-message 65536 --timeout-ms 1000 >/dev/null 2>&1 &
+          trap 'sudo pkill -f "rill-pm-adapter.*performance-manager/rill.sock" 2>/dev/null || true' EXIT
           # Wait for the socket.
-          for i in $(seq 1 20); do
-            [ -S rootfs/run/pm-rill.sock ] && break
+          for _ in $(seq 1 20); do
+            [ -S rootfs/run/performance-manager/rill.sock ] && break
             sleep 0.5
           done
           # Real protocol client against the REAL binary (no mock).
           # The host path to the running socket is rootfs/run/pm-rill.sock.
           sudo python3 scripts/rill_adapter_runtime.py \
             --adapter rootfs/usr/bin/rill-pm-adapter \
-            --socket rootfs/run/pm-rill.sock \
+            --socket rootfs/run/performance-manager/rill.sock \
             --state-dir rootfs/etc/performance-manager/rill \
             --out-dir docs
       - name: Upload real adapter runtime + protocol evidence
@@ -271,8 +271,9 @@ jobs:
           # semantics and Rill fail-closed. It is NOT a Python mirror.
           python3 tools/docker-validate/harness/build-harness.py /tmp/core_runtime_test.uc
           sudo cp /tmp/core_runtime_test.uc rootfs/tmp/core_runtime_test.uc
-          sudo chroot rootfs /usr/bin/ucode /tmp/core_runtime_test.uc > core-runtime-harness.log 2>&1 || { cat core-runtime-harness.log >&2; exit 1; }
-          cat core-runtime-harness.log
+          if ! sudo chroot rootfs /usr/bin/ucode /tmp/core_runtime_test.uc 2>&1 | tee core-runtime-harness.log; then
+            exit 1
+          fi
       - name: Upload real Core runtime harness report
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
@@ -297,7 +298,24 @@ jobs:
               sys.exit(1)
           print(f"core-startup-smoke: {ev['coreSha256']} methods={list(ev['methods'])}")
           PY
-      - name: Upload raw Core startup smoke report
+      - name: Emit same-commit Core runtime evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json, os
+          smoke = json.load(open('docs/core-startup-smoke.json'))
+          result = {
+              'schemaVersion': 1,
+              'gate': 'official-openwrt-rootfs-production-core-runtime',
+              'pmCommitSha': os.environ['GITHUB_SHA'],
+              'harnessLogPresent': bool(open('core-runtime-harness.log').read().strip()),
+              'startupSmoke': smoke,
+              'verdict': 'PASS' if smoke.get('ok') else 'FAIL',
+          }
+          open('docs/core-runtime.json', 'w').write(json.dumps(result, indent=2) + '\n')
+          PY
+      - name: Upload raw Core runtime reports
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
@@ -305,6 +323,7 @@ jobs:
           path: |
             core-startup-smoke.log
             docs/core-startup-smoke.json
+            docs/core-runtime.json
           if-no-files-found: error
 
   # Final release evidence aggregation (rc.7 prompt 29/43): downloads the

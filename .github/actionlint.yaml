@@ -1,0 +1,10 @@
+self-hosted-runner:
+  labels:
+    - pm-generic
+    - pm-hyperv
+    - pm-kvm
+    - pm-lan-wan
+    - pm-router-local
+    - pm-sysupgrade
+    - pm-lifecycle
+    - pm-soak

@@ -17,6 +17,7 @@ return view.extend({
 	load: function() { return pm.recommendations(); },
 	render: function(rec) {
 		const actions = ((rec && rec.benchmarkActions) || []).filter(function(a) { return a.status !== 'blocked'; });
+		const advisories = (rec && rec.learnedAdvisory) || [];
 		const root = E('div');
 		const action = E('select', { 'class': 'cbi-input-select', 'aria-label': _('Benchmark action') });
 		actions.forEach(function(a) { action.appendChild(E('option', { value: a.id }, [ a.id + ' · ' + a.evaluationSemantics ])); });
@@ -72,7 +73,10 @@ return view.extend({
 			start.disabled = true;
 			const selected = actions.find(function(a){ return a.id === action.value; });
 			const path = pathSelect.value || (selected && selected.evaluationPaths && selected.evaluationPaths[0]) || 'path:lan-to-wan';
-			pm.benchmarkStart(measurement.value === 'controlled_ab' ? action.value : 'observe', path, measurement.value, 'begin', null, null)
+			const selectedAdvisory = advisories.find(function(a) { return a.kind === 'benchmark' && a.actionId === action.value; });
+			pm.benchmarkStart(measurement.value === 'controlled_ab' ? action.value : 'observe', path, measurement.value, 'begin', null, null,
+				selectedAdvisory && measurement.value === 'controlled_ab' ? 'benchmark-rill' : 'manual',
+				selectedAdvisory && measurement.value === 'controlled_ab' ? selectedAdvisory.decisionId : null)
 				.then(renderSession).finally(function(){ start.disabled=false; });
 		});
 

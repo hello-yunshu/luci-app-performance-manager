@@ -1,6 +1,12 @@
-# Implementation Status — 1.0.0-rc.7
+# Implementation Status — 1.0.0-rc.8
 
-This repository implements the frozen planning pack v0.3.2 through Phase 12 as a **source-complete release candidate** after the strict rc.1 re-audit, the 2026-08-14 independent re-audit hardening, the 2026-08-16 rc.4 single-repo remediation, and the 2026-08-18 rc.6 Rill v1.2.0 Stable real integration, and the 2026-08-19 rc.7 real wire-contract + decision-ledger + evidence false-PASS closure. "Source-complete" means the required contracts, runtime mechanisms, UI surfaces, guards, tests and target-evidence tooling exist; it does **not** claim that target/testbed gates have already passed. The independent re-audit closed: benchmark tuning-domain exclusivity (global lock + idle/stale recovery), full context fingerprint with candidate-key masking, strict non-fallback evaluation paths with a resolved-route hard gate, path-specific health, the Rill contextual bandit with formal per-op v2 IPC schema and strict JSON parsing, the target-bound Assisted Auto traffic gate, fail-closed uninstall cleanup, pinned CI toolchain/feeds, behavioral source gates and the self-contained final audit orchestrator.
+This repository implements the frozen planning pack v0.3.2 through Phase 12 as a **source candidate**. rc.8 closes the exact Rill decision/outcome lifecycle, idle persistence amplification, resource measurement, effective socket access control, and evidence-promotion gaps. “Source candidate” does **not** mean runtime, target, testbed, 24-hour soak, or Stable PASS; those verdicts are exclusively produced by the same-commit Stable aggregator.
+
+### 1.0.0-rc.8 round (exact lifecycle + Stable evidence closure)
+
+- Production Core freezes the exact Rill decision into a transaction/session, validates strict response envelopes, and reconciles duplicates only after a recorded same-attempt response loss.
+- Unexecuted advisory bindings remain in memory; diagnostics and periodic telemetry are read-only and cannot register decisions.
+- Stable workflows require exact APK/Rill identity across Generic, Hyper-V, KVM, A/B, sysupgrade, lifecycle, and 24-hour Rill-present evidence.
 
 ### 1.0.0-rc.7 round (Rill v1.2.0 real wire contract + decision ledger + evidence false-PASS closure)
 
@@ -32,7 +38,7 @@ This repository implements the frozen planning pack v0.3.2 through Phase 12 as a
 - **WAN candidates from evidence** (`wan_candidates_evidence`) instead of `wan[0-9]+` naming.
 - **nft fingerprint masking** — normalized JSON, volatile counters stripped, PM-owned flow-offload masked.
 - **Conservative auto-tick** — safe-allowlist-only auto-apply through the full transactional chain, health/benchmark/backoff gated.
-- **Honest Rill integration status** — `docs/rill-integration-status.json` (pmFailClosedContract / upstreamIntegration / overallFeatureStatus); source gates + final audit report the upstream integration as **blocked**, never PASS.
+- **Honest Rill integration status** — `docs/rill-integration-status.json` reports only `staticContractVerdict`, `releasePinStructureVerdict`, and `functionalIntegrationVerdict=NOT_EVALUATED`; it has no promotable overall feature verdict.
 - **Exact APK verification** (`scripts/verify_apks.py`) via `.PKGINFO` pkgname/pkgver/arch.
 - **CI hardening** — Actions pinned to SHAs; `make audit` failures not swallowed; CA-bundled TLS apk.
 - **Goal UI honesty** — settings labels measurable vs non-measurable goals.

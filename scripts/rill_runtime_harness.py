@@ -258,13 +258,14 @@ def resolver_states():
 
 def main() -> int:
     results = []  # (name, ok, detail)
+    harness_socket = str(ROOT / '.rill-runtime-harness.sock')
 
     def case(name, ok, detail=''):
         results.append((name, bool(ok), detail))
         print(('PASS ' if ok else 'FAIL ') + name + ((': ' + detail) if (not ok and detail) else ''))
 
     # 1. Positive status roundtrip accepted.
-    a = MockAdapter('/tmp/pm-rill-harness.sock')
+    a = MockAdapter(harness_socket)
     try:
         req, resp = client_exchange(a.path, 'status')
         ok, reason = status_accepts(resp)
@@ -326,7 +327,7 @@ def main() -> int:
 
     # 2. Fail-closed: wrong contract.
     bad = dict(STATUS_OK); bad['contract'] = 'pm-rill-other'
-    a = MockAdapter('/tmp/pm-rill-harness.sock', status=bad)
+    a = MockAdapter(harness_socket, status=bad)
     try:
         _, resp = client_exchange(a.path, 'status')
         ok, reason = status_accepts(resp)
@@ -336,7 +337,7 @@ def main() -> int:
 
     # 3. Fail-closed: foreign protocolVersion.
     bad = dict(STATUS_OK); bad['protocolVersion'] = 2
-    a = MockAdapter('/tmp/pm-rill-harness.sock', status=bad)
+    a = MockAdapter(harness_socket, status=bad)
     try:
         _, resp = client_exchange(a.path, 'status')
         ok, reason = status_accepts(resp)
@@ -346,7 +347,7 @@ def main() -> int:
 
     # 4. Fail-closed: missing required capability.
     bad = dict(STATUS_OK); bad['capabilities'] = ['bandit']
-    a = MockAdapter('/tmp/pm-rill-harness.sock', status=bad)
+    a = MockAdapter(harness_socket, status=bad)
     try:
         _, resp = client_exchange(a.path, 'status')
         ok, reason = status_accepts(resp)
@@ -356,7 +357,7 @@ def main() -> int:
 
     # 5. Fail-closed: unhealthy model.
     bad = dict(STATUS_OK); bad['modelHealth'] = {'overall': 'degraded'}
-    a = MockAdapter('/tmp/pm-rill-harness.sock', status=bad)
+    a = MockAdapter(harness_socket, status=bad)
     try:
         _, resp = client_exchange(a.path, 'status')
         ok, reason = status_accepts(resp)

@@ -42,13 +42,15 @@ jobs:
           # == string comparison would never match the actual field.
           sdk_archive_sha=$(awk -v f="*$sdk" '$2==f {print $1}' /tmp/sha256sums)
           test -n "$sdk_archive_sha"
-          echo "SDK_ARCHIVE_SHA256=$sdk_archive_sha" >> "$GITHUB_ENV"
+          {
+            echo "SDK_ARCHIVE_SHA256=$sdk_archive_sha"
+            echo "FEEDS_BUILDINFO_URL=$base/feeds.buildinfo"
+            echo "SDK_CACHE_TAG=${OPENWRT_VERSION}-${OPENWRT_TARGET//\//-}"
+          } >> "$GITHUB_ENV"
           tar --zstd -xf "$sdk"
           sdkdir=$(find . -maxdepth 1 -type d -name "openwrt-sdk-${OPENWRT_VERSION}-x86-64_*" | head -n1)
           test -n "$sdkdir"
           echo "SDKDIR=$sdkdir" >> "$GITHUB_ENV"
-          echo "FEEDS_BUILDINFO_URL=$base/feeds.buildinfo" >> "$GITHUB_ENV"
-          echo "SDK_CACHE_TAG=${OPENWRT_VERSION}-${OPENWRT_TARGET//\//-}" >> "$GITHUB_ENV"
       - name: Pin feeds to official release feed commits
         shell: bash
         run: |
@@ -124,6 +126,7 @@ jobs:
             rill-consumed-manifest.json
             docs/FINAL_AUDIT.md
             docs/FINAL_AUDIT.json
+            docs/source-audit.json
             docs/SOURCE_GATES.json
             docs/HOST_SYNTAX_REPORT.json
             docs/RESOURCE_BUDGET.json

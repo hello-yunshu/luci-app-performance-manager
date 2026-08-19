@@ -14,10 +14,12 @@ ubus call performance-manager transactions '{}' >/dev/null; ubus call performanc
 if [ -x /etc/init.d/performance-manager-rill ]; then
   /etc/init.d/performance-manager-rill restart; sleep 1
   [ -S /run/performance-manager/rill.sock ] || fail 'Rill socket missing'
-  MODE="$(stat -c '%a' /run/performance-manager/rill.sock 2>/dev/null || busybox stat -c '%a' /run/performance-manager/rill.sock)"
-  [ "$MODE" = 660 ] || fail "Rill socket mode $MODE != 660"
+  MODE="$(stat -c '%a' /run/performance-manager 2>/dev/null || busybox stat -c '%a' /run/performance-manager)"
+  [ "$MODE" = 750 ] || fail "Rill socket directory mode $MODE != 750"
+  OWNER="$(stat -c '%U:%G' /run/performance-manager 2>/dev/null || busybox stat -c '%U:%G' /run/performance-manager)"
+  [ "$OWNER" = performance-manager-rill:performance-manager-rill ] || fail "Rill socket directory owner $OWNER"
   ubus call performance-manager rill_status '{}' | grep -q 'Shadow' || fail 'Rill not Shadow'
-  pass 'Rill UDS permissions + Shadow status'
+  pass 'Rill UDS directory access control + Shadow status'
 fi
 # Safety: smoke test never applies an action and never starts active traffic.
 pass 'no silent actuation / no active benchmark in smoke test'

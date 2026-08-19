@@ -24,7 +24,22 @@ return view.extend({
 			])));
 		});
 		(r.observations || []).forEach(function(o) { nodes.push(pu.card(o.id, E('p', {}, [ o.detail ]))); });
-		(r.learnedAdvisory || []).forEach(function(a) { nodes.push(pu.card(_('Rill advisory: %s').format(a.actionId || '—'), pu.kv([ [_('Authority'), a.authority || _('none')], [_('Confidence'), a.confidence || '—'], [_('Validated samples'), a.validatedSamples == null ? '—' : String(a.validatedSamples)], [_('Mean reward'), a.meanReward == null ? '—' : String(a.meanReward)] ]))); });
+		(r.learnedAdvisory || []).forEach(function(a) {
+			const body = E('div', {}, [ pu.kv([ [_('Authority'), a.authority || _('none')], [_('Execution path'), a.kind === 'benchmark' ? _('Controlled benchmark') : _('Safe direct apply')], [_('Confidence'), a.confidence == null ? '—' : String(a.confidence)] ]) ]);
+			if (a.kind === 'safe-direct') {
+				const apply = E('button', { 'class': 'btn cbi-button cbi-button-action', 'type': 'button', 'style': 'margin-top:.8rem' }, [ _('Apply this exact Rill advisory') ]);
+				apply.addEventListener('click', function() {
+					apply.disabled = true;
+					pm.apply(a.actionId, a.applyTarget, 'rill-advisory', a.decisionId).then(function(res) {
+						ui.addNotification(null, E('p', {}, [ res && res.ok ? _('Exact Rill decision applied and verified.') : _('The advisory was not applied; its exact decision binding was rejected or the safety gate failed.') ]));
+					}).finally(function() { apply.disabled = false; });
+				});
+				body.appendChild(apply);
+			} else {
+				body.appendChild(E('p', { 'style': 'margin-top:.8rem' }, [ _('This advisory is benchmark-only. Open Performance Test and complete both Companion evidence legs; it can never enter direct Apply.') ]));
+			}
+			nodes.push(pu.card(_('Rill advisory: %s').format(a.actionId || '—'), body));
+		});
 		return E([], nodes);
 	}
 });

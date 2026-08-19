@@ -22,8 +22,32 @@ class ResourceBudgetTests(unittest.TestCase):
     def test_resource_soak_short_run_cannot_claim_stable_pass(self):
         script = (ROOT / "scripts/openwrt-resource-soak.sh").read_text()
         self.assertIn('"stableDurationSatisfied": $stable', script)
-        self.assertIn('"passed": $stable', script)
-        self.assertIn('[ "$stable" = true ]', script)
+        self.assertIn('"passed": $within', script)
+        self.assertIn('[ "$stable" = true ] || within=false', script)
+        self.assertIn('measurementUnavailable', script)
+
+    def test_resource_soak_never_zero_fills_missing_rill_measurements(self):
+        script = (ROOT / "scripts/openwrt-resource-soak.sh").read_text()
+        self.assertNotIn("detail.persistentWrites", script)
+        self.assertIn("blocked rill-pid-unavailable", script)
+        self.assertIn("blocked rill-adapter-sha-unavailable", script)
+
+    def test_precommitted_resource_budgets_match_target_gate(self):
+        budget = json.loads((ROOT / "docs/RESOURCE_BUDGET.json").read_text())["precommittedStableBudgets"]
+        script = (ROOT / "scripts/openwrt-resource-soak.sh").read_text()
+        expected = {
+            "coreMaxRssKiB": "B_CORE_RSS",
+            "rillMaxRssKiB": "B_RILL_RSS",
+            "coreMeanCpuPercent": "B_CORE_CPU",
+            "rillMeanCpuPercent": "B_RILL_CPU",
+            "pmPersistentWritesPerDay": "B_PM_WRITES_DAY",
+            "rillStateFileMaxBytes": "B_RILL_STATE_BYTES",
+            "bindingHighWater": "B_BINDINGS",
+            "persistentHistoryGrowthBytes": "B_HISTORY_GROWTH",
+        }
+        for key, variable in expected.items():
+            with self.subTest(key=key):
+                self.assertIn(f"{variable}={budget[key]}", script)
 
 
 

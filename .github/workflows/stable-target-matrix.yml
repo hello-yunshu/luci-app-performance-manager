@@ -1,0 +1,198 @@
+name: Stable target and testbed matrix
+
+on:
+  workflow_dispatch:
+    inputs:
+      expected_sha:
+        description: Full PM commit SHA under final validation
+        required: true
+        type: string
+      build_run_id:
+        description: Same-commit Build OpenWrt run containing exact APKs
+        required: true
+        type: string
+      ci_run_id:
+        description: Same-commit CI run containing the exact verified Rill adapter
+        required: true
+        type: string
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  target-matrix:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - gate: target-core-only
+            runner: '["self-hosted","linux","x64","pm-generic"]'
+            controller: /opt/pm-stable-testbed/run-core-only
+            timeout: 90
+          - gate: target-full
+            runner: '["self-hosted","linux","x64","pm-generic"]'
+            controller: /opt/pm-stable-testbed/run-full
+            timeout: 90
+          - gate: target-mutation
+            runner: '["self-hosted","linux","x64","pm-generic"]'
+            controller: /opt/pm-stable-testbed/run-mutation
+            timeout: 90
+          - gate: kvm
+            runner: '["self-hosted","linux","x64","pm-kvm"]'
+            controller: /opt/pm-stable-testbed/run-kvm
+            timeout: 180
+          - gate: lan-wan-ab
+            runner: '["self-hosted","linux","x64","pm-lan-wan"]'
+            controller: /opt/pm-stable-testbed/run-lan-wan-ab
+            timeout: 180
+          - gate: router-local-ab
+            runner: '["self-hosted","linux","x64","pm-router-local"]'
+            controller: /opt/pm-stable-testbed/run-router-local-ab
+            timeout: 180
+          - gate: sysupgrade
+            runner: '["self-hosted","linux","x64","pm-sysupgrade"]'
+            controller: /opt/pm-stable-testbed/run-sysupgrade
+            timeout: 240
+          - gate: lifecycle
+            runner: '["self-hosted","linux","x64","pm-lifecycle"]'
+            controller: /opt/pm-stable-testbed/run-lifecycle
+            timeout: 240
+    runs-on: ${{ fromJSON(matrix.runner) }}
+    timeout-minutes: ${{ matrix.timeout }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ inputs.expected_sha }}
+      - name: Verify exact checkout identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "${{ inputs.expected_sha }}"
+      - name: Download same-commit APK and Rill inputs
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p stable-input/build stable-input/ci stable-output
+          gh run download "${{ inputs.build_run_id }}" --dir stable-input/build
+          gh run download "${{ inputs.ci_run_id }}" --dir stable-input/ci
+      - name: Execute fixed disposable-testbed controller
+        shell: bash
+        env:
+          PM_EXPECTED_SHA: ${{ inputs.expected_sha }}
+          PM_BUILD_INPUT: ${{ github.workspace }}/stable-input/build
+          PM_CI_INPUT: ${{ github.workspace }}/stable-input/ci
+          PM_EVIDENCE_OUT: ${{ github.workspace }}/stable-output/${{ matrix.gate }}.json
+        run: |
+          set -euo pipefail
+          test -x "${{ matrix.controller }}"
+          sudo --preserve-env=PM_EXPECTED_SHA,PM_BUILD_INPUT,PM_CI_INPUT,PM_EVIDENCE_OUT \
+            "${{ matrix.controller }}"
+      - name: Validate final testbed evidence identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ "${{ matrix.gate }}" = target-core-only ]; then
+            python3 scripts/validate_external_evidence.py \
+              --file "stable-output/${{ matrix.gate }}.json" \
+              --gate "${{ matrix.gate }}" \
+              --expected-commit "${{ inputs.expected_sha }}"
+          else
+            python3 scripts/validate_external_evidence.py \
+              --file "stable-output/${{ matrix.gate }}.json" \
+              --gate "${{ matrix.gate }}" \
+              --expected-commit "${{ inputs.expected_sha }}" \
+              --require-rill
+          fi
+      - name: Upload evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: stable-${{ matrix.gate }}
+          path: stable-output/${{ matrix.gate }}.json
+          if-no-files-found: error
+
+  hyperv:
+    runs-on: [self-hosted, windows, x64, pm-hyperv]
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ inputs.expected_sha }}
+      - name: Verify exact checkout and download inputs
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if ((git rev-parse HEAD) -ne '${{ inputs.expected_sha }}') { throw 'checkout SHA mismatch' }
+          New-Item -ItemType Directory -Force stable-input/build, stable-input/ci, stable-output | Out-Null
+          gh run download '${{ inputs.build_run_id }}' --dir stable-input/build
+          gh run download '${{ inputs.ci_run_id }}' --dir stable-input/ci
+      - name: Execute fixed disposable Hyper-V controller
+        shell: pwsh
+        env:
+          PM_EXPECTED_SHA: ${{ inputs.expected_sha }}
+          PM_BUILD_INPUT: ${{ github.workspace }}/stable-input/build
+          PM_CI_INPUT: ${{ github.workspace }}/stable-input/ci
+          PM_EVIDENCE_OUT: ${{ github.workspace }}/stable-output/hyperv.json
+        run: |
+          $controller = 'C:/pm-stable-testbed/run-hyperv.ps1'
+          if (-not (Test-Path $controller)) { throw 'Hyper-V controller is not provisioned' }
+          & $controller
+          python scripts/validate_external_evidence.py --file stable-output/hyperv.json --gate hyperv --expected-commit '${{ inputs.expected_sha }}' --require-rill
+      - name: Upload Hyper-V evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: stable-hyperv
+          path: stable-output/hyperv.json
+          if-no-files-found: error
+
+  resource-soak-24h:
+    runs-on: [self-hosted, linux, x64, pm-soak]
+    timeout-minutes: 1560
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ inputs.expected_sha }}
+      - name: Download exact inputs
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "${{ inputs.expected_sha }}"
+          mkdir -p stable-input/build stable-input/ci stable-output
+          gh run download "${{ inputs.build_run_id }}" --dir stable-input/build
+          gh run download "${{ inputs.ci_run_id }}" --dir stable-input/ci
+      - name: Install exact full profile and run uninterrupted Rill-present soak
+        shell: bash
+        env:
+          PM_EXPECTED_SHA: ${{ inputs.expected_sha }}
+          PM_BUILD_INPUT: ${{ github.workspace }}/stable-input/build
+          PM_CI_INPUT: ${{ github.workspace }}/stable-input/ci
+          PM_EVIDENCE_OUT: ${{ github.workspace }}/stable-output/resource-soak.json
+          PM_SOAK_SECONDS: '86400'
+        run: |
+          set -euo pipefail
+          test -x /opt/pm-stable-testbed/run-resource-soak
+          sudo --preserve-env=PM_EXPECTED_SHA,PM_BUILD_INPUT,PM_CI_INPUT,PM_EVIDENCE_OUT,PM_SOAK_SECONDS \
+            /opt/pm-stable-testbed/run-resource-soak
+      - name: Validate 24-hour evidence identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 scripts/validate_external_evidence.py \
+            --file stable-output/resource-soak.json \
+            --gate resource-soak \
+            --expected-commit "${{ inputs.expected_sha }}" \
+            --require-rill --minimum-duration 86400
+      - name: Upload 24-hour evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: stable-resource-soak
+          path: stable-output/resource-soak.json
+          if-no-files-found: error
