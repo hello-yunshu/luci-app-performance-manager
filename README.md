@@ -26,7 +26,7 @@
 - **Telemetry + Health Guard**：evidence/confidence Analyzer、baseline-relative 健康门禁、资源锁、持久 pending marker、verified rollback 与真实 monotonic commit-confirm 引擎
 - **Phase-7 Benchmark 编排**：irqbalance、backlog/budget、buffers、busy poll、tx queue、coalescing、CC、qdisc、SFO/HFO/SFE、CPU governor；只有存在精确可逆契约时才执行 provider
 - **受控 A/B 真值**：持久 control evidence → 单变量事务 candidate → candidate evidence → 验证后回滚 → 结果持久化 → 可选 Rill outcome；缺失 / 无效 evidence 永远不会变成 `validated=true`
-- **Rill Shadow 学习**：Rill 是外部运行时依赖，由上游仓库构建与发布；PM 只通过有界 shadow-only IPC 协议消费其 advisory（上下文漂移检测、validated outcome 加权、Decision Ledger、模型健康），缺失 / 不兼容时 fail-closed 且不伪造建议
+- **RillML（简称 Rill）Shadow 学习**：RillML 是外部运行时依赖，由上游仓库构建与发布；PM 只通过有界 shadow-only IPC 协议消费其 advisory（上下文漂移检测、validated outcome 加权、Decision Ledger、模型健康），缺失 / 不兼容时 fail-closed 且不伪造建议
 - **Assisted Auto**：默认关闭，必须显式选择 + 维护窗口 + 低流量门禁 + 安全 allowlist
 - **多平台指导**：Generic x86、Hyper-V、KVM（含 Proxmox VE guest 建议）
 - **Companion Agent**：显式 LAN/WAN iperf3 端点工具，不拥有路由器修改权限
@@ -176,12 +176,12 @@ package/luci-app-performance-manager/
                           └───────────┬────────────┘
                                       │ 消费上游正式发布产物
                           ┌───────────▼────────────┐
-                          │   Rill upstream runtime │
+                          │  RillML upstream runtime  │
                           │  (上游仓库构建/发布)      │
                           └────────────────────────┘
 ```
 
-> **Rill 是外部运行时依赖。** Rill 的源码、Rust toolchain、跨平台编译与二进制发布全部由 Rill 上游仓库负责；本仓库不内置、不编译、不测试 Rill 的 Rust 实现。`performance-manager-rill` 只是 PM 专属的集成 glue（fail-closed 能力门禁 + 服务 glue），只消费并校验上游正式发布产物。
+> **RillML（简称 Rill）是外部运行时依赖。** Rill 的源码、Rust toolchain、跨平台编译与二进制发布全部由 Rill 上游仓库负责；本仓库不内置、不编译、不测试 Rill 的 Rust 实现。`performance-manager-rill` 只是 PM 专属的集成 glue（fail-closed 能力门禁 + 服务 glue），只消费并校验上游正式发布产物。
 
 **数据流**：
 
