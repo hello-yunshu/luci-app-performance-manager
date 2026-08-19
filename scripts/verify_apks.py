@@ -27,7 +27,7 @@ Usage:
   python3 scripts/verify_apks.py <sdk_dir> <expected_version> <arch>
 """
 from __future__ import annotations
-import gzip, hashlib, io, json, struct, sys, tarfile, zlib
+import gzip, hashlib, io, json, os, struct, subprocess, sys, tarfile, zlib
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -37,6 +37,18 @@ EXPECTED = ['performance-manager', 'luci-app-performance-manager', 'performance-
 # repo source the runtime harness / startup smoke run verbatim.
 CORE_PATH = '/usr/sbin/performance-manager.uc'
 CORE_SRC = ROOT / 'package/performance-manager/files/usr/sbin/performance-manager.uc'
+
+
+def _pm_commit():
+    """PM commit SHA the evidence was produced at (same-commit chain, rc.7)."""
+    sha = os.environ.get('GITHUB_SHA')
+    if sha:
+        return sha
+    try:
+        return subprocess.run(['git', '-C', str(ROOT), 'rev-parse', 'HEAD'],
+                              capture_output=True, text=True).stdout.strip() or 'unknown'
+    except Exception:  # noqa: BLE001
+        return 'unknown'
 
 
 def open_package(path):
@@ -391,6 +403,7 @@ def main(argv):
         by_name.setdefault(name, []).append((apk, meta))
 
     report = {'schemaVersion': 1, 'contract': 'apk-exact-verification',
+              'pmCommitSha': _pm_commit(),
               'expectedVersion': expected_version, 'arch': arch, 'packages': {}}
     failures = []
 

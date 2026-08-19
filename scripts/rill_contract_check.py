@@ -42,17 +42,21 @@ def check(name, ok):
     if not ok: print('FAIL:', name)
 
 # 1. Formal IPC schema + Core protocol agreement (pm-rill-shadow v1).
-check('schema contract const==pm-rill-shadow', SCHEMA['properties']['contract']['const']=='pm-rill-shadow')
-check('schema protocolVersion const==1', SCHEMA['properties']['protocolVersion']['const']==1)
+def branch_props(op):
+    """Schema properties of the oneOf per-op branch (rill-ipc.schema.json)."""
+    return SCHEMA['$defs'][f'{op}Request']['properties']
+
+check('schema contract const==pm-rill-shadow', branch_props('status')['contract']['const']=='pm-rill-shadow')
+check('schema protocolVersion const==1', branch_props('status')['protocolVersion']['const']==1)
 check('DEP protocol contract==pm-rill-shadow', DEP['protocol']['contract']=='pm-rill-shadow')
 check('DEP protocol protocolVersion==1', DEP['protocol']['protocolVersion']==1)
 check('DEP protocol schemaFile present', bool(DEP['protocol']['schemaFile']))
-ops=set(SCHEMA['properties']['op']['enum'])
+ops={branch_props(op)['op']['const'] for op in ('status','observe','outcome')}
 check('schema ops == {status,observe,outcome}', ops=={'status','observe','outcome'})
 check('Core shadow-only ops contract', "const RILL_REQUIRED_OPS = [ 'status', 'observe', 'outcome' ]" in CORE)
 check('DEP requiredOps match', set(DEP['protocol']['requiredOps'])==ops)
-check('schema contextKey pattern ^ctx-v1:', SCHEMA['properties']['contextKey']['pattern']=='^ctx-v1:')
-check('schema contextKey maxLength 512', SCHEMA['properties']['contextKey']['maxLength']==512)
+check('schema contextKey pattern ^ctx-v1:', SCHEMA['$defs']['contextKey']['pattern']=='^ctx-v1:')
+check('schema contextKey maxLength 512', SCHEMA['$defs']['contextKey']['maxLength']==512)
 check('DEP contextKey pattern <=> schema', DEP['protocol'].get('contextKeyPattern')=='^ctx-v1:' and DEP['protocol'].get('contextKeyMaxLength')==512)
 check('Core contextKey wiring', 'ctx-v1:' in CORE and 'rill_context_key_build' in CORE)
 

@@ -1,207 +1,248 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://openwrt-performance-manager.local/schema/rill-ipc.json",
-  "title": "PmRillShadowIPC",
-  "description": "Formal v1 protocol between Core (performance-manager.uc) and the pinned Rill PM adapter (rill-pm-adapter, published by hello-yunshu/rill-ml). The contract name 'pm-rill-shadow' and protocolVersion 1 are deliberately independent of Rill Runtime IPC API v1/v2/v3. The envelope is common to every operation; per-operation required fields are enforced by the if/then blocks below, mirroring the strict validation performed by the adapter.",
+  "title": "PmRillShadowRequest",
+  "description": "Formal v1 request protocol between Core (performance-manager.uc) and the pinned Rill PM adapter (rill-pm-adapter v1.2.0, commit dc96fdb3bf55eacdd1c093f1be08d1c9daed4400). Each operation mirrors one variant of the tagged `Request` enum in crates/rill-pm-adapter/src/lib.rs, which uses deny_unknown_fields: unknown fields are REJECTED, never ignored. Every branch therefore enforces additionalProperties:false.",
   "type": "object",
-  "additionalProperties": true,
-  "required": [
-    "contract",
-    "protocolVersion",
-    "requestId",
-    "op"
+  "oneOf": [
+    {
+      "$ref": "#/$defs/statusRequest"
+    },
+    {
+      "$ref": "#/$defs/observeRequest"
+    },
+    {
+      "$ref": "#/$defs/outcomeRequest"
+    }
   ],
-  "properties": {
-    "contract": {
-      "const": "pm-rill-shadow"
-    },
-    "protocolVersion": {
-      "const": 1
-    },
+  "$defs": {
     "requestId": {
       "type": "string",
       "minLength": 1,
       "maxLength": 128
     },
-    "op": {
-      "enum": [
-        "status",
-        "observe",
-        "outcome"
-      ]
-    },
-    "deviceProfile": {
+    "boundedString": {
       "type": "string",
-      "minLength": 1
-    },
-    "capabilityHash": {
-      "type": "string",
-      "minLength": 1
-    },
-    "topologyGeneration": {
-      "type": "integer",
-      "minimum": 0
-    },
-    "pathId": {
-      "type": "string",
-      "minLength": 1
-    },
-    "routeIdentity": {
-      "type": "string",
-      "minLength": 1
-    },
-    "workloadClass": {
-      "type": "array",
-      "minItems": 1,
-      "items": {
-        "type": "string"
-      }
-    },
-    "measurementClass": {
-      "enum": [
-        "controlled_ab",
-        "passive_before_after",
-        "health_only"
-      ]
-    },
-    "context": {
-      "type": "object"
-    },
-    "integrations": {
-      "type": "object"
-    },
-    "integrationFingerprint": {
-      "type": "string",
-      "minLength": 1
+      "minLength": 1,
+      "maxLength": 512
     },
     "contextKey": {
       "type": "string",
       "pattern": "^ctx-v1:",
       "maxLength": 512
     },
-    "availableActions": {
-      "type": "array",
-      "minItems": 1,
-      "items": {
-        "type": "object",
-        "required": [
-          "id"
-        ],
-        "properties": {
-          "id": {
+    "availableAction": {
+      "type": "object",
+      "required": [
+        "id"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 512
+        },
+        "risk": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": true
+    },
+    "statusRequest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "contract",
+        "protocolVersion",
+        "requestId",
+        "op"
+      ],
+      "properties": {
+        "contract": {
+          "const": "pm-rill-shadow"
+        },
+        "protocolVersion": {
+          "const": 1
+        },
+        "requestId": {
+          "$ref": "#/$defs/requestId"
+        },
+        "op": {
+          "const": "status"
+        },
+        "deadlineUnixMs": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "observeRequest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "contract",
+        "protocolVersion",
+        "requestId",
+        "op",
+        "deviceProfile",
+        "capabilityHash",
+        "topologyGeneration",
+        "pathId",
+        "routeIdentity",
+        "workloadClass",
+        "measurementClass",
+        "context",
+        "integrations",
+        "goal",
+        "integrationFingerprint",
+        "contextKey",
+        "availableActions"
+      ],
+      "properties": {
+        "contract": {
+          "const": "pm-rill-shadow"
+        },
+        "protocolVersion": {
+          "const": 1
+        },
+        "requestId": {
+          "$ref": "#/$defs/requestId"
+        },
+        "op": {
+          "const": "observe"
+        },
+        "deadlineUnixMs": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "deviceProfile": {
+          "$ref": "#/$defs/boundedString"
+        },
+        "capabilityHash": {
+          "$ref": "#/$defs/boundedString"
+        },
+        "topologyGeneration": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "pathId": {
+          "$ref": "#/$defs/boundedString"
+        },
+        "routeIdentity": {
+          "$ref": "#/$defs/boundedString"
+        },
+        "workloadClass": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
             "type": "string",
             "minLength": 1
-          },
-          "applyScope": {
-            "type": "string"
-          },
-          "applyTarget": {
-            "type": "string"
-          },
-          "evaluationPaths": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
-          },
-          "risk": {
-            "type": "string"
+          }
+        },
+        "measurementClass": {
+          "type": "string",
+          "minLength": 1
+        },
+        "context": {
+          "type": "object"
+        },
+        "integrations": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "id"
+            ],
+            "properties": {
+              "id": {
+                "type": "string",
+                "minLength": 1
+              },
+              "present": {
+                "type": "boolean"
+              }
+            },
+            "additionalProperties": true
+          }
+        },
+        "goal": {
+          "$ref": "#/$defs/boundedString"
+        },
+        "integrationFingerprint": {
+          "$ref": "#/$defs/boundedString"
+        },
+        "contextKey": {
+          "$ref": "#/$defs/contextKey"
+        },
+        "availableActions": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/availableAction"
           }
         }
       }
     },
-    "validated": {
-      "type": "boolean"
-    },
-    "actionId": {
-      "type": "string",
-      "minLength": 1
-    },
-    "sessionId": {
-      "type": "string",
-      "minLength": 1
-    },
-    "decisionId": {
-      "type": "string",
-      "minLength": 1
-    },
-    "goal": {
-      "type": "string",
-      "minLength": 1
-    },
-    "modelGeneration": {
-      "type": "integer",
-      "minimum": 0
-    },
-    "reward": {
-      "type": "number"
-    }
-  },
-  "allOf": [
-    {
-      "if": {
-        "properties": {
-          "op": {
-            "const": "observe"
-          }
+    "outcomeRequest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "contract",
+        "protocolVersion",
+        "requestId",
+        "op",
+        "decisionId",
+        "contextKey",
+        "actionId",
+        "sessionId",
+        "goal",
+        "modelGeneration",
+        "validated",
+        "reward"
+      ],
+      "properties": {
+        "contract": {
+          "const": "pm-rill-shadow"
         },
-        "required": [
-          "op"
-        ]
-      },
-      "then": {
-        "required": [
-          "deviceProfile",
-          "capabilityHash",
-          "topologyGeneration",
-          "pathId",
-          "routeIdentity",
-          "workloadClass",
-          "measurementClass",
-          "context",
-          "integrations",
-          "integrationFingerprint",
-          "contextKey",
-          "availableActions"
-        ]
-      }
-    },
-    {
-      "if": {
-        "properties": {
-          "op": {
-            "const": "outcome"
-          }
+        "protocolVersion": {
+          "const": 1
         },
-        "required": [
-          "op"
-        ]
-      },
-      "then": {
-        "required": [
-          "validated",
-          "decisionId",
-          "actionId",
-          "sessionId",
-          "goal",
-          "modelGeneration",
-          "deviceProfile",
-          "capabilityHash",
-          "topologyGeneration",
-          "pathId",
-          "routeIdentity",
-          "workloadClass",
-          "measurementClass",
-          "integrationFingerprint",
-          "contextKey",
-          "reward"
-        ],
-        "properties": {
-          "validated": {
-            "const": true
-          }
+        "requestId": {
+          "$ref": "#/$defs/requestId"
+        },
+        "op": {
+          "const": "outcome"
+        },
+        "deadlineUnixMs": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "decisionId": {
+          "$ref": "#/$defs/boundedString"
+        },
+        "contextKey": {
+          "$ref": "#/$defs/contextKey"
+        },
+        "actionId": {
+          "$ref": "#/$defs/boundedString"
+        },
+        "sessionId": {
+          "$ref": "#/$defs/boundedString"
+        },
+        "goal": {
+          "$ref": "#/$defs/boundedString"
+        },
+        "modelGeneration": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "validated": {
+          "type": "boolean"
+        },
+        "reward": {
+          "type": "number"
         }
       }
     }
-  ]
+  }
 }

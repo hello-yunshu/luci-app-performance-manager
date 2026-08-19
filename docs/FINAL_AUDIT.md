@@ -1,8 +1,8 @@
-# Final Audit — 1.0.0-rc.6
+# Final Audit — 1.0.0-rc.7
 
 ## Decision
 
-**PASS — 1.0.0-rc.6 source + Rill integration candidate; Stable remains blocked by explicit external target/testbed gates.**
+**PASS — 1.0.0-rc.7 source + Rill integration candidate; Stable remains blocked by explicit external target/testbed gates.**
 
 This audit is a single self-contained orchestrator: contract validation, host syntax checks, source gates, resource budget and the unittest suite are all rerun in this process, and only the freshly generated reports are consumed. Source completion is deliberately separated from real target evidence.
 
@@ -18,7 +18,7 @@ This audit is a single self-contained orchestrator: contract validation, host sy
 
 ## Local evidence
 
-- Executable unit/contract tests: **84**, status **PASS**.
+- Executable unit/contract tests: **93**, status **PASS**.
 - Host syntax/JSON/JS/YAML checks: **21**, status **PASS**.
 - Formal schemas/examples and frozen profiles: validated by `scripts/validate_contracts.py`.
 - zh_Hans: all current literal LuCI msgids are covered.

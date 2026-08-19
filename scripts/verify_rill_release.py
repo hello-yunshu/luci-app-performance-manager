@@ -35,20 +35,50 @@ import argparse
 import hashlib
 import json
 import os
+import subprocess
 import sys
 import urllib.request
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-API = "https://api.github.com/repos/hello-yunshu/rill-ml"
-DOWNLOAD = "https://github.com/hello-yunshu/rill-ml/releases/download/v1.2.0"
-INDEX_URL = f"{DOWNLOAD}/stable-index.json"
-PUBLIC_KEY_HEX = "29fd1fc2f22bd7e405aec167ff0a0d8de791f011c415075d4c5f9f64fd93fc2e"
-EXPECTED_COMMIT = "dc96fdb3bf55eacdd1c093f1be08d1c9daed4400"
-RELEASE_TAG = "v1.2.0"
-EXPECTED_RELEASE_VERSION = "1.2.0"
-EXPECTED_ADAPTER_VERSION = "0.15.0"
-EXPECTED_ADAPTER_NAME = "rill-pm-adapter-1.2.0-linux-x86_64-musl"
+
+# Everything this verifier checks is driven by contracts/rill-dependency.json —
+# the unique immutable-release source of truth.  The verifier only implements the
+# verification ALGORITHM; the expected repository / tag / commit / signed index /
+# publisher key / adapter name are all read from the contract (rc.7 prompt 31).
+# A malformed contract is a hard failure, never a silent "hardcoded release is
+# real" pass.
+_CONTRACT_PATH = ROOT / "contracts" / "rill-dependency.json"
+CONTRACT = json.loads(_CONTRACT_PATH.read_text()) if _CONTRACT_PATH.exists() else {}
+_UP = CONTRACT.get("upstream") or {}
+_RI = _UP.get("releaseIndex") or {}
+_AD = _UP.get("adapter") or {}
+_TG = _AD.get("target") or {}
+_REPO = _UP.get("repository") or ""
+if not _REPO.startswith("https://github.com/"):
+    raise SystemExit("FATAL: contract upstream.repository must be a github.com URL")
+_REPO_SLUG = _REPO[len("https://github.com/"):]
+API = f"https://api.github.com/repos/{_REPO_SLUG}"
+RELEASE_TAG = _UP.get("releaseTag") or ""
+DOWNLOAD = f"https://github.com/{_REPO_SLUG}/releases/download/{RELEASE_TAG}"
+INDEX_URL = _RI.get("url") or f"{DOWNLOAD}/stable-index.json"
+PUBLIC_KEY_HEX = _RI.get("publicKeyHex") or ""
+EXPECTED_COMMIT = _UP.get("tagCommitSha") or ""
+EXPECTED_RELEASE_VERSION = _UP.get("releaseVersion") or ""
+EXPECTED_ADAPTER_VERSION = _AD.get("adapterVersion") or ""
+EXPECTED_ADAPTER_NAME = _AD.get("name") or ""
+
+if not (RELEASE_TAG and EXPECTED_COMMIT and EXPECTED_RELEASE_VERSION
+        and EXPECTED_ADAPTER_VERSION and EXPECTED_ADAPTER_NAME and PUBLIC_KEY_HEX):
+    raise SystemExit("FATAL: contract upstream release pin incomplete; verifier cannot run")
+
+
+def _pm_commit():
+    try:
+        return subprocess.run(['git', '-C', str(ROOT), 'rev-parse', 'HEAD'],
+                              capture_output=True, text=True).stdout.strip() or 'unknown'
+    except Exception:  # noqa: BLE001
+        return 'unknown'
 
 
 class _NoError:
@@ -338,6 +368,7 @@ def main(argv=None):
     prov = {
         "schemaVersion": 1,
         "contract": "pm<->rill-release-provenance",
+        "pmCommitSha": os.environ.get("GITHUB_SHA") or _pm_commit(),
         "releaseVersion": EXPECTED_RELEASE_VERSION,
         "releaseTag": RELEASE_TAG,
         "releaseCommitSha": result["rill"]["resolvedCommitSha"],

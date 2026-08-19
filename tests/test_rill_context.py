@@ -9,10 +9,15 @@ CORE = (ROOT / 'package/performance-manager/files/usr/sbin/performance-manager.u
 
 
 def branch_required(op):
-    for node in SCHEMA['allOf']:
-        if node.get('then') and node.get('if', {}).get('properties', {}).get('op', {}).get('const') == op:
-            return set(node['then']['required'])
-    return set()
+    """Required fields of the oneOf per-op branch (rill-ipc.schema.json mirrors
+    the tagged Request enum in rill-pm-adapter v1.2.0 lib.rs)."""
+    node = SCHEMA['$defs'].get(f'{op}Request')
+    return set(node['required']) if node else set()
+
+
+def branch_properties(op):
+    node = SCHEMA['$defs'].get(f'{op}Request')
+    return (node or {}).get('properties', {})
 
 
 class RillContextTests(unittest.TestCase):
@@ -20,15 +25,16 @@ class RillContextTests(unittest.TestCase):
         # The formal IPC schema and the Core must agree on the protocol contract
         # (pm-rill-shadow v1) and the bounded ContextKey the Core constructs for
         # every observe/outcome.
-        self.assertEqual(SCHEMA['properties']['contract']['const'], 'pm-rill-shadow')
-        self.assertEqual(SCHEMA['properties']['protocolVersion']['const'], 1)
-        self.assertEqual(SCHEMA['properties']['contextKey']['maxLength'], 512)
+        props = branch_properties('status')
+        self.assertEqual(props['contract']['const'], 'pm-rill-shadow')
+        self.assertEqual(props['protocolVersion']['const'], 1)
+        self.assertEqual(SCHEMA['$defs']['contextKey']['maxLength'], 512)
         self.assertIn("const RILL_CONTRACT = 'pm-rill-shadow'", CORE)
         self.assertIn('const RILL_PROTOCOL_VERSION = 1', CORE)
         self.assertIn('const RILL_REQUIRED_OPS = [ \'status\', \'observe\', \'outcome\' ]', CORE)
 
     def test_context_key_pattern_matches_core(self):
-        pattern = SCHEMA['properties']['contextKey']['pattern']
+        pattern = SCHEMA['$defs']['contextKey']['pattern']
         self.assertEqual(pattern, '^ctx-v1:')
         self.assertIn('ctx-v1:', CORE)
 
@@ -48,11 +54,14 @@ class RillContextTests(unittest.TestCase):
             with self.subTest(field=field):
                 self.assertIn(field, CORE)
 
-    def test_outcome_validated_const_only_after_validation(self):
-        outcome = next(n['then'] for n in SCHEMA['allOf'] if n.get('if', {}).get('properties', {}).get('op', {}).get('const') == 'outcome')
-        self.assertEqual(outcome['properties']['validated']['const'], True)
-        # A validated reward/outcome is only emitted after safe rollback of the
-        # candidate and a health pass; otherwise no reward is sent at all.
+    def test_outcome_validated_only_after_safe_rollback(self):
+        # The v1.2.0 schema types validated as a boolean (not a const), so the
+        # validated-only-after-safety rule is enforced by the Core, not the
+        # wire schema: a reward/outcome is only emitted after safe rollback of
+        # the candidate and a health pass; otherwise no reward is sent at all.
+        outcome = SCHEMA['$defs']['outcomeRequest']
+        self.assertIn('validated', outcome['required'])
+        self.assertIn('reward', outcome['required'])
         body = CORE
         self.assertIn("reward=(c1-c0)/c0", body)
         self.assertIn("rollback_transaction(session.transactionId,'benchmark-complete')", body)
@@ -64,10 +73,11 @@ class RillContextTests(unittest.TestCase):
         self.assertIn('goal_class = safe_name(goal_id ?? \'balanced\')', CORE)
         self.assertIn('const GOALS = [ \'balanced\', \'throughput\', \'latency\', \'cpu_efficiency\' ]', CORE)
 
-    def test_measurement_class_enum_matches_core(self):
-        enum = SCHEMA['properties']['measurementClass']['enum']
-        self.assertEqual(enum, ['controlled_ab', 'passive_before_after', 'health_only'])
-        for value in enum:
+    def test_measurement_class_values_match_core(self):
+        # Rill v1.2.0 types measurementClass as an open string; the Core is the
+        # source of the closed set of methodology values.
+        self.assertIn("['controlled_ab','passive_before_after','health_only']", CORE)
+        for value in ('controlled_ab', 'passive_before_after', 'health_only'):
             self.assertIn(value, CORE)
 
     def test_rill_outcome_only_after_validated_ab(self):

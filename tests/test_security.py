@@ -4,6 +4,13 @@ ROOT=Path(__file__).resolve().parents[1]
 CORE=(ROOT/'package/performance-manager/files/usr/sbin/performance-manager.uc').read_text()
 SCHEMA=json.loads((ROOT/'contracts/rill-ipc.schema.json').read_text())
 
+def allowed_ops():
+    """Allowed op values = the per-op consts of the oneOf branches
+    (statusRequest/observeRequest/outcomeRequest in rill-ipc.schema.json,
+    mirroring the tagged Request enum in rill-pm-adapter v1.2.0)."""
+    return [SCHEMA['$defs'][k]['properties']['op']['const']
+            for k in ('statusRequest', 'observeRequest', 'outcomeRequest')]
+
 class SecurityTests(unittest.TestCase):
     def test_core_uses_safe_shell_quoting(self):
         # ucode's fs.popen rejects an argv ARRAY on the supported OpenWrt runtime
@@ -24,7 +31,7 @@ class SecurityTests(unittest.TestCase):
         # the PM side: the Core only ever sends status/observe/outcome and the
         # formal IPC schema never admits an apply/rollback/uci op.
         self.assertIn("const RILL_REQUIRED_OPS = [ 'status', 'observe', 'outcome' ]",CORE)
-        ops=SCHEMA['properties']['op']['enum']
+        ops=allowed_ops()
         self.assertIn('status',ops); self.assertIn('observe',ops); self.assertIn('outcome',ops)
         for forbidden in ['apply','rollback','uci']:
             self.assertNotIn(forbidden,ops)
@@ -41,7 +48,7 @@ class SecurityTests(unittest.TestCase):
         # apply path, and the integration is advisory-only.
         self.assertIn("authority: 'advisory-only'",CORE)
         self.assertIn("authority: 'safe-direct'",CORE)
-        self.assertNotIn('"apply"',[SCHEMA['properties']['op']['enum']])
+        self.assertNotIn('apply',allowed_ops())
     def test_rill_missing_is_not_whole_rc_pass(self):
         # A missing/incompatible Rill integration must surface as a distinct
         # compatibility state, not hide behind a healthy Core.

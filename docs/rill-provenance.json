@@ -1,6 +1,7 @@
 {
   "schemaVersion": 1,
   "contract": "pm<->rill-release-provenance",
+  "pmCommitSha": "9ba659ab55ec93bc59422f4e3162642504e7c517",
   "releaseVersion": "1.2.0",
   "releaseTag": "v1.2.0",
   "releaseCommitSha": "dc96fdb3bf55eacdd1c093f1be08d1c9daed4400",

@@ -22,18 +22,24 @@ pmCoreRoundtripVerdict here remains BLOCKED unless a real adapter is present.
 """
 from __future__ import annotations
 import json
+import os
 import re
 import socket
+import subprocess
 import sys
 import threading
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 SCHEMA = json.loads((ROOT / 'contracts/rill-ipc.schema.json').read_text())
+RESP_SCHEMA = json.loads((ROOT / 'contracts/rill-ipc-response.schema.json').read_text())
 DEP = json.loads((ROOT / 'contracts/rill-dependency.json').read_text())
 CORE = (ROOT / 'package/performance-manager/files/usr/sbin/performance-manager.uc').read_text()
 INIT = (ROOT / 'package/performance-manager-rill/files/etc/init.d/performance-manager-rill').read_text()
-OUT = ROOT / 'docs' / 'rill-integration-evidence.json'
+# Per-job evidence isolation (rc.7 prompt section 27): this job owns ONLY
+# its own file (docs/rill-wire-harness.json).  It never writes the shared
+# docs/rill-integration-evidence.json that the final aggregator merges per-job.
+OUT = ROOT / 'docs' / 'rill-wire-harness.json'
 
 try:
     import jsonschema
@@ -46,17 +52,48 @@ def _core_const(name):
     return m.group(1).strip() if m else None
 
 
+def _pm_commit():
+    try:
+        return subprocess.run(['git', '-C', str(ROOT), 'rev-parse', 'HEAD'],
+                              capture_output=True, text=True).stdout.strip() or 'unknown'
+    except Exception:  # noqa: BLE001
+        return 'unknown'
+
+
 REQUIRED_CAPS = ['context-partitioned-model', 'goal-partition', 'validated-outcome', 'decision-ledger', 'model-health']
 
 STATUS_OK = {
     'contract': 'pm-rill-shadow',
     'protocolVersion': 1,
-    'releaseVersion': '1.2.0',
+    'requestId': None,  # echoed per-request by the mock
+    'ok': True,
+    'rillVersion': '1.2.0',
     'adapterVersion': '0.15.0',
     'state': 'learning',
     'capabilities': REQUIRED_CAPS,
-    'modelHealth': {'overall': 'healthy'},
+    # Full modelHealth shape required by rill-ipc-response.schema.json (not just
+    # overall): the mock must answer a schema-valid v1.2.0 status envelope.
+    'modelHealth': {
+        'overall': 'healthy',
+        'partitions': 1,
+        'totalSamples': 42,
+        'stalePartitions': 0,
+        'maxPartitionSamples': 42,
+        'minPartitionSamples': 42,
+    },
 }
+
+# Real Rill v1.2.0 wire response shapes (prompt section 6 / 42): observe success
+# is {ok, decisionId, recommendation:{actionId,confidence,advisory}}, outcome
+# success is {ok, accepted}.  The mock only ever answers these REAL shapes (plus
+# the envelope contract/protocolVersion/requestId echoed per request) so the
+# harness can never "prove" a self-invented mock contract.
+OBSERVE_OK = {
+    'ok': True,
+    'decisionId': 'deadbeefcafebabedeadbeefcafebabe00000000',
+    'recommendation': {'actionId': 'network.backlog', 'confidence': 0.9, 'advisory': True},
+}
+OUTCOME_OK = {'ok': True, 'accepted': True}
 
 def frame(obj):
     return json.dumps(obj, separators=(',', ':')).encode() + b'\n'
@@ -113,14 +150,25 @@ class MockAdapter:
                     break
                 reqs.append(req)
                 op = req.get('op')
+                # Every response is a schema-valid v1.2.0 envelope echoing the
+                # request requestId (contract/protocolVersion/requestId + ok).
+                env = {'contract': 'pm-rill-shadow', 'protocolVersion': 1,
+                       'requestId': req.get('requestId')}
                 if op == 'status':
-                    conn.sendall(frame(self.status))
+                    resp = dict(self.status)
+                    resp['requestId'] = env['requestId']
+                    conn.sendall(frame(resp))
                 elif op == 'observe':
-                    conn.sendall(frame({'recommended': 0.5, 'modelGeneration': 1}))
+                    # Real Rill v1.2.0 observe success shape: {ok, decisionId,
+                    # recommendation:{actionId,confidence,advisory}}.
+                    conn.sendall(frame(dict(OBSERVE_OK, **env)))
                 elif op == 'outcome':
-                    conn.sendall(frame({'acknowledged': True}))
+                    # Real Rill v1.2.0 outcome success shape: {ok, accepted}.
+                    conn.sendall(frame(dict(OUTCOME_OK, **env)))
                 else:
-                    conn.sendall(frame({'error': 'unknown-op'}))
+                    conn.sendall(frame(dict(
+                        {'ok': False, 'error': {'code': 'unknownOp', 'message': 'unknown-op', 'retryable': False}},
+                        **env)))
             self.accepted_requests.extend(reqs)
         except Exception:
             conn.close()
@@ -143,6 +191,15 @@ def validate_against_schema(request):
     if jsonschema is None:
         return True
     jsonschema.Draft202012Validator(SCHEMA).validate(req)
+    return True
+
+
+def validate_response_against_schema(resp):
+    """A mock answer must validate against rill-ipc-response.schema.json (the
+    REAL v1.2.0 response protocol), not just look plausible."""
+    if jsonschema is None:
+        return True
+    jsonschema.Draft202012Validator(RESP_SCHEMA).validate(resp)
     return True
 
 
@@ -212,23 +269,58 @@ def main() -> int:
         req, resp = client_exchange(a.path, 'status')
         ok, reason = status_accepts(resp)
         case('positive status roundtrip accepted', ok, reason)
-        if resp.get('releaseVersion') != '1.2.0':
-            case('status releaseVersion == 1.2.0', False, str(resp.get('releaseVersion')))
+        if resp.get('rillVersion') != '1.2.0':
+            case('status rillVersion == 1.2.0', False, str(resp.get('rillVersion')))
         else:
-            case('status releaseVersion == 1.2.0', True)
+            case('status rillVersion == 1.2.0', True)
         if resp.get('adapterVersion') != '0.15.0':
             case('status adapterVersion == 0.15.0', False, str(resp.get('adapterVersion')))
         else:
             case('status adapterVersion == 0.15.0', True)
+        try:
+            validate_response_against_schema(resp)
+            case('status response validates against rill-ipc-response.schema.json', True)
+        except Exception as e:  # noqa: BLE001
+            case('status response validates against rill-ipc-response.schema.json', False, str(e))
         if jsonschema is not None:
             req, resp = client_exchange(a.path, 'observe', extra={
                 'deviceProfile': 'recommended', 'capabilityHash': 'h', 'topologyGeneration': 1,
                 'pathId': 'path:lan-to-wan', 'routeIdentity': 'r', 'workloadClass': ['plain_forwarding'],
-                'measurementClass': 'controlled_ab', 'context': {}, 'integrations': {},
+                'measurementClass': 'controlled_ab', 'context': {}, 'integrations': [],
                 'integrationFingerprint': 'x', 'contextKey': 'ctx-v1:profile=recommended;cap=h;topo=1;path=path:lan-to-wan;route=0;workload=0;integ=0;goal=balanced',
+                'goal': 'balanced',
                 'availableActions': [{'id': 'network.backlog'}]})
             validate_against_schema(json.dumps(req))
             case('observe request frame validates against schema', True)
+            # The mock answers the real v1.2.0 observe success shape.
+            case('observe response is real decision shape (ok+decisionId+recommendation)',
+                 resp.get('ok') is True and bool(resp.get('decisionId'))
+                 and isinstance(resp.get('recommendation'), dict)
+                 and resp['recommendation'].get('advisory') is True,
+                 str(resp))
+            try:
+                validate_response_against_schema(resp)
+                case('observe response validates against rill-ipc-response.schema.json', True)
+            except Exception as e:  # noqa: BLE001
+                case('observe response validates against rill-ipc-response.schema.json', False, str(e))
+            # Real outcome roundtrip: full v1.2.0 outcome request + accepted response.
+            req, resp = client_exchange(a.path, 'outcome', extra={
+                'decisionId': OBSERVE_OK['decisionId'],
+                'contextKey': 'ctx-v1:profile=recommended;cap=h;topo=1;path=path:lan-to-wan;route=0;workload=0;integ=0;goal=balanced',
+                'actionId': 'network.backlog', 'sessionId': 'sess-1', 'goal': 'balanced',
+                'modelGeneration': 1, 'validated': True, 'reward': 1.0})
+            try:
+                validate_against_schema(json.dumps(req))
+                case('outcome request frame validates against schema', True)
+            except Exception as e:  # noqa: BLE001
+                case('outcome request frame validates against schema', False, str(e))
+            case('outcome response is real accepted shape (ok:true+accepted)',
+                 resp.get('ok') is True and resp.get('accepted') is True, str(resp))
+            try:
+                validate_response_against_schema(resp)
+                case('outcome response validates against rill-ipc-response.schema.json', True)
+            except Exception as e:  # noqa: BLE001
+                case('outcome response validates against rill-ipc-response.schema.json', False, str(e))
     finally:
         a.close()
 
@@ -296,6 +388,7 @@ def main() -> int:
         evidence = json.loads(OUT.read_text())
     evidence['schemaVersion'] = 2
     evidence.setdefault('pm', {}).update({'version': (ROOT / 'VERSION').read_text().strip()})
+    evidence['pmCommitSha'] = os.environ.get('GITHUB_SHA') or _pm_commit()
     evidence.setdefault('rill', {}).update({
         'releaseVersion': DEP['upstream']['releaseVersion'],
         'releaseTag': DEP['upstream']['releaseTag'],
@@ -312,6 +405,14 @@ def main() -> int:
     rt['observeVerdict'] = 'PASS' if verdict.get('observe request frame validates against schema') == 'PASS' else 'BLOCKED'
     rt['outcomeVerdict'] = 'BLOCKED'  # real validated outcome against released adapter is CI
     rt['failClosedVerdict'] = 'PASS' if fc_ok else 'FAIL'
+    # Every mock answer must be a schema-valid v1.2.0 response envelope; the
+    # response-schema cases gate this so the mock never drifts to a self-made
+    # shape (BLOCKED when jsonschema is unavailable and the cases cannot run).
+    schema_cases = [n for n, o, _ in results if n.endswith('validates against rill-ipc-response.schema.json')]
+    if schema_cases:
+        rt['responseSchemaVerdict'] = 'PASS' if all(o for n, o, _ in results if n in schema_cases) else 'FAIL'
+    else:
+        rt['responseSchemaVerdict'] = 'BLOCKED'
     rt['pmCoreRoundtripVerdict'] = 'BLOCKED'  # real Core <-> real adapter in rootfs is CI pm-core-rill-roundtrip
     rt['wireHarnessVerdict'] = 'PASS' if ok else 'FAIL'
     rt['harnessMode'] = 'mock-adapter protocol harness (no rootfs); real Core<->adapter in CI'

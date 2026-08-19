@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Real PM Core <-> real released rill-pm-adapter roundtrip (CI, OpenWrt rootfs).
 
-This is the rc.6 PM-Core roundtrip gate.  It does NOT mirror the Core and does
+This is the rc.7 PM-Core roundtrip gate.  It does NOT mirror the Core and does
 NOT use the mock adapter.  Inside the official OpenWrt rootfs it:
 
   1. installs the RAW shipped performance-manager.uc + contracts.uc (verbatim),
@@ -11,8 +11,8 @@ NOT use the mock adapter.  Inside the official OpenWrt rootfs it:
   4. calls `ubus call performance-manager rill_status` and asserts the Core
      negotiated the real adapter: state available and releaseVersion 1.2.0 /
      adapterVersion 0.15.0 / protocolVersion 1,
-  5. emits docs/pm-core-rill-roundtrip.json + pm-core-rill-roundtrip.log and
-     fills pmCoreRoundtripVerdict in docs/rill-integration-evidence.json.
+  5. emits docs/pm-core-rill-roundtrip.json + docs/rill-core-integration.json
+     (per-job evidence, rc.7) and pm-core-rill-roundtrip.log.
 
 Usage: python3 tools_ok/rill_core_roundtrip.py <rootfs-dir> <adapter-binary>
 The runner needs passwordless sudo (chroot).  Any verdict that cannot be proven
@@ -33,6 +33,10 @@ CONTRACTS = ROOT / 'package/performance-manager/files/usr/share/performance-mana
 DOCS = ROOT / 'docs'
 LOG_PATH = ROOT / 'pm-core-rill-roundtrip.log'
 EVIDENCE_PATH = DOCS / 'pm-core-rill-roundtrip.json'
+# Per-job evidence (prompt section 27): this job owns ONLY this file so it can
+# never race pm-rill-runtime writing a shared JSON.  The final aggregator merges
+# per-job files by PM commit SHA.
+JOB_EVIDENCE_PATH = DOCS / 'rill-core-integration.json'
 POLL_TIMEOUT_S = 45
 
 
@@ -44,6 +48,14 @@ def chroot(rootfs, *argv):
     return subprocess.Popen(['sudo', 'chroot', str(rootfs), *argv],
                             stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
                             text=True, start_new_session=True)
+
+
+def _pm_commit():
+    try:
+        return subprocess.run(['git', '-C', str(ROOT), 'rev-parse', 'HEAD'],
+                              capture_output=True, text=True).stdout.strip() or 'unknown'
+    except Exception:  # noqa: BLE001
+        return 'unknown'
 
 
 def main() -> int:
@@ -65,8 +77,9 @@ def main() -> int:
         print(lines[-1])
 
     ev = {
-        'schemaVersion': 1, 'scope': 'real-core-to-real-adapter-roundtrip',
+        'schemaVersion': 2, 'scope': 'real-core-to-real-adapter-roundtrip',
         'openwrt': os.environ.get('OPENWRT_VERSION', '25.12.5'),
+        'pmCommitSha': os.environ.get('GITHUB_SHA', None) or _pm_commit(),
         'coreSha256': hashlib.sha256(CORE.read_bytes()).hexdigest(),
         'adapter': {'name': adapter.name,
                     'sha256': hashlib.sha256(adapter.read_bytes()).hexdigest(),
@@ -182,26 +195,26 @@ def main() -> int:
                 p.wait(timeout=5)
             except Exception:
                 pass
-        # Merge pmCoreRoundtripVerdict into rill-integration-evidence.json.
-        ev_path = DOCS / 'rill-integration-evidence.json'
-        if ev_path.exists():
-            try:
-                evidence = json.loads(ev_path.read_text())
-                evidence.setdefault('runtime', {})['pmCoreRoundtripVerdict'] = ev['verdict']
-                evidence['runtime']['pmCoreRoundtrip'] = {
-                    'coreSha256': ev['coreSha256'],
-                    'adapterSha256': ev['adapter']['sha256'],
-                    'adapterInstallTarget': ev['adapter']['installTarget'],
-                    'state': ev['checks'].get('state'),
-                    'releaseVersion': ev['checks'].get('releaseVersion'),
-                    'adapterVersion': ev['checks'].get('adapterVersion'),
-                    'protocolVersion': ev['checks'].get('protocolVersion'),
-                    'binaryEffective': ev['checks'].get('binaryEffective'),
-                }
-                ev_path.write_text(json.dumps(evidence, ensure_ascii=False, indent=2) + '\n')
-            except Exception:
-                pass
-        LOG_PATH.write_text('\n'.join(lines) + '\n')
+        # Per-job evidence (prompt section 27): this job owns ONLY its own file;
+        # it never merges into a shared rill-integration-evidence.json that a
+        # parallel job (pm-rill-runtime) could overwrite.  The final aggregator
+        # merges per-job files by PM commit SHA.
+        job_evidence = {
+            'schemaVersion': 2,
+            'contract': 'pm<->rill-core-integration',
+            'pmCommitSha': ev['pmCommitSha'],
+            'scope': ev['scope'],
+            'openwrt': ev['openwrt'],
+            'verdict': ev['verdict'],
+            'ok': ev['ok'],
+            'coreSha256': ev['coreSha256'],
+            'adapter': ev['adapter'],
+            'checks': ev.get('checks'),
+            'rillStatus': ev.get('rillStatus'),
+            'runtime': ev.get('runtime'),
+        }
+        JOB_EVIDENCE_PATH.write_text(json.dumps(job_evidence, ensure_ascii=False, indent=2) + '\n')
+        EVIDENCE_PATH.write_text(json.dumps(ev, ensure_ascii=False, indent=2) + '\n')
         LOG_PATH.write_text('\n'.join(lines) + '\n')
         sys.stdout.flush()
 

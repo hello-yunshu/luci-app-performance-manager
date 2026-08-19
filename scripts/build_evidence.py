@@ -87,33 +87,82 @@ def main(argv):
     rill_checksum = (up.get('artifact') or {}).get('sha256') or None
     rill_status = up.get('status') or 'external-dependency-blocked'
 
-    # Evidence / runtime verdicts consumed from docs/rill-integration-evidence.json
-    # (written by scripts/rill_runtime_harness.py locally and by CI
-    # pm-rill-provenance / pm-rill-runtime / pm-core-rill-roundtrip for the real
-    # adapter). The static status doc never records a runtime or provenance PASS,
-    # so we read the evidence here; any missing/unknown verdict is BLOCKED (never
-    # fabricated PASS).
-    _ev_path = ROOT / 'docs' / 'rill-integration-evidence.json'
-    _ev = {}
-    if _ev_path.exists():
-        try:
-            _ev = json.loads(_ev_path.read_text())
-        except Exception:
-            _ev = {}
+    # Evidence is consumed from the per-job evidence files (prompt section 27),
+    # so a job can never read a JSON another parallel job overwrote.  Each job
+    # writes ONE file it owns:
+    #   pm-rill-provenance   -> docs/rill-provenance.json
+    #   pm-rill-runtime      -> docs/rill-runtime.json
+    #   pm-core-rill-roundtrip -> docs/rill-core-integration.json
+    #   openwrt-sdk-build    -> build-metadata.json (this script)
+    # A per-job file present in the checkout wins; otherwise we fall back to the
+    # legacy shared docs/rill-integration-evidence.json seed.  Any missing or
+    # unknown verdict is BLOCKED (never fabricated PASS).
+    def _read_json(path):
+        p = ROOT / 'docs' / path
+        if p.exists():
+            try:
+                return json.loads(p.read_text())
+            except Exception:
+                return {}
+        return {}
+
+    _prov_job = _read_json('rill-provenance.json')
+    _rt_job = _read_json('rill-runtime.json')
+    _core_job = _read_json('rill-core-integration.json')
+    _ev = _read_json('rill-integration-evidence.json')
     _ril = (_ev.get('rill', {}) or {}) if isinstance(_ev, dict) else {}
+    _relidx = (_ev.get('releaseIndex', {}) or {}) if isinstance(_ev, dict) else {}
+    _art = (_ev.get('artifact', {}) or {}) if isinstance(_ev, dict) else {}
     _rt = (_ev.get('runtime', {}) or {}) if isinstance(_ev, dict) else {}
 
     def _norm(v):
         v = str(v or 'BLOCKED').upper()
         return v if v in ('PASS', 'FAIL', 'BLOCKED') else 'BLOCKED'
 
-    def _worst(src, fields):
-        vals = [_norm(src.get(f) or 'BLOCKED') for f in fields]
-        if 'FAIL' in vals:
+    def combine_required(values):
+        """Evidence aggregation rule (prompt section 25): ANY FAIL -> FAIL,
+        ALL PASS -> PASS, otherwise BLOCKED.  A PASS + BLOCKED mix is BLOCKED,
+        never silently upgraded to PASS."""
+        vals = [_norm(v) for v in values]
+        if any(v == 'FAIL' for v in vals):
             return 'FAIL'
-        if 'PASS' in vals and all(v != 'FAIL' for v in vals):
+        if all(v == 'PASS' for v in vals):
             return 'PASS'
         return 'BLOCKED'
+
+    def _prov_verdicts():
+        # Provenance verdicts live under DIFFERENT objects in the evidence
+        # (rill.tagIdentityVerdict / releaseIndex.indexSignatureVerdict /
+        # artifact.artifactIntegrityVerdict), not all under `rill`.  The
+        # per-job rill-provenance.json mirrors the same split (tag at top level,
+        # artifact integrity nested under artifact).  Read the REAL paths.
+        if _prov_job:
+            return [
+                _prov_job.get('tagIdentityVerdict'),
+                _prov_job.get('indexSignatureVerdict'),
+                (_prov_job.get('artifact') or {}).get('artifactIntegrityVerdict'),
+            ]
+        return [
+            _ril.get('tagIdentityVerdict'),
+            _relidx.get('indexSignatureVerdict'),
+            _art.get('artifactIntegrityVerdict'),
+        ]
+
+    def _rt_verdicts(fields):
+        # Real runtime verdicts live in the per-job rill-runtime.json under
+        # `verdicts.*`; the legacy shared evidence keeps them under `runtime.*`.
+        if _rt_job:
+            v = _rt_job.get('verdicts') or {}
+            return [v.get(f) for f in fields]
+        return [_rt.get(f) for f in fields]
+
+    def _core_roundtrip_verdict():
+        # Core<->adapter roundtrip is a separate parallel job; its own per-job
+        # file is authoritative when present (never the shared seed, which the
+        # roundtrip job must not clobber).
+        if _core_job:
+            return _core_job.get('verdict')
+        return _rt.get('pmCoreRoundtripVerdict')
 
     packages = ['performance-manager', 'luci-app-performance-manager', 'performance-manager-rill']
     package_shas = {}
@@ -162,7 +211,7 @@ def main(argv):
         rill_provenance = 'FAIL'
         rill_provenance_reason = 'upstream Rill release entry is incomplete or unpinned'
     else:
-        _evidence_prov = _worst(_ril, ['tagIdentityVerdict', 'indexSignatureVerdict', 'artifactIntegrityVerdict'])
+        _evidence_prov = combine_required(_prov_verdicts())
         if _evidence_prov == 'FAIL':
             rill_provenance = 'FAIL'
             rill_provenance_reason = 'evidence provenance verdict FAIL (tag identity / index signature / artifact integrity)'
@@ -174,11 +223,14 @@ def main(argv):
             rill_provenance_reason = 'pin present but signed upstream evidence not resolved in this job'
 
     # Rill Gates 2 (Runtime Compatibility) and 3 (Functional Integration) require
-    # executing the real adapter and are recorded by the gate jobs. The signed
-    # evidence verdicts come from docs/rill-integration-evidence.json (loaded
-    # above); any missing/unknown verdict is BLOCKED (never fabricated PASS).
-    rill_runtime_verdict = _worst(_rt, ['executableVerdict', 'versionVerdict', 'startupVerdict', 'statusVerdict'])
-    rill_functional_verdict = _worst(_rt, ['observeVerdict', 'outcomeVerdict', 'failClosedVerdict', 'pmCoreRoundtripVerdict'])
+    # executing the real adapter and are recorded by the gate jobs. The verdicts
+    # come from the per-job evidence files (rill-runtime.json / rill-core-integration.json);
+    # any missing/unknown verdict is BLOCKED (never fabricated PASS).
+    rill_runtime_verdict = combine_required(_rt_verdicts(
+        ['executableVerdict', 'versionVerdict', 'startupVerdict', 'statusVerdict']))
+    _core_v = _core_roundtrip_verdict()
+    rill_functional_verdict = combine_required(
+        _rt_verdicts(['observeVerdict', 'outcomeVerdict', 'failClosedVerdict']) + [_core_v])
 
     verdicts = {
         'pmPackagesBuildVerdict': pm_build_verdict,
@@ -246,6 +298,12 @@ def main(argv):
         'rillConsumedArtifactSha256': rill_checksum,
         'rillUpstreamStatus': rill_status,
         'rillArtifactProvenanceReason': rill_provenance_reason,
+        'evidenceSources': {
+            'provenance': str(ROOT / 'docs' / 'rill-provenance.json') if _prov_job else str(ROOT / 'docs' / 'rill-integration-evidence.json'),
+            'runtime': str(ROOT / 'docs' / 'rill-runtime.json') if _rt_job else str(ROOT / 'docs' / 'rill-integration-evidence.json'),
+            'coreRoundtrip': str(ROOT / 'docs' / 'rill-core-integration.json') if _core_job else str(ROOT / 'docs' / 'rill-integration-evidence.json'),
+        },
+        'verdictAggregationRule': 'ANY FAIL -> FAIL; ALL PASS -> PASS; otherwise BLOCKED (combine_required)',
         'workflow': workflow,
         'workflowRunId': run_id,
         'buildTimestamp': datetime.now(timezone.utc).isoformat(),

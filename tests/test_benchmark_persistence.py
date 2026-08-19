@@ -47,7 +47,11 @@ class BenchmarkPersistenceTests(unittest.TestCase):
 
     def test_reward_is_not_sent_if_result_cannot_be_persisted(self):
         body=function_body(CORE,'benchmark_start')
-        self.assertLess(body.index('benchmark-result-write-failed-after-safe-rollback'), body.index('rill_send('))
+        # The controlled-A/B result branch persists the result FIRST and returns
+        # early on write failure; only then does it report the outcome (which
+        # internally sends via rill_send).  A reward must never be sent for a
+        # result that could not be persisted.
+        self.assertLess(body.index('benchmark-result-write-failed-after-safe-rollback'), body.index('rill_report_outcome('))
 
     def test_forwarding_path_is_user_selectable(self):
         self.assertIn('pathSelect',UI)

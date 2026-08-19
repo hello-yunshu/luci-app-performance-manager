@@ -1,0 +1,107 @@
+{
+  "schemaVersion": 2,
+  "pm": {
+    "version": "1.0.0-rc.7"
+  },
+  "pmCommitSha": "9ba659ab55ec93bc59422f4e3162642504e7c517",
+  "rill": {
+    "releaseVersion": "1.2.0",
+    "releaseTag": "v1.2.0",
+    "expectedCommitSha": "dc96fdb3bf55eacdd1c093f1be08d1c9daed4400",
+    "adapterReleaseAssetVersion": "1.2.0",
+    "adapterBinaryVersion": "0.15.0",
+    "adapterProtocolVersion": 1
+  },
+  "runtime": {
+    "executableVerdict": "BLOCKED",
+    "versionVerdict": "BLOCKED",
+    "startupVerdict": "BLOCKED",
+    "statusVerdict": "PASS",
+    "observeVerdict": "PASS",
+    "outcomeVerdict": "BLOCKED",
+    "failClosedVerdict": "PASS",
+    "pmCoreRoundtripVerdict": "BLOCKED",
+    "wireHarnessVerdict": "PASS",
+    "harnessMode": "mock-adapter protocol harness (no rootfs); real Core<->adapter in CI",
+    "responseSchemaVerdict": "PASS"
+  },
+  "overallVerdict": "BLOCKED",
+  "harnessChecks": [
+    {
+      "name": "positive status roundtrip accepted",
+      "ok": true,
+      "detail": "ok"
+    },
+    {
+      "name": "status rillVersion == 1.2.0",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "status adapterVersion == 0.15.0",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "status response validates against rill-ipc-response.schema.json",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "observe request frame validates against schema",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "observe response is real decision shape (ok+decisionId+recommendation)",
+      "ok": true,
+      "detail": "{'ok': True, 'decisionId': 'deadbeefcafebabedeadbeefcafebabe00000000', 'recommendation': {'actionId': 'network.backlog', 'confidence': 0.9, 'advisory': True}, 'contract': 'pm-rill-shadow', 'protocolVersion': 1, 'requestId': 'test-1'}"
+    },
+    {
+      "name": "observe response validates against rill-ipc-response.schema.json",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "outcome request frame validates against schema",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "outcome response is real accepted shape (ok:true+accepted)",
+      "ok": true,
+      "detail": "{'ok': True, 'accepted': True, 'contract': 'pm-rill-shadow', 'protocolVersion': 1, 'requestId': 'test-1'}"
+    },
+    {
+      "name": "outcome response validates against rill-ipc-response.schema.json",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "fail-closed wrong contract",
+      "ok": true,
+      "detail": "contract-mismatch"
+    },
+    {
+      "name": "fail-closed foreign protocolVersion",
+      "ok": true,
+      "detail": "protocol-version-mismatch"
+    },
+    {
+      "name": "fail-closed missing required capability",
+      "ok": true,
+      "detail": "missing-required-capability"
+    },
+    {
+      "name": "fail-closed unhealthy model",
+      "ok": true,
+      "detail": "model-unhealthy"
+    },
+    {
+      "name": "binary-resolution contract matrix (Core==init)",
+      "ok": true,
+      "detail": "{\"explicit-absolute-present\": \"binary-ok\", \"explicit-absolute-missing\": \"binary-invalid\", \"explicit-relative\": \"binary-invalid\", \"empty-default-present\": \"binary-ok\", \"empty-default-missing\": \"not-provisioned\"}"
+    }
+  ],
+  "note": "Runtime verdicts for real adapter exec/version/startup/outcome and the real Core<->adapter roundtrip are filled by CI pm-rill-runtime / pm-core-rill-roundtrip inside the OpenWrt rootfs; they stay BLOCKED here. status/observe/fail-closed are proven at the wire-protocol level by this mock-adapter harness against the shipped contract artifacts."
+}
