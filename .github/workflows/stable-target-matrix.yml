@@ -28,35 +28,35 @@ jobs:
         include:
           - gate: target-core-only
             runner: '["self-hosted","linux","x64","pm-generic"]'
-            controller: /opt/pm-stable-testbed/run-core-only
+            controller: tools/stable-testbed/run-core-only.sh
             timeout: 90
           - gate: target-full
             runner: '["self-hosted","linux","x64","pm-generic"]'
-            controller: /opt/pm-stable-testbed/run-full
+            controller: tools/stable-testbed/run-full.sh
             timeout: 90
           - gate: target-mutation
             runner: '["self-hosted","linux","x64","pm-generic"]'
-            controller: /opt/pm-stable-testbed/run-mutation
+            controller: tools/stable-testbed/run-mutation.sh
             timeout: 90
           - gate: kvm
             runner: '["self-hosted","linux","x64","pm-kvm"]'
-            controller: /opt/pm-stable-testbed/run-kvm
+            controller: tools/stable-testbed/run-kvm.sh
             timeout: 180
           - gate: lan-wan-ab
             runner: '["self-hosted","linux","x64","pm-lan-wan"]'
-            controller: /opt/pm-stable-testbed/run-lan-wan-ab
+            controller: tools/stable-testbed/run-lan-wan-ab.sh
             timeout: 180
           - gate: router-local-ab
             runner: '["self-hosted","linux","x64","pm-router-local"]'
-            controller: /opt/pm-stable-testbed/run-router-local-ab
+            controller: tools/stable-testbed/run-router-local-ab.sh
             timeout: 180
           - gate: sysupgrade
             runner: '["self-hosted","linux","x64","pm-sysupgrade"]'
-            controller: /opt/pm-stable-testbed/run-sysupgrade
+            controller: tools/stable-testbed/run-sysupgrade.sh
             timeout: 240
           - gate: lifecycle
             runner: '["self-hosted","linux","x64","pm-lifecycle"]'
-            controller: /opt/pm-stable-testbed/run-lifecycle
+            controller: tools/stable-testbed/run-lifecycle.sh
             timeout: 240
     runs-on: ${{ fromJSON(matrix.runner) }}
     timeout-minutes: ${{ matrix.timeout }}
@@ -76,6 +76,8 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p stable-input/build stable-input/ci stable-output
+          python3 scripts/verify_action_run_identity.py --run-id "${{ inputs.build_run_id }}" --expected-sha "${{ inputs.expected_sha }}" --expected-workflow 'Build OpenWrt (remote SDK)'
+          python3 scripts/verify_action_run_identity.py --run-id "${{ inputs.ci_run_id }}" --expected-sha "${{ inputs.expected_sha }}" --expected-workflow 'CI'
           gh run download "${{ inputs.build_run_id }}" --dir stable-input/build
           gh run download "${{ inputs.ci_run_id }}" --dir stable-input/ci
       - name: Execute fixed disposable-testbed controller
@@ -88,23 +90,25 @@ jobs:
         run: |
           set -euo pipefail
           test -x "${{ matrix.controller }}"
-          sudo --preserve-env=PM_EXPECTED_SHA,PM_BUILD_INPUT,PM_CI_INPUT,PM_EVIDENCE_OUT \
-            "${{ matrix.controller }}"
+          "${{ matrix.controller }}"
       - name: Validate final testbed evidence identity
         shell: bash
         run: |
           set -euo pipefail
+          build_metadata=$(find stable-input/build -name build-metadata.json -type f -print -quit)
+          apk_verification=$(find stable-input/build -name apk-verification.json -type f -print -quit)
+          test -n "$build_metadata" && test -n "$apk_verification"
           if [ "${{ matrix.gate }}" = target-core-only ]; then
             python3 scripts/validate_external_evidence.py \
               --file "stable-output/${{ matrix.gate }}.json" \
               --gate "${{ matrix.gate }}" \
-              --expected-commit "${{ inputs.expected_sha }}"
+              --expected-commit "${{ inputs.expected_sha }}" --build-metadata "$build_metadata" --apk-verification "$apk_verification"
           else
             python3 scripts/validate_external_evidence.py \
               --file "stable-output/${{ matrix.gate }}.json" \
               --gate "${{ matrix.gate }}" \
               --expected-commit "${{ inputs.expected_sha }}" \
-              --require-rill
+              --require-rill --build-metadata "$build_metadata" --apk-verification "$apk_verification"
           fi
       - name: Upload evidence
         if: always()
@@ -128,6 +132,8 @@ jobs:
         run: |
           if ((git rev-parse HEAD) -ne '${{ inputs.expected_sha }}') { throw 'checkout SHA mismatch' }
           New-Item -ItemType Directory -Force stable-input/build, stable-input/ci, stable-output | Out-Null
+          python scripts/verify_action_run_identity.py --run-id '${{ inputs.build_run_id }}' --expected-sha '${{ inputs.expected_sha }}' --expected-workflow 'Build OpenWrt (remote SDK)'
+          python scripts/verify_action_run_identity.py --run-id '${{ inputs.ci_run_id }}' --expected-sha '${{ inputs.expected_sha }}' --expected-workflow 'CI'
           gh run download '${{ inputs.build_run_id }}' --dir stable-input/build
           gh run download '${{ inputs.ci_run_id }}' --dir stable-input/ci
       - name: Execute fixed disposable Hyper-V controller
@@ -138,10 +144,12 @@ jobs:
           PM_CI_INPUT: ${{ github.workspace }}/stable-input/ci
           PM_EVIDENCE_OUT: ${{ github.workspace }}/stable-output/hyperv.json
         run: |
-          $controller = 'C:/pm-stable-testbed/run-hyperv.ps1'
+          $controller = 'tools/stable-testbed/run-hyperv.ps1'
           if (-not (Test-Path $controller)) { throw 'Hyper-V controller is not provisioned' }
           & $controller
-          python scripts/validate_external_evidence.py --file stable-output/hyperv.json --gate hyperv --expected-commit '${{ inputs.expected_sha }}' --require-rill
+          $build = Get-ChildItem stable-input/build -Recurse -Filter build-metadata.json | Select-Object -First 1
+          $apk = Get-ChildItem stable-input/build -Recurse -Filter apk-verification.json | Select-Object -First 1
+          python scripts/validate_external_evidence.py --file stable-output/hyperv.json --gate hyperv --expected-commit '${{ inputs.expected_sha }}' --require-rill --build-metadata $build.FullName --apk-verification $apk.FullName
       - name: Upload Hyper-V evidence
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
@@ -165,6 +173,8 @@ jobs:
           set -euo pipefail
           test "$(git rev-parse HEAD)" = "${{ inputs.expected_sha }}"
           mkdir -p stable-input/build stable-input/ci stable-output
+          python3 scripts/verify_action_run_identity.py --run-id "${{ inputs.build_run_id }}" --expected-sha "${{ inputs.expected_sha }}" --expected-workflow 'Build OpenWrt (remote SDK)'
+          python3 scripts/verify_action_run_identity.py --run-id "${{ inputs.ci_run_id }}" --expected-sha "${{ inputs.expected_sha }}" --expected-workflow 'CI'
           gh run download "${{ inputs.build_run_id }}" --dir stable-input/build
           gh run download "${{ inputs.ci_run_id }}" --dir stable-input/ci
       - name: Install exact full profile and run uninterrupted Rill-present soak
@@ -177,18 +187,19 @@ jobs:
           PM_SOAK_SECONDS: '86400'
         run: |
           set -euo pipefail
-          test -x /opt/pm-stable-testbed/run-resource-soak
-          sudo --preserve-env=PM_EXPECTED_SHA,PM_BUILD_INPUT,PM_CI_INPUT,PM_EVIDENCE_OUT,PM_SOAK_SECONDS \
-            /opt/pm-stable-testbed/run-resource-soak
+          test -x tools/stable-testbed/run-resource-soak.sh
+          tools/stable-testbed/run-resource-soak.sh
       - name: Validate 24-hour evidence identity
         shell: bash
         run: |
           set -euo pipefail
+          build_metadata=$(find stable-input/build -name build-metadata.json -type f -print -quit)
+          apk_verification=$(find stable-input/build -name apk-verification.json -type f -print -quit)
           python3 scripts/validate_external_evidence.py \
             --file stable-output/resource-soak.json \
             --gate resource-soak \
             --expected-commit "${{ inputs.expected_sha }}" \
-            --require-rill --minimum-duration 86400
+            --require-rill --minimum-duration 86400 --build-metadata "$build_metadata" --apk-verification "$apk_verification"
       - name: Upload 24-hour evidence
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02

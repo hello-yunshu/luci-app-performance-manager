@@ -14,6 +14,8 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
+from validate_external_evidence import validate_evidence
+
 ROOT = Path(__file__).resolve().parents[1]
 DEPENDENCY = json.loads((ROOT / "contracts/rill-dependency.json").read_text())
 PINNED_ADAPTER_SHA = DEPENDENCY["upstream"]["adapter"]["sha256"]
@@ -41,6 +43,13 @@ RILL_PRESENT = {
     "rillProvenance", "rillRuntime", "rillCoreFunctional", "targetFull",
     "targetMutation", "hyperV", "kvm", "lanWanAb", "routerLocalAb",
     "sysupgrade", "lifecycle", "resourceSoak24h",
+}
+EXTERNAL_GATES = {
+    "targetCoreOnly": "target-core-only", "targetFull": "target-full",
+    "targetMutation": "target-mutation", "hyperV": "hyperv", "kvm": "kvm",
+    "lanWanAb": "lan-wan-ab", "routerLocalAb": "router-local-ab",
+    "sysupgrade": "sysupgrade", "lifecycle": "lifecycle",
+    "resourceSoak24h": "resource-soak",
 }
 
 
@@ -116,6 +125,14 @@ def main(argv=None):
         parser.error("--expected-commit must be one full lowercase Git SHA")
 
     evidence_dir = Path(args.evidence_dir)
+    def load_optional(filename):
+        try:
+            return json.loads((evidence_dir / filename).read_text())
+        except Exception:
+            return None
+
+    build_metadata = load_optional(REQUIRED["openwrtSdk"])
+    apk_report = load_optional(REQUIRED["apkVerification"])
     gates = {}
     identities = {}
     for name, filename in REQUIRED.items():
@@ -139,6 +156,16 @@ def main(argv=None):
         if identity_errors:
             status = "FAIL"
             reason = "; ".join(identity_errors)
+        if name in EXTERNAL_GATES and status == "PASS":
+            semantic_errors = validate_evidence(
+                data, EXTERNAL_GATES[name], args.expected_commit,
+                require_rill=name in RILL_PRESENT,
+                minimum_duration=86400 if name == "resourceSoak24h" else 0,
+                build_metadata=build_metadata, apk_report=apk_report,
+            )
+            if semantic_errors:
+                status = "FAIL"
+                reason = "; ".join(semantic_errors)
         gates[name] = {
             "status": status,
             "reason": reason,

@@ -78,7 +78,7 @@ make package/performance-manager-rill/compile V=s
 |---|---|
 | 包名 | `luci-app-performance-manager`（Core：`performance-manager`） |
 | 目标 | OpenWrt 25.12.x / x86_64 |
-| 当前源码候选 | `1.0.0-rc.8` |
+| 当前源码候选 | `1.0.0-rc.9` |
 | 服务脚本 | `/etc/init.d/performance-manager` |
 | UCI 配置 | `/etc/config/performance-manager` |
 | 核心程序 | `/usr/sbin/performance-manager.uc` |
@@ -258,7 +258,7 @@ make package        # 生成发布包
 - 资源 / 写入 soak：`scripts/openwrt-resource-soak.sh`
 - 外部验证证据：`docs/EXTERNAL_VALIDATION.md`
 
-> `1.0.0-rc.8` 只代表待验证源码候选。只有同提交的官方 SDK/APK、精确 Rill、Generic/Hyper-V/KVM、真实 A/B、sysupgrade、生命周期及 24 小时 Rill-present soak 全部由 Stable 聚合器判为 PASS，才允许发布 `v1.0.0`。
+> `1.0.0-rc.9` 只代表待验证源码候选。它新增 exact decision 单 owner、跨 Core/路由器重启的持久 Outcome、细粒度 transport 不确定性、独立重试调度，以及 gate-specific Stable 证据和安装产物哈希链。只有同提交的官方 SDK/APK、精确 Rill、Generic/Hyper-V/KVM、真实 A/B、sysupgrade、生命周期及 24 小时 Rill-present soak 全部由 Stable 聚合器判为 PASS，才允许发布 `v1.0.0`。
 
 ## 文档
 

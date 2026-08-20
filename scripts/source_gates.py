@@ -97,7 +97,7 @@ phases['8']=gate('Rill Intelligence (external runtime)',[
  ('bounded context-key partition wiring',all_tokens(CORE,['rill_context_key_build','ctx-v1:','goal=%s'])),
  ('goal is first-class partition wiring',all_tokens(CORE,['const GOALS =',"goal_class = safe_name(goal_id ?? 'balanced')"])),
  ('per-op send/status/observe/outcome wiring',all_tokens(CORE,['rill_send','rill_status','rill_observe','rill_report_outcome'])),
- ('exact decision lifecycle wiring',all_tokens(CORE,['rill_binding_freeze','rillDecision','executionSource','rill_outcome_attempt','responseLossObserved'])),
+ ('exact decision lifecycle wiring',all_tokens(CORE,['rill_binding_reserve','rill_execution_mark_mutation_started','rill_prepare_outcome','mayHaveReachedPeer','schedule_rill_outcome_retry'])),
  ('telemetry does not observe', 'rill_observe()' not in CORE[CORE.index('function schedule_telemetry('):CORE.index('function reply(')])])
 phases['8'].update({'evidence':'structural only: PM-side fail-closed contract and exact-decision lifecycle wiring are present. The static Rill report is non-promotable and reports functionalIntegrationVerdict=NOT_EVALUATED; real functional status belongs exclusively to same-commit runtime aggregation.'})
 phases['9']=gate('Recommend',[

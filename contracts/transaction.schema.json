@@ -50,7 +50,10 @@
         "contextKey",
         "goal",
         "modelGeneration",
-        "bootId"
+        "bootId",
+        "executionAuthority",
+        "ownerType",
+        "ownerId"
       ],
       "properties": {
         "decisionId": { "type": "string", "pattern": "^[0-9a-f]{32}$" },
@@ -58,7 +61,10 @@
         "contextKey": { "type": "string", "minLength": 1 },
         "goal": { "type": "string", "minLength": 1 },
         "modelGeneration": { "const": 1 },
-        "bootId": { "type": "string", "minLength": 1 }
+        "bootId": { "type": "string", "minLength": 1 },
+        "executionAuthority": {"const": "safe-direct"},
+        "ownerType": {"const": "transaction"},
+        "ownerId": {"type": "string", "minLength": 1}
       }
     },
     "state": {

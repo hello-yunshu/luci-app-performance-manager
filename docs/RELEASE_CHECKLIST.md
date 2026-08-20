@@ -22,6 +22,11 @@
 
 ## Rill / security
 
+- [ ] One exact Rill decision can be reserved by only one transaction/session and disappears from fresh advisory UI immediately.
+- [ ] A validated execution has a persistent immutable Outcome intent before the terminal transaction/session is reported.
+- [ ] Core restart and router reboot recover pending Outcome delivery without re-observing or re-executing the decision.
+- [ ] Connect/partial-send failures never set `mayHaveReachedPeer`; full-send response loss does, and only exact owner/fingerprint duplicates reconcile.
+- [ ] Outcome retry remains active with telemetry disabled and emits no Observe traffic.
 - [ ] Upstream Rill release is consumed; `scripts/rill_contract_check.py` and the `rill-contract` CI gate pass against pinned upstream release provenance.
 - [ ] Core stays fail-closed (no auto-apply, no fake recommendation) when the external Rill runtime is absent, unreachable or protocol-incompatible.
 - [ ] Rill wrong peer, oversized message, flood, timeout, malformed UTF-8/JSON, bad schema and crash tests pass.
@@ -42,3 +47,7 @@
 - [ ] `scripts/openwrt-target-gate.sh` evidence passes on required target matrices.
 - [ ] `scripts/openwrt-resource-soak.sh` runs 24h+ and resource/flash-write budget is accepted.
 - [ ] SHA-256 release artifact, manifest, source audit and target evidence are attached.
+- [ ] Every external gate passes its versioned semantic evidence schema; a minimal top-level `PASS` envelope fails.
+- [ ] Target-installed Core/contracts hashes and exact APK hashes match the selected same-commit build metadata and APK verifier.
+- [ ] CI/build/target input runs pass conclusion, head SHA and workflow-identity checks before artifact download.
+- [ ] Testbed verdict logic comes from `tools/stable-testbed`; runner-local code is transport/infrastructure only.

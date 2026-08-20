@@ -31,6 +31,7 @@ function json_eq(a, b, label) {
 /* ---- fixtures ------------------------------------------------------------ */
 
 /* read(): /proc providers used by boot_id()/monotonic_ms(). */
+let _core_read = read;
 read = function(path, limit) {
 	if (path == '/proc/sys/kernel/random/boot_id') return '11111111-2222-3333-4444-555555555555';
 	if (path == '/proc/uptime') return '12345.6 99999.0';
@@ -67,8 +68,10 @@ let _KNOWN_CMDS = [
 	'nft -j list ruleset'
 ];
 
+let _core_run = run;
 run = function(argv) {
 	let cmd = join(' ', map(argv ?? [], shell_quote));
+	if ((argv ?? [])[0] == 'mkdir' || (argv ?? [])[0] == 'mv') return _core_run(argv);
 	if (cmd == 'ip -j -4 route show table all default') {
 		return { rc: 0, out: jstr([
 			{ dst: 'default', dev: 'eth1', table: 254 },
@@ -249,7 +252,36 @@ print('== [7] Rill fail-closed: unavailable + malformed (real socket) ==\n');
 /* Unavailable: no listener at the configured socket path. */
 rill_socket_path = function() { return '/tmp/pm-harness/no-such-rill.sock'; };
 let r1 = rill_send({ op: 'status' });
-check(!r1.ok && r1.state == 'unavailable', 'rill_send fails closed when socket unavailable', r1);
+check(!r1.ok && r1.state == 'connect-failed' && r1.connected === false && r1.fullySent === false && r1.responseReceived === false,
+	'rill_send classifies pre-connect failure without peer uncertainty', r1);
+
+print('== [8] Exact Rill decision reservation: single production owner ==\n');
+read=_core_read;
+let _decision='0123456789abcdef0123456789abcdef';
+rill_bindings[_decision]={schemaVersion:RILL_BINDINGS_SCHEMA_VERSION,decisionId:_decision,actionId:'nic.ring.floor',contextKey:'ctx-v1:harness',goal:'balanced',modelGeneration:1,advisory:true,confidence:0.8,executionAuthority:'safe-direct',bootId:boot_id(),atMs:monotonic_ms()};
+let reserved=rill_binding_reserve(_decision,'nic.ring.floor','safe-direct','transaction','tx-harness-a');
+check(reserved != null && reserved.ownerId == 'tx-harness-a', 'first exact decision reservation succeeds', reserved);
+let duplicate=rill_binding_reserve(_decision,'nic.ring.floor','safe-direct','transaction','tx-harness-b');
+check(duplicate == null, 'second exact decision reservation is rejected', duplicate);
+check(rill_binding_peek(_decision) == null, 'reserved decision is absent from fresh advisory bindings', rill_bindings);
+let journal_row=json(fs.readfile(rill_execution_path(_decision)) ?? '{}');
+check(journal_row.ownerId == 'tx-harness-a' && journal_row.executionState == 'reserved' && journal_row.mutationStarted === false,
+	'reservation owner is durable before mutation', journal_row);
+check(rill_execution_mark_mutation_started(reserved) === true, 'mutation ownership is durably transferred', null);
+rill_outcome_schedule_hook=null;
+let intent=rill_prepare_outcome(reserved,'health_only',0.0,'tx-harness-a','committed');
+check(intent.ok === true, 'validated terminal result creates persistent Outcome intent', intent);
+let outcome_row=json(fs.readfile(rill_execution_path(_decision)) ?? '{}');
+check(outcome_row.executionState == 'outcome-prepared' && outcome_row.validated === true && outcome_row.mayHaveReachedPeer === false,
+	'Outcome intent is durable before terminal owner state', outcome_row);
+ensure_dir(`${state_dir()}/transactions`);
+json_write(tx_path('tx-harness-a'),{transactionId:'tx-harness-a',state:'committed'});
+check(rill_arm_outcome(reserved).ok === true, 'durable terminal owner arms Outcome delivery', null);
+outcome_row=json(fs.readfile(rill_execution_path(_decision)) ?? '{}');
+check(outcome_row.executionState == 'outcome-pending' && outcome_row.mayHaveReachedPeer === false,
+	'armed Outcome is retryable and not falsely marked as sent', outcome_row);
+fs.unlink(rill_execution_path(_decision));
+fs.unlink(tx_path('tx-harness-a'));
 
 print('HARNESS-COMPLETE failures=' + _failures + '\n');
 if (_failures > 0) exit(1);

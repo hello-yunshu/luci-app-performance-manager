@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.0.0-rc.9 — Exact Rill Outcome + semantic Stable evidence (2026-08-20)
+
+- Reserves each exact Rill decision to one transaction or benchmark owner before mutation and blocks duplicate execution.
+- Persists immutable execution/Outcome intent under `/etc/performance-manager/rill-executions`, recovering delivery across Core restart and router reboot without replaying mutation.
+- Distinguishes connect/send/full-send/response states and reconciles `duplicateFeedback` only for the exact durable owner and fingerprint.
+- Runs bounded Outcome retry independently from telemetry and never performs periodic Observe.
+- Replaces top-level external `PASS` envelopes with versioned gate-specific schemas, semantic subchecks, contradiction tests, and build/APK/installed-payload cross-checks.
+- Verifies Action run conclusion, head SHA, and workflow identity before artifact download; Stable controller verdict logic is checked into `tools/stable-testbed`.
+- Remains a release candidate; real self-hosted target matrix and 24-hour soak evidence are still required for Stable.
+
 ## 1.0.0-rc.8 — Exact Rill decision lifecycle + Stable evidence closure (2026-08-20)
 
 - binds every Rill-assisted execution to the exact `decisionId`/action/context/goal/generation and freezes it into the production transaction or benchmark journal;

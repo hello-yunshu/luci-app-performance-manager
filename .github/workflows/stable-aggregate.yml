@@ -40,6 +40,9 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p evidence/ci evidence/build evidence/target
+          python3 scripts/verify_action_run_identity.py --run-id "${{ inputs.ci_run_id }}" --expected-sha "${{ inputs.expected_sha }}" --expected-workflow 'CI'
+          python3 scripts/verify_action_run_identity.py --run-id "${{ inputs.build_run_id }}" --expected-sha "${{ inputs.expected_sha }}" --expected-workflow 'Build OpenWrt (remote SDK)'
+          python3 scripts/verify_action_run_identity.py --run-id "${{ inputs.target_run_id }}" --expected-sha "${{ inputs.expected_sha }}" --expected-workflow 'Stable target and testbed matrix'
           gh run download "${{ inputs.ci_run_id }}" --dir evidence/ci
           gh run download "${{ inputs.build_run_id }}" --dir evidence/build
           gh run download "${{ inputs.target_run_id }}" --dir evidence/target
