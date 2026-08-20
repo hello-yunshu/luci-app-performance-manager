@@ -1,6 +1,9 @@
 name: Publish immutable prerelease
 
 on:
+  workflow_run:
+    workflows: ["Build OpenWrt (remote SDK)"]
+    types: [completed]
   workflow_dispatch:
     inputs:
       expected_sha:
@@ -18,11 +21,20 @@ permissions:
 
 jobs:
   publish:
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.head_branch == 'main' &&
+       github.event.workflow_run.head_repository.full_name == github.repository &&
+       startsWith(github.event.workflow_run.head_commit.message, 'release:'))
     runs-on: ubuntu-latest
+    env:
+      EXPECTED_SHA: ${{ github.event_name == 'workflow_dispatch' && inputs.expected_sha || github.event.workflow_run.head_sha }}
+      BUILD_RUN_ID: ${{ github.event_name == 'workflow_dispatch' && inputs.build_run_id || github.event.workflow_run.id }}
     steps:
       - uses: actions/checkout@v7
         with:
-          ref: ${{ inputs.expected_sha }}
+          ref: ${{ env.EXPECTED_SHA }}
           fetch-depth: 0
       - name: Verify source and build run identity
         shell: bash
@@ -30,12 +42,12 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          test "$(git rev-parse HEAD)" = "${{ inputs.expected_sha }}"
+          test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
           version=$(cat VERSION)
           [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+-rc\.[0-9]+$ ]]
           python3 scripts/verify_action_run_identity.py \
-            --run-id '${{ inputs.build_run_id }}' \
-            --expected-sha '${{ inputs.expected_sha }}' \
+            --run-id "$BUILD_RUN_ID" \
+            --expected-sha "$EXPECTED_SHA" \
             --expected-workflow 'Build OpenWrt (remote SDK)'
       - name: Download same-commit SDK artifacts
         shell: bash
@@ -44,15 +56,15 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p release-input release-assets
-          gh run download '${{ inputs.build_run_id }}' --dir release-input
+          gh run download "$BUILD_RUN_ID" --dir release-input
       - name: Verify and assemble the single-APK release inventory
         shell: bash
         run: |
           set -euo pipefail
-          SOURCE_DATE_EPOCH=$(git show -s --format=%ct '${{ inputs.expected_sha }}')
+          SOURCE_DATE_EPOCH=$(git show -s --format=%ct "$EXPECTED_SHA")
           export SOURCE_DATE_EPOCH
           python3 scripts/make_release.py
-          python3 - '${{ inputs.expected_sha }}' <<'PY'
+          python3 - "$EXPECTED_SHA" <<'PY'
           import hashlib, json, pathlib, shutil, sys
           root=pathlib.Path('release-input')
           out=pathlib.Path('release-assets')
@@ -96,7 +108,7 @@ jobs:
           set -euo pipefail
           version=$(cat VERSION)
           tag="v$version"
-          git tag -a "$tag" '${{ inputs.expected_sha }}' -m "OpenWrt Performance Manager $version"
+          git tag -a "$tag" "$EXPECTED_SHA" -m "OpenWrt Performance Manager $version"
           git push origin "refs/tags/$tag"
           python3 - "$version" <<'PY'
           import pathlib, sys

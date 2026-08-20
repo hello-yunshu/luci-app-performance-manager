@@ -68,6 +68,20 @@ class AllInOnePackageTests(unittest.TestCase):
         for text in (workflow, verifier, evidence):
             self.assertIn("luci-app-performance-manager-all", text)
 
+    def test_prerelease_auto_publish_is_main_same_repo_release_commit_only(self):
+        workflow = (ROOT / ".github/workflows/prerelease.yml").read_text()
+        for token in (
+            "workflow_run:",
+            'workflows: ["Build OpenWrt (remote SDK)"]',
+            "github.event.workflow_run.conclusion == 'success'",
+            "github.event.workflow_run.head_branch == 'main'",
+            "github.event.workflow_run.head_repository.full_name == github.repository",
+            "startsWith(github.event.workflow_run.head_commit.message, 'release:')",
+            "EXPECTED_SHA:",
+            "BUILD_RUN_ID:",
+        ):
+            self.assertIn(token, workflow)
+
     def test_core_profile_checks_accept_only_the_exact_bundle_equivalence(self):
         core = (ROOT / "package/performance-manager/files/usr/sbin/performance-manager.uc").read_text()
         self.assertIn("function profile_package_installed(name)", core)
