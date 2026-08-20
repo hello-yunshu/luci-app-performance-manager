@@ -17,7 +17,7 @@ class StableEvidenceAggregationTests(unittest.TestCase):
     def artifact(self, name):
         rec = {"apkSha256": {"performance-manager": "1", "luci-app-performance-manager": "2",
                              "performance-manager-rill": "3"}[name] * 64,
-               "version": "1.0.0_rc9-r1", "installedPayload": {}}
+               "version": "1.0.0_rc10-r1", "installedPayload": {}}
         if name == "performance-manager":
             rec["installedPayload"] = {"/usr/sbin/performance-manager.uc": "4" * 64,
                                        "/usr/share/performance-manager/contracts.uc": "5" * 64}
@@ -37,7 +37,7 @@ class StableEvidenceAggregationTests(unittest.TestCase):
             data["verdicts"] = {"pmPackagesBuildVerdict": "PASS"}
             data["workflowRunId"] = "99"
             data["packages"] = {pkg: {"apkSha256": self.artifact(pkg)["apkSha256"],
-                                      "pkgver": "1.0.0_rc9-r1",
+                                      "pkgver": "1.0.0_rc10-r1",
                                       "installedPayload": self.artifact(pkg)["installedPayload"]}
                                 for pkg in ("performance-manager", "luci-app-performance-manager", "performance-manager-rill")}
         elif name == "apkVerification":
@@ -67,7 +67,7 @@ class StableEvidenceAggregationTests(unittest.TestCase):
                                      "routeResolved": True, "routeProvider": "ip-full+rtnl-events"}
             if gate == "sysupgrade":
                 data["upgrade"] = {"beforeBootId": "boot-a", "afterBootId": "boot-b",
-                                   "beforeVersion": "1.0.0_rc8-r1", "afterVersion": "1.0.0_rc9-r1"}
+                                   "beforeVersion": "1.0.0_rc9-r1", "afterVersion": "1.0.0_rc10-r1"}
             if gate == "resource-soak":
                 data["durationSeconds"] = 86400
                 data["soak"] = {"sampleCount": 1440, "idleRillObserveAcceptedDelta": 0,

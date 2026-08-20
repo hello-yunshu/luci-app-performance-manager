@@ -8,7 +8,7 @@ reads the real APK CONTROL metadata (`.PKGINFO`) and verifies, for each expected
 package, an exact match on:
 
   - package name       (pkgname)
-  - version + release  (pkgver, e.g. 1.0.0_rc5-r1)
+  - version + release  (pkgver, e.g. 1.0.0_rc10-r1)
   - architecture       (arch == the target arch)
   - dependencies       (depend lines)
   - filename + sha256
@@ -16,8 +16,9 @@ package, an exact match on:
 For the `performance-manager` Core package it additionally extracts the shipped
 daemon `/usr/sbin/performance-manager.uc` from the APK's ADB data blocks and
 asserts it is byte-for-byte identical (SHA256) to the repo source that the
-runtime harness and startup smoke execute — so a built APK can never diverge
-from the tested Core.
+runtime harness and startup smoke execute.  The all-in-one APK is checked even
+more strictly: every repository-owned Core, LuCI, rpcd and Rill-glue file must
+match its source, and the compiled Simplified Chinese LMO must be present.
 
 It fails closed (exit != 0) if any expected package is absent, duplicated, of
 the wrong arch, a stray old-version artifact, or if the APK's Core file does not
@@ -31,7 +32,28 @@ import gzip, hashlib, io, json, os, struct, subprocess, sys, tarfile, zlib
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-EXPECTED = ['performance-manager', 'luci-app-performance-manager', 'performance-manager-rill']
+EXPECTED = [
+    'performance-manager',
+    'luci-app-performance-manager',
+    'performance-manager-rill',
+    'luci-app-performance-manager-all',
+]
+ALL_IN_ONE = 'luci-app-performance-manager-all'
+REQUIRED_DEPENDS = {
+    'performance-manager': {
+        'ubus', 'uci', 'ucode', 'ucode-mod-fs', 'ucode-mod-ubus', 'ucode-mod-uci',
+        'ucode-mod-rtnl', 'ucode-mod-uloop', 'ucode-mod-socket', 'ucode-mod-log',
+    },
+    'luci-app-performance-manager': {
+        'luci-base', 'rpcd', 'performance-manager', 'luci-i18n-base-zh-cn',
+    },
+    'performance-manager-rill': {'performance-manager'},
+    ALL_IN_ONE: {
+        'luci-base', 'rpcd', 'luci-i18n-base-zh-cn', 'ubus', 'uci', 'ucode',
+        'ucode-mod-fs', 'ucode-mod-ubus', 'ucode-mod-uci', 'ucode-mod-rtnl',
+        'ucode-mod-uloop', 'ucode-mod-socket', 'ucode-mod-log',
+    },
+}
 
 # The shipped Core daemon path inside the package; its bytes must equal the
 # repo source the runtime harness / startup smoke run verbatim.
@@ -39,10 +61,34 @@ CORE_PATH = '/usr/sbin/performance-manager.uc'
 CORE_SRC = ROOT / 'package/performance-manager/files/usr/sbin/performance-manager.uc'
 CONTRACTS_PATH = '/usr/share/performance-manager/contracts.uc'
 CONTRACTS_SRC = ROOT / 'package/performance-manager/files/usr/share/performance-manager/contracts.uc'
+TRANSLATION_PATH = '/usr/lib/lua/luci/i18n/performance-manager.zh-cn.lmo'
+TRANSLATION_DEFAULT_PATH = '/etc/uci-defaults/luci-i18n-performance-manager-zh-cn'
+TRANSLATION_DEFAULT = (
+    "uci set luci.languages.zh_cn='简体中文 (Simplified Chinese)'; uci commit luci\n"
+).encode()
+
+
+def bundle_source_payloads():
+    """Map every repository-owned source file to its all-in-one install path."""
+    roots = (
+        (ROOT / 'package/performance-manager/files', Path('/')),
+        (ROOT / 'package/luci-app-performance-manager/htdocs', Path('/www')),
+        (ROOT / 'package/luci-app-performance-manager/root', Path('/')),
+        (ROOT / 'package/performance-manager-rill/files', Path('/')),
+    )
+    payloads = {}
+    for source_root, install_root in roots:
+        for source in sorted(source_root.rglob('*')):
+            if source.is_file():
+                payload = '/' + str((install_root / source.relative_to(source_root))).lstrip('/')
+                if payload in payloads:
+                    raise RuntimeError(f'duplicate all-in-one payload mapping: {payload}')
+                payloads[payload] = source
+    return payloads
 
 
 def _pm_commit():
-    """PM commit SHA the evidence was produced at (same-commit chain, rc.7)."""
+    """PM commit SHA the evidence was produced at (same-commit chain)."""
     sha = os.environ.get('GITHUB_SHA')
     if sha:
         return sha
@@ -426,8 +472,9 @@ def main(argv):
         deps = meta.get('depend', [])
         if not isinstance(deps, list):
             deps = [deps]
+        missing_deps = sorted(REQUIRED_DEPENDS[name] - set(deps))
         # pkgver is "<version>-r<release>"; the version part must equal the repo
-        # version (e.g. 1.0.0_rc5) so a stale rc.3 artifact can never pass.
+        # version (e.g. 1.0.0_rc10) so a stale candidate can never pass.
         ver_part = pkgver.split('-r')[0]
         # Architecture-independent packages (LuCI apps, translations) are built
         # as `noarch`/`all`, which matches ANY target; only a concrete, differing
@@ -437,22 +484,29 @@ def main(argv):
             failures.append(f'{name}: pkgver {pkgver!r} != expected {expected_version!r}')
         if not arch_ok:
             failures.append(f'{name}: arch {pkgarch!r} != expected {arch!r}')
+        if missing_deps:
+            failures.append(f'{name}: required dependencies missing: {", ".join(missing_deps)}')
+        identity_ok = ver_part == expected_version and arch_ok and not missing_deps
         report['packages'][name] = {
-            'status': 'ok' if (ver_part == expected_version and arch_ok) else 'mismatch',
+            'status': 'ok' if identity_ok else 'mismatch',
             'filename': apk.name,
             'sha256': sha256(apk),
             'pkgname': name,
             'pkgver': pkgver,
             'arch': pkgarch,
             'depends': deps,
+            'requiredDepends': sorted(REQUIRED_DEPENDS[name]),
+            'missingDepends': missing_deps,
         }
-        # The Core package's shipped daemon must be byte-for-byte identical to
-        # the tested/shipped source: extract `/usr/sbin/performance-manager.uc`
-        # from the APK's ADB data blocks and compare its SHA256 against the repo
-        # file that the runtime harness and startup smoke execute verbatim.
-        if name == 'performance-manager':
+        # Core, and every repository-owned file in the all-in-one APK, must be
+        # byte-for-byte identical to the source exercised by local gates.
+        if name in ('performance-manager', ALL_IN_ONE):
             installed_payload = {}
-            for payload_path, source_path in ((CORE_PATH, CORE_SRC), (CONTRACTS_PATH, CONTRACTS_SRC)):
+            source_payloads = (
+                {CORE_PATH: CORE_SRC, CONTRACTS_PATH: CONTRACTS_SRC}
+                if name == 'performance-manager' else bundle_source_payloads()
+            )
+            for payload_path, source_path in source_payloads.items():
                 payload_rec = {'path': payload_path}
                 apk_payload = apk_file_content(apk, payload_path)
                 src_sha = sha256(source_path) if source_path.is_file() else None
@@ -473,11 +527,35 @@ def main(argv):
                 installed_payload[payload_path] = payload_rec
                 print(f"PAYLOAD {name}: {payload_path} {payload_rec.get('status')} "
                       f"apk={payload_rec.get('apkSha256', '-')} src={payload_rec.get('sourceSha256', '-')}")
+            if name == ALL_IN_ONE:
+                default_payload = apk_file_content(apk, TRANSLATION_DEFAULT_PATH)
+                default_sha = hashlib.sha256(TRANSLATION_DEFAULT).hexdigest()
+                default_rec = {'path': TRANSLATION_DEFAULT_PATH, 'sourceSha256': default_sha}
+                if default_payload is None:
+                    default_rec['status'] = 'missing'
+                    failures.append(f'{name}: {TRANSLATION_DEFAULT_PATH} not found inside APK')
+                else:
+                    actual_sha = hashlib.sha256(default_payload).hexdigest()
+                    default_rec.update({'status': 'match' if actual_sha == default_sha else 'mismatch',
+                                        'size': len(default_payload), 'apkSha256': actual_sha})
+                    if actual_sha != default_sha:
+                        failures.append(f'{name}: translation UCI default does not match expected content')
+                installed_payload[TRANSLATION_DEFAULT_PATH] = default_rec
+
+                translation = apk_file_content(apk, TRANSLATION_PATH)
+                translation_rec = {'path': TRANSLATION_PATH}
+                if not translation:
+                    translation_rec['status'] = 'missing-or-empty'
+                    failures.append(f'{name}: compiled Simplified Chinese translation missing or empty')
+                else:
+                    translation_rec.update({'status': 'compiled', 'size': len(translation),
+                                            'apkSha256': hashlib.sha256(translation).hexdigest()})
+                installed_payload[TRANSLATION_PATH] = translation_rec
             report['packages'][name]['installedPayload'] = installed_payload
             report['packages'][name]['core'] = installed_payload[CORE_PATH]
         print(f"OK {name}: {apk.name} pkgver={pkgver} arch={pkgarch} sha256={report['packages'][name]['sha256']}")
 
-    # Reject any stray APK that is not one of the three expected packages but
+    # Reject any stray APK that is not one of the expected packages but
     # shares a prefix (e.g. a leftover old artifact) — better to be strict.
     extra = []
     for apk in sorted(apks):

@@ -40,34 +40,6 @@
       "status": "pass"
     },
     {
-      "name": "py_compile scripts/_rc7_core_patch.py",
-      "status": "pass"
-    },
-    {
-      "name": "py_compile scripts/_rc7_docs_patch.py",
-      "status": "pass"
-    },
-    {
-      "name": "py_compile scripts/_rc7_fix_advisory.py",
-      "status": "pass"
-    },
-    {
-      "name": "py_compile scripts/_rc7_fix_nesting.py",
-      "status": "pass"
-    },
-    {
-      "name": "py_compile scripts/_rc7_fix_rill_contract.py",
-      "status": "pass"
-    },
-    {
-      "name": "py_compile scripts/_rc7_fix_sopeercred.py",
-      "status": "pass"
-    },
-    {
-      "name": "py_compile scripts/_rc7_inspect_core.py",
-      "status": "pass"
-    },
-    {
       "name": "py_compile scripts/aggregate_final_evidence.py",
       "status": "pass"
     },
@@ -136,6 +108,10 @@
       "status": "pass"
     },
     {
+      "name": "py_compile scripts/stage_all_in_one_release.py",
+      "status": "pass"
+    },
+    {
       "name": "py_compile scripts/validate_contracts.py",
       "status": "pass"
     },
@@ -165,6 +141,10 @@
     },
     {
       "name": "YAML parse ci.yml",
+      "status": "pass"
+    },
+    {
+      "name": "YAML parse prerelease.yml",
       "status": "pass"
     },
     {

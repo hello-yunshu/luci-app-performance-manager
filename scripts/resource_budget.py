@@ -7,6 +7,7 @@ for name,path,payload_roots in [
     ('core',root/'package/performance-manager',[root/'package/performance-manager/files']),
     ('luci',root/'package/luci-app-performance-manager',[root/'package/luci-app-performance-manager/htdocs',root/'package/luci-app-performance-manager/root',root/'package/luci-app-performance-manager/po']),
     ('rill',root/'package/performance-manager-rill',[root/'package/performance-manager-rill/files']),
+    ('allInOne',root/'package/luci-app-performance-manager-all',[]),
 ]:
     files=[p for p in path.rglob('*') if p.is_file() and '__pycache__' not in p.parts]
     payload=[p for base in payload_roots if base.exists() for p in base.rglob('*') if p.is_file()]

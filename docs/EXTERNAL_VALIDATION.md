@@ -1,8 +1,8 @@
 # External Validation Required for 1.0 Stable
 
-`1.0.0-rc.9` adds exact Rill decision reservation, persistent crash/reboot-safe Outcome intent, full-send uncertainty, telemetry-independent delivery, gate-specific semantic evidence, exact APK/installed-payload identity, Action run identity checks, and repository-owned testbed verdict logic. The external integration remains pinned to immutable **Rill Stable v1.2.0**. Stable still requires real target/testbed/hypervisor/sysupgrade/lifecycle/24-hour evidence that cannot be fabricated by source or container checks.
+`1.0.0-rc.10` adds a byte-verified all-in-one APK on top of the exact Rill decision and semantic evidence chain. The bundle physically carries Core, LuCI, rpcd registrations, Simplified Chinese translation and repository-owned Rill glue; the external integration remains pinned to immutable **Rill Stable v1.2.0**. Stable still requires real target/testbed/hypervisor/sysupgrade/lifecycle/24-hour evidence that cannot be fabricated by source or container checks.
 
-The current official 25.12.x x86/64 target is available as OpenWrt 25.12.5, including an x86/64 rootfs and SDK. CI is pinned to that release for ucode and three-package build gates.
+The current official 25.12.x x86/64 target is available as OpenWrt 25.12.5, including an x86/64 rootfs and SDK. CI is pinned to that release for ucode and four-package build gates (three split packages plus the all-in-one package).
 
 Required target evidence:
 
@@ -12,7 +12,7 @@ Required target evidence:
 4. Explicit LAN→Router→WAN and router-local controlled A/B sessions where the action semantics require them.
 5. Sysupgrade preservation via `scripts/openwrt-sysupgrade-gate.sh prepare` before the upgrade and `verify` after reboot, plus `scripts/openwrt-resource-soak.sh` for 24h or longer.
 
-Until those evidence files actually pass, the correct label is **1.0.0-rc.9**, not Stable.
+Until those evidence files actually pass, the correct label is **1.0.0-rc.10**, not Stable.
 
 ## Docker-based Evidence Progress
 
@@ -20,9 +20,9 @@ Validation can be driven locally from the official 25.12.5 x86/64 rootfs via Doc
 
 Status:
 
-- **1. GitHub CI** — owned by `.github/workflows/ci.yml` (`static` incl. LuCI render smoke, `pm-rill-provenance` with pinned upstream Rill provenance, `pm-rill-runtime` with real adapter execution, `pm-core-rill-roundtrip` with raw Core ↔ verified adapter, `openwrt-ucode` official 25.12.5 rootfs compile of Core) and `.github/workflows/build-openwrt.yml` → `openwrt-sdk-build` (official SDK builds only the packages this repository owns: `performance-manager`, `luci-app-performance-manager`, `performance-manager-rill`; emits build-metadata.json + checksums.txt). No local SDK build is required, and no native Rust build is performed.
+- **1. GitHub CI** — owned by `.github/workflows/ci.yml` (`static` incl. LuCI render smoke, `pm-rill-provenance` with pinned upstream Rill provenance, `pm-rill-runtime` with real adapter execution, `pm-core-rill-roundtrip` with raw Core ↔ verified adapter, `openwrt-ucode` official 25.12.5 rootfs compile of Core) and `.github/workflows/build-openwrt.yml` → `openwrt-sdk-build` (official SDK builds the three split packages and `luci-app-performance-manager-all`, then verifies exact metadata and bundle payloads; emits build-metadata.json + checksums.txt). No local SDK build is required, and no native Rust build is performed.
 - **2. Booted OpenWrt runtime gate** — PASSED inside the `owrt-pm-gate` container (25.12.5 x86/64): `scripts/openwrt-target-gate.sh` CORE-ONLY, 11/11 assertions green. Evidence: `evidence/openwrt-target-gate-25.12.5.json`.
-- **5. Historical resource soak (dev check only)** — the old 120-second sample is not Stable evidence and is not reused by the aggregator. The rc.9 gate requires ≥86400 seconds with Core and exact Rill RSS/CPU, restart counts, logical persistence counters, state bounds, and zero idle Observe/adapter-persistence/pending-Outcome-journal deltas; missing counters are `BLOCKED`, never zero-filled.
+- **5. Historical resource soak (dev check only)** — the old 120-second sample is not Stable evidence and is not reused by the aggregator. The rc.10 gate requires ≥86400 seconds with Core and exact Rill RSS/CPU, restart counts, logical persistence counters, state bounds, and zero idle Observe/adapter-persistence/pending-Outcome-journal deltas; missing counters are `BLOCKED`, never zero-filled.
 
 Not yet satisfied (require real hypervisor or router hardware): items 3 (Hyper-V/KVM fixtures) and 4 (LAN/WAN A/B sessions), plus the full 24h soak and sysupgrade round-trip from item 5.
 

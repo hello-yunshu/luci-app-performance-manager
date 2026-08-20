@@ -1,0 +1,121 @@
+name: Publish immutable prerelease
+
+on:
+  workflow_dispatch:
+    inputs:
+      expected_sha:
+        description: Full PM commit SHA built by the official SDK workflow
+        required: true
+        type: string
+      build_run_id:
+        description: Successful same-commit Build OpenWrt run ID
+        required: true
+        type: string
+
+permissions:
+  actions: read
+  contents: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.expected_sha }}
+          fetch-depth: 0
+      - name: Verify source and build run identity
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "${{ inputs.expected_sha }}"
+          version=$(cat VERSION)
+          [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+-rc\.[0-9]+$ ]]
+          python3 scripts/verify_action_run_identity.py \
+            --run-id '${{ inputs.build_run_id }}' \
+            --expected-sha '${{ inputs.expected_sha }}' \
+            --expected-workflow 'Build OpenWrt (remote SDK)'
+      - name: Download same-commit SDK artifacts
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p release-input release-assets
+          gh run download '${{ inputs.build_run_id }}' --dir release-input
+      - name: Verify and assemble the single-APK release inventory
+        shell: bash
+        run: |
+          set -euo pipefail
+          SOURCE_DATE_EPOCH=$(git show -s --format=%ct '${{ inputs.expected_sha }}')
+          export SOURCE_DATE_EPOCH
+          python3 scripts/make_release.py
+          python3 - '${{ inputs.expected_sha }}' <<'PY'
+          import hashlib, json, pathlib, shutil, sys
+          root=pathlib.Path('release-input')
+          out=pathlib.Path('release-assets')
+          def unique(name):
+              found=[p for p in root.rglob(name) if p.is_file()]
+              if len(found) != 1: raise SystemExit(f'expected one {name}, found {found}')
+              return found[0]
+          def sha(path): return hashlib.sha256(path.read_bytes()).hexdigest()
+          manifest=json.loads(unique('all-in-one-release-manifest.json').read_text())
+          if manifest.get('pmCommitSha') != sys.argv[1]: raise SystemExit('manifest commit mismatch')
+          apk_info=manifest.get('apk') or {}
+          apk=unique(apk_info.get('filename') or '')
+          if sha(apk) != apk_info.get('sha256'): raise SystemExit('all-in-one APK digest mismatch')
+          for name in (apk.name, 'all-in-one-release-manifest.json', 'all-in-one-checksums.txt',
+                       'build-metadata.json', 'apk-verification.json', 'final-release-evidence.json',
+                       'FINAL_AUDIT.json', 'FINAL_AUDIT.md'):
+              shutil.copy2(apk if name == apk.name else unique(name), out/name)
+          version=pathlib.Path('VERSION').read_text().strip()
+          for path in (pathlib.Path(f'dist/openwrt-performance-manager-{version}.zip'),
+                       pathlib.Path(f'dist/openwrt-performance-manager-{version}.manifest.json')):
+              shutil.copy2(path, out/path.name)
+          PY
+          (cd release-assets && sha256sum ./* > release-checksums.txt)
+      - name: Refuse an existing prerelease identity
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          tag="v$(cat VERSION)"
+          test -z "$(git ls-remote --tags origin "refs/tags/$tag")"
+          if gh release view "$tag" >/dev/null 2>&1; then
+            echo "$tag already exists; refusing overwrite" >&2
+            exit 1
+          fi
+      - name: Create immutable tag and prerelease
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          version=$(cat VERSION)
+          tag="v$version"
+          git tag -a "$tag" '${{ inputs.expected_sha }}' -m "OpenWrt Performance Manager $version"
+          git push origin "refs/tags/$tag"
+          python3 - "$version" <<'PY'
+          import pathlib, sys
+          version=sys.argv[1]
+          lines=pathlib.Path('CHANGELOG.md').read_text().splitlines()
+          start=next(i for i,line in enumerate(lines) if line.startswith(f'## {version} '))
+          end=next((i for i in range(start+1,len(lines)) if lines[i].startswith('## ')),len(lines))
+          pathlib.Path('release-notes.md').write_text('\n'.join(lines[start+1:end]).strip()+'\n')
+          PY
+          gh release create "$tag" release-assets/* \
+            --verify-tag --prerelease \
+            --title "OpenWrt Performance Manager $version · all-in-one APK" \
+            --notes-file release-notes.md
+      - name: Re-download and verify published assets
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir published
+          gh release download "v$(cat VERSION)" --dir published
+          (cd published && sha256sum -c release-checksums.txt)

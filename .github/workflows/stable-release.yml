@@ -25,7 +25,7 @@ jobs:
     runs-on: ubuntu-latest
     environment: stable-release
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - uses: actions/checkout@v7
         with:
           ref: ${{ inputs.expected_sha }}
           fetch-depth: 0

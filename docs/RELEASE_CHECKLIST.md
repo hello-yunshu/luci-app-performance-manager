@@ -5,6 +5,7 @@
 - [ ] Official OpenWrt 25.12.x x86_64 SDK builds `performance-manager`.
 - [ ] SDK builds `luci-app-performance-manager`.
 - [ ] SDK builds `performance-manager-rill` as an integration/meta package (no Rust build; fail-closed init guard and `lib/upgrade/keep.d` packaged).
+- [ ] SDK builds `luci-app-performance-manager-all`; exact APK verification proves all Core/LuCI/rpcd/Rill-glue source files match and the compiled zh-cn LMO is present.
 - [ ] Official OpenWrt rootfs compiles Core ucode with all declared modules.
 
 ## Runtime / topology / ownership

@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.0.0-rc.10 — Verified all-in-one OpenWrt APK (2026-08-20)
+
+- Adds `luci-app-performance-manager-all`, a physical single APK containing Core, LuCI, rpcd ACL/menu, configuration, profiles/schemas, compiled Simplified Chinese translation and repository-owned Rill integration glue.
+- Keeps the existing split packages for advanced deployments while declaring conflicts to prevent duplicate ownership of installed paths; it deliberately avoids cross-package `PROVIDES` aliases under OpenWrt APK semantics.
+- Extends the official OpenWrt 25.12 SDK workflow, exact APK verifier and build metadata to require the all-in-one artifact and byte-compare every repository-owned installed file against source.
+- Keeps the upstream Rill runtime external and fail-closed; the bundle includes no Rill source, Rust toolchain or native binary.
+- Moves GitHub Actions to current stable major tags and retains digest-bound SDK/feed caches.
+- Remains a prerelease; full target, hypervisor, sysupgrade and soak evidence is still required for Stable.
+
 ## 1.0.0-rc.9 — Exact Rill Outcome + semantic Stable evidence (2026-08-20)
 
 - Reserves each exact Rill decision to one transaction or benchmark owner before mutation and blocks duplicate execution.

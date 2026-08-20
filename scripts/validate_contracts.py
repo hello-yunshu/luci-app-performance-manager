@@ -79,6 +79,11 @@ for token in ['rtnl.listener','[ 16, 17, 24, 25 ]',"'-j', '-4', 'route'","'-j', 
     if token not in core: fail(f'topology/route mechanism missing: {token}')
 for token in ['dns_health()','proxy_health()','vpn_health()','thermal_health()','recent_oom_state()','persistentStorageWritable','high-cpu-steal']:
     if token not in core: fail(f'health mechanism missing: {token}')
+for token in ['function profile_package_installed(name)',
+              "[ 'performance-manager', 'luci-app-performance-manager', 'performance-manager-rill' ]",
+              "package_installed('luci-app-performance-manager-all')",
+              'if (!profile_package_installed(x))']:
+    if token not in core: fail(f'all-in-one profile equivalence missing: {token}')
 for token in ["'/etc/init.d/packet_steering'","'/usr/libexec/network/packet-steering.uc'","'/usr/libexec/platform/packet-steering.sh'","policy: 'observe-respect'"]:
     if token not in core: fail(f'Native Packet Steering observe/respect missing: {token}')
 
@@ -157,6 +162,23 @@ for p in (ROOT/'package/luci-app-performance-manager/htdocs/luci-static/resource
 for msg in sorted(js_ids):
     esc=msg.replace('\\','\\\\').replace('"','\\"').replace('\n','\\n')
     if esc not in po_ids: fail(f'zh_Hans missing msgid: {msg}')
+
+# The recommended all-in-one APK must physically own every application layer;
+# it is not allowed to regress into a meta package depending on the split APKs.
+bundle=(ROOT/'package/luci-app-performance-manager-all/Makefile').read_text()
+for token in ['po2lmo','/usr/sbin/performance-manager.uc','luci-app-performance-manager/htdocs',
+              'luci-app-performance-manager/root/usr/share/rpcd','performance-manager-rill/files',
+              '/usr/lib/lua/luci/i18n/performance-manager.zh-cn.lmo']:
+    if token not in bundle: fail(f'all-in-one physical payload mechanism missing: {token}')
+bundle_pkg=re.search(r'define Package/luci-app-performance-manager-all\n(.*?)\nendef',bundle,re.S)
+if not bundle_pkg: fail('all-in-one package definition missing')
+else:
+    for forbidden in ['+performance-manager ', '+luci-app-performance-manager', '+performance-manager-rill']:
+        if forbidden in bundle_pkg.group(1): fail(f'all-in-one meta dependency forbidden: {forbidden}')
+    for conflict in ['performance-manager','luci-app-performance-manager',
+                     'luci-i18n-performance-manager-zh-cn','performance-manager-rill']:
+        if conflict not in bundle_pkg.group(1): fail(f'all-in-one split-owner conflict missing: {conflict}')
+if 'PROVIDES:=' in bundle: fail('all-in-one must not alias split package names through APK PROVIDES')
 
 # Scan only the repository's own files.  In CI the workspace also contains the
 # downloaded OpenWrt SDK tree (a subdirectory whose feeds legitimately include
