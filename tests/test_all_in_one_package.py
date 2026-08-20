@@ -77,6 +77,8 @@ class AllInOnePackageTests(unittest.TestCase):
             "github.event.workflow_run.head_branch == 'main'",
             "github.event.workflow_run.head_repository.full_name == github.repository",
             "startsWith(github.event.workflow_run.head_commit.message, 'release:')",
+            "git config user.name 'github-actions[bot]'",
+            "git config user.email '41898282+github-actions[bot]@users.noreply.github.com'",
             "EXPECTED_SHA:",
             "BUILD_RUN_ID:",
         ):
