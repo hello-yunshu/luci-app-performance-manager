@@ -75,7 +75,7 @@ def main(argv=None) -> int:
 
     final_path = unique(final_root, "final-release-evidence.json")
     final = json.loads(final_path.read_text())
-    if final.get("overallVerdict") != "PASS" or final.get("pmCommitSha") != args.expected_sha:
+    if final.get("overallVerdict") != "PASS" or final.get("expectedCommitSha") != args.expected_sha:
         raise RuntimeError("final build evidence verdict or commit mismatch")
 
     source_zip = source_dist / f"openwrt-performance-manager-{args.version}.zip"

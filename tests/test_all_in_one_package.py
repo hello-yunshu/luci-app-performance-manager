@@ -158,7 +158,7 @@ class AllInOnePackageTests(unittest.TestCase):
             (full / "FINAL_AUDIT.json").write_text("{}")
             (full / "FINAL_AUDIT.md").write_text("PASS\n")
             (final / "final-release-evidence.json").write_text(json.dumps({
-                "overallVerdict": "PASS", "pmCommitSha": commit,
+                "overallVerdict": "PASS", "expectedCommitSha": commit,
             }))
             (dist / f"openwrt-performance-manager-{version}.zip").write_bytes(b"source")
             (dist / f"openwrt-performance-manager-{version}.manifest.json").write_text("{}")
