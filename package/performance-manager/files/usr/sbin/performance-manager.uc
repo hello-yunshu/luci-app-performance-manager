@@ -223,7 +223,9 @@ function append_line(path, obj) {
 	let f = fs.open(path, 'a');
 	if (!f)
 		return false;
-	let wire=sprintf('%.J\n', obj), n=f.write(wire);
+	/* %J is compact single-line JSON. %.J is pretty-printed multi-line JSON
+	 * and would corrupt the JSONL reader's one-record-per-line contract. */
+	let wire=sprintf('%J\n', obj), n=f.write(wire);
 	f.close();
 	if (n == null) return false;
 	note_persistent_write(path,length(wire));
@@ -1131,7 +1133,7 @@ function compact_jsonl(path, limit) {
 	if (length(rows) <= limit) return;
 	rows = slice(rows, length(rows) - limit);
 	let text = '';
-	for (let row in rows) text += sprintf('%.J\n', row);
+	for (let row in rows) text += sprintf('%J\n', row);
 	if (fs.writefile(path, text) != null) note_persistent_write(path,length(text));
 }
 
@@ -1722,7 +1724,9 @@ function rill_send(payload, outcome_attempt, mark_sent_unknown) {
 	if (!bool_cfg('shadow.enabled', true)) return { ok: false, state: 'disabled', connected: false, fullySent: false, responseReceived: false };
 	let maxMsg = min(262144, max(4096, int_cfg('shadow.max_message', 65536)));
 	let timeout = min(5000, max(100, int_cfg('shadow.timeout_ms', 1000)));
-	let wire = sprintf('%.J\n', payload);
+	/* The adapter protocol is newline-delimited JSON. ucode %.J pretty-prints
+	 * internal newlines, so use compact %J and add exactly one frame newline. */
+	let wire = sprintf('%J\n', payload);
 	if (length(wire) > maxMsg) return { ok: false, state: 'oversized-local-context', connected: false, fullySent: false, responseReceived: false };
 	let s = socket.connect({ path: rill_socket_path() }, null, null, timeout);
 	if (!s) return { ok: false, state: 'connect-failed', connected: false, fullySent: false, responseReceived: false };

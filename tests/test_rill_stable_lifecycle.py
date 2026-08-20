@@ -267,6 +267,15 @@ class RillStableLifecycleTests(unittest.TestCase):
         self.assertIn("substr(buf, 0, index(buf, '\\n'))", body)
         self.assertNotIn("slice(buf, 0, index(buf, '\\n'))", body)
 
+    def test_real_ucode_wire_and_jsonl_are_single_line_json(self):
+        send = function_body("rill_send")
+        append = function_body("append_line")
+        compact = function_body("compact_jsonl")
+        self.assertIn("sprintf('%J\\n', payload)", send)
+        self.assertNotIn("sprintf('%.J\\n', payload)", send)
+        self.assertIn("sprintf('%J\\n', obj)", append)
+        self.assertIn("sprintf('%J\\n', row)", compact)
+
     def test_raw_ucode_protocol_validators_precede_runtime_callers(self):
         """The raw daemon and untransformed harness both require ucode
         callees to be defined before the functions that reference them."""
