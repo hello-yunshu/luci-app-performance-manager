@@ -90,6 +90,8 @@ jobs:
           set -euo pipefail
           version=$(cat VERSION)
           tag="v$version"
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git tag -a "$tag" "$EXPECTED_SHA" -m "OpenWrt Performance Manager $version"
           git push origin "refs/tags/$tag"
           python3 - "$version" <<'PY'
