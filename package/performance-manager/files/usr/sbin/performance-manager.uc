@@ -1650,7 +1650,13 @@ function methodology_key(m) {
 }
 
 function methodology_matches(a, b) {
-	return methodology_key(measurement_methodology(a)) == methodology_key(measurement_methodology(b));
+	/* The control leg is persisted as the already-normalized methodology,
+	 * while the candidate arrives as a companion evidence envelope.  Accept
+	 * both representations so a frozen control is not normalized a second
+	 * time into an all-default fingerprint. */
+	let ma = (a?.methodology != null || a?.endpoint != null) ? measurement_methodology(a) : measurement_methodology({ methodology: a });
+	let mb = (b?.methodology != null || b?.endpoint != null) ? measurement_methodology(b) : measurement_methodology({ methodology: b });
+	return methodology_key(ma) == methodology_key(mb);
 }
 
 function companion_evidence_valid(e, session, phase) {

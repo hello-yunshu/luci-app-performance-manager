@@ -84,6 +84,8 @@ class RillContextTests(unittest.TestCase):
         # Blocker 3: a methodology-mismatched or unvalidated experiment must
         # never send a reward/outcome to Rill.
         self.assertIn('measurement-methodology-mismatch', CORE)
+        self.assertIn('measurement_methodology({ methodology: a })', CORE)
+        self.assertIn('measurement_methodology({ methodology: b })', CORE)
         self.assertIn('validated:true', CORE)
 
 
