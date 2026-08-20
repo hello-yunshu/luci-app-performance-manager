@@ -13,6 +13,11 @@ PAIRS={
  'benchmark-session.example.json':'benchmark-session.schema.json','companion-measurement.example.json':'companion-measurement.schema.json',
 }
 class ResourceBudgetTests(unittest.TestCase):
+    def test_ci_aggregator_resolves_unique_artifact_layouts(self):
+        workflow = (ROOT / ".github/workflows/ci.yml").read_text()
+        self.assertIn("copy_unique_evidence rill-runtime.json required", workflow)
+        self.assertIn('mapfile -t matches < <(find evidence -type f -name "$name" -print)', workflow)
+
     def test_resource_budget_requires_target_and_soak_evidence(self):
         script = (ROOT / "scripts/resource_budget.py").read_text()
         self.assertIn("scripts/openwrt-target-gate.sh", script)
