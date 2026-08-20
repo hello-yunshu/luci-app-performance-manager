@@ -384,11 +384,11 @@ def main() -> int:
             return 1
         ev['lifecycle']['candidateRolledBack'] = True
 
-        # diagnostics exposes production Core counters.  It may register a new
-        # advisory after the completed binding is consumed; the accepted
-        # outcome counter remains exact evidence for this completed session.
-        diagnostics = ubus_call(rootfs, 'diagnostics')
-        counters = (((diagnostics.get('resources') or {}).get('rillCounters')) or {})
+        # The lightweight resources surface exposes production Core counters
+        # without recomputing the full diagnostics bundle.  The accepted
+        # outcome counter is exact evidence for this completed session.
+        resources = ubus_call(rootfs, 'resources')
+        counters = (((resources.get('resources') or {}).get('rillCounters')) or {})
         if counters.get('rillOutcomeAccepted', 0) < 1:
             log(f'FATAL: production Core did not record accepted Outcome: {counters}')
             ev['checks']['rillCounters'] = counters

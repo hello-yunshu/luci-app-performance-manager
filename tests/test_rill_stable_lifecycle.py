@@ -290,6 +290,10 @@ class RillStableLifecycleTests(unittest.TestCase):
         self.assertIn("benchmark_start(req.args ?? {})", CORE)
         self.assertIn("let msg=req.args ?? {};", CORE)
 
+    def test_rill_counters_have_lightweight_read_surface(self):
+        self.assertIn("resources: { call:", CORE)
+        self.assertIn("{ resources: resource_usage() }", CORE)
+
     def test_raw_ucode_protocol_validators_precede_runtime_callers(self):
         """The raw daemon and untransformed harness both require ucode
         callees to be defined before the functions that reference them."""

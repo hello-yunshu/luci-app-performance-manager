@@ -3568,6 +3568,10 @@ let obj = conn.publish(UBUS_NAME, {
 	benchmark_stop: { args: { sessionId: 'string' }, call: function(req) { reply(req, benchmark_stop(req.args?.sessionId)); } },
 	rill_status: { call: function(req, msg) { reply(req, rill_status()); } },
 	rill_refresh: { call: function(req, msg) { reply(req, rill_refresh_advisory()); } },
+	/* Lightweight observability surface: callers that only need bounded
+	 * process/Rill counters must not pay for the full synchronous topology,
+	 * profile, benchmark and analysis recomputation in diagnostics(). */
+	resources: { call: function(req, msg) { reply(req, { resources: resource_usage() }); } },
 	diagnostics: { call: function(req, msg) { reply(req, diagnostics()); } },
 	cleanup: { args: { reason: 'string' }, call: function(req) { reply(req, cleanup_owned(req.args?.reason ?? 'package-remove')); } },
 	refresh: { args: { reason: 'string' }, call: function(req) { reply(req, refresh(req.args?.reason ?? 'manual')); } }
