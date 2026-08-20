@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import re
 import shutil
 import subprocess
@@ -21,6 +22,13 @@ VERSION = (ROOT / "VERSION").read_text().strip()
 
 
 def git_commit() -> str:
+    # GitHub Actions runs the audit against an immutable checked-out head, but
+    # the audit itself refreshes tracked report files before this identity is
+    # emitted.  Bind CI evidence to the runner-provided exact head SHA rather
+    # than misclassifying those generated reports as an uncommitted source.
+    workflow_sha = os.environ.get("GITHUB_SHA", "")
+    if re.fullmatch(r"[0-9a-f]{40}", workflow_sha):
+        return workflow_sha
     dirty = subprocess.run(
         ["git", "status", "--porcelain", "--untracked-files=no"], cwd=ROOT,
         text=True, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,

@@ -13,6 +13,11 @@ PAIRS={
  'benchmark-session.example.json':'benchmark-session.schema.json','companion-measurement.example.json':'companion-measurement.schema.json',
 }
 class ResourceBudgetTests(unittest.TestCase):
+    def test_source_audit_uses_exact_workflow_head_identity(self):
+        audit = (ROOT / "scripts/final_audit.py").read_text()
+        self.assertIn('os.environ.get("GITHUB_SHA", "")', audit)
+        self.assertIn('re.fullmatch(r"[0-9a-f]{40}", workflow_sha)', audit)
+
     def test_ci_aggregator_resolves_unique_artifact_layouts(self):
         workflow = (ROOT / ".github/workflows/ci.yml").read_text()
         self.assertIn("copy_unique_evidence rill-runtime.json required", workflow)
