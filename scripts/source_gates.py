@@ -62,7 +62,7 @@ phases['0']=gate('Contract Freeze',[
  ('frozen Action safety fields',all_tokens((ROOT/'contracts/action.schema.json').read_text(),['risk','requiresBenchmark','persistenceClass','requiredLocks','requiresCommitConfirm'])),
  ('full transaction states',all_tokens((ROOT/'contracts/transaction.schema.json').read_text(),['planned','locked','snapshotted','awaiting_confirm','rolled_back']))])
 phases['0'].update({'evidence':'structural: schema files + frozen contract fields present'})
-phases['1']=gate('Bootstrap',[(f'package {x}',(ROOT/'package'/x/'Makefile').exists()) for x in ['performance-manager','luci-app-performance-manager','performance-manager-rill']]+[
+phases['1']=gate('Bootstrap',[(f'package {x}',(ROOT/'package'/x/'Makefile').exists()) for x in ['performance-manager','luci-app-performance-manager','performance-manager-rill','luci-app-performance-manager-all']]+[
  ('Core ubus daemon wiring','ubusmod.connect()' in CORE and 'conn.publish' in CORE and '{ call: function' in CORE)])
 phases['1'].update({'evidence':'structural: package Makefiles + Core service wiring present'})
 phases['2']=gate('Capability / Topology / Target / Event',[

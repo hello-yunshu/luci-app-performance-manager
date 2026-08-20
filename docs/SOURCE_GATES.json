@@ -35,7 +35,7 @@
     "1": {
       "name": "Bootstrap",
       "status": "pass",
-      "checks": 4,
+      "checks": 5,
       "failed": [],
       "evidence": "structural: package Makefiles + Core service wiring present",
       "verificationLayer": "structural-source"

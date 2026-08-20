@@ -61,7 +61,7 @@ jobs:
     runs-on: ${{ fromJSON(matrix.runner) }}
     timeout-minutes: ${{ matrix.timeout }}
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - uses: actions/checkout@v7
         with:
           ref: ${{ inputs.expected_sha }}
       - name: Verify exact checkout identity
@@ -112,7 +112,7 @@ jobs:
           fi
       - name: Upload evidence
         if: always()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        uses: actions/upload-artifact@v7
         with:
           name: stable-${{ matrix.gate }}
           path: stable-output/${{ matrix.gate }}.json
@@ -122,7 +122,7 @@ jobs:
     runs-on: [self-hosted, windows, x64, pm-hyperv]
     timeout-minutes: 180
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - uses: actions/checkout@v7
         with:
           ref: ${{ inputs.expected_sha }}
       - name: Verify exact checkout and download inputs
@@ -152,7 +152,7 @@ jobs:
           python scripts/validate_external_evidence.py --file stable-output/hyperv.json --gate hyperv --expected-commit '${{ inputs.expected_sha }}' --require-rill --build-metadata $build.FullName --apk-verification $apk.FullName
       - name: Upload Hyper-V evidence
         if: always()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        uses: actions/upload-artifact@v7
         with:
           name: stable-hyperv
           path: stable-output/hyperv.json
@@ -162,7 +162,7 @@ jobs:
     runs-on: [self-hosted, linux, x64, pm-soak]
     timeout-minutes: 1560
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - uses: actions/checkout@v7
         with:
           ref: ${{ inputs.expected_sha }}
       - name: Download exact inputs
@@ -202,7 +202,7 @@ jobs:
             --require-rill --minimum-duration 86400 --build-metadata "$build_metadata" --apk-verification "$apk_verification"
       - name: Upload 24-hour evidence
         if: always()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        uses: actions/upload-artifact@v7
         with:
           name: stable-resource-soak
           path: stable-output/resource-soak.json

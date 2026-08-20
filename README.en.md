@@ -42,13 +42,14 @@
 - Ordinary telemetry and topology refreshes stay in tmpfs; persistent history is bounded
 - Passive / health benchmark observations remain `validated=false`; only genuine validated outcomes update Rill learning
 
-## The three OpenWrt packages
+## OpenWrt packages
 
 | Package | Purpose |
 |---|---|
 | `performance-manager` | procd-managed ucode/ubus Core: contracts, discovery, telemetry, transaction engine and safe actions |
 | `luci-app-performance-manager` | Supported-first LuCI UI (Simplified Chinese) |
 | `performance-manager-rill` | PM ↔ upstream Rill integration glue: consumes the upstream Rill release only, never compiles Rill |
+| `luci-app-performance-manager-all` | Recommended all-in-one APK: physically contains Core, LuCI, rpcd ACL/menu, Simplified Chinese translation and Rill glue; it does not depend on the three split application packages |
 
 ## Installation
 
@@ -68,17 +69,28 @@ make defconfig
 make package/performance-manager/compile V=s
 make package/luci-app-performance-manager/compile V=s
 make package/performance-manager-rill/compile V=s
+make package/luci-app-performance-manager-all/compile V=s
 ```
 
 > You can also rely on the GitHub Actions `build-openwrt.yml` → `openwrt-sdk-build` job to produce the build instead of using a local SDK.
+
+### Recommended: one-APK installation
+
+Download `luci-app-performance-manager-all-1.0.0_rc10-r1.apk` from the GitHub Release, then install that single application APK:
+
+```sh
+apk add --allow-untrusted /tmp/luci-app-performance-manager-all-1.0.0_rc10-r1.apk
+```
+
+OpenWrt still resolves system runtime libraries such as `luci-base`, `rpcd` and `ucode` from its configured repositories. “One APK” means all Performance Manager-owned Core, LuCI, backend, translation and Rill-glue payloads are in one file. It conflicts with the four split packages (including the auto-generated translation package) so duplicate file ownership is impossible. Back up `/etc/config/performance-manager` and switch package forms only during a maintenance window on devices already using the split packages.
 
 ### Package info
 
 | Item | Value |
 |---|---|
-| Package name | `luci-app-performance-manager` (Core: `performance-manager`) |
+| Recommended package | `luci-app-performance-manager-all` (one APK) |
 | Target | OpenWrt 25.12.x / x86_64 |
-| Current source candidate | `1.0.0-rc.9` |
+| Current source candidate | `1.0.0-rc.10` |
 | Service script | `/etc/init.d/performance-manager` |
 | UCI config | `/etc/config/performance-manager` |
 | Core binary | `/usr/sbin/performance-manager.uc` |
@@ -160,6 +172,8 @@ package/luci-app-performance-manager/
 ├── htdocs/luci-static/resources/view/performance-manager/  # 8 views
 ├── po/zh_Hans/                        # Simplified Chinese translation
 └── root/usr/share/luci/menu.d/        # LuCI menu registration
+
+package/luci-app-performance-manager-all/Makefile  # merges all owned runtime content and compiled zh-cn LMO into one APK
 ```
 
 ## Architecture
@@ -242,7 +256,7 @@ This project is built and verified automatically with GitHub Actions, triggered 
 - **openwrt-ucode**: compiles and validates Core ucode inside the official OpenWrt 25.12.5 rootfs
 
 **`build-openwrt.yml` (remote official SDK build)**
-- **openwrt-sdk-build**: builds the three packages this repository owns (Core / LuCI / integration glue) with the official SDK, and emits `build-metadata.json`, `checksums.txt` and audit-evidence artifacts
+- **openwrt-sdk-build**: builds the three split packages plus the all-in-one APK with the official SDK, and emits `build-metadata.json`, `checksums.txt` and audit-evidence artifacts
 
 > This repository no longer has a `rill-native` / Rill SDK build job: no Rust toolchain is installed to compile Rill. Rill's native build and tests are the responsibility of the Rill upstream repository's Actions.
 
@@ -257,7 +271,7 @@ make package        # build release artifacts
 - Resource / write soak: `scripts/openwrt-resource-soak.sh`
 - External validation evidence: `docs/EXTERNAL_VALIDATION.md`
 
-> `1.0.0-rc.9` is only a source candidate. It adds exact-decision single ownership, reboot-safe persistent Outcomes, transport-stage uncertainty, an independent retry scheduler, and gate-specific Stable evidence tied to installed payload hashes. `v1.0.0` is authorized only when the same-commit official SDK/APKs, exact Rill runtime, Generic/Hyper-V/KVM targets, real A/B, sysupgrade, lifecycle, and 24-hour Rill-present soak all PASS the Stable aggregator.
+> `1.0.0-rc.10` is only a source candidate and adds a per-file-verified all-in-one APK. `v1.0.0` is authorized only when the same-commit official SDK/APKs, exact Rill runtime, Generic/Hyper-V/KVM targets, real A/B, sysupgrade, lifecycle, and 24-hour Rill-present soak all PASS the Stable aggregator.
 
 ## Documentation
 

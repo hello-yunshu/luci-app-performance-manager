@@ -42,13 +42,14 @@
 - 普通 telemetry / topology 刷新留在 tmpfs；持久历史有界
 - 被动 / 健康类 benchmark 观察保持 `validated=false`；只有真实 validated outcome 才更新 Rill 学习
 
-## 三个 OpenWrt 包
+## OpenWrt 包
 
 | 包 | 说明 |
 |---|---|
 | `performance-manager` | procd 管理的 ucode/ubus Core：contracts、discovery、telemetry、事务引擎与安全动作 |
 | `luci-app-performance-manager` | Supported-first LuCI 界面（简体中文） |
 | `performance-manager-rill` | PM ↔ 上游 Rill 集成开关（integration glue）：只消费上游 Rill 正式发布产物，不编译 Rill 源码 |
+| `luci-app-performance-manager-all` | 推荐的一体化 APK：物理包含 Core、LuCI、rpcd ACL/menu、简体中文翻译和 Rill glue；不依赖上述三个拆分业务包 |
 
 ## 安装
 
@@ -68,17 +69,28 @@ make defconfig
 make package/performance-manager/compile V=s
 make package/luci-app-performance-manager/compile V=s
 make package/performance-manager-rill/compile V=s
+make package/luci-app-performance-manager-all/compile V=s
 ```
 
 > 也可以直接依赖 GitHub Actions 的 `build-openwrt.yml` → `openwrt-sdk-build` job 产出构建结果，无需本地 SDK。
+
+### 推荐：单 APK 安装
+
+从 GitHub Release 下载 `luci-app-performance-manager-all-1.0.0_rc10-r1.apk` 后，只需安装这一份应用 APK：
+
+```sh
+apk add --allow-untrusted /tmp/luci-app-performance-manager-all-1.0.0_rc10-r1.apk
+```
+
+它仍会通过 OpenWrt 软件源解析 `luci-base`、`rpcd`、`ucode` 等系统运行库；“单 APK”指 Performance Manager 自有的 Core、LuCI、后端、翻译和 Rill glue 已全部位于一个文件内。为避免重复拥有相同路径，它与四个拆分包（含自动生成的翻译包）互斥；已有拆分版设备应先备份 `/etc/config/performance-manager`，再在维护窗口切换包形态。
 
 ### 包信息
 
 | 项目 | 值 |
 |---|---|
-| 包名 | `luci-app-performance-manager`（Core：`performance-manager`） |
+| 推荐包名 | `luci-app-performance-manager-all`（单 APK） |
 | 目标 | OpenWrt 25.12.x / x86_64 |
-| 当前源码候选 | `1.0.0-rc.9` |
+| 当前源码候选 | `1.0.0-rc.10` |
 | 服务脚本 | `/etc/init.d/performance-manager` |
 | UCI 配置 | `/etc/config/performance-manager` |
 | 核心程序 | `/usr/sbin/performance-manager.uc` |
@@ -160,6 +172,8 @@ package/luci-app-performance-manager/
 ├── htdocs/luci-static/resources/view/performance-manager/  # 8 个视图
 ├── po/zh_Hans/                        # 简体中文翻译
 └── root/usr/share/luci/menu.d/        # LuCI 菜单注册
+
+package/luci-app-performance-manager-all/Makefile  # 将上述自有运行内容及编译后的 zh-cn LMO 汇入单一 APK
 ```
 
 ## 架构设计
@@ -243,7 +257,7 @@ package/luci-app-performance-manager/
 - **openwrt-ucode**：官方 OpenWrt 25.12.5 rootfs 中编译校验 Core ucode
 
 **`build-openwrt.yml`（远程官方 SDK 构建）**
-- **openwrt-sdk-build**：官方 SDK 构建本仓库拥有的三个包（Core / LuCI / integration glue），并产出 `build-metadata.json`、`checksums.txt` 与审计证据 artifact
+- **openwrt-sdk-build**：官方 SDK 构建三个拆分包及一体化 APK，并产出 `build-metadata.json`、`checksums.txt` 与审计证据 artifact
 
 > 本仓库不再有 `rill-native` / Rill SDK build job：不安装 Rust 工具链编译 Rill。Rill 的 native 构建与测试由 Rill 上游仓库的 Actions 负责。
 
@@ -258,7 +272,7 @@ make package        # 生成发布包
 - 资源 / 写入 soak：`scripts/openwrt-resource-soak.sh`
 - 外部验证证据：`docs/EXTERNAL_VALIDATION.md`
 
-> `1.0.0-rc.9` 只代表待验证源码候选。它新增 exact decision 单 owner、跨 Core/路由器重启的持久 Outcome、细粒度 transport 不确定性、独立重试调度，以及 gate-specific Stable 证据和安装产物哈希链。只有同提交的官方 SDK/APK、精确 Rill、Generic/Hyper-V/KVM、真实 A/B、sysupgrade、生命周期及 24 小时 Rill-present soak 全部由 Stable 聚合器判为 PASS，才允许发布 `v1.0.0`。
+> `1.0.0-rc.10` 只代表待验证源码候选，并新增经逐文件验证的一体化 APK。只有同提交的官方 SDK/APK、精确 Rill、Generic/Hyper-V/KVM、真实 A/B、sysupgrade、生命周期及 24 小时 Rill-present soak 全部由 Stable 聚合器判为 PASS，才允许发布 `v1.0.0`。
 
 ## 文档
 

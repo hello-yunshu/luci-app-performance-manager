@@ -1,4 +1,5 @@
 import json
+import re
 import unittest
 from pathlib import Path
 import jsonschema
@@ -62,8 +63,24 @@ class ResourceBudgetTests(unittest.TestCase):
 
 
 class ContractTests(unittest.TestCase):
+    def test_github_actions_follow_current_stable_major_tags(self):
+        expected = {
+            "actions/checkout": "v7",
+            "actions/setup-python": "v7",
+            "actions/cache": "v6",
+            "actions/upload-artifact": "v7",
+            "actions/download-artifact": "v8",
+        }
+        found = set()
+        for workflow in (ROOT / ".github/workflows").glob("*.yml"):
+            for action, ref in re.findall(r"uses:\s*(actions/[\w-]+)@([^\s]+)", workflow.read_text()):
+                found.add(action)
+                self.assertEqual(ref, expected[action], f"{workflow.name}: {action}")
+                self.assertNotRegex(ref, r"^[0-9a-f]{40}$")
+        self.assertEqual(found, set(expected))
+
     def test_openwrt_download_caches_remain_digest_bound_and_fail_closed(self):
-        cache_action = "actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae"
+        cache_action = "actions/cache@v6"
         ci = (ROOT / ".github/workflows/ci.yml").read_text()
         build = (ROOT / ".github/workflows/build-openwrt.yml").read_text()
 

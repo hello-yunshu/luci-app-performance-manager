@@ -3192,16 +3192,27 @@ function package_installed(name) {
 	return false;
 }
 
+function profile_package_installed(name) {
+	/* The all-in-one APK physically owns the Core, LuCI and Rill-glue payloads
+	 * but deliberately does not use APK PROVIDES aliases for the split package
+	 * names.  Treat it as an exact, bounded equivalent only while evaluating
+	 * Performance Manager's own profile requirements. */
+	if (package_installed(name)) return true;
+	if (index([ 'performance-manager', 'luci-app-performance-manager', 'performance-manager-rill' ], name) < 0)
+		return false;
+	return package_installed('luci-app-performance-manager-all');
+}
+
 function profile_status() {
 	let id=cfg('main.profile','recommended'), merged=merge_profile(id,{});
 	if (!merged.ok) return {id:id,healthy:false,errors:[merged.error]};
 	let p=merged.profile, caps=capabilities(), cmap={}, missing_required=[], missing_recommended=[], missing_conditional=[], missing_commands=[], missing_caps=[];
 	for (let c in caps.capabilities ?? []) cmap[c.id]=c;
-	for (let x in p.requiredPackages ?? []) if (!package_installed(x)) push(missing_required,x);
-	for (let x in p.recommendedPackages ?? []) if (!package_installed(x)) push(missing_recommended,x);
+	for (let x in p.requiredPackages ?? []) if (!profile_package_installed(x)) push(missing_required,x);
+	for (let x in p.recommendedPackages ?? []) if (!profile_package_installed(x)) push(missing_recommended,x);
 	for (let x in p.expectedCommands ?? []) if (!command_exists(x)) push(missing_commands,x);
 	for (let x in p.expectedCapabilities ?? []) if ((cmap[x]?.availability ?? 'unavailable') != 'available') push(missing_caps,x);
-	for (let item in p.conditionalPackages ?? []) if ((cmap[item.whenCapability]?.availability ?? 'unavailable') == 'available' && !package_installed(item.name)) push(missing_conditional,item.name);
+	for (let item in p.conditionalPackages ?? []) if ((cmap[item.whenCapability]?.availability ?? 'unavailable') == 'available' && !profile_package_installed(item.name)) push(missing_conditional,item.name);
 	let arch=trimstr(run(['uname','-m']).out), target_ok=index(p.targets ?? ['*'],'*') >= 0 || index(p.targets ?? [],arch) >= 0;
 	let healthy=target_ok && !length(missing_required) && !length(missing_commands) && !length(missing_caps) && !length(missing_conditional);
 	return {id:id,chain:p.chain,healthy:healthy,degraded:healthy && length(missing_recommended)>0,targetMatched:target_ok,architecture:arch,missingRequiredPackages:missing_required,missingRecommendedPackages:missing_recommended,missingConditionalPackages:missing_conditional,missingCommands:missing_commands,missingCapabilities:missing_caps,requiredPackages:p.requiredPackages,recommendedPackages:p.recommendedPackages,conditionalPackages:p.conditionalPackages,expectedCommands:p.expectedCommands,expectedCapabilities:p.expectedCapabilities,targets:p.targets};

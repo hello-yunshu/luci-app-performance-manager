@@ -178,7 +178,12 @@ def main(argv):
             return _core_job.get('verdict')
         return _rt.get('pmCoreRoundtripVerdict')
 
-    packages = ['performance-manager', 'luci-app-performance-manager', 'performance-manager-rill']
+    packages = [
+        'performance-manager',
+        'luci-app-performance-manager',
+        'performance-manager-rill',
+        'luci-app-performance-manager-all',
+    ]
     package_shas = {}
     for name in packages:
         mk = ROOT / 'package' / name / 'Makefile'
@@ -282,13 +287,13 @@ def main(argv):
                 entry['pkgver'] = rec['pkgver']
             if rec.get('arch'):
                 entry['arch'] = rec['arch']
-            if name == 'performance-manager' and 'core' in rec:
+            if name in ('performance-manager', 'luci-app-performance-manager-all') and 'core' in rec:
                 entry['core'] = rec['core']
-            if name == 'performance-manager' and 'installedPayload' in rec:
+            if name in ('performance-manager', 'luci-app-performance-manager-all') and 'installedPayload' in rec:
                 entry['installedPayload'] = {
                     path: payload.get('apkSha256')
                     for path, payload in rec['installedPayload'].items()
-                    if payload.get('status') == 'match'
+                    if payload.get('status') in ('match', 'compiled')
                 }
         packages_meta[name] = entry
 
