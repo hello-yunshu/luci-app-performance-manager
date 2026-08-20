@@ -105,17 +105,38 @@ jobs:
         with:
           name: rill-provenance
           path: rill-evidence
-      - name: Set up official OpenWrt rootfs (musl x86_64)
+      - name: Resolve official OpenWrt rootfs identity
+        id: openwrt-rootfs
         shell: bash
         run: |
           set -euo pipefail
           base="https://downloads.openwrt.org/releases/${OPENWRT_VERSION}/targets/${OPENWRT_TARGET}"
           rootfs="openwrt-${OPENWRT_VERSION}-x86-64-rootfs.tar.gz"
-          curl -fsSLO "$base/sha256sums"
-          curl -fsSLO "$base/$rootfs"
-          grep -e "\\*$rootfs$" sha256sums | sha256sum -c -
+          curl -fsSL "$base/sha256sums" -o "$RUNNER_TEMP/openwrt-sha256sums"
+          rootfs_sha=$(awk -v f="*$rootfs" '$2 == f {print $1}' "$RUNNER_TEMP/openwrt-sha256sums")
+          [[ "$rootfs_sha" =~ ^[0-9a-f]{64}$ ]]
+          echo "filename=$rootfs" >> "$GITHUB_OUTPUT"
+          echo "sha256=$rootfs_sha" >> "$GITHUB_OUTPUT"
+          echo "OPENWRT_ROOTFS=$rootfs" >> "$GITHUB_ENV"
+          echo "OPENWRT_ROOTFS_SHA256=$rootfs_sha" >> "$GITHUB_ENV"
+      - name: Restore verified OpenWrt rootfs archive
+        uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684
+        with:
+          path: .cache/openwrt/${{ steps.openwrt-rootfs.outputs.filename }}
+          key: openwrt-rootfs-${{ runner.os }}-${{ runner.arch }}-${{ env.OPENWRT_VERSION }}-${{ steps.openwrt-rootfs.outputs.sha256 }}
+      - name: Set up official OpenWrt rootfs (musl x86_64)
+        shell: bash
+        run: |
+          set -euo pipefail
+          base="https://downloads.openwrt.org/releases/${OPENWRT_VERSION}/targets/${OPENWRT_TARGET}"
+          archive=".cache/openwrt/$OPENWRT_ROOTFS"
+          mkdir -p "$(dirname "$archive")"
+          if [ ! -f "$archive" ]; then
+            curl -fsSL "$base/$OPENWRT_ROOTFS" -o "$archive"
+          fi
+          printf '%s *%s\n' "$OPENWRT_ROOTFS_SHA256" "$archive" | sha256sum -c -
           mkdir rootfs
-          sudo tar -xzf "$rootfs" -C rootfs
+          sudo tar -xzf "$archive" -C rootfs
           sudo rm -f rootfs/etc/resolv.conf
           sudo cp /etc/resolv.conf rootfs/etc/resolv.conf
       - name: Install schema validator for the protocol client
@@ -169,17 +190,38 @@ jobs:
         with:
           name: rill-provenance
           path: rill-evidence
-      - name: Set up official OpenWrt rootfs with ubus + ucode (x86_64)
+      - name: Resolve official OpenWrt rootfs identity
+        id: openwrt-rootfs
         shell: bash
         run: |
           set -euo pipefail
           base="https://downloads.openwrt.org/releases/${OPENWRT_VERSION}/targets/${OPENWRT_TARGET}"
           rootfs="openwrt-${OPENWRT_VERSION}-x86-64-rootfs.tar.gz"
-          curl -fsSLO "$base/sha256sums"
-          curl -fsSLO "$base/$rootfs"
-          grep -e "\\*$rootfs$" sha256sums | sha256sum -c -
+          curl -fsSL "$base/sha256sums" -o "$RUNNER_TEMP/openwrt-sha256sums"
+          rootfs_sha=$(awk -v f="*$rootfs" '$2 == f {print $1}' "$RUNNER_TEMP/openwrt-sha256sums")
+          [[ "$rootfs_sha" =~ ^[0-9a-f]{64}$ ]]
+          echo "filename=$rootfs" >> "$GITHUB_OUTPUT"
+          echo "sha256=$rootfs_sha" >> "$GITHUB_OUTPUT"
+          echo "OPENWRT_ROOTFS=$rootfs" >> "$GITHUB_ENV"
+          echo "OPENWRT_ROOTFS_SHA256=$rootfs_sha" >> "$GITHUB_ENV"
+      - name: Restore verified OpenWrt rootfs archive
+        uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684
+        with:
+          path: .cache/openwrt/${{ steps.openwrt-rootfs.outputs.filename }}
+          key: openwrt-rootfs-${{ runner.os }}-${{ runner.arch }}-${{ env.OPENWRT_VERSION }}-${{ steps.openwrt-rootfs.outputs.sha256 }}
+      - name: Set up official OpenWrt rootfs with ubus + ucode (x86_64)
+        shell: bash
+        run: |
+          set -euo pipefail
+          base="https://downloads.openwrt.org/releases/${OPENWRT_VERSION}/targets/${OPENWRT_TARGET}"
+          archive=".cache/openwrt/$OPENWRT_ROOTFS"
+          mkdir -p "$(dirname "$archive")"
+          if [ ! -f "$archive" ]; then
+            curl -fsSL "$base/$OPENWRT_ROOTFS" -o "$archive"
+          fi
+          printf '%s *%s\n' "$OPENWRT_ROOTFS_SHA256" "$archive" | sha256sum -c -
           mkdir rootfs
-          sudo tar -xzf "$rootfs" -C rootfs
+          sudo tar -xzf "$archive" -C rootfs
           sudo rm -f rootfs/etc/resolv.conf
           sudo cp /etc/resolv.conf rootfs/etc/resolv.conf
           sudo chroot rootfs /bin/sh -c 'apk update --no-check-certificate && apk add --no-check-certificate ucode ucode-mod-fs ucode-mod-ubus ucode-mod-uci ucode-mod-rtnl ucode-mod-uloop ucode-mod-socket ucode-mod-log' || \
@@ -217,17 +259,38 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
-      - name: Download official OpenWrt rootfs and verify checksum
+      - name: Resolve official OpenWrt rootfs identity
+        id: openwrt-rootfs
         shell: bash
         run: |
           set -euo pipefail
           base="https://downloads.openwrt.org/releases/${OPENWRT_VERSION}/targets/${OPENWRT_TARGET}"
           rootfs="openwrt-${OPENWRT_VERSION}-x86-64-rootfs.tar.gz"
-          curl -fsSLO "$base/sha256sums"
-          curl -fsSLO "$base/$rootfs"
-          grep -e "\\*$rootfs$" sha256sums | sha256sum -c -
+          curl -fsSL "$base/sha256sums" -o "$RUNNER_TEMP/openwrt-sha256sums"
+          rootfs_sha=$(awk -v f="*$rootfs" '$2 == f {print $1}' "$RUNNER_TEMP/openwrt-sha256sums")
+          [[ "$rootfs_sha" =~ ^[0-9a-f]{64}$ ]]
+          echo "filename=$rootfs" >> "$GITHUB_OUTPUT"
+          echo "sha256=$rootfs_sha" >> "$GITHUB_OUTPUT"
+          echo "OPENWRT_ROOTFS=$rootfs" >> "$GITHUB_ENV"
+          echo "OPENWRT_ROOTFS_SHA256=$rootfs_sha" >> "$GITHUB_ENV"
+      - name: Restore verified OpenWrt rootfs archive
+        uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684
+        with:
+          path: .cache/openwrt/${{ steps.openwrt-rootfs.outputs.filename }}
+          key: openwrt-rootfs-${{ runner.os }}-${{ runner.arch }}-${{ env.OPENWRT_VERSION }}-${{ steps.openwrt-rootfs.outputs.sha256 }}
+      - name: Set up verified OpenWrt rootfs
+        shell: bash
+        run: |
+          set -euo pipefail
+          base="https://downloads.openwrt.org/releases/${OPENWRT_VERSION}/targets/${OPENWRT_TARGET}"
+          archive=".cache/openwrt/$OPENWRT_ROOTFS"
+          mkdir -p "$(dirname "$archive")"
+          if [ ! -f "$archive" ]; then
+            curl -fsSL "$base/$OPENWRT_ROOTFS" -o "$archive"
+          fi
+          printf '%s *%s\n' "$OPENWRT_ROOTFS_SHA256" "$archive" | sha256sum -c -
           mkdir rootfs
-          sudo tar -xzf "$rootfs" -C rootfs
+          sudo tar -xzf "$archive" -C rootfs
           # /etc/resolv.conf in the rootfs is a dangling symlink to /tmp/resolv.conf;
           # drop it first so copying in the host resolv.conf succeeds.
           sudo rm -f rootfs/etc/resolv.conf
