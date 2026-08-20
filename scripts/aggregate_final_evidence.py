@@ -129,6 +129,14 @@ def main(argv=None) -> int:
     # ------------------------------------------------------------------
     chain_commits = {}
     for name, data in files.items():
+        # The mock wire harness is deliberately supplementary: it is useful
+        # diagnostic context, but it is neither a release-critical gate nor
+        # part of the same-commit proof chain.  In particular, a checked-in
+        # historical wire snapshot must never invalidate fresh real runtime
+        # and SDK evidence.  The consumed manifest, when present, remains in
+        # the chain because it identifies the exact Rill artifact consumed.
+        if name == "rill-wire-harness.json":
+            continue
         c = commit_of(name, data)
         if c:
             chain_commits[name] = c

@@ -133,6 +133,24 @@ class EvidenceAggregationTest(unittest.TestCase):
         self.assertEqual(r["verdicts"]["rillRuntimeCompatibilityVerdict"], agg.OUT_OF_SCOPE)
         self.assertEqual(r["verdicts"]["rillFunctionalIntegrationVerdict"], agg.OUT_OF_SCOPE)
 
+    def test_supplementary_wire_snapshot_is_not_in_same_commit_chain(self):
+        """A historical mock-wire snapshot is transparency-only.  Fresh real
+        SDK evidence must not fail merely because that optional file is from a
+        different commit."""
+        files = {
+            "build-metadata.json": _build_meta(),
+            "apk-verification.json": _apk(),
+            "rill-wire-harness.json": {
+                "pmCommitSha": "historical-snapshot",
+                "runtime": {"wireHarnessVerdict": "PASS"},
+            },
+        }
+        code, r = self.run_agg("build", files, expected_commit=COMMIT)
+        self.assertEqual(code, 0)
+        self.assertEqual(r["evidenceChainVerdict"], "PASS")
+        self.assertNotIn("rill-wire-harness.json", r["evidenceCommits"])
+        self.assertEqual(r["verdicts"]["wireHarnessVerdict"], "PASS")
+
     def test_commit_mismatch_fails_chain(self):
         """A single evidence file produced at a different commit must FAIL the
         whole release — its verdicts cannot be attributed to this commit."""
