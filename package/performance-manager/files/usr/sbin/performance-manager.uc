@@ -3545,23 +3545,26 @@ let obj = conn.publish(UBUS_NAME, {
 	recommendations: { call: function(req, msg) { reply(req, recommendations()); } },
 	transactions: { call: function(req, msg) { reply(req, { transactions: transaction_list() }); } },
 	locks: { call: function(req, msg) { reply(req, { locks: lock_list() }); } },
-	history: { call: function(req, msg) { let limit = min(MAX_HISTORY_LINES, max(1, +(msg?.limit ?? 100))); reply(req, { history: read_lines(`${persist_dir()}/history.jsonl`, limit), runtimeHistory: read_lines(`${state_dir()}/history.jsonl`, limit) }); } },
-	apply: { call: function(req, msg) { reply(req, apply_action(msg ?? {})); } },
-	confirm: { call: function(req, msg) { reply(req, confirm_transaction(msg?.transactionId)); } },
-	rollback: { call: function(req, msg) { reply(req, rollback_transaction(msg?.transactionId, 'manual')); } },
-	benchmark_start: { call: function(req, msg) { reply(req, benchmark_start(msg ?? {})); } },
-	benchmark_status: { call: function(req, msg) {
+	/* Current ucode exposes validated method payloads as req.args (the handler
+	 * receives one request resource), not as a second callback argument. */
+	history: { args: { limit: 0 }, call: function(req) { let msg=req.args ?? {}, limit = min(MAX_HISTORY_LINES, max(1, +(msg?.limit ?? 100))); reply(req, { history: read_lines(`${persist_dir()}/history.jsonl`, limit), runtimeHistory: read_lines(`${state_dir()}/history.jsonl`, limit) }); } },
+	apply: { args: { actionId: 'string', target: 'string', executionSource: 'string', decisionId: 'string' }, call: function(req) { reply(req, apply_action(req.args ?? {})); } },
+	confirm: { args: { transactionId: 'string' }, call: function(req) { reply(req, confirm_transaction(req.args?.transactionId)); } },
+	rollback: { args: { transactionId: 'string' }, call: function(req) { reply(req, rollback_transaction(req.args?.transactionId, 'manual')); } },
+	benchmark_start: { args: { phase: 'string', actionId: 'string', pathId: 'string', measurementClass: 'string', executionSource: 'string', decisionId: 'string', sessionId: 'string', evidence: {}, target: 'string' }, call: function(req) { reply(req, benchmark_start(req.args ?? {})); } },
+	benchmark_status: { call: function(req) {
+		let msg=req.args ?? {};
 		if (msg?.sessionId) {
 			let s = json_read(benchmark_path(msg.sessionId), null);
 			reply(req, s ? { found: true, session: s } : { found: false });
 		} else reply(req, { found: length(benchmark_list()) > 0, sessions: benchmark_list() });
-	} },
-	benchmark_stop: { call: function(req, msg) { reply(req, benchmark_stop(msg?.sessionId)); } },
+	}, args: { sessionId: 'string' } },
+	benchmark_stop: { args: { sessionId: 'string' }, call: function(req) { reply(req, benchmark_stop(req.args?.sessionId)); } },
 	rill_status: { call: function(req, msg) { reply(req, rill_status()); } },
 	rill_refresh: { call: function(req, msg) { reply(req, rill_refresh_advisory()); } },
 	diagnostics: { call: function(req, msg) { reply(req, diagnostics()); } },
-	cleanup: { call: function(req, msg) { reply(req, cleanup_owned(msg?.reason ?? 'package-remove')); } },
-	refresh: { call: function(req, msg) { reply(req, refresh(msg?.reason ?? 'manual')); } }
+	cleanup: { args: { reason: 'string' }, call: function(req) { reply(req, cleanup_owned(req.args?.reason ?? 'package-remove')); } },
+	refresh: { args: { reason: 'string' }, call: function(req) { reply(req, refresh(req.args?.reason ?? 'manual')); } }
 });
 
 if (!obj) {

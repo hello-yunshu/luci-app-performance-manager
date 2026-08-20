@@ -276,6 +276,20 @@ class RillStableLifecycleTests(unittest.TestCase):
         self.assertIn("sprintf('%J\\n', obj)", append)
         self.assertIn("sprintf('%J\\n', row)", compact)
 
+    def test_payload_ubus_methods_publish_explicit_argument_policies(self):
+        self.assertIn("history: { args: { limit: 0 }", CORE)
+        self.assertIn("apply: { args: { actionId: 'string', target: 'string'", CORE)
+        self.assertIn("confirm: { args: { transactionId: 'string' }", CORE)
+        self.assertIn("rollback: { args: { transactionId: 'string' }", CORE)
+        self.assertIn("benchmark_start: { args: { phase: 'string', actionId: 'string'", CORE)
+        self.assertIn("sessionId: 'string', evidence: {}", CORE)
+        self.assertIn("args: { sessionId: 'string' }", CORE)
+        self.assertIn("cleanup: { args: { reason: 'string' }", CORE)
+        self.assertIn("refresh: { args: { reason: 'string' }", CORE)
+        self.assertIn("apply_action(req.args ?? {})", CORE)
+        self.assertIn("benchmark_start(req.args ?? {})", CORE)
+        self.assertIn("let msg=req.args ?? {};", CORE)
+
     def test_raw_ucode_protocol_validators_precede_runtime_callers(self):
         """The raw daemon and untransformed harness both require ucode
         callees to be defined before the functions that reference them."""
