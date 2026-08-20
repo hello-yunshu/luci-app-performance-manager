@@ -262,6 +262,11 @@ class RillStableLifecycleTests(unittest.TestCase):
         self.assertTrue(transport_stage(connected=True, bytes_sent=10, request_bytes=10,
                                         response_received=False)["mayHaveReachedPeer"])
 
+    def test_real_ucode_response_frame_uses_string_substr(self):
+        body = function_body("rill_recv_frame")
+        self.assertIn("substr(buf, 0, index(buf, '\\n'))", body)
+        self.assertNotIn("slice(buf, 0, index(buf, '\\n'))", body)
+
     def test_duplicate_reconciliation_requires_exact_owner_and_fingerprint(self):
         self.assertEqual(reconcile_duplicate(code="duplicateFeedback", persisted_fingerprint="fp",
                                              current_fingerprint="fp", may_have_reached_peer=True,

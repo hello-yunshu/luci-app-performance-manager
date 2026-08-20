@@ -1711,7 +1711,9 @@ function rill_recv_frame(s, maxMsg, timeout) {
 	if (timed_out) return { state: 'timeout-or-peer-error' };
 	/* Frame never terminated within the per-message bound. */
 	if (index(buf, '\n') < 0) return { state: length(buf) >= maxMsg ? 'oversized-response' : 'truncated-frame' };
-	let body = trimstr(slice(buf, 0, index(buf, '\n')));
+	/* ucode's global slice() is array-only and returns null for strings.  Use
+	 * substr() so a valid adapter JSON line is not misclassified as empty. */
+	let body = trimstr(substr(buf, 0, index(buf, '\n')));
 	if (!length(body)) return { state: 'empty-response' };
 	return { body: body };
 }
