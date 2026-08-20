@@ -65,7 +65,9 @@ core_pkg=re.search(r'define Package/performance-manager\n(.*?)\nendef',make,re.S
 for forbidden in ['+rpcd','+luci-base','+performance-manager-rill']:
     if core_pkg and forbidden in core_pkg.group(1): fail(f'Core hard dependency forbidden: {forbidden}')
 required_ubus=['status','capabilities','topology','targets','paths','analyze','recommendations','transactions','locks','history','apply','confirm','rollback','benchmark_start','benchmark_status','benchmark_stop','rill_status','rill_refresh','diagnostics']
-assert 'cleanup: { call:' in core, 'root-only ownership cleanup method missing'
+assert "cleanup: { args: { reason: 'string' }, call:" in core \
+       and "cleanup_owned(req.args?.reason ?? 'package-remove')" in core, \
+       'root-only ownership cleanup method/payload policy missing'
 publish=core[core.find('conn.publish(UBUS_NAME'):]
 for method in required_ubus:
     if not re.search(rf'\b{re.escape(method)}\s*:',publish): fail(f'ubus method missing: {method}')

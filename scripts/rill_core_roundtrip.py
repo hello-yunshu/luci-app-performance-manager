@@ -223,6 +223,7 @@ def main() -> int:
         time.sleep(2.0)
         published = wait_for_core(rootfs, daemon)
         ev['published'] = published
+        ev['daemonStarted'] = daemon.poll() is None
         if not published:
             log('FATAL: performance-manager never published'); ev['verdict'] = 'FAIL'; return 1
         log('performance-manager published')
@@ -239,14 +240,18 @@ def main() -> int:
         pass_ = (ok and state in ('available', 'learning') and release == '1.2.0'
                  and adapter_ver == '0.15.0' and proto == 1
                  and binary_effective == '/usr/bin/rill-pm-adapter')
-        ev['verdict'] = 'PASS' if pass_ else 'FAIL'
+        status_verdict = 'PASS' if pass_ else 'FAIL'
+        # Status compatibility is one sub-gate, not the lifecycle verdict.
+        # Keep the overall evidence BLOCKED until Observe -> exact execution ->
+        # rollback -> Outcome has completed; never emit PASS with ok=false.
+        ev['verdict'] = 'BLOCKED' if pass_ else 'FAIL'
         ev['checks'] = {
             'runrc': 0, 'state': state, 'releaseVersion': release,
             'adapterVersion': adapter_ver, 'protocolVersion': proto,
-            'binaryEffective': binary_effective,
+            'binaryEffective': binary_effective, 'statusVerdict': status_verdict,
         }
         log('rill_status -> rc=%s state=%s release=%s adapter=%s proto=%s binary=%s => %s' % (
-            0, state, release, adapter_ver, proto, binary_effective, ev['verdict']))
+            0, state, release, adapter_ver, proto, binary_effective, status_verdict))
         if not pass_:
             log('  sample=%s' % payload[:600])
             return 1
