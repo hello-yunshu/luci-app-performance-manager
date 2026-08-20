@@ -350,11 +350,25 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p docs
-          cp evidence/docs/rill-provenance.json docs/ 2>/dev/null || true
-          cp evidence/docs/rill-runtime.json docs/ 2>/dev/null || true
-          cp evidence/docs/rill-core-integration.json docs/ 2>/dev/null || true
-          cp evidence/docs/rill-wire-harness.json docs/ 2>/dev/null || true
-          cp evidence/rill-consumed-manifest.json docs/ 2>/dev/null || true
+          copy_unique_evidence() {
+            local name="$1"
+            local required="$2"
+            local -a matches=()
+            mapfile -t matches < <(find evidence -type f -name "$name" -print)
+            if [ "${#matches[@]}" -eq 1 ]; then
+              cp "${matches[0]}" "docs/$name"
+              return 0
+            fi
+            if [ "$required" = required ] || [ "${#matches[@]}" -gt 1 ]; then
+              echo "Expected exactly one $name, found ${#matches[@]}" >&2
+              return 1
+            fi
+          }
+          copy_unique_evidence rill-provenance.json required
+          copy_unique_evidence rill-runtime.json required
+          copy_unique_evidence rill-core-integration.json required
+          copy_unique_evidence rill-wire-harness.json optional
+          copy_unique_evidence rill-consumed-manifest.json required
           python3 scripts/aggregate_final_evidence.py \
             --evidence-dir docs --scope rill \
             --expected-commit "$GITHUB_SHA" \
