@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://hello-yunshu.github.io/luci-app-performance-manager/evidence/common.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "gate", "pmCommitSha", "buildRunId", "verdict", "passed", "controller", "artifacts", "subchecks"],
+  "properties": {
+    "schemaVersion": {"const": 1},
+    "gate": {"type": "string"},
+    "pmCommitSha": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+    "buildRunId": {"type": ["string", "integer"]},
+    "verdict": {"enum": ["PASS", "FAIL", "BLOCKED"]},
+    "passed": {"type": "boolean"},
+    "adapterSha256": {"type": ["string", "null"], "pattern": "^[0-9a-f]{64}$"},
+    "durationSeconds": {"type": "integer", "minimum": 0},
+    "controller": {
+      "type": "object", "additionalProperties": false,
+      "required": ["source", "path", "sha256"],
+      "properties": {"source": {"const": "repository"}, "path": {"type": "string", "pattern": "^tools/stable-testbed/"}, "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}}
+    },
+    "artifacts": {"type": "object", "required": ["performance-manager", "luci-app-performance-manager", "performance-manager-rill"]},
+    "subchecks": {"type": "object", "additionalProperties": {"type": "boolean"}},
+    "environment": {"type": "object"},
+    "benchmark": {"type": "object"},
+    "upgrade": {"type": "object"},
+    "soak": {"type": "object"},
+    "validationErrors": {"type": "array", "items": {"type": "string"}}
+  }
+}

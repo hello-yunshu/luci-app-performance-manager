@@ -11,6 +11,79 @@ from typing import Any
 ACTIVE_TX = {"pending", "applied", "verified", "awaiting_confirm"}
 
 
+def reserve_rill_decision(bindings: dict[str, dict[str, Any]], journals: dict[str, dict[str, Any]],
+                          *, decision_id: str, action_id: str, authority: str,
+                          owner_type: str, owner_id: str) -> tuple[bool, str]:
+    """Executable reference for the Core's single-owner reservation CAS."""
+    binding = bindings.get(decision_id)
+    if not binding or journals.get(decision_id):
+        return False, "rill-decision-already-reserved"
+    if binding.get("actionId") != action_id or binding.get("executionAuthority") != authority:
+        return False, "rill-decision-binding-invalid"
+    if owner_type not in {"transaction", "benchmark"} or not owner_id:
+        return False, "rill-owner-invalid"
+    journals[decision_id] = {
+        "decisionId": decision_id, "actionId": action_id, "executionAuthority": authority,
+        "ownerType": owner_type, "ownerId": owner_id, "executionState": "reserved",
+        "mutationStarted": False, "mayHaveReachedPeer": False,
+    }
+    del bindings[decision_id]
+    return True, "reserved"
+
+
+def release_rill_reservation(bindings: dict[str, dict[str, Any]], journals: dict[str, dict[str, Any]],
+                             frozen: dict[str, Any]) -> bool:
+    journal = journals.get(frozen.get("decisionId"))
+    if not journal or journal.get("mutationStarted") is True:
+        return False
+    if (journal.get("ownerType"), journal.get("ownerId")) != (frozen.get("ownerType"), frozen.get("ownerId")):
+        return False
+    del journals[frozen["decisionId"]]
+    bindings[frozen["decisionId"]] = dict(frozen)
+    return True
+
+
+def transport_stage(*, connected: bool, bytes_sent: int, request_bytes: int,
+                    response_received: bool, response_valid: bool = False) -> dict[str, Any]:
+    fully_sent = connected and request_bytes > 0 and bytes_sent == request_bytes
+    if not connected:
+        state = "connect-failed"
+    elif not fully_sent:
+        state = "send-failed"
+    elif not response_received:
+        state = "response-lost-after-send"
+    elif not response_valid:
+        state = "bad-response-after-send"
+    else:
+        state = "response-received"
+    return {"state": state, "connected": connected, "fullySent": fully_sent,
+            "responseReceived": response_received, "mayHaveReachedPeer": fully_sent}
+
+
+def recover_rill_execution(journal: dict[str, Any], *, current_boot: str,
+                           owner_state: str | None = None) -> str:
+    state = journal.get("executionState")
+    if state in {"outcome-pending", "sent-unknown"}:
+        return "retry-with-immutable-outcome"
+    if state == "outcome-prepared":
+        if owner_state == journal.get("expectedOwnerState"):
+            return "arm-and-retry-with-immutable-outcome"
+        if journal.get("createdBootId") != current_boot:
+            return "retire-prepared-owner-not-terminal"
+        return "leave-prepared"
+    if state in {"reserved", "executing"} and journal.get("createdBootId") != current_boot:
+        return "retire-no-auto-actuation"
+    return "leave"
+
+
+def reconcile_duplicate(*, code: str, persisted_fingerprint: str, current_fingerprint: str,
+                        may_have_reached_peer: bool, persisted_owner: str, current_owner: str) -> str:
+    if (code == "duplicateFeedback" and may_have_reached_peer
+            and persisted_fingerprint == current_fingerprint and persisted_owner == current_owner):
+        return "RECONCILED"
+    return "TERMINAL_FAIL_CLOSED"
+
+
 def recovery_decision(tx: dict[str, Any], current_boot: str, now_ms: int) -> str:
     if tx.get("state") not in ACTIVE_TX:
         return "ignore"

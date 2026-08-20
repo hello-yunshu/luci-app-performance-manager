@@ -37,6 +37,8 @@ EXPECTED = ['performance-manager', 'luci-app-performance-manager', 'performance-
 # repo source the runtime harness / startup smoke run verbatim.
 CORE_PATH = '/usr/sbin/performance-manager.uc'
 CORE_SRC = ROOT / 'package/performance-manager/files/usr/sbin/performance-manager.uc'
+CONTRACTS_PATH = '/usr/share/performance-manager/contracts.uc'
+CONTRACTS_SRC = ROOT / 'package/performance-manager/files/usr/share/performance-manager/contracts.uc'
 
 
 def _pm_commit():
@@ -449,30 +451,30 @@ def main(argv):
         # from the APK's ADB data blocks and compare its SHA256 against the repo
         # file that the runtime harness and startup smoke execute verbatim.
         if name == 'performance-manager':
-            core_rec = {'path': CORE_PATH}
-            apk_core = apk_file_content(apk, CORE_PATH)
-            src_sha = sha256(CORE_SRC) if CORE_SRC.is_file() else None
-            if apk_core is None:
-                core_rec['status'] = 'missing'
-                failures.append(f'{name}: {CORE_PATH} not found inside APK')
-            elif not src_sha:
-                core_rec['status'] = 'no-source'
-                core_rec['size'] = len(apk_core)
-                core_rec['apkSha256'] = hashlib.sha256(apk_core).hexdigest()
-                failures.append(f'{name}: cannot compare Core (repo source {CORE_SRC.name} missing)')
-            else:
-                apk_sha = hashlib.sha256(apk_core).hexdigest()
-                core_rec.update({
-                    'status': 'match' if apk_sha == src_sha else 'mismatch',
-                    'size': len(apk_core),
-                    'apkSha256': apk_sha,
-                    'sourceSha256': src_sha,
-                })
-                if apk_sha != src_sha:
-                    failures.append(f'{name}: APK {CORE_PATH} sha256 != shipped source ({apk_sha} vs {src_sha})')
-            report['packages'][name]['core'] = core_rec
-            print(f"CORE {name}: {CORE_PATH} {core_rec.get('status')} "
-                  f"apk={core_rec.get('apkSha256', '-')} src={core_rec.get('sourceSha256', '-')}")
+            installed_payload = {}
+            for payload_path, source_path in ((CORE_PATH, CORE_SRC), (CONTRACTS_PATH, CONTRACTS_SRC)):
+                payload_rec = {'path': payload_path}
+                apk_payload = apk_file_content(apk, payload_path)
+                src_sha = sha256(source_path) if source_path.is_file() else None
+                if apk_payload is None:
+                    payload_rec['status'] = 'missing'
+                    failures.append(f'{name}: {payload_path} not found inside APK')
+                elif not src_sha:
+                    payload_rec['status'] = 'no-source'
+                    payload_rec['size'] = len(apk_payload)
+                    payload_rec['apkSha256'] = hashlib.sha256(apk_payload).hexdigest()
+                    failures.append(f'{name}: cannot compare payload (repo source {source_path.name} missing)')
+                else:
+                    apk_sha = hashlib.sha256(apk_payload).hexdigest()
+                    payload_rec.update({'status': 'match' if apk_sha == src_sha else 'mismatch',
+                                        'size': len(apk_payload), 'apkSha256': apk_sha, 'sourceSha256': src_sha})
+                    if apk_sha != src_sha:
+                        failures.append(f'{name}: APK {payload_path} sha256 != shipped source ({apk_sha} vs {src_sha})')
+                installed_payload[payload_path] = payload_rec
+                print(f"PAYLOAD {name}: {payload_path} {payload_rec.get('status')} "
+                      f"apk={payload_rec.get('apkSha256', '-')} src={payload_rec.get('sourceSha256', '-')}")
+            report['packages'][name]['installedPayload'] = installed_payload
+            report['packages'][name]['core'] = installed_payload[CORE_PATH]
         print(f"OK {name}: {apk.name} pkgver={pkgver} arch={pkgarch} sha256={report['packages'][name]['sha256']}")
 
     # Reject any stray APK that is not one of the three expected packages but

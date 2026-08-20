@@ -2,9 +2,9 @@
   "schemaVersion": 2,
   "areas": {
     "core": {
-      "files": 39,
-      "sourceBytes": 222614,
-      "knownStaticPayloadBytes": 219492
+      "files": 40,
+      "sourceBytes": 241331,
+      "knownStaticPayloadBytes": 238209
     },
     "luci": {
       "files": 14,

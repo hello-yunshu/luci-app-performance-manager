@@ -37,10 +37,8 @@ jobs:
           set -euo pipefail
           test "$(git rev-parse HEAD)" = "${{ inputs.expected_sha }}"
           test "$(cat VERSION)" = '1.0.0'
-          test "$(gh run view '${{ inputs.aggregate_run_id }}' --json conclusion --jq .conclusion)" = success
-          test "$(gh run view '${{ inputs.aggregate_run_id }}' --json headSha --jq .headSha)" = "${{ inputs.expected_sha }}"
-          test "$(gh run view '${{ inputs.build_run_id }}' --json conclusion --jq .conclusion)" = success
-          test "$(gh run view '${{ inputs.build_run_id }}' --json headSha --jq .headSha)" = "${{ inputs.expected_sha }}"
+          python3 scripts/verify_action_run_identity.py --run-id '${{ inputs.aggregate_run_id }}' --expected-sha '${{ inputs.expected_sha }}' --expected-workflow 'Stable evidence aggregate'
+          python3 scripts/verify_action_run_identity.py --run-id '${{ inputs.build_run_id }}' --expected-sha '${{ inputs.expected_sha }}' --expected-workflow 'Build OpenWrt (remote SDK)'
       - name: Download exact build and final Stable evidence
         shell: bash
         env:

@@ -8,10 +8,20 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
 from aggregate_stable_evidence import PINNED_ADAPTER_SHA, REQUIRED, RILL_PRESENT  # noqa: E402
+from validate_external_evidence import GATE_CHECKS, validate_evidence  # noqa: E402
 
 
 class StableEvidenceAggregationTests(unittest.TestCase):
     commit = "a" * 40
+
+    def artifact(self, name):
+        rec = {"apkSha256": {"performance-manager": "1", "luci-app-performance-manager": "2",
+                             "performance-manager-rill": "3"}[name] * 64,
+               "version": "1.0.0_rc9-r1", "installedPayload": {}}
+        if name == "performance-manager":
+            rec["installedPayload"] = {"/usr/sbin/performance-manager.uc": "4" * 64,
+                                       "/usr/share/performance-manager/contracts.uc": "5" * 64}
+        return rec
 
     def evidence(self, name):
         data = {"pmCommitSha": self.commit, "verdict": "PASS", "passed": True}
@@ -25,6 +35,43 @@ class StableEvidenceAggregationTests(unittest.TestCase):
             data.pop("pmCommitSha")
             data["repositoryCommitSha"] = self.commit
             data["verdicts"] = {"pmPackagesBuildVerdict": "PASS"}
+            data["workflowRunId"] = "99"
+            data["packages"] = {pkg: {"apkSha256": self.artifact(pkg)["apkSha256"],
+                                      "pkgver": "1.0.0_rc9-r1",
+                                      "installedPayload": self.artifact(pkg)["installedPayload"]}
+                                for pkg in ("performance-manager", "luci-app-performance-manager", "performance-manager-rill")}
+        elif name == "apkVerification":
+            data["packages"] = {pkg: {"sha256": self.artifact(pkg)["apkSha256"]}
+                                for pkg in ("performance-manager", "luci-app-performance-manager", "performance-manager-rill")}
+        external = {
+            "targetCoreOnly": "target-core-only", "targetFull": "target-full", "targetMutation": "target-mutation",
+            "hyperV": "hyperv", "kvm": "kvm", "lanWanAb": "lan-wan-ab", "routerLocalAb": "router-local-ab",
+            "sysupgrade": "sysupgrade", "lifecycle": "lifecycle", "resourceSoak24h": "resource-soak",
+        }
+        if name in external:
+            gate = external[name]
+            data.update({"schemaVersion": 1, "gate": gate, "buildRunId": "99",
+                         "controller": {"source": "repository", "path": f"tools/stable-testbed/run-{gate}.sh", "sha256": "6" * 64},
+                         "subchecks": {check: True for check in GATE_CHECKS[gate]},
+                         "artifacts": {pkg: self.artifact(pkg) for pkg in ("performance-manager", "luci-app-performance-manager", "performance-manager-rill")}})
+            if gate == "target-core-only":
+                data["artifacts"]["luci-app-performance-manager"] = None
+                data["artifacts"]["performance-manager-rill"] = None
+            if gate == "hyperv":
+                data["environment"] = {"hypervisor": "Hyper-V", "nicDriver": "hv_netvsc", "vmbusId": "vmbus-1"}
+            if gate == "kvm":
+                data["environment"] = {"hypervisor": "KVM", "nicDriver": "virtio_net", "pciId": "0000:00:03.0"}
+            if gate in {"lan-wan-ab", "router-local-ab"}:
+                data["benchmark"] = {"controlMethodologyFingerprint": "method-1", "candidateMethodologyFingerprint": "method-1",
+                                     "variableCount": 1, "validated": True, "reward": 0.1, "rillOutcome": "accepted",
+                                     "routeResolved": True, "routeProvider": "ip-full+rtnl-events"}
+            if gate == "sysupgrade":
+                data["upgrade"] = {"beforeBootId": "boot-a", "afterBootId": "boot-b",
+                                   "beforeVersion": "1.0.0_rc8-r1", "afterVersion": "1.0.0_rc9-r1"}
+            if gate == "resource-soak":
+                data["durationSeconds"] = 86400
+                data["soak"] = {"sampleCount": 1440, "idleRillObserveAcceptedDelta": 0,
+                                "idleExpectedAdapterPersistenceEventsDelta": 0, "idlePendingOutcomeJournalWrites": 0}
         if name in RILL_PRESENT:
             data["adapterSha256"] = PINNED_ADAPTER_SHA
         return data
@@ -76,6 +123,27 @@ class StableEvidenceAggregationTests(unittest.TestCase):
         code, result = self.run_aggregate(mutate=("lifecycle", {"verdict": "NOT_EVALUATED", "passed": False}))
         self.assertNotEqual(code, 0)
         self.assertEqual(result["overallVerdict"], "BLOCKED")
+
+    def test_minimal_pass_envelope_fails_every_external_gate(self):
+        minimal = {"pmCommitSha": self.commit, "verdict": "PASS", "passed": True,
+                   "adapterSha256": PINNED_ADAPTER_SHA}
+        for gate in ("hyperv", "kvm", "lan-wan-ab", "router-local-ab", "sysupgrade", "lifecycle", "resource-soak"):
+            with self.subTest(gate=gate):
+                self.assertTrue(validate_evidence(minimal, gate, self.commit))
+
+    def test_semantic_contradictions_fail(self):
+        hyperv = self.evidence("hyperV")
+        hyperv["environment"]["nicDriver"] = "virtio_net"
+        self.assertIn("Hyper-V semantic identity invalid", validate_evidence(hyperv, "hyperv", self.commit))
+        ab = self.evidence("lanWanAb")
+        ab["benchmark"]["candidateMethodologyFingerprint"] = "other"
+        self.assertIn("A/B methodology fingerprints differ", validate_evidence(ab, "lan-wan-ab", self.commit))
+        upgrade = self.evidence("sysupgrade")
+        upgrade["upgrade"]["afterBootId"] = "boot-a"
+        self.assertIn("sysupgrade boot identity did not change", validate_evidence(upgrade, "sysupgrade", self.commit))
+        soak = self.evidence("resourceSoak24h")
+        soak["soak"]["sampleCount"] = 0
+        self.assertIn("24h soak duration/sample evidence invalid", validate_evidence(soak, "resource-soak", self.commit))
 
 
 if __name__ == "__main__":

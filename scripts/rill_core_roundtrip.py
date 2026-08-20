@@ -12,7 +12,8 @@ NOT use the mock adapter.  Inside the official OpenWrt rootfs it:
      negotiated the real adapter: state available and releaseVersion 1.2.0 /
      adapterVersion 0.15.0 / protocolVersion 1,
   5. drives production Core recommendations -> real Observe -> exact decision
-     freeze -> controlled local A/B -> safe rollback -> real Outcome,
+     reservation -> duplicate-execution rejection -> controlled local A/B ->
+     safe rollback -> persistent real Outcome,
   6. restarts both Core and adapter between lifecycle phases and proves the
      frozen session and upstream pending-decision state survive,
   7. emits docs/pm-core-rill-roundtrip.json + docs/rill-core-integration.json
@@ -291,6 +292,18 @@ def main() -> int:
             return 1
         ev['lifecycle']['exactDecisionFrozen'] = True
         ev['lifecycle']['sessionId'] = session['sessionId']
+
+        duplicate = ubus_call(rootfs, 'benchmark_start', {
+            'phase': 'begin', 'actionId': advisory['actionId'],
+            'pathId': 'path:local-endpoint', 'measurementClass': 'controlled_ab',
+            'executionSource': 'benchmark-rill', 'decisionId': advisory['decisionId'],
+        })
+        if duplicate.get('ok') is not False or duplicate.get('error') != 'rill-decision-already-reserved':
+            log(f'FATAL: exact decision obtained a second execution owner: {duplicate}')
+            ev['checks']['duplicateDecision'] = duplicate
+            ev['verdict'] = 'FAIL'
+            return 1
+        ev['lifecycle']['duplicateExecutionRejected'] = True
 
         # Restart Core while the frozen session is awaiting control.  The
         # binding cache is deliberately memory-only; the durable session must

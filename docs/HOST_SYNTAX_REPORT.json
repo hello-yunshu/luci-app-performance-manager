@@ -144,6 +144,10 @@
       "status": "pass"
     },
     {
+      "name": "py_compile scripts/verify_action_run_identity.py",
+      "status": "pass"
+    },
+    {
       "name": "py_compile scripts/verify_apks.py",
       "status": "pass"
     },

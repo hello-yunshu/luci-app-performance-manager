@@ -24,6 +24,7 @@ const RILL_REQUIRED_CAPABILITIES = [ 'context-partitioned-model', 'goal-partitio
 const RILL_REQUIRED_OPS = [ 'status', 'observe', 'outcome' ];
 const RILL_STATES = { disabled: 'disabled', notProvisioned: 'not-provisioned', binaryInvalid: 'binary-invalid', starting: 'starting', available: 'available', learning: 'learning', incompatible: 'incompatible', unhealthy: 'unhealthy', unavailable: 'unavailable' };
 const RILL_BINDINGS_SCHEMA_VERSION = 2;
+const RILL_EXECUTION_SCHEMA_VERSION = 1;
 const RILL_BINDINGS_MAX = 64;
 const RILL_BINDINGS_TTL_MS = 3600000;
 const RILL_ADVISORY_TTL_MS = 3600000;
@@ -44,6 +45,13 @@ let tx_counter = 0;
 let event_timer = null;
 let telemetry_timer = null;
 let deep_timer = null;
+let rill_outcome_timer = null;
+let rill_outcome_schedule_hook = null;
+let rill_recover_execution_hook = null;
+let rill_prepare_outcome = null;
+let rill_arm_outcome = null;
+let rill_report_outcome = null;
+let rill_binding_release_reservation = null;
 let listeners = [];
 let tx_timers = {};
 let last_topology_signature = null;
@@ -57,6 +65,10 @@ let rill_runtime_counters = {
 	rillOutcomeReconciled: 0,
 	rillOutcomeRetryableFailures: 0,
 	rillOutcomeTerminalFailures: 0,
+	rillDecisionReserved: 0,
+	rillOutcomeSentUnknown: 0,
+	rillOutcomeRecoveredAfterCoreRestart: 0,
+	rillOutcomeRecoveredAfterBoot: 0,
 	rillBindingHighWater: 0
 };
 let conn = ubusmod.connect();
@@ -1454,12 +1466,20 @@ function confirm_transaction(txid) {
 			return rollback_transaction(txid, 'confirm-persistence-failed');
 	}
 	tx.verification.commitConfirm = 'confirmed'; tx.state = 'committed'; tx.deadlineMonotonicMs = null;
+	if (tx.rillDecision) {
+		let intent = rill_prepare_outcome(tx.rillDecision, 'health_only', 0.0, tx.transactionId, 'committed');
+		if (!intent.ok) return rollback_transaction(txid, 'rill-outcome-intent-write-failed');
+	}
 	if (!tx_save(tx)) {
 		/* The durable marker/journal must agree before a connectivity-critical
 		 * change can be considered committed. Fall back to the previous journal
 		 * state and restore through the normal stale-safe rollback path. */
 		let rr=rollback_transaction(txid,'confirm-journal-write-failed');
 		return {ok:false,error:'confirm-journal-write-failed',rollback:rr};
+	}
+	if (tx.rillDecision) {
+		let armed = rill_arm_outcome(tx.rillDecision);
+		if (!armed.ok) return {ok:false,error:'rill-outcome-arm-failed',transaction:tx,detail:armed};
 	}
 	cancel_tx_timer(tx.transactionId); release_locks(tx.requiredLocks, tx.transactionId);
 	history('transaction.commit', tx);
@@ -1566,6 +1586,10 @@ function cleanup_owned(reason) {
 function benchmark_fail_session(sp, sid, error) {
 	let sess = json_read(sp, null);
 	if (!sess) return;
+	/* A Rill-owned session which never reached the mutation boundary may give
+	 * the reservation back. Once mutationStarted is durable this helper is a
+	 * no-op, preserving exactly-once ownership for every later failure path. */
+	if (sess.rillDecision) rill_binding_release_reservation(sess.rillDecision, `benchmark-failed-before-mutation:${error}`);
 	if (benchmark_session_active(sess)) {
 		sess.state = 'failed'; sess.result = { validated: false, error: error };
 		json_write(sp, sess);
@@ -1649,6 +1673,7 @@ function benchmark_stop(session_id) {
 		if (!r.ok) return {ok:false,error:'candidate-rollback-failed',detail:r};
 	}
 	if (session.state == 'completed' || session.state == 'failed' || session.state == 'stopped') return {ok:false,error:'benchmark-session-not-running',session:session};
+	if (session.rillDecision) rill_binding_release_reservation(session.rillDecision, 'benchmark-stopped-before-mutation');
 	session.state='stopped'; session.result={validated:false,error:'stopped-by-user'};
 	if (!json_write(benchmark_path(session_id),session)) return {ok:false,error:'benchmark-session-write-failed-after-stop',session:session};
 	release_benchmark_lock(session.benchmarkLock?.domain, session_id);
@@ -1691,24 +1716,31 @@ function rill_recv_frame(s, maxMsg, timeout) {
 	return { body: body };
 }
 
-function rill_send(payload) {
-	if (!bool_cfg('shadow.enabled', true)) return { ok: false, state: 'disabled' };
+function rill_send(payload, outcome_attempt, mark_sent_unknown) {
+	if (!bool_cfg('shadow.enabled', true)) return { ok: false, state: 'disabled', connected: false, fullySent: false, responseReceived: false };
 	let maxMsg = min(262144, max(4096, int_cfg('shadow.max_message', 65536)));
 	let timeout = min(5000, max(100, int_cfg('shadow.timeout_ms', 1000)));
 	let wire = sprintf('%.J\n', payload);
-	if (length(wire) > maxMsg) return { ok: false, state: 'oversized-local-context' };
+	if (length(wire) > maxMsg) return { ok: false, state: 'oversized-local-context', connected: false, fullySent: false, responseReceived: false };
 	let s = socket.connect({ path: rill_socket_path() }, null, null, timeout);
-	if (!s) return { ok: false, state: 'unavailable' };
+	if (!s) return { ok: false, state: 'connect-failed', connected: false, fullySent: false, responseReceived: false };
 	let sent = s.send(wire);
-	if (sent == null || sent != length(wire)) { s.close(); return { ok: false, state: 'send-failed' }; }
+	if (sent == null || sent != length(wire)) { s.close(); return { ok: false, state: 'send-failed', connected: true, fullySent: false, responseReceived: false }; }
+	/* Once the complete request has entered the socket, persist uncertainty
+	 * BEFORE waiting for the peer response. A crash in recv() can therefore be
+	 * reconciled only for this exact durable outcome fingerprint. */
+	if (outcome_attempt && (!mark_sent_unknown || !mark_sent_unknown(outcome_attempt))) {
+		s.close();
+		return { ok: false, state: 'sent-unknown-journal-failed', connected: true, fullySent: true, responseReceived: false };
+	}
 	let frame = rill_recv_frame(s, maxMsg, timeout);
 	s.close();
-	if (frame.state) return { ok: false, state: frame.state };
+	if (frame.state) return { ok: false, state: `${frame.state}-after-send`, connected: true, fullySent: true, responseReceived: false };
 	/* Strict single-frame JSON parse; any malformed body fails closed. */
 	let parsed = null;
-	try { parsed = json(frame.body); } catch (e) { return { ok: false, state: 'bad-response' }; }
-	if (parsed == null) return { ok: false, state: 'bad-response' };
-	return { ok: true, response: parsed };
+	try { parsed = json(frame.body); } catch (e) { return { ok: false, state: 'bad-response-after-send', connected: true, fullySent: true, responseReceived: true }; }
+	if (parsed == null) return { ok: false, state: 'bad-response-after-send', connected: true, fullySent: true, responseReceived: true };
+	return { ok: true, response: parsed, connected: true, fullySent: true, responseReceived: true };
 }
 
 function rill_context_key_build(profile, capability_hash, topo_gen, path_id, route_identity, workload_class, integ_fingerprint, goal_id) {
@@ -1826,8 +1858,8 @@ function rill_validate_observe_response(request, response) {
 	if ((ct != 'int' && ct != 'double') || rec.confidence != rec.confidence || rec.confidence < 0 || rec.confidence > 1)
 		return { ok: false, error: 'confidence-invalid' };
 	let advertised = false;
-	for (let action in request.availableActions ?? []) if (action.id == rec.actionId) { advertised = true; break; }
-	if (!advertised || rill_action_descriptor(rec.actionId) == null) return { ok: false, error: 'recommendation-action-unknown' };
+	for (let action in request.availableActions ?? []) if (action.id == rec.actionId && (action.executionAuthority == 'safe-direct' || action.executionAuthority == 'benchmark')) { advertised = true; break; }
+	if (!advertised) return { ok: false, error: 'recommendation-action-unknown' };
 	return { ok: true };
 }
 
@@ -1842,11 +1874,14 @@ function rill_validate_outcome_response(request, response) {
 /* Unexecuted advisories are runtime cache only.  Flash is used only when an
  * exact decision is frozen into an already-durable transaction/session. */
 let rill_bindings = {};
+let rill_last_observe_ms = null;
+let rill_advisory = null;
 
 function rill_binding_valid(binding) {
 	if (type(binding) != 'object' || binding.schemaVersion != RILL_BINDINGS_SCHEMA_VERSION) return false;
 	if (!match(binding.decisionId ?? '', /^[0-9a-f]{32}$/) || !length(binding.actionId ?? '') || !length(binding.contextKey ?? '')) return false;
 	if (!length(binding.goal ?? '') || binding.modelGeneration != RILL_MODEL_GENERATION || binding.bootId != boot_id()) return false;
+	if (binding.executionAuthority != 'safe-direct' && binding.executionAuthority != 'benchmark') return false;
 	if (binding.atMs == null || binding.atMs > monotonic_ms() || (monotonic_ms() - binding.atMs) > RILL_BINDINGS_TTL_MS) return false;
 	return true;
 }
@@ -1868,11 +1903,15 @@ function rill_bindings_prune() {
 
 function rill_binding_register(payload, response) {
 	let rec = response.recommendation;
+	let advertised = null;
+	for (let action in payload.availableActions ?? []) if (action.id == rec.actionId) { advertised = action; break; }
+	if (!advertised) return null;
 	let binding = {
 		schemaVersion: RILL_BINDINGS_SCHEMA_VERSION,
 		decisionId: response.decisionId, contextKey: payload.contextKey,
 		actionId: rec.actionId, goal: payload.goal, modelGeneration: RILL_MODEL_GENERATION,
-		advisory: true, confidence: rec.confidence, bootId: boot_id(), atMs: monotonic_ms()
+		advisory: true, confidence: rec.confidence, executionAuthority: advertised.executionAuthority,
+		bootId: boot_id(), atMs: monotonic_ms()
 	};
 	if (!rill_binding_valid(binding)) return null;
 	rill_bindings[binding.decisionId] = binding;
@@ -1887,15 +1926,62 @@ function rill_binding_peek(decision_id) {
 	return rill_binding_valid(binding) ? binding : null;
 }
 
-function rill_binding_freeze(decision_id, action_id, authority) {
+function rill_execution_path(decision_id) {
+	return `${persist_dir()}/rill-executions/${safe_name(decision_id)}.json`;
+}
+
+function rill_binding_reserve(decision_id, action_id, authority, owner_type, owner_id) {
 	let binding = rill_binding_peek(decision_id);
-	let descriptor = rill_action_descriptor(action_id);
-	if (!binding || binding.actionId != action_id || !descriptor || descriptor.executionAuthority != authority) return null;
-	return {
+	if (!binding || binding.actionId != action_id || binding.executionAuthority != authority) return null;
+	if (owner_type != 'transaction' && owner_type != 'benchmark') return null;
+	if (!length(owner_id ?? '') || json_read(rill_execution_path(decision_id), null)) return null;
+	/* Bound persistent flash state without evicting live or pending evidence.
+	 * Completed outcomes are removed immediately; abandoned executions remain
+	 * auditable and new reservations fail closed at the runtime binding bound. */
+	let journals = fs.glob(`${persist_dir()}/rill-executions/*.json`) ?? [];
+	if (length(journals) >= RILL_BINDINGS_MAX) return null;
+	let frozen = {
 		schemaVersion: binding.schemaVersion, decisionId: binding.decisionId, contextKey: binding.contextKey,
 		actionId: binding.actionId, goal: binding.goal, modelGeneration: binding.modelGeneration,
-		advisory: true, confidence: binding.confidence, bootId: binding.bootId, atMs: binding.atMs
+		advisory: true, confidence: binding.confidence, bootId: binding.bootId, atMs: binding.atMs,
+		executionAuthority: authority, ownerType: owner_type, ownerId: owner_id
 	};
+	let journal = {
+		schemaVersion: RILL_EXECUTION_SCHEMA_VERSION, decisionId: frozen.decisionId,
+		actionId: frozen.actionId, contextKey: frozen.contextKey, goal: frozen.goal,
+		modelGeneration: frozen.modelGeneration, frozenDecision: frozen,
+		executionAuthority: authority, ownerType: owner_type, ownerId: owner_id,
+		executionState: 'reserved', mutationStarted: false, transportState: 'not-sent',
+		mayHaveReachedPeer: false, attemptCount: 0, createdBootId: boot_id(),
+		createdMonotonicMs: monotonic_ms(), nextRetryMonotonicMs: null
+	};
+	if (!json_write(rill_execution_path(decision_id), journal)) return null;
+	delete rill_bindings[decision_id];
+	if (rill_advisory?.decisionId == decision_id) rill_advisory = null;
+	rill_runtime_counters.rillDecisionReserved++;
+	runtime_history('rill.binding.reserved', { decisionId: decision_id, actionId: action_id, ownerType: owner_type, ownerId: owner_id, executionAuthority: authority });
+	return frozen;
+}
+
+rill_binding_release_reservation = function(binding, reason) {
+	let path = rill_execution_path(binding?.decisionId), journal = json_read(path, null);
+	if (!journal || journal.mutationStarted === true || journal.executionState != 'reserved') return false;
+	if (journal.ownerId != binding?.ownerId || journal.ownerType != binding?.ownerType) return false;
+	fs.unlink(path);
+	let restored = journal.frozenDecision;
+	if (rill_binding_valid(restored)) rill_bindings[restored.decisionId] = restored;
+	runtime_history('rill.binding.reservation-released', { decisionId: binding.decisionId, ownerId: binding.ownerId, reason: reason ?? 'pre-mutation-owner-journal-failed' });
+	return true;
+};
+
+function rill_execution_mark_mutation_started(binding) {
+	let path = rill_execution_path(binding?.decisionId), journal = json_read(path, null);
+	if (!journal || journal.ownerId != binding?.ownerId || journal.executionState != 'reserved') return false;
+	journal.mutationStarted = true;
+	journal.executionState = 'executing';
+	journal.mutationBootId = boot_id();
+	journal.mutationStartedMonotonicMs = monotonic_ms();
+	return json_write(path, journal);
 }
 
 function rill_binding_consume(binding) {
@@ -1915,9 +2001,6 @@ function rill_invalidate_runtime_decisions(reason) {
 	runtime_history('rill.runtime-decisions-invalidated', { reason: reason ?? 'context-drift' });
 }
 
-let rill_last_observe_ms = null;
-let rill_advisory = null;
-
 function rill_advisory_update(resp, payload) {
 	/* Remember the latest recommendation for UI display.  Fed ONLY from a
 	 * successful observe — status responses carry no recommendation, so the
@@ -1926,14 +2009,15 @@ function rill_advisory_update(resp, payload) {
 	 * fingerprint / goal) lets rill_advisory_get() invalidate it if the world
 	 * changed under it, and expiresMonotonicMs bounds its lifetime. */
 	let rec = resp.recommendation;
-	let descriptor = rill_action_descriptor(rec.actionId);
-	if (!descriptor) return null;
+	let advertised = null;
+	for (let action in payload.availableActions ?? []) if (action.id == rec.actionId) { advertised = action; break; }
+	if (!advertised) return null;
 	let now = monotonic_ms();
 	rill_advisory = {
 		decisionId: resp.decisionId, actionId: rec.actionId,
 		confidence: rec.confidence, advisory: true, authority: 'advisory-only',
-		executionAuthority: descriptor.executionAuthority, kind: descriptor.kind,
-		applyTarget: descriptor.action?.applyTarget ?? null, evaluationPaths: descriptor.action?.evaluationPaths ?? [],
+		executionAuthority: advertised.executionAuthority, kind: advertised.executionAuthority == 'benchmark' ? 'benchmark' : 'safe-direct',
+		applyTarget: advertised.applyTarget ?? null, evaluationPaths: advertised.evaluationPaths ?? [],
 		contextKey: payload.contextKey, goal: payload.goal,
 		topologyGeneration: payload.topologyGeneration,
 		routeIdentity: payload.routeIdentity,
@@ -1957,12 +2041,12 @@ function rill_advisory_get() {
 	if ((a.routeIdentity ?? 'unresolved') != route) { rill_advisory = null; return null; }
 	if ((a.integrationFingerprint ?? '') != integration_fingerprint([], nft_snapshot())) { rill_advisory = null; return null; }
 	if ((a.goal ?? '') != goal()) { rill_advisory = null; return null; }
-	if (rill_action_descriptor(a.actionId) == null || rill_binding_peek(a.decisionId) == null) { rill_advisory = null; return null; }
+	if (rill_binding_peek(a.decisionId) == null) { rill_advisory = null; return null; }
 	return a;
 }
 
 function rill_outcome_attempt_path(binding) {
-	return `${state_dir()}/rill-outcome-attempts/${safe_name(binding.decisionId)}.json`;
+	return rill_execution_path(binding.decisionId);
 }
 
 function rill_outcome_fingerprint(binding, session_id, reward) {
@@ -1973,19 +2057,63 @@ function rill_outcome_fingerprint(binding, session_id, reward) {
 function rill_outcome_attempt(binding, measurement, session_id, reward) {
 	let path = rill_outcome_attempt_path(binding), fingerprint = rill_outcome_fingerprint(binding, session_id, reward);
 	let existing = json_read(path, null);
-	if (existing && existing.fingerprint != fingerprint) return { ok: false, state: 'outcome-attempt-mismatch', path: path };
-	let attempt = existing ?? { schemaVersion: 1, decisionId: binding.decisionId, bootId: binding.bootId,
-		fingerprint: fingerprint, binding: binding, measurementClass: measurement,
-		sessionId: session_id, reward: reward, responseLossObserved: false,
-		attemptCount: 0, nextRetryMonotonicMs: monotonic_ms(), createdMonotonicMs: monotonic_ms() };
-	if (attempt.bootId != boot_id() || !json_write(path, attempt)) return { ok: false, state: 'outcome-attempt-journal-failed', path: path };
+	if (!existing || existing.fingerprint != fingerprint || existing.ownerId != binding?.ownerId)
+		return { ok: false, state: 'outcome-attempt-mismatch', path: path };
+	let attempt = existing;
+	if (attempt.executionState != 'outcome-pending' && attempt.executionState != 'sent-unknown')
+		return { ok: false, state: 'outcome-not-pending', path: path };
 	return { ok: true, attempt: attempt, path: path, fingerprint: fingerprint };
+}
+
+rill_prepare_outcome = function(binding, measurement, reward, session_id, expected_owner_state) {
+	let path = rill_execution_path(binding?.decisionId), journal = json_read(path, null);
+	if (!journal || journal.ownerId != binding?.ownerId || journal.ownerType != binding?.ownerType || journal.mutationStarted !== true)
+		return { ok: false, state: 'rill-execution-journal-owner-mismatch' };
+	let fingerprint = rill_outcome_fingerprint(binding, session_id, reward);
+	if (journal.fingerprint && journal.fingerprint != fingerprint) return { ok: false, state: 'outcome-attempt-mismatch' };
+	if (expected_owner_state != 'committed' && expected_owner_state != 'rolled_back' && expected_owner_state != 'completed')
+		return { ok: false, state: 'outcome-terminal-state-invalid' };
+	journal.executionState = 'outcome-prepared';
+	journal.measurementClass = measurement; journal.sessionId = session_id; journal.reward = reward;
+	journal.validated = true; journal.fingerprint = fingerprint; journal.binding = binding;
+	journal.expectedOwnerState = expected_owner_state;
+	journal.transportState = 'not-sent';
+	journal.mayHaveReachedPeer = journal.mayHaveReachedPeer === true;
+	journal.nextRetryMonotonicMs = null;
+	journal.outcomePreparedBootId = boot_id();
+	if (!json_write(path, journal)) return { ok: false, state: 'outcome-intent-journal-failed' };
+	return { ok: true, attempt: journal, path: path, fingerprint: fingerprint };
+};
+
+rill_arm_outcome = function(binding) {
+	let path=rill_execution_path(binding?.decisionId), journal=json_read(path,null);
+	if (!journal || journal.ownerId != binding?.ownerId || journal.ownerType != binding?.ownerType || journal.executionState != 'outcome-prepared')
+		return {ok:false,state:'outcome-prepared-owner-mismatch'};
+	let owner = journal.ownerType == 'transaction' ? json_read(tx_path(journal.ownerId),null) : json_read(benchmark_path(journal.ownerId),null);
+	if (!owner || owner.state != journal.expectedOwnerState)
+		return {ok:false,state:'outcome-owner-terminal-not-durable',expected:journal.expectedOwnerState,actual:owner?.state ?? null};
+	journal.executionState='outcome-pending'; journal.transportState='pending';
+	journal.nextRetryMonotonicMs=monotonic_ms(); journal.outcomeArmedBootId=boot_id();
+	if (!json_write(path,journal)) return {ok:false,state:'outcome-arm-journal-failed'};
+	if (rill_outcome_schedule_hook) rill_outcome_schedule_hook();
+	return {ok:true,attempt:journal,path:path};
+};
+
+function rill_outcome_mark_sent_unknown(attempt) {
+	let row = attempt?.attempt ?? attempt, path = attempt?.path ?? rill_execution_path(row?.decisionId);
+	if (!row || !row.fingerprint || !path) return false;
+	row.executionState = 'sent-unknown'; row.transportState = 'request-fully-sent';
+	row.mayHaveReachedPeer = true; row.lastSentBootId = boot_id(); row.lastSentMonotonicMs = monotonic_ms();
+	if (!json_write(path, row)) return false;
+	rill_runtime_counters.rillOutcomeSentUnknown++;
+	return true;
 }
 
 function rill_outcome_retry_mark(attempt, state, response_loss) {
 	attempt.attempt.attemptCount = (attempt.attempt.attemptCount ?? 0) + 1;
 	attempt.attempt.lastTransportState = state;
-	if (response_loss) attempt.attempt.responseLossObserved = true;
+	if (response_loss) { attempt.attempt.mayHaveReachedPeer = true; attempt.attempt.executionState = 'sent-unknown'; }
+	else attempt.attempt.executionState = 'outcome-pending';
 	let shift = min(6, attempt.attempt.attemptCount);
 	attempt.attempt.nextRetryMonotonicMs = monotonic_ms() + min(300000, 5000 * (1 << shift));
 	return json_write(attempt.path, attempt.attempt);
@@ -1993,11 +2121,14 @@ function rill_outcome_retry_mark(attempt, state, response_loss) {
 
 function rill_retry_pending_outcomes() {
 	let retried = 0, retired = 0;
-	for (let path in fs.glob(`${state_dir()}/rill-outcome-attempts/*.json`) ?? []) {
+	for (let path in fs.glob(`${persist_dir()}/rill-executions/*.json`) ?? []) {
 		let attempt = json_read(path, null);
-		if (!attempt || attempt.bootId != boot_id() || !rill_binding_valid(attempt.binding)) {
-			fs.unlink(path); retired++; continue;
+		if (!attempt) { fs.unlink(path); retired++; continue; }
+		if (attempt.executionState == 'reserved' || attempt.executionState == 'executing') {
+			if (attempt.createdBootId != boot_id()) { attempt.executionState = 'retired-abandoned'; attempt.retiredReason = 'boot-recovery-no-auto-actuation'; json_write(path, attempt); retired++; }
+			continue;
 		}
+		if (attempt.executionState != 'outcome-pending' && attempt.executionState != 'sent-unknown') continue;
 		if ((attempt.nextRetryMonotonicMs ?? 0) > monotonic_ms()) continue;
 		rill_report_outcome(attempt.binding, attempt.measurementClass, attempt.reward, attempt.sessionId, { retry: true });
 		retried++;
@@ -2005,9 +2136,9 @@ function rill_retry_pending_outcomes() {
 	return { retried: retried, retired: retired };
 }
 
-function rill_report_outcome(binding, measurement, reward, session_id, ctx) {
+rill_report_outcome = function(binding, measurement, reward, session_id, ctx) {
 	ctx = ctx ?? {};
-	if (!rill_binding_valid(binding)) {
+	if (type(binding) != 'object' || !match(binding.decisionId ?? '', /^[0-9a-f]{32}$/)) {
 		runtime_history('rill.outcome.skipped', { actionId: binding?.actionId ?? null, reason: 'no-exact-frozen-decision' });
 		return { ok: false, state: 'no-exact-frozen-decision' };
 	}
@@ -2020,9 +2151,9 @@ function rill_report_outcome(binding, measurement, reward, session_id, ctx) {
 		sessionId: session_id, goal: binding.goal, modelGeneration: binding.modelGeneration, reward: reward
 	};
 	rill_runtime_counters.rillOutcomeAttempts++;
-	let r = rill_send(payload);
+	let r = rill_send(payload, attempt, rill_outcome_mark_sent_unknown);
 	if (!r.ok) {
-		if (!rill_outcome_retry_mark(attempt, r.state, true))
+		if (!rill_outcome_retry_mark(attempt, r.state, r.fullySent === true))
 			return { ok: false, state: 'outcome-retry-journal-failed' };
 		rill_runtime_counters.rillOutcomeRetryableFailures++;
 		runtime_history('rill.outcome.retryable', { actionId: binding.actionId, decisionId: binding.decisionId, measurementClass: measurement, state: r.state });
@@ -2045,7 +2176,7 @@ function rill_report_outcome(binding, measurement, reward, session_id, ctx) {
 		return { ok: true, accepted: true, decisionId: binding.decisionId, response: r.response };
 	}
 	let code = r.response?.error?.code ?? validated.error;
-	if (code == 'duplicateFeedback' && attempt.attempt.responseLossObserved === true) {
+	if (code == 'duplicateFeedback' && attempt.attempt.mayHaveReachedPeer === true && attempt.attempt.fingerprint == rill_outcome_fingerprint(binding, session_id, reward) && attempt.attempt.ownerId == binding.ownerId) {
 		fs.unlink(attempt.path);
 		rill_binding_consume(binding);
 		rill_runtime_counters.rillOutcomeReconciled++;
@@ -2063,7 +2194,7 @@ function rill_report_outcome(binding, measurement, reward, session_id, ctx) {
 	rill_binding_retire(binding, code);
 	rill_runtime_counters.rillOutcomeTerminalFailures++;
 	return { ok: false, state: code, retryable: false, response: r.response };
-}
+};
 
 function push_unique(dst, value) {
 	if (index(dst, value) < 0) push(dst, value);
@@ -2530,14 +2661,37 @@ function benchmark_apply_candidate(action_id, path_id, session_id, rill_decision
 	if (!plan.ok) return plan;
 	let action=benchmark_action_contract(action_id, path_id, plan);
 	let tx=tx_new(action, rill_decision ? 'benchmark-rill' : 'manual', rill_decision); tx.result={ benchmarkSessionId:session_id };
-	if (!tx_save(tx)) return { ok:false, error:'transaction-journal-write-failed' };
+	if (!tx_save(tx)) {
+		if (rill_decision) rill_binding_release_reservation(rill_decision, 'benchmark-transaction-journal-write-failed-before-mutation');
+		return { ok:false, error:'transaction-journal-write-failed' };
+	}
 	let lock=acquire_locks(action.requiredLocks, tx.transactionId);
-	if (!lock.ok) { tx.state='failed'; tx.result={error:'lock-conflict',detail:lock,benchmarkSessionId:session_id}; tx_save(tx); return {ok:false,error:'lock-conflict',transaction:tx}; }
-	tx.state='locked'; if (!tx_save(tx)) { release_locks(tx.requiredLocks,tx.transactionId); return {ok:false,error:'transaction-journal-write-failed'}; }
+	if (!lock.ok) {
+		tx.state='failed'; tx.result={error:'lock-conflict',detail:lock,benchmarkSessionId:session_id}; tx_save(tx);
+		if (rill_decision) rill_binding_release_reservation(rill_decision, 'benchmark-transaction-lock-conflict-before-mutation');
+		return {ok:false,error:'lock-conflict',transaction:tx};
+	}
+	tx.state='locked'; if (!tx_save(tx)) {
+		release_locks(tx.requiredLocks,tx.transactionId);
+		if (rill_decision) rill_binding_release_reservation(rill_decision, 'benchmark-locked-journal-write-failed-before-mutation');
+		return {ok:false,error:'transaction-journal-write-failed'};
+	}
 	let before_health=baseline_health(path_id);
 	tx.before={ benchmark:plan, health:before_health }; tx.state='snapshotted';
-	if (!tx_save(tx)) { release_locks(tx.requiredLocks,tx.transactionId); return {ok:false,error:'transaction-journal-write-failed'}; }
-	tx.state='pending'; if (!tx_save(tx)) { release_locks(tx.requiredLocks,tx.transactionId); return {ok:false,error:'pending-marker-write-failed'}; }
+	if (!tx_save(tx)) {
+		release_locks(tx.requiredLocks,tx.transactionId);
+		if (rill_decision) rill_binding_release_reservation(rill_decision, 'benchmark-snapshot-journal-write-failed-before-mutation');
+		return {ok:false,error:'transaction-journal-write-failed'};
+	}
+	tx.state='pending'; if (!tx_save(tx)) {
+		release_locks(tx.requiredLocks,tx.transactionId);
+		if (rill_decision) rill_binding_release_reservation(rill_decision, 'benchmark-pending-marker-write-failed-before-mutation');
+		return {ok:false,error:'pending-marker-write-failed'};
+	}
+	if (rill_decision && !rill_execution_mark_mutation_started(rill_decision)) {
+		tx.state='failed'; tx.result={error:'rill-mutation-journal-write-failed',benchmarkSessionId:session_id}; tx_save(tx);
+		release_locks(tx.requiredLocks,tx.transactionId); return {ok:false,error:'rill-mutation-journal-write-failed',transaction:tx};
+	}
 	let candidate_value=plan.kind == 'governor' ? 'candidate' : plan.candidate;
 	let restore_value=plan.kind == 'governor' ? 'before' : plan.before;
 	let ap=benchmark_provider_apply(plan, candidate_value);
@@ -2625,30 +2779,52 @@ function rill_context_key_observe() {
 function apply_ring(action, options) {
 	options = options ?? {};
 	let ref = resolve_target(action.applyTarget);
-	if (!ref) return { ok: false, error: 'target-unresolved' };
+	if (!ref) { if (options.rillDecision) rill_binding_release_reservation(options.rillDecision,'target-unresolved-before-mutation'); return { ok: false, error: 'target-unresolved' }; }
 	let comp = compatibility(action.id, ref, action.evaluationPaths?.[0]);
-	if (!comp.allowed) return { ok: false, error: 'compatibility-blocked', compatibility: comp };
+	if (!comp.allowed) { if (options.rillDecision) rill_binding_release_reservation(options.rillDecision,'compatibility-blocked-before-mutation'); return { ok: false, error: 'compatibility-blocked', compatibility: comp }; }
 	let guard = system_guard();
-	if (!guard.pass) return { ok: false, error: 'health-guard-blocked', guard: guard };
+	if (!guard.pass) { if (options.rillDecision) rill_binding_release_reservation(options.rillDecision,'health-guard-blocked-before-mutation'); return { ok: false, error: 'health-guard-blocked', guard: guard }; }
 
-	let tx = tx_new(action, options.executionSource ?? 'manual', options.rillDecision ?? null);
-	if (!tx_save(tx)) return { ok: false, error: 'transaction-journal-write-failed' };
+	let tx = options.transaction ?? tx_new(action, options.executionSource ?? 'manual', options.rillDecision ?? null);
+	if (!tx_save(tx)) {
+		if (tx.rillDecision) rill_binding_release_reservation(tx.rillDecision, 'transaction-journal-write-failed');
+		return { ok: false, error: 'transaction-journal-write-failed' };
+	}
 	let lock = acquire_locks(action.requiredLocks, tx.transactionId);
 	if (!lock.ok) {
 		tx.state = 'failed'; tx.result = { error: 'lock-conflict', detail: lock }; tx_save(tx);
+		if (tx.rillDecision) rill_binding_release_reservation(tx.rillDecision, 'lock-conflict-before-mutation');
 		return { ok: false, transaction: tx };
 	}
-	tx.state = 'locked'; if (!tx_save(tx)) { release_locks(tx.requiredLocks, tx.transactionId); return { ok: false, error: 'transaction-journal-write-failed' }; }
+	tx.state = 'locked'; if (!tx_save(tx)) {
+		release_locks(tx.requiredLocks, tx.transactionId);
+		if (tx.rillDecision) rill_binding_release_reservation(tx.rillDecision, 'locked-journal-write-failed-before-mutation');
+		return { ok: false, error: 'transaction-journal-write-failed' };
+	}
 	let before_health = baseline_health();
 	let snap = ring_snapshot(ref);
 	if (!snap) {
 		tx.state = 'failed'; tx.result = { error: 'snapshot-failed' }; tx_save(tx); release_locks(tx.requiredLocks, tx.transactionId);
+		if (tx.rillDecision) rill_binding_release_reservation(tx.rillDecision, 'snapshot-failed-before-mutation');
 		return { ok: false, transaction: tx };
 	}
 	tx.before = { ring: snap, health: before_health, targetRef: ref };
-	tx.state = 'snapshotted'; if (!tx_save(tx)) { release_locks(tx.requiredLocks, tx.transactionId); return { ok: false, error: 'transaction-journal-write-failed' }; }
+	tx.state = 'snapshotted'; if (!tx_save(tx)) {
+		release_locks(tx.requiredLocks, tx.transactionId);
+		if (tx.rillDecision) rill_binding_release_reservation(tx.rillDecision, 'snapshot-journal-write-failed-before-mutation');
+		return { ok: false, error: 'transaction-journal-write-failed' };
+	}
 	tx.state = 'pending';
-	if (!tx_save(tx)) { tx.state = 'failed'; tx.result = { error: 'pending-marker-write-failed' }; tx_save(tx); release_locks(tx.requiredLocks, tx.transactionId); return { ok: false, transaction: tx }; }
+	if (!tx_save(tx)) {
+		tx.state = 'failed'; tx.result = { error: 'pending-marker-write-failed' }; tx_save(tx); release_locks(tx.requiredLocks, tx.transactionId);
+		if (tx.rillDecision) rill_binding_release_reservation(tx.rillDecision, 'pending-marker-write-failed-before-mutation');
+		return { ok: false, transaction: tx };
+	}
+	if (tx.rillDecision && !rill_execution_mark_mutation_started(tx.rillDecision)) {
+		tx.state='failed'; tx.result={error:'rill-mutation-journal-write-failed'}; tx_save(tx); release_locks(tx.requiredLocks,tx.transactionId);
+		rill_binding_release_reservation(tx.rillDecision, 'mutation-journal-write-failed-before-mutation');
+		return {ok:false,error:'rill-mutation-journal-write-failed',transaction:tx};
+	}
 	let ap = ring_apply(ref, action.params);
 	if (ap.rc != 0) {
 		tx.state = 'failed'; tx.result = { error: 'apply-failed', output: ap.out }; tx_save(tx); release_locks(tx.requiredLocks, tx.transactionId);
@@ -2673,10 +2849,18 @@ function apply_ring(action, options) {
 		tx.verification = { readBack: readback ? 'pass' : 'fail', link: link ? 'pass' : 'fail', healthRegression: hcmp.pass ? 'none' : hcmp.failures, rollbackReadBack: restored ? 'pass' : 'fail', commitConfirm: 'not_required' };
 		tx.state = restored ? 'rolled_back' : 'failed';
 		tx.result = { error: 'verification-failed', rollback: restored ? 'restored' : 'failed', rollbackOutput: restore.out ?? '' };
-		tx_save(tx); release_locks(tx.requiredLocks, tx.transactionId);
+		if (!options.runtimeOnly && restored && tx.rillDecision) {
+			let intent=rill_prepare_outcome(tx.rillDecision,'health_only',-1.0,tx.transactionId,'rolled_back');
+			if (!intent.ok) { release_locks(tx.requiredLocks,tx.transactionId); return {ok:false,error:'rill-outcome-intent-write-failed',transaction:tx}; }
+		}
+		if (!tx_save(tx)) { release_locks(tx.requiredLocks,tx.transactionId); return {ok:false,error:'transaction-terminal-journal-write-failed',transaction:tx}; }
+		if (!options.runtimeOnly && restored && tx.rillDecision) {
+			let armed=rill_arm_outcome(tx.rillDecision);
+			if (!armed.ok) { release_locks(tx.requiredLocks,tx.transactionId); return {ok:false,error:'rill-outcome-arm-failed',transaction:tx,detail:armed}; }
+		}
+		release_locks(tx.requiredLocks, tx.transactionId);
 		(options.runtimeOnly ? runtime_history : history)(restored ? 'transaction.rollback' : 'transaction.rollback_failed', tx);
-		if (!options.runtimeOnly && restored && tx.rillDecision)
-			rill_report_outcome(tx.rillDecision,'health_only',-1.0,tx.transactionId,{});
+		if (!options.runtimeOnly && restored && tx.rillDecision) rill_report_outcome(tx.rillDecision,'health_only',-1.0,tx.transactionId,{});
 		return { ok: false, transaction: tx };
 	}
 	tx.verification = { readBack: 'pass', link: 'pass', healthRegression: 'none', commitConfirm: action.requiresCommitConfirm ? 'pending' : 'not_required' };
@@ -2703,6 +2887,14 @@ function apply_ring(action, options) {
 		return { ok: false, transaction: tx };
 	}
 	tx.state = 'committed'; tx.result = { ring: after_ring };
+	if (!options.runtimeOnly && tx.rillDecision) {
+		let intent=rill_prepare_outcome(tx.rillDecision,'health_only',0.0,tx.transactionId,'committed');
+		if (!intent.ok) {
+			let restore=ring_restore(ref,snap), restored=restore.rc == 0 && ring_matches(ref,snap);
+			tx.state=restored?'rolled_back':'failed'; tx.result={error:'rill-outcome-intent-write-failed',rollback:restored?'restored':'failed'}; tx_save(tx); release_locks(tx.requiredLocks,tx.transactionId);
+			return {ok:false,error:'rill-outcome-intent-write-failed',transaction:tx};
+		}
+	}
 	if (!tx_save(tx)) {
 		/* Do not report success if terminal journal/pending-marker cleanup failed.
 		 * For PM-owned policy writes, restore both runtime and policy ownership. */
@@ -2710,6 +2902,10 @@ function apply_ring(action, options) {
 		let restore=ring_restore(ref,snap), restored=restore.rc == 0 && ring_matches(ref,snap);
 		tx.state=restored?'rolled_back':'failed'; tx.result={error:'commit-journal-write-failed',rollback:restored?'restored':'failed'}; tx.verification.rollbackReadBack=restored?'pass':'fail'; tx_save(tx);
 		cancel_tx_timer(tx.transactionId); release_locks(tx.requiredLocks,tx.transactionId); history(restored?'transaction.rollback':'transaction.rollback_failed',tx); return {ok:false,error:'commit-journal-write-failed',transaction:tx};
+	}
+	if (!options.runtimeOnly && tx.rillDecision) {
+		let armed=rill_arm_outcome(tx.rillDecision);
+		if (!armed.ok) { cancel_tx_timer(tx.transactionId); release_locks(tx.requiredLocks,tx.transactionId); return {ok:false,error:'rill-outcome-arm-failed',transaction:tx,detail:armed}; }
 	}
 	cancel_tx_timer(tx.transactionId); release_locks(tx.requiredLocks, tx.transactionId);
 	(options.runtimeOnly ? runtime_history : history)('transaction.commit', tx);
@@ -2723,14 +2919,16 @@ function apply_action(msg) {
 	if (action_id == 'nic.ring.floor') {
 		let a = find_action(action_id, msg?.target);
 		if (!a) return { ok: false, error: 'no-legal-candidate' };
-		let source = msg?.executionSource ?? 'manual', frozen = null;
+		let source = msg?.executionSource ?? 'manual', frozen = null, tx = null;
 		if (source == 'rill-advisory') {
-			frozen = rill_binding_freeze(msg?.decisionId, action_id, 'safe-direct');
-			if (!frozen) return { ok: false, error: 'rill-decision-binding-invalid' };
+			tx = tx_new(a, source, null);
+			frozen = rill_binding_reserve(msg?.decisionId, action_id, 'safe-direct', 'transaction', tx.transactionId);
+			if (!frozen) return { ok: false, error: 'rill-decision-already-reserved' };
+			tx.rillDecision = frozen;
 		} else if (source != 'manual' || msg?.decisionId != null) {
 			return { ok: false, error: 'invalid-execution-source' };
 		}
-		return apply_ring(a, { executionSource: source, rillDecision: frozen });
+		return apply_ring(a, { executionSource: source, rillDecision: frozen, transaction: tx });
 	}
 	return { ok: false, error: 'action-not-allowlisted-for-direct-apply', actionId: action_id };
 }
@@ -2805,6 +3003,7 @@ function benchmark_start(msg) {
 		}
 		if (nowctx.capabilityHash != session.capabilityHash || nowctx.topologyGeneration != session.topologyGeneration || nowctx.routeIdentity != session.routeIdentity || nowctx.integrationFingerprint != session.integrationFingerprint || nft_drift || workload_drift || goal_drift) {
 			if (session.transactionId) rollback_transaction(session.transactionId,'benchmark-context-drift');
+			if (session.rillDecision) rill_binding_release_reservation(session.rillDecision, 'benchmark-context-drift-before-mutation');
 			release_benchmark_lock(session.benchmarkLock?.domain, session.sessionId);
 			session.state='failed'; session.result={validated:false,error:'benchmark-context-drift',nftDelta:nft_cmp}; json_write(benchmark_path(sid),session); return {ok:false,error:'benchmark-context-drift',session:session,nftDelta:nft_cmp};
 		}
@@ -2843,7 +3042,15 @@ function benchmark_start(msg) {
 			session.candidateEvidence=msg.evidence;
 			let c0=+session.controlEvidence.bitsPerSecond, c1=+session.candidateEvidence.bitsPerSecond, reward=(c1-c0)/c0;
 			session.state='completed'; session.result={validated:true,changedSystemState:true,rolledBack:true,oneVariable:true,reward:reward,controlBitsPerSecond:c0,candidateBitsPerSecond:c1,health:hcmp};
+			if (session.rillDecision) {
+				let intent=rill_prepare_outcome(session.rillDecision,'controlled_ab',reward,sid,'completed');
+				if (!intent.ok) return {ok:false,error:'rill-outcome-intent-write-failed',session:session,detail:intent};
+			}
 			if (!json_write(benchmark_path(sid),session)) return {ok:false,error:'benchmark-result-write-failed-after-safe-rollback',session:session};
+			if (session.rillDecision) {
+				let armed=rill_arm_outcome(session.rillDecision);
+				if (!armed.ok) return {ok:false,error:'rill-outcome-arm-failed',session:session,detail:armed};
+			}
 			release_benchmark_lock(session.benchmarkLock?.domain, sid);
 			history('benchmark.completed',session);
 			if (session.rillDecision)
@@ -2887,16 +3094,23 @@ function benchmark_start(msg) {
 		let lock_domain=benchmark_lock_domain(action, plan, path_id);
 		let execution_source=msg?.executionSource ?? 'manual', frozen_decision=null;
 		if (execution_source == 'benchmark-rill') {
-			frozen_decision=rill_binding_freeze(msg?.decisionId,action,'benchmark');
-			if (!frozen_decision) return {ok:false,error:'rill-decision-binding-invalid'};
+			frozen_decision=rill_binding_reserve(msg?.decisionId,action,'benchmark','benchmark',id);
+			if (!frozen_decision) return {ok:false,error:'rill-decision-already-reserved'};
 		} else if (execution_source != 'manual' || msg?.decisionId != null) {
 			return {ok:false,error:'invalid-execution-source'};
 		}
 		let lock=acquire_benchmark_lock(lock_domain, id);
-		if (!lock.ok) return {ok:false,error:'benchmark-domain-lock-conflict',conflict:lock.conflict,domain:lock_domain};
+		if (!lock.ok) {
+			if (frozen_decision) rill_binding_release_reservation(frozen_decision,'benchmark-lock-conflict-before-mutation');
+			return {ok:false,error:'benchmark-domain-lock-conflict',conflict:lock.conflict,domain:lock_domain};
+		}
 		let session={schemaVersion:2,sessionId:id,state:'awaiting_control',userInitiated:true,actionId:action,executionSource:execution_source,rillDecision:frozen_decision,applyTarget:plan.targetRef?.stableId ?? null,evaluationPath:path_id,workloadClass:ctx.workloadClass,capabilityHash:ctx.capabilityHash,topologyGeneration:ctx.topologyGeneration,routeIdentity:ctx.routeIdentity,integrationState:ctx.integrationState,integrationFingerprint:ctx.integrationFingerprint,nftSnapshot:ctx.nftSnapshot,deviceProfile:cfg('main.profile','recommended'),goal:cur_goal,benchmarkLock:{domain:lock_domain,sessionId:id},createdMonotonicMs:monotonic_ms(),measurementClass:'controlled_ab',variableCount:1,transactionId:null,controlEvidence:null,candidateEvidence:null,result:null,companion:{contract:'pm-companion/v2',requiredRole:semantics=='local'?'router-local-client':'lan-client',phases:['control','candidate'],methodology:null,metadata:{sessionId:id,actionId:action,pathId:path_id,topologyGeneration:ctx.topologyGeneration,routeIdentity:ctx.routeIdentity,capabilityHash:ctx.capabilityHash,goal:cur_goal}}};
 		ensure_dir(`${state_dir()}/benchmarks`);
-		if (!json_write(benchmark_path(id),session)) { release_benchmark_lock(lock_domain,id); return {ok:false,error:'benchmark-session-write-failed'}; }
+		if (!json_write(benchmark_path(id),session)) {
+			release_benchmark_lock(lock_domain,id);
+			if (frozen_decision) rill_binding_release_reservation(frozen_decision,'benchmark-session-write-failed-before-mutation');
+			return {ok:false,error:'benchmark-session-write-failed'};
+		}
 		history('benchmark.started',session);
 		return {ok:true,stage:'control',session:session,companion:session.companion};
 	}
@@ -3169,7 +3383,17 @@ function resource_usage() {
 	let hs=fs.stat(`${persist_dir()}/history.jsonl`), outcomes=fs.stat(`${rill_dir}/validated-outcomes.tsv`), ledger=fs.stat(`${rill_dir}/decision-ledger.jsonl`);
 	let counters = {};
 	for (let key in keys(rill_runtime_counters)) counters[key] = rill_runtime_counters[key];
-	counters.rillOutcomePending = length(fs.glob(`${state_dir()}/rill-outcome-attempts/*.json`) ?? []);
+	let prepared=0, pending=0, sent_unknown=0;
+	for (let path in fs.glob(`${persist_dir()}/rill-executions/*.json`) ?? []) {
+		let row=json_read(path,null);
+		if (row?.executionState == 'outcome-prepared') prepared++;
+		if (row?.executionState == 'outcome-pending') pending++;
+		if (row?.executionState == 'sent-unknown') sent_unknown++;
+	}
+	counters.rillDecisionAvailable = length(keys(rill_bindings));
+	counters.rillOutcomePrepared = prepared;
+	counters.rillOutcomePending = pending;
+	counters.rillOutcomeSentUnknown = sent_unknown;
 	counters.pmPersistentWrites = persistent_write_count;
 	counters.expectedAdapterPersistenceEvents = rill_runtime_counters.rillObserveAccepted + rill_runtime_counters.rillOutcomeAccepted + rill_runtime_counters.rillOutcomeReconciled;
 	counters.persistenceAccounting = 'logical/inferred-from-pinned-rill-v1.2.0-contract';
@@ -3223,7 +3447,6 @@ function schedule_telemetry() {
 	telemetry_timer = uloop.timer(interval, function() {
 		let snap = telemetry_snapshot();
 		json_write(`${state_dir()}/telemetry/latest.json`, snap);
-		rill_retry_pending_outcomes();
 		assisted_auto_tick(snap);
 		conservative_auto_tick();
 		this.set(interval);
@@ -3235,6 +3458,57 @@ function schedule_telemetry() {
 	});
 }
 
+function rill_pending_outcome_count() {
+	let count=0;
+	for (let path in fs.glob(`${persist_dir()}/rill-executions/*.json`) ?? []) {
+		let row=json_read(path,null);
+		if (row?.executionState == 'outcome-prepared' || row?.executionState == 'outcome-pending' || row?.executionState == 'sent-unknown') count++;
+	}
+	return count;
+}
+
+function schedule_rill_outcome_retry() {
+	if (rill_outcome_timer || rill_pending_outcome_count() == 0) return;
+	rill_outcome_timer = uloop.timer(5000, function() {
+		rill_outcome_timer = null;
+		if (bool_cfg('shadow.enabled', true)) { if (rill_recover_execution_hook) rill_recover_execution_hook(); rill_retry_pending_outcomes(); }
+		if (rill_pending_outcome_count() > 0) schedule_rill_outcome_retry();
+	});
+}
+
+function recover_rill_executions() {
+	let recovered=0, retired=0;
+	for (let path in fs.glob(`${persist_dir()}/rill-executions/*.json`) ?? []) {
+		let row=json_read(path,null);
+		if (!row) { fs.unlink(path); continue; }
+		if (row.executionState == 'outcome-prepared') {
+			let armed=rill_arm_outcome(row.binding ?? row.frozenDecision);
+			if (armed.ok) { recovered++; continue; }
+			if (armed.state == 'outcome-owner-terminal-not-durable' && row.createdBootId != boot_id()) {
+				row.executionState='retired-abandoned'; row.retiredReason='prepared-outcome-owner-not-terminal-after-recovery';
+				json_write(path,row); retired++;
+			}
+			continue;
+		}
+		if (row.executionState == 'outcome-pending' || row.executionState == 'sent-unknown') {
+			row.nextRetryMonotonicMs=monotonic_ms();
+			row.recoveredBootId=boot_id(); row.recoveredMonotonicMs=monotonic_ms();
+			if (row.outcomePreparedBootId == boot_id()) rill_runtime_counters.rillOutcomeRecoveredAfterCoreRestart++;
+			else rill_runtime_counters.rillOutcomeRecoveredAfterBoot++;
+			json_write(path,row); recovered++; continue;
+		}
+		if ((row.executionState == 'reserved' || row.executionState == 'executing') && row.createdBootId != boot_id()) {
+			row.executionState='retired-abandoned'; row.retiredReason='boot-recovery-no-auto-actuation';
+			json_write(path,row); retired++;
+		}
+	}
+	if (recovered) schedule_rill_outcome_retry();
+	return {recovered:recovered,retired:retired};
+}
+
+rill_outcome_schedule_hook = schedule_rill_outcome_retry;
+rill_recover_execution_hook = recover_rill_executions;
+
 function reply(req, data) { req.reply(data); }
 
 ensure_dir(state_dir());
@@ -3244,9 +3518,10 @@ ensure_dir(`${state_dir()}/locks`);
 ensure_dir(`${state_dir()}/benchmarks`);
 ensure_dir(`${state_dir()}/telemetry`);
 ensure_dir(`${state_dir()}/diagnostics`);
-ensure_dir(`${state_dir()}/rill-outcome-attempts`);
+ensure_dir(`${persist_dir()}/rill-executions`);
 uloop.init();
 recover_pending();
+recover_rill_executions();
 let obj = conn.publish(UBUS_NAME, {
 	status: { call: function(req, msg) { reply(req, status()); } },
 	capabilities: { call: function(req, msg) { reply(req, capabilities()); } },

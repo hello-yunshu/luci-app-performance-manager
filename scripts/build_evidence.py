@@ -187,7 +187,8 @@ def main(argv):
 
     # Authoritative package verification: consume the exact APK report produced
     # by scripts/verify_apks.py (exact pkgname/pkgver/arch/depends match + the
-    # Core daemon SHA256 inside the APK vs the shipped source).  build_evidence
+    # Core daemon and shared contracts SHA256 inside the APK vs the shipped
+    # sources).  build_evidence
     # never re-does weak filename-prefix inference, because `performance-manager-*`
     # also matches the integration package and could mask a missing Core.
     apk_report = None
@@ -283,6 +284,12 @@ def main(argv):
                 entry['arch'] = rec['arch']
             if name == 'performance-manager' and 'core' in rec:
                 entry['core'] = rec['core']
+            if name == 'performance-manager' and 'installedPayload' in rec:
+                entry['installedPayload'] = {
+                    path: payload.get('apkSha256')
+                    for path, payload in rec['installedPayload'].items()
+                    if payload.get('status') == 'match'
+                }
         packages_meta[name] = entry
 
     metadata = {
