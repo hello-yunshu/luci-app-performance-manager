@@ -1780,6 +1780,52 @@ function rill_binary_path() {
 	return { ok: false, binary: '', effective: null, source: 'default', reason: 'not-provisioned' };
 }
 
+/* ucode resolves function names when the caller is defined, so protocol
+ * validators must precede rill_status()/observe/outcome callers in the raw
+ * shipped daemon.  The runtime harness intentionally loads this same order
+ * without a semantic source transformation. */
+function rill_validate_response_envelope(request, response) {
+	if (type(response) != 'object') return { ok: false, error: 'response-not-object' };
+	if (response.contract != RILL_CONTRACT) return { ok: false, error: 'wrong-contract' };
+	if (response.protocolVersion != RILL_PROTOCOL_VERSION) return { ok: false, error: 'wrong-protocol' };
+	if ((response.requestId ?? '') != (request?.requestId ?? '')) return { ok: false, error: 'request-id-mismatch' };
+	if (type(response.ok) != 'bool') return { ok: false, error: 'ok-not-boolean' };
+	return { ok: true };
+}
+
+function rill_validate_status_response(request, response) {
+	let envelope = rill_validate_response_envelope(request, response);
+	if (!envelope.ok) return envelope;
+	if (response.ok !== true) return { ok: false, error: response.error?.code ?? 'status-rejected' };
+	if (type(response.capabilities) != 'array' || type(response.modelHealth) != 'object') return { ok: false, error: 'status-fields-invalid' };
+	if (!length(response.adapterVersion ?? '') || !length(response.rillVersion ?? '')) return { ok: false, error: 'status-version-missing' };
+	return { ok: true };
+}
+
+function rill_validate_observe_response(request, response) {
+	let envelope = rill_validate_response_envelope(request, response);
+	if (!envelope.ok) return envelope;
+	if (response.ok !== true) return { ok: false, error: response.error?.code ?? 'observe-rejected' };
+	if (!match(response.decisionId ?? '', /^[0-9a-f]{32}$/)) return { ok: false, error: 'decision-id-invalid' };
+	let rec = response.recommendation;
+	if (type(rec) != 'object' || !length(rec.actionId ?? '') || rec.advisory !== true) return { ok: false, error: 'recommendation-invalid' };
+	let ct = type(rec.confidence);
+	if ((ct != 'int' && ct != 'double') || rec.confidence != rec.confidence || rec.confidence < 0 || rec.confidence > 1)
+		return { ok: false, error: 'confidence-invalid' };
+	let advertised = false;
+	for (let action in request.availableActions ?? []) if (action.id == rec.actionId && (action.executionAuthority == 'safe-direct' || action.executionAuthority == 'benchmark')) { advertised = true; break; }
+	if (!advertised) return { ok: false, error: 'recommendation-action-unknown' };
+	return { ok: true };
+}
+
+function rill_validate_outcome_response(request, response) {
+	let envelope = rill_validate_response_envelope(request, response);
+	if (!envelope.ok) return envelope;
+	if (response.ok !== true) return { ok: false, error: response.error?.code ?? 'outcome-rejected' };
+	if (response.accepted !== true) return { ok: false, error: 'outcome-not-accepted' };
+	return { ok: true };
+}
+
 function rill_status() {
 	let enabled = bool_cfg('shadow.enabled', true);
 	if (!enabled) return { enabled: false, mode: 'shadow', status: 'Shadow · Disabled', state: RILL_STATES.disabled, reason: 'disabled', compatibility: 'not-applicable', transport: 'unavailable', protocolVersion: RILL_PROTOCOL_VERSION, binary: { configured: str_cfg('shadow.binary', ''), effective: null, source: 'n/a' } };
@@ -1829,48 +1875,6 @@ function rill_integrations_payload() {
 	let st = integration_state();
 	let order = [ 'openclash', 'passwall', 'homeproxy', 'sqm', 'qosify', 'mwan3', 'pbr', 'wireguard', 'openvpn', 'docker' ];
 	return map(order, function(k) { return { id: k, present: !!st[k] }; });
-}
-
-function rill_validate_response_envelope(request, response) {
-	if (type(response) != 'object') return { ok: false, error: 'response-not-object' };
-	if (response.contract != RILL_CONTRACT) return { ok: false, error: 'wrong-contract' };
-	if (response.protocolVersion != RILL_PROTOCOL_VERSION) return { ok: false, error: 'wrong-protocol' };
-	if ((response.requestId ?? '') != (request?.requestId ?? '')) return { ok: false, error: 'request-id-mismatch' };
-	if (type(response.ok) != 'bool') return { ok: false, error: 'ok-not-boolean' };
-	return { ok: true };
-}
-
-function rill_validate_status_response(request, response) {
-	let envelope = rill_validate_response_envelope(request, response);
-	if (!envelope.ok) return envelope;
-	if (response.ok !== true) return { ok: false, error: response.error?.code ?? 'status-rejected' };
-	if (type(response.capabilities) != 'array' || type(response.modelHealth) != 'object') return { ok: false, error: 'status-fields-invalid' };
-	if (!length(response.adapterVersion ?? '') || !length(response.rillVersion ?? '')) return { ok: false, error: 'status-version-missing' };
-	return { ok: true };
-}
-
-function rill_validate_observe_response(request, response) {
-	let envelope = rill_validate_response_envelope(request, response);
-	if (!envelope.ok) return envelope;
-	if (response.ok !== true) return { ok: false, error: response.error?.code ?? 'observe-rejected' };
-	if (!match(response.decisionId ?? '', /^[0-9a-f]{32}$/)) return { ok: false, error: 'decision-id-invalid' };
-	let rec = response.recommendation;
-	if (type(rec) != 'object' || !length(rec.actionId ?? '') || rec.advisory !== true) return { ok: false, error: 'recommendation-invalid' };
-	let ct = type(rec.confidence);
-	if ((ct != 'int' && ct != 'double') || rec.confidence != rec.confidence || rec.confidence < 0 || rec.confidence > 1)
-		return { ok: false, error: 'confidence-invalid' };
-	let advertised = false;
-	for (let action in request.availableActions ?? []) if (action.id == rec.actionId && (action.executionAuthority == 'safe-direct' || action.executionAuthority == 'benchmark')) { advertised = true; break; }
-	if (!advertised) return { ok: false, error: 'recommendation-action-unknown' };
-	return { ok: true };
-}
-
-function rill_validate_outcome_response(request, response) {
-	let envelope = rill_validate_response_envelope(request, response);
-	if (!envelope.ok) return envelope;
-	if (response.ok !== true) return { ok: false, error: response.error?.code ?? 'outcome-rejected' };
-	if (response.accepted !== true) return { ok: false, error: 'outcome-not-accepted' };
-	return { ok: true };
 }
 
 /* Unexecuted advisories are runtime cache only.  Flash is used only when an
@@ -2027,24 +2031,6 @@ function rill_advisory_update(resp, payload) {
 		createdMonotonicMs: now, expiresMonotonicMs: now + RILL_ADVISORY_TTL_MS
 	};
 	return rill_advisory;
-}
-
-function rill_advisory_get() {
-	/* Latest valid advisory for UI display.  Invalidated on ANY drift
-	 * (topology generation, route identity, integration fingerprint, goal) or
-	 * on action disappearance / decision TTL expiry — fail-closed: a stale
-	 * advisory is never surfaced as if it were current. */
-	if (!rill_advisory) return null;
-	let a = rill_advisory;
-	if (monotonic_ms() > a.expiresMonotonicMs) { rill_advisory = null; return null; }
-	let topo = topology();
-	if ((a.topologyGeneration ?? null) != topology_generation) { rill_advisory = null; return null; }
-	let route = topo?.paths?.[0]?.routeIdentity ?? 'unresolved';
-	if ((a.routeIdentity ?? 'unresolved') != route) { rill_advisory = null; return null; }
-	if ((a.integrationFingerprint ?? '') != integration_fingerprint([], nft_snapshot())) { rill_advisory = null; return null; }
-	if ((a.goal ?? '') != goal()) { rill_advisory = null; return null; }
-	if (rill_binding_peek(a.decisionId) == null) { rill_advisory = null; return null; }
-	return a;
 }
 
 function rill_outcome_attempt_path(binding) {
@@ -2333,6 +2319,26 @@ function nft_snapshot() {
 	return { items: parts, parsed: parsed, canonical: join('\n', parts) };
 }
 
+function rill_advisory_get() {
+	/* Latest valid advisory for UI display.  Invalidated on ANY drift
+	 * (topology generation, route identity, integration fingerprint, goal) or
+	 * on action disappearance / decision TTL expiry — fail-closed: a stale
+	 * advisory is never surfaced as if it were current.  Keep this definition
+	 * after topology()/nft_snapshot(): raw ucode resolves callees at definition
+	 * time and the shipped daemon has no source transformation. */
+	if (!rill_advisory) return null;
+	let a = rill_advisory;
+	if (monotonic_ms() > a.expiresMonotonicMs) { rill_advisory = null; return null; }
+	let topo = topology();
+	if ((a.topologyGeneration ?? null) != topology_generation) { rill_advisory = null; return null; }
+	let route = topo?.paths?.[0]?.routeIdentity ?? 'unresolved';
+	if ((a.routeIdentity ?? 'unresolved') != route) { rill_advisory = null; return null; }
+	if ((a.integrationFingerprint ?? '') != integration_fingerprint([], nft_snapshot())) { rill_advisory = null; return null; }
+	if ((a.goal ?? '') != goal()) { rill_advisory = null; return null; }
+	if (rill_binding_peek(a.decisionId) == null) { rill_advisory = null; return null; }
+	return a;
+}
+
 function nft_ruleset_fingerprint() {
 	/* Canonical live nft ruleset identity, no flow masking (Blocker B).
 	 * Returns the structural hash of the FULL ruleset or null when nft is
@@ -2616,36 +2622,6 @@ function benchmark_catalog() {
 		push(out,{id:id,applyScope:length(provider_rows) && match(provider_rows[0].resource ?? '',/^netdev:/)?'device':'system',risk:'benchmark',oneVariableDefault:true,evaluationSemantics:semantics,evaluationPaths:usable,requiresExplicitEndpoints:true,requiredClientRole:semantics=='local'?'router-local-client':'lan-client',status:length(usable)?'endpoint-required':'blocked',providers:provider_rows,blockers:blockers,integrationState:integ});
 	}
 	return out;
-}
-
-function recommendations(allow_observe) {
-	/* Only the explicit recommendations/rill_refresh surfaces may register a
-	 * decision. Diagnostics and periodic telemetry are read-only consumers of
-	 * the current cache and must never create an Observe/persistence storm. */
-	allow_observe = allow_observe !== false;
-	let acts = candidate_actions();
-	let packet = packet_steering_capability();
-	let notes = [];
-	if (packet.availability == 'available')
-		push(notes, { id: 'network.packet_steering.native', disposition: 'respect', detail: 'Native OpenWrt provider detected; no ownership seizure.' });
-	let port = port_capacity_capability();
-	let po = port.evidence[0]?.observed;
-	if ((po?.conntrackPressure ?? 0) >= 0.70 || integration_state().transparentProxy)
-		push(notes, { id: 'network.local_port_capacity', disposition: 'analyze', detail: 'Local port capacity is relevant under proxy/high-connection pressure; reserved ports and ownership must be preserved. Any change remains benchmark-only.' });
-	let rill = rill_status();
-	let rill_advisory_live = rill_advisory_get();
-	let rill_observation = null;
-	if (allow_observe && !rill_advisory_live && (rill.state == RILL_STATES.available || rill.state == RILL_STATES.learning)) {
-		rill_observation = rill_observe();
-		rill_advisory_live = rill_advisory_get();
-	}
-	return {
-		topologyGeneration: topology_generation, actions: acts, observations: notes,
-		benchmarkActions: benchmark_catalog(),
-		rill: rill,
-		rillObservation: rill_observation,
-		learnedAdvisory: rill_advisory_live ? [rill_advisory_live] : [],
-	};
 }
 
 function benchmark_action_contract(action_id, path_id, plan) {
@@ -3161,6 +3137,37 @@ function rill_observe() {
 	if (!binding || !advisory) return { ok: false, state: 'binding-registration-failed', requestId: payload.requestId };
 	rill_runtime_counters.rillObserveAccepted++;
 	return { ok: true, decisionId: resp.decisionId, recommendation: resp.recommendation, binding: binding, response: r.response };
+}
+
+function recommendations(allow_observe) {
+	/* Only the explicit recommendations/rill_refresh surfaces may register a
+	 * decision. Diagnostics and periodic telemetry are read-only consumers of
+	 * the current cache and must never create an Observe/persistence storm.
+	 * Defined after rill_observe() because raw ucode does not hoist callees. */
+	allow_observe = allow_observe !== false;
+	let acts = candidate_actions();
+	let packet = packet_steering_capability();
+	let notes = [];
+	if (packet.availability == 'available')
+		push(notes, { id: 'network.packet_steering.native', disposition: 'respect', detail: 'Native OpenWrt provider detected; no ownership seizure.' });
+	let port = port_capacity_capability();
+	let po = port.evidence[0]?.observed;
+	if ((po?.conntrackPressure ?? 0) >= 0.70 || integration_state().transparentProxy)
+		push(notes, { id: 'network.local_port_capacity', disposition: 'analyze', detail: 'Local port capacity is relevant under proxy/high-connection pressure; reserved ports and ownership must be preserved. Any change remains benchmark-only.' });
+	let rill = rill_status();
+	let rill_advisory_live = rill_advisory_get();
+	let rill_observation = null;
+	if (allow_observe && !rill_advisory_live && (rill.state == RILL_STATES.available || rill.state == RILL_STATES.learning)) {
+		rill_observation = rill_observe();
+		rill_advisory_live = rill_advisory_get();
+	}
+	return {
+		topologyGeneration: topology_generation, actions: acts, observations: notes,
+		benchmarkActions: benchmark_catalog(),
+		rill: rill,
+		rillObservation: rill_observation,
+		learnedAdvisory: rill_advisory_live ? [rill_advisory_live] : [],
+	};
 }
 
 function package_installed(name) {

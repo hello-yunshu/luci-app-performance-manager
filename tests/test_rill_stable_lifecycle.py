@@ -267,6 +267,18 @@ class RillStableLifecycleTests(unittest.TestCase):
         self.assertIn("substr(buf, 0, index(buf, '\\n'))", body)
         self.assertNotIn("slice(buf, 0, index(buf, '\\n'))", body)
 
+    def test_raw_ucode_protocol_validators_precede_runtime_callers(self):
+        """The raw daemon and untransformed harness both require ucode
+        callees to be defined before the functions that reference them."""
+        status = CORE.index("function rill_status()")
+        self.assertLess(CORE.index("function rill_validate_response_envelope("), status)
+        self.assertLess(CORE.index("function rill_validate_status_response("), status)
+        self.assertLess(CORE.index("function rill_validate_observe_response("), status)
+        self.assertLess(CORE.index("function rill_validate_outcome_response("), status)
+        self.assertLess(CORE.index("function topology()"), CORE.index("function rill_advisory_get()"))
+        self.assertLess(CORE.index("function nft_snapshot()"), CORE.index("function rill_advisory_get()"))
+        self.assertLess(CORE.index("function rill_observe()"), CORE.index("function recommendations("))
+
     def test_duplicate_reconciliation_requires_exact_owner_and_fingerprint(self):
         self.assertEqual(reconcile_duplicate(code="duplicateFeedback", persisted_fingerprint="fp",
                                              current_fingerprint="fp", may_have_reached_peer=True,
