@@ -34,6 +34,7 @@ bad = []
 for name, commit in pinned.items():
     repo = Path('feeds') / name
     if not repo.is_dir():
+        bad.append(f'{name}: cached or downloaded feed repository missing')
         continue
     r = subprocess.run(['git', '-C', str(repo), 'checkout', '-q', commit], capture_output=True, text=True)
     if r.returncode != 0:

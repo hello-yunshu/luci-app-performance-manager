@@ -62,6 +62,21 @@ class ResourceBudgetTests(unittest.TestCase):
 
 
 class ContractTests(unittest.TestCase):
+    def test_openwrt_download_caches_remain_digest_bound_and_fail_closed(self):
+        cache_action = "actions/cache@5a3ec84eff668545956fd18022155c47e93e2684"
+        ci = (ROOT / ".github/workflows/ci.yml").read_text()
+        build = (ROOT / ".github/workflows/build-openwrt.yml").read_text()
+
+        self.assertEqual(ci.count(cache_action), 3)
+        self.assertEqual(ci.count("openwrt-rootfs-${{ runner.os }}-${{ runner.arch }}"), 3)
+        self.assertEqual(ci.count("$OPENWRT_ROOTFS_SHA256\" \"$archive\" | sha256sum -c -"), 3)
+        self.assertIn("openwrt-sdk-${{ runner.os }}-${{ runner.arch }}", build)
+        self.assertIn("openwrt-feeds-${{ runner.os }}-${{ runner.arch }}", build)
+        self.assertIn("$SDK_ARCHIVE_SHA256\" \"$archive\" | sha256sum -c -", build)
+        self.assertNotIn("bin/packages", "\n".join(
+            line for line in build.splitlines() if "key: openwrt-" in line
+        ))
+
     def test_all_examples_validate(self):
         for example,schema in PAIRS.items():
             with self.subTest(example=example):
