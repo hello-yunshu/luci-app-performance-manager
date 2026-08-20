@@ -48,6 +48,10 @@
       "status": "pass"
     },
     {
+      "name": "py_compile scripts/assemble_prerelease.py",
+      "status": "pass"
+    },
+    {
       "name": "py_compile scripts/build_evidence.py",
       "status": "pass"
     },
