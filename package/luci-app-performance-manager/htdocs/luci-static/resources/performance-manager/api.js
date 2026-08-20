@@ -11,6 +11,7 @@ return {
 	history: rpc.declare({ object: 'performance-manager', method: 'history', params: [ 'limit' ] }),
 	rill: rpc.declare({ object: 'performance-manager', method: 'rill_status', params: [] }),
 	rillRefresh: rpc.declare({ object: 'performance-manager', method: 'rill_refresh', params: [] }),
+	resources: rpc.declare({ object: 'performance-manager', method: 'resources', params: [] }),
 	diagnostics: rpc.declare({ object: 'performance-manager', method: 'diagnostics', params: [] }),
 	apply: rpc.declare({ object: 'performance-manager', method: 'apply', params: [ 'actionId', 'target', 'executionSource', 'decisionId' ] }),
 	confirm: rpc.declare({ object: 'performance-manager', method: 'confirm', params: [ 'transactionId' ] }),

@@ -3,13 +3,13 @@
   "areas": {
     "core": {
       "files": 40,
-      "sourceBytes": 243464,
-      "knownStaticPayloadBytes": 240342
+      "sourceBytes": 243770,
+      "knownStaticPayloadBytes": 240648
     },
     "luci": {
       "files": 14,
-      "sourceBytes": 36253,
-      "knownStaticPayloadBytes": 35381
+      "sourceBytes": 36359,
+      "knownStaticPayloadBytes": 35487
     },
     "rill": {
       "files": 3,

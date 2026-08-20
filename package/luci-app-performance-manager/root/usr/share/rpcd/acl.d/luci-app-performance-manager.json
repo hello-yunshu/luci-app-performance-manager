@@ -3,7 +3,7 @@
     "description": "Grant access to OpenWrt Performance Manager",
     "read": {
       "ubus": {
-        "performance-manager": [ "status", "capabilities", "topology", "targets", "paths", "analyze", "recommendations", "transactions", "locks", "history", "benchmark_status", "rill_status", "diagnostics" ]
+        "performance-manager": [ "status", "capabilities", "topology", "targets", "paths", "analyze", "recommendations", "transactions", "locks", "history", "benchmark_status", "rill_status", "resources", "diagnostics" ]
       },
       "uci": [ "performance-manager" ]
     },
