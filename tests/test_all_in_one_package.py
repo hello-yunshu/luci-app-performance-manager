@@ -126,6 +126,52 @@ class AllInOnePackageTests(unittest.TestCase):
             self.assertEqual(manifest["apk"]["sha256"], digest)
             self.assertEqual(manifest["payloadVerification"]["fileCount"], 2)
 
+    def test_release_assembler_accepts_same_apk_copy_in_full_and_dedicated_artifacts(self):
+        with tempfile.TemporaryDirectory() as temp:
+            temp = Path(temp)
+            commit = "c" * 40
+            version = "1.0.0-rc.10"
+            apk_name = "luci-app-performance-manager-all-1.0.0_rc10-r1.apk"
+            dedicated = temp / "input/openwrt-25.12.5-x86-64-all-in-one-apk"
+            full = temp / "input/openwrt-25.12.5-x86-64-packages-and-evidence/sdk/bin"
+            final = temp / "input/final-release-evidence-build"
+            dist = temp / "dist"
+            for path in (dedicated, full, final, dist):
+                path.mkdir(parents=True, exist_ok=True)
+            apk_bytes = b"same-verified-apk-in-two-workflow-artifacts"
+            (dedicated / apk_name).write_bytes(apk_bytes)
+            (full / apk_name).write_bytes(apk_bytes)
+            digest = hashlib.sha256(apk_bytes).hexdigest()
+            (dedicated / "all-in-one-release-manifest.json").write_text(json.dumps({
+                "pmCommitSha": commit, "package": "luci-app-performance-manager-all",
+                "apk": {"filename": apk_name, "sha256": digest},
+            }))
+            (dedicated / "all-in-one-checksums.txt").write_text(f"{digest}  {apk_name}\n")
+            (full / "apk-verification.json").write_text(json.dumps({
+                "verdict": "PASS", "pmCommitSha": commit,
+                "packages": {"luci-app-performance-manager-all": {"status": "ok", "sha256": digest}},
+            }))
+            (full / "build-metadata.json").write_text(json.dumps({
+                "verdict": "PASS", "repositoryCommitSha": commit,
+                "packages": {"luci-app-performance-manager-all": {"apkSha256": digest}},
+            }))
+            (full / "FINAL_AUDIT.json").write_text("{}")
+            (full / "FINAL_AUDIT.md").write_text("PASS\n")
+            (final / "final-release-evidence.json").write_text(json.dumps({
+                "overallVerdict": "PASS", "pmCommitSha": commit,
+            }))
+            (dist / f"openwrt-performance-manager-{version}.zip").write_bytes(b"source")
+            (dist / f"openwrt-performance-manager-{version}.manifest.json").write_text("{}")
+            out = temp / "out"
+            completed = subprocess.run([
+                sys.executable, str(ROOT / "scripts/assemble_prerelease.py"),
+                "--input", str(temp / "input"), "--out", str(out),
+                "--expected-sha", commit, "--source-dist", str(dist), "--version", version,
+            ], capture_output=True, text=True)
+            self.assertEqual(completed.returncode, 0, completed.stderr)
+            self.assertEqual((out / apk_name).read_bytes(), apk_bytes)
+            self.assertTrue((out / "release-checksums.txt").is_file())
+
 
 if __name__ == "__main__":
     unittest.main()
