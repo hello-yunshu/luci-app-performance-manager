@@ -120,7 +120,7 @@ jobs:
           echo "OPENWRT_ROOTFS=$rootfs" >> "$GITHUB_ENV"
           echo "OPENWRT_ROOTFS_SHA256=$rootfs_sha" >> "$GITHUB_ENV"
       - name: Restore verified OpenWrt rootfs archive
-        uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae
         with:
           path: .cache/openwrt/${{ steps.openwrt-rootfs.outputs.filename }}
           key: openwrt-rootfs-${{ runner.os }}-${{ runner.arch }}-${{ env.OPENWRT_VERSION }}-${{ steps.openwrt-rootfs.outputs.sha256 }}
@@ -205,7 +205,7 @@ jobs:
           echo "OPENWRT_ROOTFS=$rootfs" >> "$GITHUB_ENV"
           echo "OPENWRT_ROOTFS_SHA256=$rootfs_sha" >> "$GITHUB_ENV"
       - name: Restore verified OpenWrt rootfs archive
-        uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae
         with:
           path: .cache/openwrt/${{ steps.openwrt-rootfs.outputs.filename }}
           key: openwrt-rootfs-${{ runner.os }}-${{ runner.arch }}-${{ env.OPENWRT_VERSION }}-${{ steps.openwrt-rootfs.outputs.sha256 }}
@@ -274,7 +274,7 @@ jobs:
           echo "OPENWRT_ROOTFS=$rootfs" >> "$GITHUB_ENV"
           echo "OPENWRT_ROOTFS_SHA256=$rootfs_sha" >> "$GITHUB_ENV"
       - name: Restore verified OpenWrt rootfs archive
-        uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae
         with:
           path: .cache/openwrt/${{ steps.openwrt-rootfs.outputs.filename }}
           key: openwrt-rootfs-${{ runner.os }}-${{ runner.arch }}-${{ env.OPENWRT_VERSION }}-${{ steps.openwrt-rootfs.outputs.sha256 }}

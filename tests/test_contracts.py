@@ -63,7 +63,7 @@ class ResourceBudgetTests(unittest.TestCase):
 
 class ContractTests(unittest.TestCase):
     def test_openwrt_download_caches_remain_digest_bound_and_fail_closed(self):
-        cache_action = "actions/cache@5a3ec84eff668545956fd18022155c47e93e2684"
+        cache_action = "actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae"
         ci = (ROOT / ".github/workflows/ci.yml").read_text()
         build = (ROOT / ".github/workflows/build-openwrt.yml").read_text()
 
