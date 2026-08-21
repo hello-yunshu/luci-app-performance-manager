@@ -1,6 +1,6 @@
 # Roadmap
 
-Planning pack v0.3.2 is contract-frozen. `1.0.0-rc.11` retains the exact Rill/evidence closure and adds a byte-verified all-in-one APK containing every repository-owned runtime layer plus compiled Simplified Chinese translation. Rill remains an external runtime dependency, so no native Rust build is part of this repository's roadmap. The remaining work is execution of the declared same-commit validation matrix, not feature expansion.
+Planning pack v0.3.2 is contract-frozen. `1.0.0-rc.12` retains the exact Rill/evidence closure and makes the byte-verified all-in-one APK the sole public install asset, containing every repository-owned runtime layer plus compiled Simplified Chinese translation. Rill remains an external runtime dependency, so no native Rust build is part of this repository's roadmap. The remaining work is execution of the declared same-commit validation matrix, not feature expansion.
 
 1. Pass the CI gates on official OpenWrt 25.12.5: `ci.yml` (static, pm-rill-provenance, pm-rill-runtime, pm-core-rill-roundtrip, openwrt-ucode rootfs) and `build-openwrt.yml` (openwrt-sdk-build, which also emits build-metadata.json + checksums.txt evidence).
 2. Pass booted-target evidence on clean x86_64 OpenWrt 25.12.x VMs, including Core without LuCI/Rill dependency.

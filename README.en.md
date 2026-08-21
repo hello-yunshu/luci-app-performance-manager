@@ -76,10 +76,10 @@ make package/luci-app-performance-manager-all/compile V=s
 
 ### Recommended: one-APK installation
 
-Download `luci-app-performance-manager-all-1.0.0_rc11-r1.apk` from the GitHub Release, then install that single application APK:
+Download `luci-app-performance-manager-all-1.0.0_rc12-r1.apk` from the GitHub Release, then install that single application APK:
 
 ```sh
-apk add --allow-untrusted /tmp/luci-app-performance-manager-all-1.0.0_rc11-r1.apk
+apk add --allow-untrusted /tmp/luci-app-performance-manager-all-1.0.0_rc12-r1.apk
 ```
 
 OpenWrt still resolves system runtime libraries such as `luci-base`, `rpcd` and `ucode` from its configured repositories. “One APK” means all Performance Manager-owned Core, LuCI, backend, translation and Rill-glue payloads are in one file. It conflicts with the four split packages (including the auto-generated translation package) so duplicate file ownership is impossible. Back up `/etc/config/performance-manager` and switch package forms only during a maintenance window on devices already using the split packages.
@@ -90,7 +90,7 @@ OpenWrt still resolves system runtime libraries such as `luci-base`, `rpcd` and 
 |---|---|
 | Recommended package | `luci-app-performance-manager-all` (one APK) |
 | Target | OpenWrt 25.12.x / x86_64 |
-| Current source candidate | `1.0.0-rc.11` |
+| Current source candidate | `1.0.0-rc.12` |
 | Service script | `/etc/init.d/performance-manager` |
 | UCI config | `/etc/config/performance-manager` |
 | Core binary | `/usr/sbin/performance-manager.uc` |
@@ -271,7 +271,7 @@ make package        # build release artifacts
 - Resource / write soak: `scripts/openwrt-resource-soak.sh`
 - External validation evidence: `docs/EXTERNAL_VALIDATION.md`
 
-> `1.0.0-rc.11` is only a source candidate and adds a per-file-verified all-in-one APK. `v1.0.0` is authorized only when the same-commit official SDK/APKs, exact Rill runtime, Generic/Hyper-V/KVM targets, real A/B, sysupgrade, lifecycle, and 24-hour Rill-present soak all PASS the Stable aggregator.
+> `1.0.0-rc.12` is only a source candidate and publishes the per-file-verified all-in-one APK as the sole public install asset. `v1.0.0` is authorized only when the same-commit official SDK/APKs, exact Rill runtime, Generic/Hyper-V/KVM targets, real A/B, sysupgrade, lifecycle, and 24-hour Rill-present soak all PASS the Stable aggregator.
 
 ## Documentation
 
