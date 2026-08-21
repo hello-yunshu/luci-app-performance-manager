@@ -68,6 +68,12 @@ class AllInOnePackageTests(unittest.TestCase):
         for text in (workflow, verifier, evidence):
             self.assertIn("luci-app-performance-manager-all", text)
 
+    def test_stable_public_release_publishes_only_all_in_one_apk(self):
+        workflow = (ROOT / ".github/workflows/stable-release.yml").read_text()
+        self.assertIn("-name 'luci-app-performance-manager-all-*.apk'", workflow)
+        self.assertNotIn("find release-input/build -type f \\( -name '*.apk'", workflow)
+        self.assertIn("'primaryPackage':'luci-app-performance-manager-all'", workflow)
+
     def test_prerelease_auto_publish_is_main_same_repo_release_commit_only(self):
         workflow = (ROOT / ".github/workflows/prerelease.yml").read_text()
         for token in (

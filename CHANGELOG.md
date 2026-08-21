@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.0.0-rc.12 — All-in-one release candidate (2026-08-22)
+
+- Promote `luci-app-performance-manager-all` to the sole public install asset for prerelease and Stable release assembly.
+- Preserve split APKs only as exact build/evidence inputs; no competing split APKs are published as user-facing release assets.
+- Fix the controlled benchmark success path so rollback remains eligible for the validated Rill Outcome.
+
 ## 1.0.0-rc.11 — Stable closure candidate (2026-08-22)
 
 - Terminalize every post-mutation Rill execution failure without fabricating feedback; unresolved restore state is durable `intervention-required` and blocks further Rill actuation.
