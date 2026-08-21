@@ -78,6 +78,8 @@ make package/luci-app-performance-manager-all/compile V=s
 
 Download `luci-app-performance-manager-all-1.0.0_rc12-r1.apk` from the GitHub Release, then install that single application APK:
 
+The repository's official OpenWrt SDK build still compiles and verifies every split package and the physical all-in-one package. The all-in-one-only rule applies to the public Release download for convenience.
+
 ```sh
 apk add --allow-untrusted /tmp/luci-app-performance-manager-all-1.0.0_rc12-r1.apk
 ```
