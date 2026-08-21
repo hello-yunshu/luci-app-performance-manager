@@ -2,8 +2,8 @@
 
 ## 1.0.0-rc.12 — All-in-one release candidate (2026-08-22)
 
-- Promote `luci-app-performance-manager-all` to the sole public install asset for prerelease and Stable release assembly.
-- Preserve split APKs only as exact build/evidence inputs; no competing split APKs are published as user-facing release assets.
+- Keep the official OpenWrt SDK build compiling and verifying every split package plus the physical `luci-app-performance-manager-all` package.
+- Promote `luci-app-performance-manager-all` to the sole public install asset for prerelease and Stable release downloads; this is a release convenience rule, not a build restriction.
 - Fix the controlled benchmark success path so rollback remains eligible for the validated Rill Outcome.
 
 ## 1.0.0-rc.11 — Stable closure candidate (2026-08-22)

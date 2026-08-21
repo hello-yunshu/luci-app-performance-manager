@@ -78,6 +78,8 @@ make package/luci-app-performance-manager-all/compile V=s
 
 从 GitHub Release 下载 `luci-app-performance-manager-all-1.0.0_rc12-r1.apk` 后，只需安装这一份应用 APK：
 
+仓库的官方 OpenWrt SDK 编译仍会编译并校验所有拆分包以及实体一体化包；仅 GitHub Release 为了下载方便只提供一体化 APK 作为公开安装资产。
+
 ```sh
 apk add --allow-untrusted /tmp/luci-app-performance-manager-all-1.0.0_rc12-r1.apk
 ```
