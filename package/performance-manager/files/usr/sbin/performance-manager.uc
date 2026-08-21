@@ -1417,7 +1417,12 @@ function rollback_transaction(txid, reason) {
 		tx.verification.rollbackReadBack='pass';
 	}
 	let bench_id=tx.result?.benchmarkSessionId ?? tx.applied?.benchmarkSessionId ?? null;
-	tx.state = 'rolled_back'; tx.deadlineMonotonicMs=null; tx.result = { reason: reason ?? 'manual', benchmarkSessionId:bench_id }; tx_save(tx); rill_finalize_transaction_failure(tx, 'transaction-rollback-complete'); release_locks(tx.requiredLocks, tx.transactionId);
+	tx.state = 'rolled_back'; tx.deadlineMonotonicMs=null; tx.result = { reason: reason ?? 'manual', benchmarkSessionId:bench_id }; tx_save(tx);
+	/* A controlled benchmark deliberately rolls back before publishing its
+	 * validated Outcome. Keep the executing Rill journal alive for that
+	 * success path; every other rollback is a terminal failure/retirement. */
+	if (reason != 'benchmark-complete') rill_finalize_transaction_failure(tx, 'transaction-rollback-complete');
+	release_locks(tx.requiredLocks, tx.transactionId);
 	history('transaction.rollback', tx);
 	if (bench_id) {
 		let sp=benchmark_path(bench_id), sess=json_read(sp,null);
