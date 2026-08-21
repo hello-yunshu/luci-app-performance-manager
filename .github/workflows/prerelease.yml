@@ -32,7 +32,7 @@ jobs:
       EXPECTED_SHA: ${{ github.event_name == 'workflow_dispatch' && inputs.expected_sha || github.event.workflow_run.head_sha }}
       BUILD_RUN_ID: ${{ github.event_name == 'workflow_dispatch' && inputs.build_run_id || github.event.workflow_run.id }}
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           ref: ${{ env.EXPECTED_SHA }}
           fetch-depth: 0
@@ -48,7 +48,7 @@ jobs:
           python3 scripts/verify_action_run_identity.py \
             --run-id "$BUILD_RUN_ID" \
             --expected-sha "$EXPECTED_SHA" \
-            --expected-workflow 'Build OpenWrt (remote SDK)'
+            --expected-workflow 'Build OpenWrt (remote SDK)' --expected-workflow-path '.github/workflows/build-openwrt.yml'
       - name: Download same-commit SDK artifacts
         shell: bash
         env:

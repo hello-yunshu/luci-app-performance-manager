@@ -3,12 +3,14 @@
   "$id": "https://hello-yunshu.github.io/luci-app-performance-manager/evidence/common.schema.json",
   "type": "object",
   "additionalProperties": false,
-  "required": ["schemaVersion", "gate", "pmCommitSha", "buildRunId", "verdict", "passed", "controller", "artifacts", "subchecks"],
+  "required": ["schemaVersion", "gate", "pmCommitSha", "buildRunId", "verdict", "passed", "controller", "artifacts", "subchecks", "primaryPackage", "primaryPackageSha256"],
   "properties": {
     "schemaVersion": {"const": 1},
     "gate": {"type": "string"},
     "pmCommitSha": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
     "buildRunId": {"type": ["string", "integer"]},
+    "primaryPackage": {"type": "string"},
+    "primaryPackageSha256": {"type": ["string", "null"], "pattern": "^[0-9a-f]{64}$"},
     "verdict": {"enum": ["PASS", "FAIL", "BLOCKED"]},
     "passed": {"type": "boolean"},
     "adapterSha256": {"type": ["string", "null"], "pattern": "^[0-9a-f]{64}$"},
@@ -18,8 +20,18 @@
       "required": ["source", "path", "sha256"],
       "properties": {"source": {"const": "repository"}, "path": {"type": "string", "pattern": "^tools/stable-testbed/"}, "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}}
     },
-    "artifacts": {"type": "object", "required": ["performance-manager", "luci-app-performance-manager", "performance-manager-rill"]},
+    "artifacts": {
+      "type": "object", "additionalProperties": false,
+      "required": ["performance-manager", "luci-app-performance-manager", "performance-manager-rill", "luci-app-performance-manager-all"],
+      "properties": {
+        "performance-manager": {"type": ["object", "null"]},
+        "luci-app-performance-manager": {"type": ["object", "null"]},
+        "performance-manager-rill": {"type": ["object", "null"]},
+        "luci-app-performance-manager-all": {"type": ["object", "null"]}
+      }
+    },
     "subchecks": {"type": "object", "additionalProperties": {"type": "boolean"}},
+    "rawFacts": {"type": "object"},
     "environment": {"type": "object"},
     "benchmark": {"type": "object"},
     "upgrade": {"type": "object"},

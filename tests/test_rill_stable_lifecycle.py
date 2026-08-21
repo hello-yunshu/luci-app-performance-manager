@@ -12,6 +12,7 @@ from contract_model import (  # noqa: E402
     outcome_resolution,
     reconcile_duplicate,
     recover_rill_execution,
+    finalize_rill_execution,
     release_rill_reservation,
     reserve_rill_decision,
     transport_stage,
@@ -321,13 +322,41 @@ class RillStableLifecycleTests(unittest.TestCase):
         self.assertEqual(recover_rill_execution({"executionState": "outcome-pending", "createdBootId": "old"},
                                                 current_boot="new"), "retry-with-immutable-outcome")
         prepared = {"executionState": "outcome-prepared", "createdBootId": "old",
-                    "expectedOwnerState": "completed"}
+                    "expectedOwnerState": "completed", "terminalProof": {"ownerTerminalState": "completed"}}
         self.assertEqual(recover_rill_execution(prepared, current_boot="new", owner_state="completed"),
                          "arm-and-retry-with-immutable-outcome")
         self.assertEqual(recover_rill_execution(prepared, current_boot="new", owner_state="awaiting_control"),
                          "retire-prepared-owner-not-terminal")
         self.assertEqual(recover_rill_execution({"executionState": "reserved", "createdBootId": "old"},
                                                 current_boot="new"), "retire-no-auto-actuation")
+
+    def test_cross_boot_prepared_without_terminal_proof_is_intervention_required(self):
+        self.assertEqual(recover_rill_execution({"executionState": "outcome-prepared", "createdBootId": "old",
+                                                  "expectedOwnerState": "completed"}, current_boot="new"),
+                         "intervention-required")
+
+    def test_post_mutation_failure_is_terminal_and_does_not_free_decision(self):
+        decision = "0123456789abcdef0123456789abcdef"
+        journals = {decision: {"decisionId": decision, "ownerType": "transaction", "ownerId": "tx-a",
+                               "mutationStarted": True, "executionState": "executing"}}
+        frozen = {"decisionId": decision, "ownerType": "transaction", "ownerId": "tx-a"}
+        self.assertTrue(finalize_rill_execution(journals, frozen,
+                                                terminal_state="retired-restored-after-failure",
+                                                reason="provider-failed"))
+        self.assertEqual(journals[decision]["executionState"], "retired-restored-after-failure")
+        self.assertFalse(finalize_rill_execution(journals, frozen,
+                                                 terminal_state="retired-restored-after-failure",
+                                                 reason="again"))
+
+    def test_intervention_terminal_state_is_sticky(self):
+        decision = "0123456789abcdef0123456789abcdef"
+        journals = {decision: {"decisionId": decision, "ownerType": "benchmark", "ownerId": "bench-a",
+                               "mutationStarted": True, "executionState": "executing"}}
+        frozen = {"decisionId": decision, "ownerType": "benchmark", "ownerId": "bench-a"}
+        self.assertTrue(finalize_rill_execution(journals, frozen,
+                                                terminal_state="intervention-required",
+                                                reason="restore-failed"))
+        self.assertEqual(recover_rill_execution(journals[decision], current_boot="new"), "leave-terminal")
 
     def test_retry_scheduler_is_telemetry_independent(self):
         self.assertNotIn("main.telemetry", function_body("schedule_rill_outcome_retry"))

@@ -1,8 +1,8 @@
-# Source Audit — 1.0.0-rc.10
+# Source Audit — 1.0.0-rc.11
 
 ## Decision
 
-**PASS — 1.0.0-rc.10 source candidate PASS; functional integration and Stable release are NOT_EVALUATED.**
+**PASS — 1.0.0-rc.11 source candidate PASS; functional integration and Stable release are NOT_EVALUATED.**
 
 This is a source-only, non-promotable audit. It does not consume old runtime
 artifacts and cannot claim functional-integration or Stable-release PASS.
@@ -15,7 +15,7 @@ artifacts and cannot claim functional-integration or Stable-release PASS.
 - rill-static-contract: **PASS** (source)
 - resource-budget: **PASS** (source)
 
-- Executable unit/contract tests: **163**, status **PASS**.
+- Executable unit/contract tests: **171**, status **PASS**.
 - Rill static contract: **PASS**.
 - Rill release-pin structure: **PASS**.
 - Rill functional integration: **NOT_EVALUATED** in this report.

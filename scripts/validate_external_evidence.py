@@ -39,6 +39,7 @@ GATE_CHECKS = {
                       "stateBoundsPass", "historyBoundsPass"],
 }
 RILL_GATES = set(GATE_CHECKS) - {"target-core-only"}
+PRIMARY_PACKAGE = "luci-app-performance-manager-all"
 
 
 def _type_matches(value: Any, expected: str) -> bool:
@@ -132,7 +133,7 @@ def _artifact_errors(data: dict[str, Any], gate: str, build: dict[str, Any] | No
         return ["artifacts object missing"]
     required = ["performance-manager"]
     if gate != "target-core-only":
-        required += ["luci-app-performance-manager", "performance-manager-rill"]
+        required += ["luci-app-performance-manager", "performance-manager-rill", PRIMARY_PACKAGE]
     for name in ("performance-manager", "luci-app-performance-manager", "performance-manager-rill"):
         rec = artifacts.get(name)
         if name not in required:
@@ -164,6 +165,25 @@ def _artifact_errors(data: dict[str, Any], gate: str, build: dict[str, Any] | No
             expected = (apk_report.get("packages") or {}).get(name) or {}
             if rec.get("apkSha256") != expected.get("sha256"):
                 errors.append(f"artifacts.{name}.apkSha256 does not match APK verifier")
+    if gate == "target-core-only":
+        if data.get("primaryPackage") != "performance-manager":
+            errors.append("target-core-only primaryPackage must be performance-manager")
+    else:
+        primary = artifacts.get(PRIMARY_PACKAGE)
+        if data.get("primaryPackage") != PRIMARY_PACKAGE:
+            errors.append(f"primaryPackage must be {PRIMARY_PACKAGE}")
+        if not isinstance(primary, dict) or not _sha(primary.get("apkSha256")):
+            errors.append("all-in-one primary artifact identity missing")
+        elif data.get("primaryPackageSha256") != primary.get("apkSha256"):
+            errors.append("primaryPackageSha256 does not match all-in-one artifact")
+        if build:
+            expected = (build.get("packages") or {}).get(PRIMARY_PACKAGE) or {}
+            if primary.get("apkSha256") != expected.get("apkSha256") or primary.get("version") != expected.get("pkgver"):
+                errors.append("all-in-one primary artifact does not match build metadata")
+        if apk_report:
+            expected = (apk_report.get("packages") or {}).get(PRIMARY_PACKAGE) or {}
+            if primary.get("apkSha256") != expected.get("sha256"):
+                errors.append("all-in-one primary artifact does not match APK verifier")
     if build and str(data.get("buildRunId")) != str(build.get("workflowRunId")):
         errors.append("buildRunId does not match build metadata")
     return errors

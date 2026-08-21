@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.0.0-rc.11 — Stable closure candidate (2026-08-22)
+
+- Terminalize every post-mutation Rill execution failure without fabricating feedback; unresolved restore state is durable `intervention-required` and blocks further Rill actuation.
+- Persist a crash-consistent terminal proof before arming an Outcome, so router reboot recovery does not depend on `/tmp` owner journals.
+- Make Stable testbed transport raw-facts-only, require the all-in-one APK as the primary non-core artifact, and bind Actions/run evidence to immutable identities.
+
 ## 1.0.0-rc.10 — Verified all-in-one OpenWrt APK (2026-08-20)
 
 - Adds `luci-app-performance-manager-all`, a physical single APK containing Core, LuCI, rpcd ACL/menu, configuration, profiles/schemas, compiled Simplified Chinese translation and repository-owned Rill integration glue.

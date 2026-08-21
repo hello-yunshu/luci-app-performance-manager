@@ -16,8 +16,8 @@ jobs:
   static:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-python@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
         with:
           python-version: "3.13"
       - run: python -m pip install --disable-pip-version-check jsonschema pyyaml
@@ -37,7 +37,7 @@ jobs:
       - name: Python companion syntax
         run: python -m py_compile companion/pm_companion_agent.py
       - name: Upload source/behavior audit evidence
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: source-audit-evidence
           path: |
@@ -63,8 +63,8 @@ jobs:
   pm-rill-provenance:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-python@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
         with:
           python-version: "3.13"
       - run: python -m pip install --disable-pip-version-check pyyaml jsonschema pynacl
@@ -77,7 +77,7 @@ jobs:
       - name: Generate Rill consumed manifest
         run: python scripts/generate_rill_consumed_manifest.py --out rill-consumed-manifest.json
       - name: Upload Rill provenance + verified adapter artifact
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: rill-provenance
           path: |
@@ -99,9 +99,9 @@ jobs:
     runs-on: ubuntu-latest
     needs: pm-rill-provenance
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
       - name: Download verified adapter artifact from provenance
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
         with:
           name: rill-provenance
           path: rill-evidence
@@ -120,7 +120,7 @@ jobs:
           echo "OPENWRT_ROOTFS=$rootfs" >> "$GITHUB_ENV"
           echo "OPENWRT_ROOTFS_SHA256=$rootfs_sha" >> "$GITHUB_ENV"
       - name: Restore verified OpenWrt rootfs archive
-        uses: actions/cache@v6
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
         with:
           path: .cache/openwrt/${{ steps.openwrt-rootfs.outputs.filename }}
           key: openwrt-rootfs-${{ runner.os }}-${{ runner.arch }}-${{ env.OPENWRT_VERSION }}-${{ steps.openwrt-rootfs.outputs.sha256 }}
@@ -165,7 +165,7 @@ jobs:
             --out-dir docs
       - name: Upload real adapter runtime + protocol evidence
         if: always()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: rill-runtime-evidence
           path: |
@@ -184,9 +184,9 @@ jobs:
     runs-on: ubuntu-latest
     needs: pm-rill-provenance
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
       - name: Download verified adapter artifact from provenance
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
         with:
           name: rill-provenance
           path: rill-evidence
@@ -205,7 +205,7 @@ jobs:
           echo "OPENWRT_ROOTFS=$rootfs" >> "$GITHUB_ENV"
           echo "OPENWRT_ROOTFS_SHA256=$rootfs_sha" >> "$GITHUB_ENV"
       - name: Restore verified OpenWrt rootfs archive
-        uses: actions/cache@v6
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
         with:
           path: .cache/openwrt/${{ steps.openwrt-rootfs.outputs.filename }}
           key: openwrt-rootfs-${{ runner.os }}-${{ runner.arch }}-${{ env.OPENWRT_VERSION }}-${{ steps.openwrt-rootfs.outputs.sha256 }}
@@ -246,7 +246,7 @@ jobs:
           PY
       - name: Upload real Core<->adapter roundtrip evidence
         if: always()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: pm-core-rill-roundtrip
           path: |
@@ -258,7 +258,7 @@ jobs:
   openwrt-ucode:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
       - name: Resolve official OpenWrt rootfs identity
         id: openwrt-rootfs
         shell: bash
@@ -274,7 +274,7 @@ jobs:
           echo "OPENWRT_ROOTFS=$rootfs" >> "$GITHUB_ENV"
           echo "OPENWRT_ROOTFS_SHA256=$rootfs_sha" >> "$GITHUB_ENV"
       - name: Restore verified OpenWrt rootfs archive
-        uses: actions/cache@v6
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
         with:
           path: .cache/openwrt/${{ steps.openwrt-rootfs.outputs.filename }}
           key: openwrt-rootfs-${{ runner.os }}-${{ runner.arch }}-${{ env.OPENWRT_VERSION }}-${{ steps.openwrt-rootfs.outputs.sha256 }}
@@ -339,7 +339,7 @@ jobs:
           fi
       - name: Upload real Core runtime harness report
         if: always()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: core-runtime-harness
           path: core-runtime-harness.log
@@ -380,7 +380,7 @@ jobs:
           PY
       - name: Upload raw Core runtime reports
         if: always()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: core-startup-smoke
           path: |
@@ -401,9 +401,9 @@ jobs:
     runs-on: ubuntu-latest
     needs: [pm-rill-provenance, pm-rill-runtime, pm-core-rill-roundtrip]
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
       - name: Download all Rill per-job evidence
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
         with:
           pattern: "*"
           path: evidence
@@ -437,7 +437,7 @@ jobs:
             --expected-commit "$GITHUB_SHA" \
             --out docs/final-release-evidence.json
       - name: Upload final release evidence
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: final-release-evidence
           path: docs/final-release-evidence.json

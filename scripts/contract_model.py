@@ -9,6 +9,12 @@ from __future__ import annotations
 from typing import Any
 
 ACTIVE_TX = {"pending", "applied", "verified", "awaiting_confirm"}
+TERMINAL_EXECUTION_STATES = {
+    "retired-no-valid-outcome",
+    "retired-restored-after-failure",
+    "intervention-required",
+    "retired-abandoned",
+}
 
 
 def reserve_rill_decision(bindings: dict[str, dict[str, Any]], journals: dict[str, dict[str, Any]],
@@ -43,6 +49,25 @@ def release_rill_reservation(bindings: dict[str, dict[str, Any]], journals: dict
     return True
 
 
+def finalize_rill_execution(journals: dict[str, dict[str, Any]], frozen: dict[str, Any], *,
+                            terminal_state: str, reason: str,
+                            terminal_proof: dict[str, Any] | None = None) -> bool:
+    """Durably terminalize a post-mutation owner without inventing feedback."""
+    if terminal_state not in TERMINAL_EXECUTION_STATES:
+        return False
+    journal = journals.get(frozen.get("decisionId"))
+    if not journal or not journal.get("mutationStarted") or journal.get("executionState") != "executing":
+        return False
+    if (journal.get("ownerType"), journal.get("ownerId")) != (
+        frozen.get("ownerType"), frozen.get("ownerId")
+    ):
+        return False
+    journal["executionState"] = terminal_state
+    journal["terminalReason"] = reason
+    journal["terminalProof"] = terminal_proof
+    return True
+
+
 def transport_stage(*, connected: bool, bytes_sent: int, request_bytes: int,
                     response_received: bool, response_valid: bool = False) -> dict[str, Any]:
     fully_sent = connected and request_bytes > 0 and bytes_sent == request_bytes
@@ -63,15 +88,22 @@ def transport_stage(*, connected: bool, bytes_sent: int, request_bytes: int,
 def recover_rill_execution(journal: dict[str, Any], *, current_boot: str,
                            owner_state: str | None = None) -> str:
     state = journal.get("executionState")
+    if state in TERMINAL_EXECUTION_STATES:
+        return "leave-terminal"
     if state in {"outcome-pending", "sent-unknown"}:
         return "retry-with-immutable-outcome"
     if state == "outcome-prepared":
-        if owner_state == journal.get("expectedOwnerState"):
+        proof = journal.get("terminalProof")
+        if proof and owner_state in (None, journal.get("expectedOwnerState")):
             return "arm-and-retry-with-immutable-outcome"
+        if not proof and journal.get("createdBootId") != current_boot:
+            return "intervention-required"
         if journal.get("createdBootId") != current_boot:
             return "retire-prepared-owner-not-terminal"
         return "leave-prepared"
-    if state in {"reserved", "executing"} and journal.get("createdBootId") != current_boot:
+    if state == "executing" and journal.get("createdBootId") != current_boot:
+        return "intervention-required"
+    if state == "reserved" and journal.get("createdBootId") != current_boot:
         return "retire-no-auto-actuation"
     return "leave"
 

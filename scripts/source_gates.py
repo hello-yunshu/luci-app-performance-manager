@@ -43,6 +43,13 @@ def forbidden_api_gates():
     has_cargo_lock = any(p.name == 'Cargo.lock' for p in repo_files)
     has_rust_src = any(('src' in {x.name for x in p.parents} or 'rust' in str(p).lower()) and p.suffix == '.rs' for p in repo_files)
     rill_make = (ROOT/'package/performance-manager-rill/Makefile').read_text()
+    workflow_files = sorted((ROOT/'.github/workflows').glob('*.yml'))
+    mutable_actions = []
+    for workflow in workflow_files:
+        for line_no, line in enumerate(workflow.read_text().splitlines(), 1):
+            match = re.search(r'\buses:\s*([^\s#]+)', line)
+            if match and not match.group(1).startswith('./') and not re.search(r'@[0-9a-f]{40}$', match.group(1)):
+                mutable_actions.append(f'{workflow.name}:{line_no}:{match.group(1)}')
     return [
       ('no Cargo.toml reintroduced', not has_cargo_toml),
       ('no Cargo.lock reintroduced', not has_cargo_lock),
@@ -52,6 +59,7 @@ def forbidden_api_gates():
           not re.search(r'\bcargo\s+(?:build|test|run|check)\b', (ROOT/'.github/workflows'/w).read_text())
           and not re.search(r'\brustc\b', (ROOT/'.github/workflows'/w).read_text())
           for w in ['ci.yml','build-openwrt.yml'])),
+      ('all third-party Actions are immutable full-SHA pins', not mutable_actions),
     ]
 
 schemas={p.name for p in (ROOT/'contracts').glob('*.schema.json')}
