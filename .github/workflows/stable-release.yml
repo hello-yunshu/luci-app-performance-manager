@@ -25,7 +25,7 @@ jobs:
     runs-on: ubuntu-latest
     environment: stable-release
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           ref: ${{ inputs.expected_sha }}
           fetch-depth: 0
@@ -37,8 +37,8 @@ jobs:
           set -euo pipefail
           test "$(git rev-parse HEAD)" = "${{ inputs.expected_sha }}"
           test "$(cat VERSION)" = '1.0.0'
-          python3 scripts/verify_action_run_identity.py --run-id '${{ inputs.aggregate_run_id }}' --expected-sha '${{ inputs.expected_sha }}' --expected-workflow 'Stable evidence aggregate'
-          python3 scripts/verify_action_run_identity.py --run-id '${{ inputs.build_run_id }}' --expected-sha '${{ inputs.expected_sha }}' --expected-workflow 'Build OpenWrt (remote SDK)'
+          python3 scripts/verify_action_run_identity.py --run-id '${{ inputs.aggregate_run_id }}' --expected-sha '${{ inputs.expected_sha }}' --expected-workflow 'Stable evidence aggregate' --expected-workflow-path '.github/workflows/stable-aggregate.yml'
+          python3 scripts/verify_action_run_identity.py --run-id '${{ inputs.build_run_id }}' --expected-sha '${{ inputs.expected_sha }}' --expected-workflow 'Build OpenWrt (remote SDK)' --expected-workflow-path '.github/workflows/build-openwrt.yml'
       - name: Download exact build and final Stable evidence
         shell: bash
         env:

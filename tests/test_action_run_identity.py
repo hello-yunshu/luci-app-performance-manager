@@ -30,6 +30,18 @@ class ActionRunIdentityTests(unittest.TestCase):
         data = self.valid(); data["workflowName"] = "CI"
         self.assertTrue(validate_run_identity(data, self.sha, self.workflow))
 
+    def test_path_repository_and_run_metadata_are_bound_for_release(self):
+        data = {**self.valid(), "path": ".github/workflows/build-openwrt.yml",
+                "repository": {"full_name": "hello-yunshu/luci-app-performance-manager"},
+                "workflowDatabaseId": 123, "runAttempt": 1, "headBranch": "main"}
+        self.assertEqual(validate_run_identity(data, self.sha, self.workflow,
+                                                ".github/workflows/build-openwrt.yml",
+                                                "hello-yunshu/luci-app-performance-manager"), [])
+        data["path"] = ".github/workflows/ci.yml"
+        self.assertTrue(validate_run_identity(data, self.sha, self.workflow,
+                                              ".github/workflows/build-openwrt.yml",
+                                              "hello-yunshu/luci-app-performance-manager"))
+
 
 if __name__ == "__main__":
     unittest.main()

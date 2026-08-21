@@ -26,6 +26,7 @@ const RILL_STATES = { disabled: 'disabled', notProvisioned: 'not-provisioned', b
 const RILL_BINDINGS_SCHEMA_VERSION = 2;
 const RILL_EXECUTION_SCHEMA_VERSION = 1;
 const RILL_BINDINGS_MAX = 64;
+const RILL_EXECUTION_TERMINAL_STATES = [ 'retired-no-valid-outcome', 'retired-restored-after-failure', 'intervention-required', 'retired-abandoned' ];
 const RILL_BINDINGS_TTL_MS = 3600000;
 const RILL_ADVISORY_TTL_MS = 3600000;
 const RILL_MODEL_GENERATION = 1;
@@ -1401,7 +1402,7 @@ function rollback_transaction(txid, reason) {
 		let restored = r.rc == 0 && ring_matches(ref, tx.before.ring);
 		if (!restored) {
 			tx.state = 'failed'; tx.result = { error: 'rollback-apply-or-readback-failed', output: r.out ?? '' };
-			tx.verification.rollbackReadBack = 'fail'; tx_save(tx); release_locks(tx.requiredLocks, tx.transactionId);
+			tx.verification.rollbackReadBack = 'fail'; tx_save(tx); rill_finalize_transaction_failure(tx, 'transaction-rollback-failed'); release_locks(tx.requiredLocks, tx.transactionId);
 			history('transaction.rollback_failed', tx); return { ok: false, transaction: tx };
 		}
 		let policy = json_read(ring_policy_path(ref.stableId), null);
@@ -1411,12 +1412,12 @@ function rollback_transaction(txid, reason) {
 		let r=benchmark_restore_transaction(tx, reason);
 		if (!r.ok) {
 			tx.state='failed'; tx.verification.rollbackReadBack='fail'; tx.result={error:r.error,output:r.output ?? '',benchmarkSessionId:tx.result?.benchmarkSessionId ?? tx.applied?.benchmarkSessionId ?? null};
-			tx_save(tx); release_locks(tx.requiredLocks,tx.transactionId); history('transaction.rollback_failed',tx); return {ok:false,transaction:tx};
+			tx_save(tx); rill_finalize_transaction_failure(tx, 'benchmark-transaction-rollback-failed'); release_locks(tx.requiredLocks,tx.transactionId); history('transaction.rollback_failed',tx); return {ok:false,transaction:tx};
 		}
 		tx.verification.rollbackReadBack='pass';
 	}
 	let bench_id=tx.result?.benchmarkSessionId ?? tx.applied?.benchmarkSessionId ?? null;
-	tx.state = 'rolled_back'; tx.deadlineMonotonicMs=null; tx.result = { reason: reason ?? 'manual', benchmarkSessionId:bench_id }; tx_save(tx); release_locks(tx.requiredLocks, tx.transactionId);
+	tx.state = 'rolled_back'; tx.deadlineMonotonicMs=null; tx.result = { reason: reason ?? 'manual', benchmarkSessionId:bench_id }; tx_save(tx); rill_finalize_transaction_failure(tx, 'transaction-rollback-complete'); release_locks(tx.requiredLocks, tx.transactionId);
 	history('transaction.rollback', tx);
 	if (bench_id) {
 		let sp=benchmark_path(bench_id), sess=json_read(sp,null);
@@ -1589,9 +1590,19 @@ function benchmark_fail_session(sp, sid, error) {
 	let sess = json_read(sp, null);
 	if (!sess) return;
 	/* A Rill-owned session which never reached the mutation boundary may give
-	 * the reservation back. Once mutationStarted is durable this helper is a
-	 * no-op, preserving exactly-once ownership for every later failure path. */
-	if (sess.rillDecision) rill_binding_release_reservation(sess.rillDecision, `benchmark-failed-before-mutation:${error}`);
+	 * the reservation back. After mutation, every path gets one durable
+	 * terminal state: exact restore retires without feedback; uncertain live
+	 * state becomes intervention-required and blocks further actuation. */
+	if (sess.rillDecision) {
+		let journal = json_read(rill_execution_path(sess.rillDecision.decisionId), null);
+		if (journal?.mutationStarted === true) {
+			let tx = sess.transactionId ? json_read(tx_path(sess.transactionId), null) : null;
+			let restored = tx?.state == 'rolled_back' && tx?.verification?.rollbackReadBack == 'pass';
+			rill_execution_finalize_without_outcome(sess.rillDecision, restored ? 'retired-restored-after-failure' : 'intervention-required', `benchmark-failed-after-mutation:${error}`, { rollback: restored ? 'exact' : 'failed' });
+		} else {
+			rill_binding_release_reservation(sess.rillDecision, `benchmark-failed-before-mutation:${error}`);
+		}
+	}
 	if (benchmark_session_active(sess)) {
 		sess.state = 'failed'; sess.result = { validated: false, error: error };
 		json_write(sp, sess);
@@ -1946,16 +1957,33 @@ function rill_execution_path(decision_id) {
 	return `${persist_dir()}/rill-executions/${safe_name(decision_id)}.json`;
 }
 
+function rill_execution_active(row) {
+	return row?.executionState == 'reserved' || row?.executionState == 'executing' ||
+		row?.executionState == 'outcome-prepared' || row?.executionState == 'outcome-pending' ||
+		row?.executionState == 'sent-unknown';
+}
+
+function rill_intervention_required() {
+	for (let path in fs.glob(`${persist_dir()}/rill-executions/*.json`) ?? []) {
+		let row = json_read(path, null);
+		if (row?.executionState == 'intervention-required') return true;
+	}
+	return false;
+}
+
 function rill_binding_reserve(decision_id, action_id, authority, owner_type, owner_id) {
 	let binding = rill_binding_peek(decision_id);
 	if (!binding || binding.actionId != action_id || binding.executionAuthority != authority) return null;
 	if (owner_type != 'transaction' && owner_type != 'benchmark') return null;
 	if (!length(owner_id ?? '') || json_read(rill_execution_path(decision_id), null)) return null;
 	/* Bound persistent flash state without evicting live or pending evidence.
-	 * Completed outcomes are removed immediately; abandoned executions remain
-	 * auditable and new reservations fail closed at the runtime binding bound. */
+	 * Terminal no-feedback rows remain auditable but do not consume the active
+	 * reservation bound. An unresolved mutation blocks further Rill actuation. */
+	if (rill_intervention_required()) return null;
 	let journals = fs.glob(`${persist_dir()}/rill-executions/*.json`) ?? [];
-	if (length(journals) >= RILL_BINDINGS_MAX) return null;
+	let active_count = 0;
+	for (let path in journals) if (rill_execution_active(json_read(path, null))) active_count++;
+	if (active_count >= RILL_BINDINGS_MAX) return null;
 	let frozen = {
 		schemaVersion: binding.schemaVersion, decisionId: binding.decisionId, contextKey: binding.contextKey,
 		actionId: binding.actionId, goal: binding.goal, modelGeneration: binding.modelGeneration,
@@ -2004,6 +2032,33 @@ function rill_binding_consume(binding) {
 	if (!binding?.decisionId) return;
 	delete rill_bindings[binding.decisionId];
 	if (rill_advisory?.decisionId == binding.decisionId) rill_advisory = null;
+}
+
+function rill_execution_finalize_without_outcome(binding, terminal_state, reason, detail) {
+	if (index(RILL_EXECUTION_TERMINAL_STATES, terminal_state) < 0) return false;
+	let path = rill_execution_path(binding?.decisionId), journal = json_read(path, null);
+	if (!journal || journal.ownerId != binding?.ownerId || journal.ownerType != binding?.ownerType || journal.mutationStarted !== true)
+		return false;
+	journal.executionState = terminal_state;
+	journal.terminalReason = reason ?? 'post-mutation-failure';
+	journal.terminalDetail = detail ?? null;
+	journal.terminalMonotonicMs = monotonic_ms();
+	journal.transportState = 'not-sent';
+	journal.mayHaveReachedPeer = false;
+	if (!json_write(path, journal)) return false;
+	rill_binding_consume(binding);
+	runtime_history('rill.execution.terminal', { decisionId: binding.decisionId, ownerId: binding.ownerId, state: terminal_state, reason: journal.terminalReason });
+	return true;
+}
+
+function rill_finalize_transaction_failure(tx, reason) {
+	if (!tx?.rillDecision) return false;
+	let journal = json_read(rill_execution_path(tx.rillDecision.decisionId), null);
+	if (!journal || journal.executionState != 'executing') return false;
+	let restored = tx.state == 'rolled_back' && tx.verification?.rollbackReadBack == 'pass';
+	return rill_execution_finalize_without_outcome(tx.rillDecision,
+		restored ? 'retired-restored-after-failure' : 'intervention-required', reason,
+		{ rollback: restored ? 'exact' : 'failed' });
 }
 
 function rill_binding_retire(binding, reason) {
@@ -2083,13 +2138,49 @@ rill_prepare_outcome = function(binding, measurement, reward, session_id, expect
 	return { ok: true, attempt: journal, path: path, fingerprint: fingerprint };
 };
 
+function rill_terminal_proof_build(journal, owner) {
+	if (!owner || owner.state != journal.expectedOwnerState) return null;
+	let result = owner.result ?? null, verification = owner.verification ?? null;
+	if (journal.ownerType == 'benchmark' && (owner.state != 'completed' || result?.validated !== true || result?.rolledBack !== true)) return null;
+	if (journal.ownerType == 'transaction' && owner.state == 'rolled_back' && verification?.rollbackReadBack != 'pass') return null;
+	let proof = {
+		ownerType: journal.ownerType, ownerId: journal.ownerId, ownerTerminalState: owner.state,
+		terminalResultDigest: fnv1a32(sprintf('%J', result)), decisionId: journal.decisionId,
+		actionId: journal.actionId, contextKey: journal.contextKey, goal: journal.goal,
+		modelGeneration: journal.modelGeneration, measurementClass: journal.measurementClass,
+		reward: journal.reward, validated: journal.validated === true,
+		rollbackCommitProof: { verification: verification, result: result },
+		bootIdentity: owner.bootId ?? owner.createdBootId ?? journal.createdBootId
+	};
+	if (!proof.bootIdentity || proof.validated !== true || proof.reward == null) return null;
+	return proof;
+}
+
+function rill_terminal_proof_valid(journal, proof) {
+	if (!proof || type(proof) != 'object') return false;
+	if (proof.ownerType != journal.ownerType || proof.ownerId != journal.ownerId ||
+		proof.ownerTerminalState != journal.expectedOwnerState || proof.decisionId != journal.decisionId ||
+		proof.actionId != journal.actionId || proof.contextKey != journal.contextKey ||
+		proof.goal != journal.goal || proof.modelGeneration != journal.modelGeneration ||
+		proof.measurementClass != journal.measurementClass || proof.validated !== true ||
+		proof.terminalResultDigest != fnv1a32(sprintf('%J', proof.rollbackCommitProof?.result ?? null))) return false;
+	return length(proof.bootIdentity ?? '') && proof.reward == journal.reward;
+}
+
 rill_arm_outcome = function(binding) {
 	let path=rill_execution_path(binding?.decisionId), journal=json_read(path,null);
 	if (!journal || journal.ownerId != binding?.ownerId || journal.ownerType != binding?.ownerType || journal.executionState != 'outcome-prepared')
 		return {ok:false,state:'outcome-prepared-owner-mismatch'};
-	let owner = journal.ownerType == 'transaction' ? json_read(tx_path(journal.ownerId),null) : json_read(benchmark_path(journal.ownerId),null);
-	if (!owner || owner.state != journal.expectedOwnerState)
-		return {ok:false,state:'outcome-owner-terminal-not-durable',expected:journal.expectedOwnerState,actual:owner?.state ?? null};
+	/* The owner journal is in /tmp and may disappear on router reboot.  The
+	 * first arm writes a complete persistent proof while the terminal owner is
+	 * still available. Recovery uses that proof exclusively. */
+	if (!rill_terminal_proof_valid(journal, journal.terminalProof)) {
+		let owner = journal.ownerType == 'transaction' ? json_read(tx_path(journal.ownerId),null) : json_read(benchmark_path(journal.ownerId),null);
+		let proof = rill_terminal_proof_build(journal, owner);
+		if (!proof) return {ok:false,state:'outcome-terminal-proof-missing',expected:journal.expectedOwnerState,actual:owner?.state ?? null};
+		journal.terminalProof = proof;
+		if (!json_write(path, journal)) return {ok:false,state:'outcome-terminal-proof-write-failed'};
+	}
 	journal.executionState='outcome-pending'; journal.transportState='pending';
 	journal.nextRetryMonotonicMs=monotonic_ms(); journal.outcomeArmedBootId=boot_id();
 	if (!json_write(path,journal)) return {ok:false,state:'outcome-arm-journal-failed'};
@@ -2690,13 +2781,13 @@ function benchmark_apply_candidate(action_id, path_id, session_id, rill_decision
 		let rr=benchmark_provider_apply(plan, restore_value), restored=rr.rc == 0 && benchmark_provider_matches(plan, restore_value);
 		tx.verification={readBack:'apply-failed',healthRegression:'not-evaluated',rollbackReadBack:restored?'pass':'fail',commitConfirm:'not_armed'};
 		tx.state=restored?'rolled_back':'failed'; tx.result={error:'apply-failed',output:ap.out,rollback:restored?'restored':'failed',benchmarkSessionId:session_id};
-		tx_save(tx); release_locks(tx.requiredLocks,tx.transactionId); return {ok:false,error:'apply-failed',rollback:restored?'restored':'failed',transaction:tx};
+		tx_save(tx); if (rill_decision) rill_execution_finalize_without_outcome(rill_decision, restored ? 'retired-restored-after-failure' : 'intervention-required', 'benchmark-provider-apply-failed', { rollback: restored ? 'exact' : 'failed' }); release_locks(tx.requiredLocks,tx.transactionId); return {ok:false,error:'apply-failed',rollback:restored?'restored':'failed',transaction:tx};
 	}
 	tx.state='applied'; tx.applied={ benchmark:plan, candidate:plan.candidate, benchmarkSessionId:session_id };
 	if (!tx_save(tx)) {
 		let rr=benchmark_provider_apply(plan,restore_value), restored=rr.rc == 0 && benchmark_provider_matches(plan,restore_value);
 		tx.verification.rollbackReadBack=restored?'pass':'fail'; tx.state=restored?'rolled_back':'failed'; tx.result={error:'transaction-journal-write-failed-after-apply',rollback:restored?'restored':'failed',benchmarkSessionId:session_id}; tx_save(tx);
-		release_locks(tx.requiredLocks,tx.transactionId); return {ok:false,error:'transaction-journal-write-failed-after-apply',rollback:restored?'restored':'failed',transaction:tx};
+		if (rill_decision) rill_execution_finalize_without_outcome(rill_decision, restored ? 'retired-restored-after-failure' : 'intervention-required', 'benchmark-post-apply-journal-failed', { rollback: restored ? 'exact' : 'failed' }); release_locks(tx.requiredLocks,tx.transactionId); return {ok:false,error:'transaction-journal-write-failed-after-apply',rollback:restored?'restored':'failed',transaction:tx};
 	}
 	let matches=benchmark_provider_matches(plan, candidate_value);
 	let hcmp=compare_health(before_health, baseline_health(path_id));
@@ -2704,14 +2795,14 @@ function benchmark_apply_candidate(action_id, path_id, session_id, rill_decision
 		let rr=benchmark_provider_apply(plan, restore_value);
 		let restored=rr.rc == 0 && benchmark_provider_matches(plan, restore_value);
 		tx.verification={readBack:matches?'pass':'fail',healthRegression:hcmp.pass?'none':hcmp.failures,rollbackReadBack:restored?'pass':'fail',commitConfirm:'not_required'};
-		tx.state=restored?'rolled_back':'failed'; tx.result={error:'verification-failed',rollback:restored?'restored':'failed',benchmarkSessionId:session_id}; tx_save(tx); release_locks(tx.requiredLocks,tx.transactionId);
+		tx.state=restored?'rolled_back':'failed'; tx.result={error:'verification-failed',rollback:restored?'restored':'failed',benchmarkSessionId:session_id}; tx_save(tx); if (rill_decision) rill_execution_finalize_without_outcome(rill_decision, restored ? 'retired-restored-after-failure' : 'intervention-required', 'benchmark-verification-failed', { rollback: restored ? 'exact' : 'failed' }); release_locks(tx.requiredLocks,tx.transactionId);
 		return {ok:false,error:'verification-failed',transaction:tx};
 	}
 	tx.state='verified'; tx.verification={readBack:'pass',healthRegression:'none',commitConfirm:'pending'}; tx.result={benchmarkSessionId:session_id};
 	if (!tx_save(tx)) {
 		let rr=benchmark_provider_apply(plan,restore_value), restored=rr.rc == 0 && benchmark_provider_matches(plan,restore_value);
 		tx.verification.rollbackReadBack=restored?'pass':'fail'; tx.state=restored?'rolled_back':'failed'; tx.result={error:'transaction-journal-write-failed-after-verify',rollback:restored?'restored':'failed',benchmarkSessionId:session_id}; tx_save(tx);
-		release_locks(tx.requiredLocks,tx.transactionId); return {ok:false,error:'transaction-journal-write-failed-after-verify',rollback:restored?'restored':'failed'};
+		if (rill_decision) rill_execution_finalize_without_outcome(rill_decision, restored ? 'retired-restored-after-failure' : 'intervention-required', 'benchmark-post-verify-journal-failed', { rollback: restored ? 'exact' : 'failed' }); release_locks(tx.requiredLocks,tx.transactionId); return {ok:false,error:'transaction-journal-write-failed-after-verify',rollback:restored?'restored':'failed'};
 	}
 	let armed=arm_commit_confirm(tx, max(15,int_cfg('benchmark.candidate_timeout_seconds',120))*1000);
 	if (!armed.ok) { rollback_transaction(tx.transactionId,'benchmark-arm-failed'); return {ok:false,error:armed.error}; }
@@ -2815,14 +2906,19 @@ function apply_ring(action, options) {
 	}
 	let ap = ring_apply(ref, action.params);
 	if (ap.rc != 0) {
-		tx.state = 'failed'; tx.result = { error: 'apply-failed', output: ap.out }; tx_save(tx); release_locks(tx.requiredLocks, tx.transactionId);
+		let restore = ring_restore(ref, snap), restored = restore.rc == 0 && ring_matches(ref, snap);
+		tx.state = restored ? 'rolled_back' : 'failed'; tx.verification.rollbackReadBack = restored ? 'pass' : 'fail';
+		tx.result = { error: 'apply-failed', output: ap.out, rollback: restored ? 'restored' : 'failed' }; tx_save(tx);
+		if (tx.rillDecision) rill_execution_finalize_without_outcome(tx.rillDecision, restored ? 'retired-restored-after-failure' : 'intervention-required', 'safe-direct-apply-failed', { rollback: restored ? 'exact' : 'failed' });
+		release_locks(tx.requiredLocks, tx.transactionId);
 		return { ok: false, transaction: tx };
 	}
 	tx.state = 'applied'; tx.applied = action.params;
 	if (!tx_save(tx)) {
 		let restore=ring_restore(ref,snap), restored=restore.rc == 0 && ring_matches(ref,snap);
 		tx.verification.rollbackReadBack=restored?'pass':'fail'; tx.state=restored?'rolled_back':'failed'; tx.result={error:'transaction-journal-write-failed-after-apply',rollback:restored?'restored':'failed'};
-		tx_save(tx); release_locks(tx.requiredLocks,tx.transactionId); return {ok:false,error:'transaction-journal-write-failed-after-apply',transaction:tx};
+		tx_save(tx); if (tx.rillDecision) rill_execution_finalize_without_outcome(tx.rillDecision, restored ? 'retired-restored-after-failure' : 'intervention-required', 'safe-direct-post-apply-journal-failed', { rollback: restored ? 'exact' : 'failed' });
+		release_locks(tx.requiredLocks,tx.transactionId); return {ok:false,error:'transaction-journal-write-failed-after-apply',transaction:tx};
 	}
 	let after_ring = ring_snapshot(ref);
 	let after_health = baseline_health();
@@ -2839,12 +2935,12 @@ function apply_ring(action, options) {
 		tx.result = { error: 'verification-failed', rollback: restored ? 'restored' : 'failed', rollbackOutput: restore.out ?? '' };
 		if (!options.runtimeOnly && restored && tx.rillDecision) {
 			let intent=rill_prepare_outcome(tx.rillDecision,'health_only',-1.0,tx.transactionId,'rolled_back');
-			if (!intent.ok) { release_locks(tx.requiredLocks,tx.transactionId); return {ok:false,error:'rill-outcome-intent-write-failed',transaction:tx}; }
+			if (!intent.ok) rill_execution_finalize_without_outcome(tx.rillDecision, 'retired-restored-after-failure', 'safe-direct-verification-intent-failed', { rollback: 'exact' });
 		}
 		if (!tx_save(tx)) { release_locks(tx.requiredLocks,tx.transactionId); return {ok:false,error:'transaction-terminal-journal-write-failed',transaction:tx}; }
 		if (!options.runtimeOnly && restored && tx.rillDecision) {
 			let armed=rill_arm_outcome(tx.rillDecision);
-			if (!armed.ok) { release_locks(tx.requiredLocks,tx.transactionId); return {ok:false,error:'rill-outcome-arm-failed',transaction:tx,detail:armed}; }
+			if (!armed.ok) { rill_execution_finalize_without_outcome(tx.rillDecision, 'retired-restored-after-failure', 'safe-direct-verification-arm-failed', armed); release_locks(tx.requiredLocks,tx.transactionId); return {ok:false,error:'rill-outcome-arm-failed',transaction:tx,detail:armed}; }
 		}
 		release_locks(tx.requiredLocks, tx.transactionId);
 		(options.runtimeOnly ? runtime_history : history)(restored ? 'transaction.rollback' : 'transaction.rollback_failed', tx);
@@ -2857,7 +2953,8 @@ function apply_ring(action, options) {
 		let restore = ring_restore(ref, snap);
 		let restored = restore.rc == 0 && ring_matches(ref, snap);
 		tx.state = restored ? 'rolled_back' : 'failed'; tx.result = { error: 'transaction-journal-write-failed', rollback: restored ? 'restored' : 'failed' };
-		tx_save(tx); release_locks(tx.requiredLocks, tx.transactionId); return { ok: false, transaction: tx };
+		tx_save(tx); if (tx.rillDecision) rill_execution_finalize_without_outcome(tx.rillDecision, restored ? 'retired-restored-after-failure' : 'intervention-required', 'safe-direct-verification-journal-failed', { rollback: restored ? 'exact' : 'failed' });
+		release_locks(tx.requiredLocks, tx.transactionId); return { ok: false, transaction: tx };
 	}
 	if (action.requiresCommitConfirm) {
 		let armed = arm_commit_confirm(tx, max(5, int_cfg('main.commit_confirm_seconds', 30)) * 1000);
@@ -2870,7 +2967,7 @@ function apply_ring(action, options) {
 		tx.verification.rollbackReadBack = restored ? 'pass' : 'fail';
 		tx.state = restored ? 'rolled_back' : 'failed';
 		tx.result = { error: 'persistence-failed', rollback: restored ? 'restored' : 'failed' };
-		tx_save(tx); release_locks(tx.requiredLocks, tx.transactionId);
+		tx_save(tx); if (tx.rillDecision) rill_execution_finalize_without_outcome(tx.rillDecision, restored ? 'retired-restored-after-failure' : 'intervention-required', 'safe-direct-persistence-failed', { rollback: restored ? 'exact' : 'failed' }); release_locks(tx.requiredLocks, tx.transactionId);
 		history(restored ? 'transaction.rollback' : 'transaction.rollback_failed', tx);
 		return { ok: false, transaction: tx };
 	}
@@ -2880,6 +2977,7 @@ function apply_ring(action, options) {
 		if (!intent.ok) {
 			let restore=ring_restore(ref,snap), restored=restore.rc == 0 && ring_matches(ref,snap);
 			tx.state=restored?'rolled_back':'failed'; tx.result={error:'rill-outcome-intent-write-failed',rollback:restored?'restored':'failed'}; tx_save(tx); release_locks(tx.requiredLocks,tx.transactionId);
+			if (tx.rillDecision) rill_execution_finalize_without_outcome(tx.rillDecision, restored ? 'retired-restored-after-failure' : 'intervention-required', 'safe-direct-terminal-intent-failed', { rollback: restored ? 'exact' : 'failed' });
 			return {ok:false,error:'rill-outcome-intent-write-failed',transaction:tx};
 		}
 	}
@@ -2889,11 +2987,11 @@ function apply_ring(action, options) {
 		let policy=json_read(ring_policy_path(ref.stableId),null); if (policy?.ownerTransactionId == tx.transactionId) fs.unlink(ring_policy_path(ref.stableId));
 		let restore=ring_restore(ref,snap), restored=restore.rc == 0 && ring_matches(ref,snap);
 		tx.state=restored?'rolled_back':'failed'; tx.result={error:'commit-journal-write-failed',rollback:restored?'restored':'failed'}; tx.verification.rollbackReadBack=restored?'pass':'fail'; tx_save(tx);
-		cancel_tx_timer(tx.transactionId); release_locks(tx.requiredLocks,tx.transactionId); history(restored?'transaction.rollback':'transaction.rollback_failed',tx); return {ok:false,error:'commit-journal-write-failed',transaction:tx};
+		cancel_tx_timer(tx.transactionId); if (tx.rillDecision) rill_execution_finalize_without_outcome(tx.rillDecision, restored ? 'retired-restored-after-failure' : 'intervention-required', 'safe-direct-commit-journal-failed', { rollback: restored ? 'exact' : 'failed' }); release_locks(tx.requiredLocks,tx.transactionId); history(restored?'transaction.rollback':'transaction.rollback_failed',tx); return {ok:false,error:'commit-journal-write-failed',transaction:tx};
 	}
 	if (!options.runtimeOnly && tx.rillDecision) {
 		let armed=rill_arm_outcome(tx.rillDecision);
-		if (!armed.ok) { cancel_tx_timer(tx.transactionId); release_locks(tx.requiredLocks,tx.transactionId); return {ok:false,error:'rill-outcome-arm-failed',transaction:tx,detail:armed}; }
+		if (!armed.ok) { rill_execution_finalize_without_outcome(tx.rillDecision, 'intervention-required', 'safe-direct-outcome-arm-failed', armed); cancel_tx_timer(tx.transactionId); release_locks(tx.requiredLocks,tx.transactionId); return {ok:false,error:'rill-outcome-arm-failed',transaction:tx,detail:armed}; }
 	}
 	cancel_tx_timer(tx.transactionId); release_locks(tx.requiredLocks, tx.transactionId);
 	(options.runtimeOnly ? runtime_history : history)('transaction.commit', tx);
@@ -2991,7 +3089,7 @@ function benchmark_start(msg) {
 		}
 		if (nowctx.capabilityHash != session.capabilityHash || nowctx.topologyGeneration != session.topologyGeneration || nowctx.routeIdentity != session.routeIdentity || nowctx.integrationFingerprint != session.integrationFingerprint || nft_drift || workload_drift || goal_drift) {
 			if (session.transactionId) rollback_transaction(session.transactionId,'benchmark-context-drift');
-			if (session.rillDecision) rill_binding_release_reservation(session.rillDecision, 'benchmark-context-drift-before-mutation');
+			benchmark_fail_session(benchmark_path(sid), sid, 'benchmark-context-drift');
 			release_benchmark_lock(session.benchmarkLock?.domain, session.sessionId);
 			session.state='failed'; session.result={validated:false,error:'benchmark-context-drift',nftDelta:nft_cmp}; json_write(benchmark_path(sid),session); return {ok:false,error:'benchmark-context-drift',session:session,nftDelta:nft_cmp};
 		}
@@ -3010,6 +3108,7 @@ function benchmark_start(msg) {
 				release_benchmark_lock(session.benchmarkLock?.domain, sid);
 				session.state='failed'; session.result={validated:false,error:'benchmark-session-write-failed',rollback:rr.ok?'restored':'failed'};
 				json_write(benchmark_path(sid),session);
+				benchmark_fail_session(benchmark_path(sid), sid, 'benchmark-session-write-failed');
 				return {ok:false,error:'benchmark-session-write-failed',rollback:rr,session:session};
 			}
 			history('benchmark.candidate_applied',{sessionId:sid,actionId:session.actionId,transactionId:session.transactionId});
@@ -3032,12 +3131,12 @@ function benchmark_start(msg) {
 			session.state='completed'; session.result={validated:true,changedSystemState:true,rolledBack:true,oneVariable:true,reward:reward,controlBitsPerSecond:c0,candidateBitsPerSecond:c1,health:hcmp};
 			if (session.rillDecision) {
 				let intent=rill_prepare_outcome(session.rillDecision,'controlled_ab',reward,sid,'completed');
-				if (!intent.ok) return {ok:false,error:'rill-outcome-intent-write-failed',session:session,detail:intent};
+				if (!intent.ok) { rill_execution_finalize_without_outcome(session.rillDecision, 'retired-restored-after-failure', 'benchmark-outcome-intent-failed', { rollback: 'exact' }); return {ok:false,error:'rill-outcome-intent-write-failed',session:session,detail:intent}; }
 			}
-			if (!json_write(benchmark_path(sid),session)) return {ok:false,error:'benchmark-result-write-failed-after-safe-rollback',session:session};
+			if (!json_write(benchmark_path(sid),session)) { rill_execution_finalize_without_outcome(session.rillDecision, 'retired-restored-after-failure', 'benchmark-result-journal-failed', { rollback: 'exact' }); return {ok:false,error:'benchmark-result-write-failed-after-safe-rollback',session:session}; }
 			if (session.rillDecision) {
 				let armed=rill_arm_outcome(session.rillDecision);
-				if (!armed.ok) return {ok:false,error:'rill-outcome-arm-failed',session:session,detail:armed};
+				if (!armed.ok) { rill_execution_finalize_without_outcome(session.rillDecision, 'intervention-required', 'benchmark-outcome-arm-failed', armed); return {ok:false,error:'rill-outcome-arm-failed',session:session,detail:armed}; }
 			}
 			release_benchmark_lock(session.benchmarkLock?.domain, sid);
 			history('benchmark.completed',session);
@@ -3413,9 +3512,12 @@ function resource_usage() {
 	let hs=fs.stat(`${persist_dir()}/history.jsonl`), outcomes=fs.stat(`${rill_dir}/validated-outcomes.tsv`), ledger=fs.stat(`${rill_dir}/decision-ledger.jsonl`);
 	let counters = {};
 	for (let key in keys(rill_runtime_counters)) counters[key] = rill_runtime_counters[key];
-	let prepared=0, pending=0, sent_unknown=0;
+	let prepared=0, pending=0, sent_unknown=0, executing=0, intervention=0, active=0;
 	for (let path in fs.glob(`${persist_dir()}/rill-executions/*.json`) ?? []) {
 		let row=json_read(path,null);
+		if (rill_execution_active(row)) active++;
+		if (row?.executionState == 'executing') executing++;
+		if (row?.executionState == 'intervention-required') intervention++;
 		if (row?.executionState == 'outcome-prepared') prepared++;
 		if (row?.executionState == 'outcome-pending') pending++;
 		if (row?.executionState == 'sent-unknown') sent_unknown++;
@@ -3424,10 +3526,13 @@ function resource_usage() {
 	counters.rillOutcomePrepared = prepared;
 	counters.rillOutcomePending = pending;
 	counters.rillOutcomeSentUnknown = sent_unknown;
+	counters.rillExecutionActive = active;
+	counters.rillExecutionExecuting = executing;
+	counters.rillExecutionInterventionRequired = intervention;
 	counters.pmPersistentWrites = persistent_write_count;
 	counters.expectedAdapterPersistenceEvents = rill_runtime_counters.rillObserveAccepted + rill_runtime_counters.rillOutcomeAccepted + rill_runtime_counters.rillOutcomeReconciled;
 	counters.persistenceAccounting = 'logical/inferred-from-pinned-rill-v1.2.0-contract';
-	return {corePid:pid,coreVmRssKiB:vmrss,coreVmSizeKiB:vmsize,corePersistentWritesSinceStart:persistent_write_count,corePersistentWriteBytesSinceStart:persistent_write_bytes,persistentHistoryBytes:hs?.size ?? 0,rillOutcomeBytes:outcomes?.size ?? 0,rillLedgerBytes:ledger?.size ?? 0,historyLineLimit:MAX_HISTORY_LINES,rillCounters:counters,rillBounds:{adapterStateFileBytes:4194304,bindingCacheEntries:RILL_BINDINGS_MAX}};
+	return {corePid:pid,coreVmRssKiB:vmrss,coreVmSizeKiB:vmsize,corePersistentWritesSinceStart:persistent_write_count,corePersistentWriteBytesSinceStart:persistent_write_bytes,persistentHistoryBytes:hs?.size ?? 0,rillOutcomeBytes:outcomes?.size ?? 0,rillLedgerBytes:ledger?.size ?? 0,historyLineLimit:MAX_HISTORY_LINES,rillCounters:counters,rillBounds:{adapterStateFileBytes:4194304,bindingCacheEntries:RILL_BINDINGS_MAX},rillExecutionHealth:{interventionRequired:intervention > 0,active:active,executing:executing}};
 }
 
 function diagnostics() {
@@ -3514,8 +3619,8 @@ function recover_rill_executions() {
 		if (row.executionState == 'outcome-prepared') {
 			let armed=rill_arm_outcome(row.binding ?? row.frozenDecision);
 			if (armed.ok) { recovered++; continue; }
-			if (armed.state == 'outcome-owner-terminal-not-durable' && row.createdBootId != boot_id()) {
-				row.executionState='retired-abandoned'; row.retiredReason='prepared-outcome-owner-not-terminal-after-recovery';
+			if ((armed.state == 'outcome-terminal-proof-missing' || armed.state == 'outcome-terminal-proof-write-failed') && row.createdBootId != boot_id()) {
+				row.executionState='intervention-required'; row.retiredReason='prepared-outcome-terminal-proof-missing-after-recovery';
 				json_write(path,row); retired++;
 			}
 			continue;
@@ -3527,8 +3632,11 @@ function recover_rill_executions() {
 			else rill_runtime_counters.rillOutcomeRecoveredAfterBoot++;
 			json_write(path,row); recovered++; continue;
 		}
-		if ((row.executionState == 'reserved' || row.executionState == 'executing') && row.createdBootId != boot_id()) {
+		if (row.executionState == 'reserved' && row.createdBootId != boot_id()) {
 			row.executionState='retired-abandoned'; row.retiredReason='boot-recovery-no-auto-actuation';
+			json_write(path,row); retired++;
+		} else if (row.executionState == 'executing' && row.createdBootId != boot_id()) {
+			row.executionState='intervention-required'; row.retiredReason='boot-recovery-mutation-state-uncertain';
 			json_write(path,row); retired++;
 		}
 	}

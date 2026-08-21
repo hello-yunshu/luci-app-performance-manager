@@ -3,7 +3,7 @@
   "$id": "https://openwrt-performance-manager.local/schema/rill-execution.json",
   "title": "Persistent Rill Execution and Outcome Journal",
   "type": "object",
-  "additionalProperties": true,
+  "additionalProperties": false,
   "required": ["schemaVersion", "decisionId", "actionId", "contextKey", "goal", "modelGeneration", "executionAuthority", "ownerType", "ownerId", "executionState", "mutationStarted", "mayHaveReachedPeer", "attemptCount", "createdBootId"],
   "properties": {
     "schemaVersion": {"const": 1},
@@ -15,7 +15,7 @@
     "executionAuthority": {"enum": ["safe-direct", "benchmark"]},
     "ownerType": {"enum": ["transaction", "benchmark"]},
     "ownerId": {"type": "string", "minLength": 1},
-    "executionState": {"enum": ["reserved", "executing", "outcome-prepared", "outcome-pending", "sent-unknown", "retired-abandoned"]},
+    "executionState": {"enum": ["reserved", "executing", "outcome-prepared", "outcome-pending", "sent-unknown", "retired-no-valid-outcome", "retired-restored-after-failure", "intervention-required", "retired-abandoned"]},
     "mutationStarted": {"type": "boolean"},
     "validated": {"type": "boolean"},
     "measurementClass": {"enum": ["controlled_ab", "health_only"]},
@@ -26,6 +26,30 @@
     "mayHaveReachedPeer": {"type": "boolean"},
     "attemptCount": {"type": "integer", "minimum": 0},
     "createdBootId": {"type": "string", "minLength": 1},
-    "nextRetryMonotonicMs": {"type": ["integer", "null"], "minimum": 0}
+    "nextRetryMonotonicMs": {"type": ["integer", "null"], "minimum": 0},
+    "frozenDecision": {"type": "object"},
+    "binding": {"type": "object"},
+    "sessionId": {"type": "string", "minLength": 1},
+    "terminalReason": {"type": "string", "minLength": 1},
+    "terminalDetail": {"type": ["object", "null"]},
+    "terminalMonotonicMs": {"type": "integer", "minimum": 0},
+    "terminalProof": {
+      "type": ["object", "null"], "additionalProperties": false,
+      "required": ["ownerType", "ownerId", "ownerTerminalState", "terminalResultDigest", "decisionId", "actionId", "contextKey", "goal", "modelGeneration", "measurementClass", "reward", "validated", "rollbackCommitProof", "bootIdentity"],
+      "properties": {
+        "ownerType": {"enum": ["transaction", "benchmark"]}, "ownerId": {"type": "string", "minLength": 1},
+        "ownerTerminalState": {"enum": ["committed", "rolled_back", "completed"]}, "terminalResultDigest": {"type": "string", "pattern": "^[0-9a-f]+$"},
+        "decisionId": {"type": "string", "pattern": "^[0-9a-f]{32}$"}, "actionId": {"type": "string", "minLength": 1},
+        "contextKey": {"type": "string", "minLength": 1}, "goal": {"type": "string", "minLength": 1}, "modelGeneration": {"const": 1},
+        "measurementClass": {"enum": ["controlled_ab", "health_only"]}, "reward": {"type": "number"}, "validated": {"const": true},
+        "rollbackCommitProof": {"type": "object"}, "bootIdentity": {"type": "string", "minLength": 1}
+      }
+    },
+    "createdMonotonicMs": {"type": "integer", "minimum": 0}, "mutationBootId": {"type": "string", "minLength": 1},
+    "mutationStartedMonotonicMs": {"type": "integer", "minimum": 0}, "outcomePreparedBootId": {"type": "string", "minLength": 1},
+    "outcomeArmedBootId": {"type": "string", "minLength": 1}, "lastSentBootId": {"type": "string", "minLength": 1},
+    "lastSentMonotonicMs": {"type": "integer", "minimum": 0}, "recoveredBootId": {"type": "string", "minLength": 1},
+    "recoveredMonotonicMs": {"type": "integer", "minimum": 0}, "retiredReason": {"type": "string", "minLength": 1},
+    "lastTransportState": {"type": "string", "minLength": 1}
   }
 }

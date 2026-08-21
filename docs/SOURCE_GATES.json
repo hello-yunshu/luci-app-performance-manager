@@ -21,6 +21,10 @@
     [
       "no forbidden cargo/rustc invocation in CI",
       true
+    ],
+    [
+      "all third-party Actions are immutable full-SHA pins",
+      true
     ]
   ],
   "phases": {
