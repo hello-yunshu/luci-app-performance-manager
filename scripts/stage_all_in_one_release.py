@@ -3,22 +3,16 @@
 from __future__ import annotations
 
 import argparse
-import hashlib
 import json
 import shutil
 import sys
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from artifact_identity import ArtifactIdentityError, resolve_artifact, sha256  # noqa: E402
+
 
 PACKAGE = "luci-app-performance-manager-all"
-
-
-def sha256(path: Path) -> str:
-    digest = hashlib.sha256()
-    with path.open("rb") as stream:
-        for chunk in iter(lambda: stream.read(65536), b""):
-            digest.update(chunk)
-    return digest.hexdigest()
 
 
 def main(argv=None) -> int:
@@ -40,16 +34,15 @@ def main(argv=None) -> int:
     if record.get("status") != "ok" or not expected_name or not expected_sha:
         raise RuntimeError("all-in-one APK lacks exact verified identity")
 
-    matches = [
-        path for path in sdk_dir.rglob(expected_name)
-        if path.is_file() and sha256(path) == expected_sha
-    ]
-    if len(matches) != 1:
-        raise RuntimeError(f"expected one exact all-in-one APK, found {matches}")
+    try:
+        identity = resolve_artifact(PACKAGE, expected_sha, [sdk_dir], expected_name)
+    except ArtifactIdentityError as exc:
+        raise RuntimeError(str(exc)) from exc
+    source = Path(identity["canonicalPath"])
 
     out.mkdir(parents=True, exist_ok=True)
     target = out / expected_name
-    shutil.copy2(matches[0], target)
+    shutil.copy2(source, target)
     manifest = {
         "schemaVersion": 1,
         "contract": "performance-manager-all-in-one-prerelease",
@@ -63,6 +56,9 @@ def main(argv=None) -> int:
             "bytes": target.stat().st_size,
             "pkgver": record.get("pkgver"),
             "arch": record.get("arch"),
+            "copies": identity["copies"],
+            "copyCount": identity["copyCount"],
+            "allCopiesIdentical": identity["allCopiesIdentical"],
         },
         "payloadVerification": {
             "core": (record.get("core") or {}).get("status"),

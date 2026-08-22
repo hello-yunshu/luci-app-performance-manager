@@ -19,7 +19,7 @@ class StableTestbedControllerTests(unittest.TestCase):
         self.assertFalse(any(checks.values()))
 
     def test_hyperv_subchecks_are_derived_from_identity_and_observations(self):
-        raw = {"rawFacts": {"environment": {"hypervisor": "Hyper-V", "vmbusId": "vmbus-1", "nicDriver": "hv_netvsc"},
+        raw = {"rawFacts": {"installedPackages": {"luci-app-performance-manager-all": {}}, "environment": {"hypervisor": "Hyper-V", "vmbusId": "vmbus-1", "nicDriver": "hv_netvsc"},
                              "hotplug": {"before": "a", "after": "b"}, "targetRefStableId": True,
                              "replayCount": 1, "rollback": {"before": "x", "after": "x"}}}
         checks = evaluate_raw_facts(raw, "hyperv")
@@ -33,17 +33,17 @@ class StableTestbedControllerTests(unittest.TestCase):
     def test_all_gate_evaluators_consume_raw_observations(self):
         package_names = ("performance-manager", "luci-app-performance-manager",
                          "performance-manager-rill", "luci-app-performance-manager-all")
-        common = {"installedPackages": {name: {} for name in package_names}}
+        common = {"installedPackages": {"luci-app-performance-manager-all": {}}}
         raws = {
             "target-full": {**common, "permissions": {"serviceUid": 5666, "serviceUserDedicated": True,
                 "stateDirectoryMode": "0750", "stateDirectoryOwner": "performance-manager-rill:performance-manager-rill"},
                 "rill": {"adapterSha256": PIN, "connectedToCore": True, "statusResponse": {"ready": True}},
                 "rillDirectMutationCount": 0, "mutationAuthority": "pm-core"},
-            "target-mutation": {"mutation": {"candidate": {"actionId": "a", "authority": "advisory-only", "mutationOwner": "pm-core"},
+            "target-mutation": {"installedPackages": {"luci-app-performance-manager-all": {}}, "mutation": {"candidate": {"actionId": "a", "authority": "advisory-only", "mutationOwner": "pm-core"},
                 "before": {"x": 1}, "applyExitCode": 0, "readback": {"x": 2}, "candidateState": {"x": 2},
                 "rollbackExitCode": 0, "afterRollback": {"x": 1}, "secondApplyExitCode": 0, "staleLocks": 0,
                 "stalePolicies": 0, "ownershipAfter": "clean", "packetSteeringOwner": "native", "staleRuntimeState": 0}},
-            "lifecycle": {"lifecycle": {"steps": {name: {"exitCode": 0, "observed": True} for name in GATE_CHECKS["lifecycle"]}}},
+            "lifecycle": {"installedPackages": {"luci-app-performance-manager-all": {}}, "lifecycle": {"steps": {name: {"exitCode": 0, "observed": True} for name in GATE_CHECKS["lifecycle"]}}},
         }
         for gate, facts in raws.items():
             with self.subTest(gate=gate):
@@ -56,6 +56,7 @@ class StableTestbedControllerTests(unittest.TestCase):
                              "process": {"corePid": 1}, "ubusSocketReady": True,
                              "statusResponseValid": True, "analyzeResponseValid": True,
                              "topologyEvidenceValid": True, "capabilitiesEvidenceValid": False,
+                             "installedPackages": {"performance-manager": {}},
                              "staleLocks": 0},
                "subchecks": {name: True for name in GATE_CHECKS["target-core-only"]}}
         checks = evaluate_raw_facts(raw, "target-core-only")

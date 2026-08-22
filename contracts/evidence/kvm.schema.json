@@ -1,1 +1,1 @@
-{"$schema":"https://json-schema.org/draft/2020-12/schema","allOf":[{"$ref":"common.schema.json"},{"properties":{"gate":{"const":"kvm"}},"required":["environment"]}]}
+{"$schema":"https://json-schema.org/draft/2020-12/schema","allOf":[{"$ref":"common.schema.json"},{"properties":{"gate":{"const":"kvm"}}}]}

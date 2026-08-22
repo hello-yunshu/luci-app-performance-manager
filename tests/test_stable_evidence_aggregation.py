@@ -17,10 +17,17 @@ class StableEvidenceAggregationTests(unittest.TestCase):
     def artifact(self, name):
         rec = {"apkSha256": {"performance-manager": "1", "luci-app-performance-manager": "2",
                              "performance-manager-rill": "3", "luci-app-performance-manager-all": "7"}[name] * 64,
-               "version": "1.0.0_rc10-r1", "installedPayload": {}}
-        if name == "performance-manager":
+               "version": "1.0.0_rc10-r1", "filename": f"{name}-1.0.0_rc10-r1.apk", "installedPayload": {}}
+        if name in {"performance-manager", "luci-app-performance-manager-all"}:
             rec["installedPayload"] = {"/usr/sbin/performance-manager.uc": "4" * 64,
                                        "/usr/share/performance-manager/contracts.uc": "5" * 64}
+        if name == "luci-app-performance-manager-all":
+            rec["installedPayload"].update({path: "6" * 64 for path in (
+                "/etc/init.d/performance-manager", "/etc/init.d/performance-manager-rill",
+                "/usr/share/rpcd/acl.d/luci-app-performance-manager.json",
+                "/usr/share/luci/menu.d/luci-app-performance-manager.json",
+                "/www/luci-static/resources/view/performance-manager/overview.js",
+                "/usr/lib/lua/luci/i18n/performance-manager.zh-cn.lmo")})
         return rec
 
     def evidence(self, name):
@@ -53,33 +60,19 @@ class StableEvidenceAggregationTests(unittest.TestCase):
             data.update({"schemaVersion": 1, "gate": gate, "buildRunId": "99",
                          "controller": {"source": "repository", "path": f"tools/stable-testbed/run-{gate}.sh", "sha256": "6" * 64},
                          "subchecks": {check: True for check in GATE_CHECKS[gate]},
-                         "artifacts": {pkg: self.artifact(pkg) for pkg in ("performance-manager", "luci-app-performance-manager", "performance-manager-rill", "luci-app-performance-manager-all")}})
+                         "buildArtifacts": {pkg: self.artifact(pkg) for pkg in ("performance-manager", "luci-app-performance-manager", "performance-manager-rill", "luci-app-performance-manager-all")},
+                         "installedArtifacts": {pkg: None for pkg in ("performance-manager", "luci-app-performance-manager", "performance-manager-rill", "luci-app-performance-manager-all")}})
             if gate == "target-core-only":
-                data["artifacts"]["luci-app-performance-manager"] = None
-                data["artifacts"]["performance-manager-rill"] = None
-                data["artifacts"]["luci-app-performance-manager-all"] = None
+                data["installedArtifacts"]["performance-manager"] = self.artifact("performance-manager")
                 data["primaryPackage"] = "performance-manager"
-                data["primaryPackageSha256"] = data["artifacts"]["performance-manager"]["apkSha256"]
+                data["primaryPackageSha256"] = data["installedArtifacts"]["performance-manager"]["apkSha256"]
             else:
+                data["installedArtifacts"]["luci-app-performance-manager-all"] = self.artifact("luci-app-performance-manager-all")
                 data["primaryPackage"] = "luci-app-performance-manager-all"
-                data["primaryPackageSha256"] = data["artifacts"]["luci-app-performance-manager-all"]["apkSha256"]
-            if gate == "hyperv":
-                data["environment"] = {"hypervisor": "Hyper-V", "nicDriver": "hv_netvsc", "vmbusId": "vmbus-1"}
-            if gate == "kvm":
-                data["environment"] = {"hypervisor": "KVM", "nicDriver": "virtio_net", "pciId": "0000:00:03.0"}
-            if gate in {"lan-wan-ab", "router-local-ab"}:
-                data["benchmark"] = {"controlMethodologyFingerprint": "method-1", "candidateMethodologyFingerprint": "method-1",
-                                     "variableCount": 1, "validated": True, "reward": 0.1, "rillOutcome": "accepted",
-                                     "routeResolved": True, "routeProvider": "ip-full+rtnl-events"}
-            if gate == "sysupgrade":
-                data["upgrade"] = {"beforeBootId": "boot-a", "afterBootId": "boot-b",
-                                   "beforeVersion": "1.0.0_rc9-r1", "afterVersion": "1.0.0_rc10-r1"}
+                data["primaryPackageSha256"] = data["installedArtifacts"]["luci-app-performance-manager-all"]["apkSha256"]
             if gate == "resource-soak":
                 data["durationSeconds"] = 86400
-                data["soak"] = {"sampleCount": 1440, "idleRillObserveAcceptedDelta": 0,
-                                "idleExpectedAdapterPersistenceEventsDelta": 0, "idlePendingOutcomeJournalWrites": 0}
-            raw = {"installedPackages": {"performance-manager": {}, "luci-app-performance-manager": {},
-                                          "performance-manager-rill": {}, "luci-app-performance-manager-all": {}}}
+            raw = {"installedPackages": {"luci-app-performance-manager-all": {}}}
             if gate == "target-core-only":
                 raw = {"environment": {"release": "25.12.5", "target": "x86/64"},
                        "process": {"corePid": 1}, "ubusSocketReady": True,
@@ -197,16 +190,16 @@ class StableEvidenceAggregationTests(unittest.TestCase):
 
     def test_semantic_contradictions_fail(self):
         hyperv = self.evidence("hyperV")
-        hyperv["environment"]["nicDriver"] = "virtio_net"
+        hyperv["rawFacts"]["environment"]["nicDriver"] = "virtio_net"
         self.assertIn("Hyper-V semantic identity invalid", validate_evidence(hyperv, "hyperv", self.commit))
         ab = self.evidence("lanWanAb")
-        ab["benchmark"]["candidateMethodologyFingerprint"] = "other"
-        self.assertIn("A/B methodology fingerprints differ", validate_evidence(ab, "lan-wan-ab", self.commit))
+        ab["rawFacts"]["benchmark"]["candidate"]["methodology"] = {"tool": "other"}
+        self.assertIn("A/B canonical rawFacts evaluation failed", validate_evidence(ab, "lan-wan-ab", self.commit))
         upgrade = self.evidence("sysupgrade")
-        upgrade["upgrade"]["afterBootId"] = "boot-a"
+        upgrade["rawFacts"]["upgrade"]["after"]["bootId"] = "boot-a"
         self.assertIn("sysupgrade boot identity did not change", validate_evidence(upgrade, "sysupgrade", self.commit))
         soak = self.evidence("resourceSoak24h")
-        soak["soak"]["sampleCount"] = 0
+        soak["rawFacts"]["soak"]["sampleCount"] = 0
         self.assertIn("24h soak duration/sample evidence invalid", validate_evidence(soak, "resource-soak", self.commit))
 
 
