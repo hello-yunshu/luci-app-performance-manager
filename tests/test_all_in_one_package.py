@@ -83,13 +83,14 @@ class AllInOnePackageTests(unittest.TestCase):
             "github.event.workflow_run.conclusion == 'success'",
             "github.event.workflow_run.head_branch == 'main'",
             "github.event.workflow_run.head_repository.full_name == github.repository",
-            "startsWith(github.event.workflow_run.head_commit.message, 'release:')",
+            "startsWith(github.event.workflow_run.head_commit.message, 'release: publish prerelease')",
             "git config user.name 'github-actions[bot]'",
             "git config user.email '41898282+github-actions[bot]@users.noreply.github.com'",
             "EXPECTED_SHA:",
             "BUILD_RUN_ID:",
         ):
             self.assertIn(token, workflow)
+        self.assertNotIn("startsWith(github.event.workflow_run.head_commit.message, 'release:')", workflow)
 
     def test_core_profile_checks_accept_only_the_exact_bundle_equivalence(self):
         core = (ROOT / "package/performance-manager/files/usr/sbin/performance-manager.uc").read_text()
