@@ -92,6 +92,9 @@ jobs:
           else
             sudo chroot .portable-rootfs /bin/sh -c 'opkg update && opkg install ucode ucode-mod-fs ucode-mod-ubus ucode-mod-uci ucode-mod-rtnl ucode-mod-uloop ucode-mod-socket ucode-mod-log'
           fi
+          # tar/chroot preparation runs as root; Docker's context sender runs
+          # as the hosted runner and must be able to read every rootfs entry.
+          sudo chown -R "$(id -u):$(id -g)" .portable-rootfs
           docker build --file tools/docker-validate/Dockerfile.local --tag pm-portable-ucode:ci . > stable-output/docker-build.log 2>&1
           docker run --rm \
             --volume "$RUNNER_TEMP/core_runtime_test.uc:/tmp/core_runtime_test.uc:ro" \
