@@ -8,7 +8,6 @@ choose verdicts: this controller and validate_external_evidence.py do that.
 from __future__ import annotations
 
 import argparse
-import hashlib
 import json
 import os
 import subprocess
@@ -17,16 +16,15 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "scripts"))
+from artifact_identity import ArtifactIdentityError, resolve_artifact, sha256  # noqa: E402
 from validate_external_evidence import PIN, evaluate_raw_facts, validate_evidence  # noqa: E402
 
 RESERVED_TRANSPORT_FIELDS = {
     "verdict", "passed", "subchecks", "validationErrors", "controller",
     "pmCommitSha", "buildRunId", "adapterSha256", "schemaVersion", "gate",
+    "artifacts", "buildArtifacts", "installedArtifacts", "environment", "benchmark",
+    "upgrade", "soak", "canonical",
 }
-
-def sha256(path: Path) -> str:
-    return hashlib.sha256(path.read_bytes()).hexdigest()
-
 
 def unique(root: Path, name: str) -> Path:
     found = [p for p in root.rglob(name) if p.is_file()]
@@ -39,10 +37,12 @@ def artifact_files(root: Path, metadata: dict) -> dict[str, Path]:
     result = {}
     for name, record in (metadata.get("packages") or {}).items():
         expected = record.get("apkSha256")
-        matches = [p for p in root.rglob("*.apk") if p.is_file() and sha256(p) == expected]
-        if len(matches) != 1:
-            raise RuntimeError(f"{name}: exact APK {expected} not uniquely present")
-        result[name] = matches[0]
+        filename = record.get("apkFilename") or record.get("filename")
+        try:
+            identity = resolve_artifact(name, expected, [root], filename)
+        except ArtifactIdentityError as exc:
+            raise RuntimeError(str(exc)) from exc
+        result[name] = Path(identity["canonicalPath"])
     return result
 
 
@@ -82,23 +82,30 @@ def main(argv=None):
     if forbidden:
         raise RuntimeError(f"transport may return raw facts only; reserved verdict fields present: {forbidden}")
     controller = ROOT / args.controller_path
-    facts = raw.get("rawFacts") if isinstance(raw.get("rawFacts"), dict) else {}
+    if not isinstance(raw.get("rawFacts"), dict):
+        raise RuntimeError("transport must return exactly one rawFacts object")
+    facts = raw["rawFacts"]
     installed = facts.get("installedPackages") if isinstance(facts.get("installedPackages"), dict) else {}
-    artifacts = {name: installed.get(name) for name in ("performance-manager", "luci-app-performance-manager", "performance-manager-rill", "luci-app-performance-manager-all")}
+    installed_artifacts = {name: installed.get(name) for name in ("performance-manager", "luci-app-performance-manager", "performance-manager-rill", "luci-app-performance-manager-all")}
+    build_artifacts = {
+        name: {
+            "apkSha256": record.get("apkSha256"),
+            "version": record.get("pkgver"),
+            "filename": record.get("apkFilename") or record.get("filename"),
+        }
+        for name, record in (build.get("packages") or {}).items()
+    }
     evidence = {
-        **raw,
+        "rawFacts": facts,
         "schemaVersion": 1, "gate": args.gate, "pmCommitSha": expected_sha,
         "buildRunId": str(build.get("workflowRunId")), "adapterSha256": None if args.gate == "target-core-only" else PIN,
         "controller": {"source": "repository", "path": args.controller_path, "sha256": sha256(controller)},
         "subchecks": evaluate_raw_facts(raw, args.gate),
-        "artifacts": artifacts,
-        "environment": facts.get("environment", {}),
-        "benchmark": facts.get("benchmark", {}),
-        "upgrade": facts.get("upgrade", {}),
-        "soak": facts.get("soak", {}),
+        "buildArtifacts": build_artifacts,
+        "installedArtifacts": installed_artifacts,
         "durationSeconds": facts.get("durationSeconds", 0),
         "primaryPackage": "performance-manager" if args.gate == "target-core-only" else "luci-app-performance-manager-all",
-        "primaryPackageSha256": (artifacts.get("performance-manager") or {}).get("apkSha256") if args.gate == "target-core-only" else (artifacts.get("luci-app-performance-manager-all") or {}).get("apkSha256"),
+        "primaryPackageSha256": (installed_artifacts.get("performance-manager") or {}).get("apkSha256") if args.gate == "target-core-only" else (installed_artifacts.get("luci-app-performance-manager-all") or {}).get("apkSha256"),
         "verdict": "PASS", "passed": True,
     }
     errors = validate_evidence(evidence, args.gate, expected_sha, require_rill=args.gate != "target-core-only",

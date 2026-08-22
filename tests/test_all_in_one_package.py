@@ -70,9 +70,10 @@ class AllInOnePackageTests(unittest.TestCase):
 
     def test_stable_public_release_publishes_only_all_in_one_apk(self):
         workflow = (ROOT / ".github/workflows/stable-release.yml").read_text()
-        self.assertIn("-name 'luci-app-performance-manager-all-*.apk'", workflow)
-        self.assertNotIn("find release-input/build -type f \\( -name '*.apk'", workflow)
-        self.assertIn("'primaryPackage':'luci-app-performance-manager-all'", workflow)
+        self.assertIn("assemble_public_release.py", workflow)
+        self.assertIn("scripts/assemble_public_release.py", workflow)
+        self.assertNotIn("wc -l", workflow)
+        self.assertIn("scripts/build_release_manifest.py", workflow)
 
     def test_prerelease_auto_publish_is_main_same_repo_release_commit_only(self):
         workflow = (ROOT / ".github/workflows/prerelease.yml").read_text()
@@ -179,6 +180,14 @@ class AllInOnePackageTests(unittest.TestCase):
             self.assertEqual(completed.returncode, 0, completed.stderr)
             self.assertEqual((out / apk_name).read_bytes(), apk_bytes)
             self.assertTrue((out / "release-checksums.txt").is_file())
+            stable_out = temp / "stable-out"
+            completed = subprocess.run([
+                sys.executable, str(ROOT / "scripts/assemble_public_release.py"),
+                "--input", str(temp / "input"), "--out", str(stable_out),
+                "--expected-commit", commit,
+            ], capture_output=True, text=True)
+            self.assertEqual(completed.returncode, 0, completed.stderr)
+            self.assertEqual((stable_out / apk_name).read_bytes(), apk_bytes)
 
 
 if __name__ == "__main__":

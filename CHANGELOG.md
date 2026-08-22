@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.0.0-rc.14 — Final Stable evidence closure (2026-08-22)
+
+- Share one exact artifact resolver across controller, prerelease, Stable assembly and APK staging; identical all-in-one copies pass and conflicting identities fail closed.
+- Separate build inventory from installed identity; non-core Stable targets require all-in-one only, while Core-only requires Core only.
+- Make `rawFacts` the sole transport input, derive A/B/sysupgrade semantics from nested facts, add controller→validator→aggregate E2E coverage, and bound retired execution journals.
+
 ## 1.0.0-rc.13 — Stable evidence evaluator hardening (2026-08-22)
 
 - Terminalize post-mutation journal failures and invalid benchmark candidate exits.

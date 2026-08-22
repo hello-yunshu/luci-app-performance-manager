@@ -26,6 +26,9 @@ const RILL_STATES = { disabled: 'disabled', notProvisioned: 'not-provisioned', b
 const RILL_BINDINGS_SCHEMA_VERSION = 2;
 const RILL_EXECUTION_SCHEMA_VERSION = 1;
 const RILL_BINDINGS_MAX = 64;
+const RILL_EXECUTION_JOURNAL_MAX_FILES = 128;
+const RILL_EXECUTION_JOURNAL_MAX_BYTES = 2097152;
+const RETIRED_EXECUTION_RETENTION_MAX = 64;
 const RILL_EXECUTION_TERMINAL_STATES = [ 'retired-no-valid-outcome', 'retired-restored-after-failure', 'intervention-required', 'retired-abandoned' ];
 const RILL_BINDINGS_TTL_MS = 3600000;
 const RILL_ADVISORY_TTL_MS = 3600000;
@@ -1968,6 +1971,30 @@ function rill_execution_active(row) {
 		row?.executionState == 'sent-unknown';
 }
 
+function rill_execution_enforce_retention() {
+	let retired = [], total_retired = 0, protected_count = 0;
+	for (let path in fs.glob(`${persist_dir()}/rill-executions/*.json`) ?? []) {
+		let row = json_read(path, null), state = row?.executionState ?? '';
+		if (!match(state, /^retired-/) || state == 'intervention-required') { protected_count++; continue; }
+		let size = fs.stat(path)?.size ?? 0;
+		push(retired, { path: path, size: size, at: row?.terminalMonotonicMs ?? row?.createdMonotonicMs ?? 0 });
+		total_retired++;
+	}
+	/* intervention-required and active states are never auto-deleted. Retired
+	 * terminal rows are retained newest-first, then bounded by both count and
+	 * bytes so failed/retried experiments cannot grow persistent storage forever. */
+	sort(retired, function(a, b) { return (b.at ?? 0) - (a.at ?? 0); });
+	let kept = 0, bytes = 0, retired_file_limit = max(0, RILL_EXECUTION_JOURNAL_MAX_FILES - protected_count);
+	for (let row in retired) {
+		if (kept < RETIRED_EXECUTION_RETENTION_MAX && kept < retired_file_limit && bytes + row.size <= RILL_EXECUTION_JOURNAL_MAX_BYTES) {
+			kept++; bytes += row.size;
+			continue;
+		}
+		fs.unlink(row.path);
+	}
+	return { retired: total_retired, retained: kept, bytes: bytes };
+}
+
 function rill_intervention_required() {
 	for (let path in fs.glob(`${persist_dir()}/rill-executions/*.json`) ?? []) {
 		let row = json_read(path, null);
@@ -1977,6 +2004,7 @@ function rill_intervention_required() {
 }
 
 function rill_binding_reserve(decision_id, action_id, authority, owner_type, owner_id) {
+	rill_execution_enforce_retention();
 	let binding = rill_binding_peek(decision_id);
 	if (!binding || binding.actionId != action_id || binding.executionAuthority != authority) return null;
 	if (owner_type != 'transaction' && owner_type != 'benchmark') return null;
@@ -2051,6 +2079,7 @@ function rill_execution_finalize_without_outcome(binding, terminal_state, reason
 	journal.transportState = 'not-sent';
 	journal.mayHaveReachedPeer = false;
 	if (!json_write(path, journal)) return false;
+	rill_execution_enforce_retention();
 	rill_binding_consume(binding);
 	runtime_history('rill.execution.terminal', { decisionId: binding.decisionId, ownerId: binding.ownerId, state: terminal_state, reason: journal.terminalReason });
 	return true;
@@ -3542,7 +3571,7 @@ function resource_usage() {
 	counters.pmPersistentWrites = persistent_write_count;
 	counters.expectedAdapterPersistenceEvents = rill_runtime_counters.rillObserveAccepted + rill_runtime_counters.rillOutcomeAccepted + rill_runtime_counters.rillOutcomeReconciled;
 	counters.persistenceAccounting = 'logical/inferred-from-pinned-rill-v1.2.0-contract';
-	return {corePid:pid,coreVmRssKiB:vmrss,coreVmSizeKiB:vmsize,corePersistentWritesSinceStart:persistent_write_count,corePersistentWriteBytesSinceStart:persistent_write_bytes,persistentHistoryBytes:hs?.size ?? 0,rillOutcomeBytes:outcomes?.size ?? 0,rillLedgerBytes:ledger?.size ?? 0,historyLineLimit:MAX_HISTORY_LINES,rillCounters:counters,rillBounds:{adapterStateFileBytes:4194304,bindingCacheEntries:RILL_BINDINGS_MAX},rillExecutionHealth:{interventionRequired:intervention > 0,active:active,executing:executing}};
+	return {corePid:pid,coreVmRssKiB:vmrss,coreVmSizeKiB:vmsize,corePersistentWritesSinceStart:persistent_write_count,corePersistentWriteBytesSinceStart:persistent_write_bytes,persistentHistoryBytes:hs?.size ?? 0,rillOutcomeBytes:outcomes?.size ?? 0,rillLedgerBytes:ledger?.size ?? 0,historyLineLimit:MAX_HISTORY_LINES,rillCounters:counters,rillBounds:{adapterStateFileBytes:4194304,bindingCacheEntries:RILL_BINDINGS_MAX,executionJournalMaxFiles:RILL_EXECUTION_JOURNAL_MAX_FILES,executionJournalMaxBytes:RILL_EXECUTION_JOURNAL_MAX_BYTES,retiredExecutionRetentionMax:RETIRED_EXECUTION_RETENTION_MAX},rillExecutionHealth:{interventionRequired:intervention > 0,active:active,executing:executing}};
 }
 
 function diagnostics() {
@@ -3650,6 +3679,7 @@ function recover_rill_executions() {
 			json_write(path,row); retired++;
 		}
 	}
+	rill_execution_enforce_retention();
 	if (recovered) schedule_rill_outcome_retry();
 	return {recovered:recovered,retired:retired};
 }

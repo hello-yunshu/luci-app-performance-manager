@@ -95,9 +95,11 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          build_metadata=$(find stable-input/build -name build-metadata.json -type f -print -quit)
-          apk_verification=$(find stable-input/build -name apk-verification.json -type f -print -quit)
-          test -n "$build_metadata" && test -n "$apk_verification"
+          mapfile -t build_files < <(find stable-input/build -name build-metadata.json -type f -print)
+          mapfile -t apk_files < <(find stable-input/build -name apk-verification.json -type f -print)
+          test "${#build_files[@]}" = 1 && test "${#apk_files[@]}" = 1
+          build_metadata="${build_files[0]}"
+          apk_verification="${apk_files[0]}"
           if [ "${{ matrix.gate }}" = target-core-only ]; then
             python3 scripts/validate_external_evidence.py \
               --file "stable-output/${{ matrix.gate }}.json" \
@@ -147,9 +149,10 @@ jobs:
           $controller = 'tools/stable-testbed/run-hyperv.ps1'
           if (-not (Test-Path $controller)) { throw 'Hyper-V controller is not provisioned' }
           & $controller
-          $build = Get-ChildItem stable-input/build -Recurse -Filter build-metadata.json | Select-Object -First 1
-          $apk = Get-ChildItem stable-input/build -Recurse -Filter apk-verification.json | Select-Object -First 1
-          python scripts/validate_external_evidence.py --file stable-output/hyperv.json --gate hyperv --expected-commit '${{ inputs.expected_sha }}' --require-rill --build-metadata $build.FullName --apk-verification $apk.FullName
+          $builds = @(Get-ChildItem stable-input/build -Recurse -Filter build-metadata.json)
+          $apks = @(Get-ChildItem stable-input/build -Recurse -Filter apk-verification.json)
+          if ($builds.Count -ne 1 -or $apks.Count -ne 1) { throw 'expected exactly one build/APK evidence identity' }
+          python scripts/validate_external_evidence.py --file stable-output/hyperv.json --gate hyperv --expected-commit '${{ inputs.expected_sha }}' --require-rill --build-metadata $builds[0].FullName --apk-verification $apks[0].FullName
       - name: Upload Hyper-V evidence
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
@@ -193,8 +196,11 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          build_metadata=$(find stable-input/build -name build-metadata.json -type f -print -quit)
-          apk_verification=$(find stable-input/build -name apk-verification.json -type f -print -quit)
+          mapfile -t build_files < <(find stable-input/build -name build-metadata.json -type f -print)
+          mapfile -t apk_files < <(find stable-input/build -name apk-verification.json -type f -print)
+          test "${#build_files[@]}" = 1 && test "${#apk_files[@]}" = 1
+          build_metadata="${build_files[0]}"
+          apk_verification="${apk_files[0]}"
           python3 scripts/validate_external_evidence.py \
             --file stable-output/resource-soak.json \
             --gate resource-soak \

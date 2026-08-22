@@ -3,8 +3,8 @@
   "areas": {
     "core": {
       "files": 40,
-      "sourceBytes": 256828,
-      "knownStaticPayloadBytes": 253705
+      "sourceBytes": 258495,
+      "knownStaticPayloadBytes": 255372
     },
     "luci": {
       "files": 14,
@@ -37,6 +37,9 @@
     "rillDecisionLedgerLines": 4096,
     "rillStateFileMaxBytes": 4194304,
     "rillBindingCacheEntries": 64,
+    "rillExecutionJournalMaxFiles": 128,
+    "rillExecutionJournalMaxBytes": 2097152,
+    "retiredExecutionRetentionMax": 64,
     "fastTelemetryMinimumSeconds": 30,
     "deepTelemetryMinimumSeconds": 300
   },
@@ -52,6 +55,9 @@
     "idleRillObserveAcceptedDelta": 0,
     "idleExpectedAdapterPersistenceEventsDelta": 0,
     "rillStateFileMaxBytes": 4194304,
+    "rillExecutionJournalMaxFiles": 128,
+    "rillExecutionJournalMaxBytes": 2097152,
+    "retiredExecutionRetentionMax": 64,
     "bindingHighWater": 64,
     "persistentHistoryGrowthBytes": 262144
   },

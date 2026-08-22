@@ -48,8 +48,9 @@ jobs:
           mkdir -p release-input/build release-input/stable release-assets
           gh run download "${{ inputs.build_run_id }}" --dir release-input/build
           gh run download "${{ inputs.aggregate_run_id }}" --dir release-input/stable
-          evidence=$(find release-input/stable -name final-stable-evidence.json -type f -print -quit)
-          test -n "$evidence"
+          mapfile -t evidence_files < <(find release-input/stable -name final-stable-evidence.json -type f -print)
+          test "${#evidence_files[@]}" = 1
+          evidence="${evidence_files[0]}"
           python3 - "$evidence" "${{ inputs.expected_sha }}" <<'PY'
           import json, sys
           data=json.load(open(sys.argv[1]))
@@ -74,46 +75,21 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          # The public Stable install surface is the physical all-in-one APK.
-          # Split APKs remain in build evidence and are deliberately not
-          # published as competing user-facing install choices.
-          all_in_one=$(find release-input/build -type f -name 'luci-app-performance-manager-all-*.apk' -print)
-          test "$(printf '%s\n' "$all_in_one" | sed '/^$/d' | wc -l | tr -d ' ')" = 1
-          cp "$all_in_one" release-assets/
-          for name in build-metadata.json apk-verification.json checksums.txt rill-consumed-manifest.json; do
-            file=$(find release-input/build -name "$name" -type f -print -quit)
-            test -n "$file"
-            cp "$file" release-assets/
-          done
+          # The shared resolver accepts identical dedicated/full copies and
+          # rejects conflicting package identities before staging one APK.
+          python3 scripts/assemble_public_release.py \
+            --input release-input/build --out release-assets \
+            --expected-commit '${{ inputs.expected_sha }}'
           for name in final-stable-evidence.json FINAL_AUDIT.json FINAL_AUDIT.md; do
-            file=$(find release-input/stable -name "$name" -type f -print -quit)
-            test -n "$file"
+            mapfile -t files < <(find release-input/stable -name "$name" -type f -print)
+            test "${#files[@]}" = 1
+            file="${files[0]}"
             cp "$file" release-assets/
           done
           cp dist/openwrt-performance-manager-1.0.0.zip release-assets/
           cp dist/openwrt-performance-manager-1.0.0.manifest.json release-assets/source-manifest.json
-          python3 - "${{ inputs.expected_sha }}" <<'PY'
-          import hashlib, json, pathlib, sys
-          root=pathlib.Path('release-assets')
-          build=json.load(open(root/'build-metadata.json'))
-          rill=json.load(open(root/'rill-consumed-manifest.json'))
-          final=json.load(open(root/'final-stable-evidence.json'))
-          all_in_one=next(p for p in root.iterdir() if p.name.startswith('luci-app-performance-manager-all-') and p.suffix == '.apk')
-          def sha(p): return hashlib.sha256(p.read_bytes()).hexdigest()
-          files=[{'name':p.name,'bytes':p.stat().st_size,'sha256':sha(p)} for p in sorted(root.iterdir()) if p.is_file()]
-          manifest={
-            'schemaVersion':1,'version':'1.0.0','commit':sys.argv[1],'tag':'v1.0.0',
-            'primaryPackage':'luci-app-performance-manager-all',
-            'primaryPackageSha256':sha(all_in_one),
-            'openwrtRelease':build['openwrtVersion'],'sdkArchiveSha256':build.get('sdkArchiveSha256'),
-            'rill':{'releaseVersion':rill['releaseVersion'],'releaseTag':rill['releaseTag'],
-                    'releaseCommitSha':rill['releaseCommitSha'],'artifactSha256':rill['artifactSha256']},
-            'finalEvidenceSha256':sha(root/'final-stable-evidence.json'),
-            'sourceZipSha256':sha(root/'openwrt-performance-manager-1.0.0.zip'),
-            'files':files,
-          }
-          (root/'release-manifest.json').write_text(json.dumps(manifest,indent=2)+'\n')
-          PY
+          python3 scripts/build_release_manifest.py --assets release-assets \
+            --expected-commit '${{ inputs.expected_sha }}' --version 1.0.0
           (cd release-assets && sha256sum ./* > release-checksums.txt)
       - name: Refuse mutable/existing public identity
         shell: bash
@@ -132,6 +108,8 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git tag -a v1.0.0 "${{ inputs.expected_sha }}" -m 'OpenWrt Performance Manager v1.0.0'
           git push origin refs/tags/v1.0.0
           gh release create v1.0.0 release-assets/* \

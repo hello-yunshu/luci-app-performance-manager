@@ -21,7 +21,7 @@ report={
    'idleInvariant':'Periodic Core telemetry never calls Observe. With no UI/API refresh, benchmark, or configuration/topology event, rillObserveAccepted and expectedAdapterPersistenceEvents must remain unchanged.',
    'accounting':'Core exposes logical counters inferred from the audited pinned Rill v1.2.0 contract; these are not physical flash-block write measurements.'
  },
- 'limits':{'rillMaxMessageBytes':65536,'rillRequestsPerSecond':20,'rillCoreTimeoutMs':1000,'historyReadTailLines':512,'rillValidatedOutcomeLines':2048,'rillDecisionLedgerLines':4096,'rillStateFileMaxBytes':4194304,'rillBindingCacheEntries':64,'fastTelemetryMinimumSeconds':30,'deepTelemetryMinimumSeconds':300},
+ 'limits':{'rillMaxMessageBytes':65536,'rillRequestsPerSecond':20,'rillCoreTimeoutMs':1000,'historyReadTailLines':512,'rillValidatedOutcomeLines':2048,'rillDecisionLedgerLines':4096,'rillStateFileMaxBytes':4194304,'rillBindingCacheEntries':64,'rillExecutionJournalMaxFiles':128,'rillExecutionJournalMaxBytes':2097152,'retiredExecutionRetentionMax':64,'fastTelemetryMinimumSeconds':30,'deepTelemetryMinimumSeconds':300},
  'precommittedStableBudgets':{
    'minimumElapsedSeconds':86400,
    'coreMaxRssKiB':65536,
@@ -34,6 +34,9 @@ report={
    'idleRillObserveAcceptedDelta':0,
    'idleExpectedAdapterPersistenceEventsDelta':0,
    'rillStateFileMaxBytes':4194304,
+   'rillExecutionJournalMaxFiles':128,
+   'rillExecutionJournalMaxBytes':2097152,
+   'retiredExecutionRetentionMax':64,
    'bindingHighWater':64,
    'persistentHistoryGrowthBytes':262144
  },

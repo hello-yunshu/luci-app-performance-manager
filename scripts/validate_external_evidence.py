@@ -16,31 +16,41 @@ SHA256 = re.compile(r"[0-9a-f]{64}")
 
 GATE_CHECKS = {
     "target-core-only": ["openwrt2512", "x8664", "coreStarted", "ubusReady", "statusValid",
-                         "analyzeValid", "topologyValid", "capabilitiesValid", "noStaleLocks"],
+                         "analyzeValid", "topologyValid", "capabilitiesValid", "noStaleLocks",
+                         "exactPackagesInstalled"],
     "target-full": ["exactPackagesInstalled", "serviceUserRestricted", "stateDirectoryRestricted",
                     "coreConnectedExactAdapter", "rillStatusReady", "advisoryOnlyAuthority"],
-    "target-mutation": ["legalCandidate", "beforeSnapshotExact", "applyExecuted", "readbackExact",
+    "target-mutation": ["exactPackagesInstalled", "legalCandidate", "beforeSnapshotExact", "applyExecuted", "readbackExact",
                         "manualRollback", "restorationExact", "secondApply", "cleanupComplete",
                         "ownershipClean", "packetSteeringNotSeized", "noStaleState"],
-    "hyperv": ["hypervisorVerified", "vmbusIdentity", "hvNetvscDriver", "hotplugObserved",
+    "hyperv": ["exactPackagesInstalled", "hypervisorVerified", "vmbusIdentity", "hvNetvscDriver", "hotplugObserved",
                "targetRefStable", "replayTested", "rollbackExact"],
-    "kvm": ["hypervisorVerified", "pciIdentity", "nicDriverRecorded", "hotplugObserved",
+    "kvm": ["exactPackagesInstalled", "hypervisorVerified", "pciIdentity", "nicDriverRecorded", "hotplugObserved",
             "targetRefStable", "replayTested", "rollbackExact"],
-    "lan-wan-ab": ["realLanClient", "realWanEndpoint", "routeResolved", "rtnlRouteProvider",
+    "lan-wan-ab": ["exactPackagesInstalled", "realLanClient", "realWanEndpoint", "routeResolved", "rtnlRouteProvider",
                    "sameMethodology", "oneVariable", "mutationVerified", "rollbackExact",
                    "healthPass", "validatedReward", "rillOutcomeFinal"],
-    "router-local-ab": ["routerLocalClient", "localEndpointPath", "sameMethodology", "oneVariable",
+    "router-local-ab": ["exactPackagesInstalled", "routerLocalClient", "localEndpointPath", "sameMethodology", "oneVariable",
                         "mutationVerified", "rollbackExact", "validatedReward", "rillOutcomeFinal"],
-    "sysupgrade": ["preIdentityRecorded", "postIdentityRecorded", "bootIdChanged", "configPreserved",
+    "sysupgrade": ["exactPackagesInstalled", "preIdentityRecorded", "postIdentityRecorded", "bootIdChanged", "configPreserved",
                    "policyPreserved", "exactAdapterAfterUpgrade", "noUnsafePendingMutation", "coreStartedClean"],
     "lifecycle": ["install", "serviceStart", "restart", "upgradeReinstall", "configPreserved",
                   "rillOptional", "uninstallCleanup", "reinstall", "noStaleState"],
-    "resource-soak": ["rillPresent", "sampledResources", "noCoreRestart", "noRillRestart",
+    "resource-soak": ["exactPackagesInstalled", "rillPresent", "sampledResources", "noCoreRestart", "noRillRestart",
                       "idleObserveZero", "idleAdapterPersistenceZero", "idleJournalWritesZero",
                       "stateBoundsPass", "historyBoundsPass"],
 }
 RILL_GATES = set(GATE_CHECKS) - {"target-core-only"}
 PRIMARY_PACKAGE = "luci-app-performance-manager-all"
+PACKAGE_NAMES = ("performance-manager", "luci-app-performance-manager", "performance-manager-rill", PRIMARY_PACKAGE)
+CORE_PAYLOAD = ("/usr/sbin/performance-manager.uc", "/usr/share/performance-manager/contracts.uc")
+ALL_IN_ONE_PAYLOAD = CORE_PAYLOAD + (
+    "/etc/init.d/performance-manager", "/etc/init.d/performance-manager-rill",
+    "/usr/share/rpcd/acl.d/luci-app-performance-manager.json",
+    "/usr/share/luci/menu.d/luci-app-performance-manager.json",
+    "/www/luci-static/resources/view/performance-manager/overview.js",
+    "/usr/lib/lua/luci/i18n/performance-manager.zh-cn.lmo",
+)
 
 
 def _dict(value: Any) -> dict[str, Any]:
@@ -64,6 +74,7 @@ def _methodology_equal(benchmark: dict[str, Any]) -> bool:
 
 def _outcome_final(benchmark: dict[str, Any]) -> bool:
     response = _dict(_dict(benchmark.get("rill")).get("outcome")).get("response")
+    response = _dict(response)
     if response.get("ok") is True and response.get("accepted") is True:
         return True
     error = _dict(response.get("error"))
@@ -106,6 +117,16 @@ def _ab_checks(facts: dict[str, Any], local: bool) -> dict[str, bool]:
     return checks
 
 
+def _package_layout_ok(packages: dict[str, Any], gate: str) -> bool:
+    """Verify installed identity; build inventory is checked separately."""
+    present = {name for name, value in packages.items() if isinstance(value, dict)}
+    if gate == "target-core-only":
+        return present == {"performance-manager"}
+    if gate == "lifecycle":
+        return True
+    return present == {PRIMARY_PACKAGE}
+
+
 def evaluate_raw_facts(raw: dict[str, Any], gate: str) -> dict[str, bool]:
     """Derive every Stable subcheck from raw observations.
 
@@ -118,6 +139,7 @@ def evaluate_raw_facts(raw: dict[str, Any], gate: str) -> dict[str, bool]:
     environment = _dict(facts.get("environment"))
     packages = _dict(facts.get("installedPackages"))
     checks: dict[str, bool] = {}
+    package_layout = _package_layout_ok(packages, gate)
     if gate == "target-core-only":
         checks = {
             "openwrt2512": environment.get("release") == "25.12.5",
@@ -129,12 +151,13 @@ def evaluate_raw_facts(raw: dict[str, Any], gate: str) -> dict[str, bool]:
             "topologyValid": facts.get("topologyEvidenceValid") is True,
             "capabilitiesValid": facts.get("capabilitiesEvidenceValid") is True,
             "noStaleLocks": facts.get("staleLocks") == 0,
+            "exactPackagesInstalled": package_layout,
         }
     elif gate == "target-full":
         permissions = _dict(facts.get("permissions"))
         rill = _dict(facts.get("rill"))
         checks = {
-            "exactPackagesInstalled": all(isinstance(packages.get(name), dict) for name in ("performance-manager", "luci-app-performance-manager", "performance-manager-rill", PRIMARY_PACKAGE)),
+            "exactPackagesInstalled": package_layout,
             "serviceUserRestricted": permissions.get("serviceUid") == 5666 and permissions.get("serviceUserDedicated") is True,
             "stateDirectoryRestricted": permissions.get("stateDirectoryMode") == "0750" and permissions.get("stateDirectoryOwner") == "performance-manager-rill:performance-manager-rill",
             "coreConnectedExactAdapter": rill.get("adapterSha256") == PIN and rill.get("connectedToCore") is True,
@@ -145,6 +168,7 @@ def evaluate_raw_facts(raw: dict[str, Any], gate: str) -> dict[str, bool]:
         mutation = _dict(facts.get("mutation"))
         candidate = _dict(mutation.get("candidate"))
         checks = {
+            "exactPackagesInstalled": package_layout,
             "legalCandidate": bool(candidate.get("actionId")) and candidate.get("authority") == "advisory-only" and candidate.get("mutationOwner") == "pm-core",
             "beforeSnapshotExact": isinstance(mutation.get("before"), dict),
             "applyExecuted": _exit_ok(mutation.get("applyExitCode")),
@@ -159,17 +183,18 @@ def evaluate_raw_facts(raw: dict[str, Any], gate: str) -> dict[str, bool]:
         }
     elif gate == "hyperv":
         hotplug = _dict(facts.get("hotplug")); rollback = _dict(facts.get("rollback"))
-        checks = {"hypervisorVerified": environment.get("hypervisor") == "Hyper-V", "vmbusIdentity": bool(environment.get("vmbusId")), "hvNetvscDriver": environment.get("nicDriver") == "hv_netvsc", "hotplugObserved": hotplug.get("before") != hotplug.get("after"), "targetRefStable": facts.get("targetRefStableId") is True, "replayTested": facts.get("replayCount", 0) > 0, "rollbackExact": _same(rollback.get("before"), rollback.get("after"))}
+        checks = {"exactPackagesInstalled": package_layout, "hypervisorVerified": environment.get("hypervisor") == "Hyper-V", "vmbusIdentity": bool(environment.get("vmbusId")), "hvNetvscDriver": environment.get("nicDriver") == "hv_netvsc", "hotplugObserved": hotplug.get("before") != hotplug.get("after"), "targetRefStable": facts.get("targetRefStableId") is True, "replayTested": facts.get("replayCount", 0) > 0, "rollbackExact": _same(rollback.get("before"), rollback.get("after"))}
     elif gate == "kvm":
         hotplug = _dict(facts.get("hotplug")); rollback = _dict(facts.get("rollback"))
-        checks = {"hypervisorVerified": environment.get("hypervisor") in {"KVM", "QEMU"}, "pciIdentity": bool(environment.get("pciId")), "nicDriverRecorded": bool(environment.get("nicDriver")), "hotplugObserved": hotplug.get("before") != hotplug.get("after"), "targetRefStable": facts.get("targetRefStableId") is True, "replayTested": facts.get("replayCount", 0) > 0, "rollbackExact": _same(rollback.get("before"), rollback.get("after"))}
+        checks = {"exactPackagesInstalled": package_layout, "hypervisorVerified": environment.get("hypervisor") in {"KVM", "QEMU"}, "pciIdentity": bool(environment.get("pciId")), "nicDriverRecorded": bool(environment.get("nicDriver")), "hotplugObserved": hotplug.get("before") != hotplug.get("after"), "targetRefStable": facts.get("targetRefStableId") is True, "replayTested": facts.get("replayCount", 0) > 0, "rollbackExact": _same(rollback.get("before"), rollback.get("after"))}
     elif gate == "lan-wan-ab":
-        checks = _ab_checks(facts, local=False)
+        checks = {"exactPackagesInstalled": package_layout, **_ab_checks(facts, local=False)}
     elif gate == "router-local-ab":
-        checks = _ab_checks(facts, local=True)
+        checks = {"exactPackagesInstalled": package_layout, **_ab_checks(facts, local=True)}
     elif gate == "sysupgrade":
         upgrade = _dict(facts.get("upgrade")); before = _dict(upgrade.get("before")); after = _dict(upgrade.get("after"))
         checks = {
+            "exactPackagesInstalled": package_layout,
             "preIdentityRecorded": bool(before.get("bootId")) and bool(before.get("packageSha256")),
             "postIdentityRecorded": bool(after.get("bootId")) and bool(after.get("packageSha256")),
             "bootIdChanged": before.get("bootId") != after.get("bootId"),
@@ -188,6 +213,7 @@ def evaluate_raw_facts(raw: dict[str, Any], gate: str) -> dict[str, bool]:
     elif gate == "resource-soak":
         soak = _dict(facts.get("soak")); resources = _dict(soak.get("resources"))
         checks = {
+            "exactPackagesInstalled": package_layout,
             "rillPresent": soak.get("rillPresent") is True,
             "sampledResources": soak.get("sampleCount", 0) > 0 and isinstance(resources, dict),
             "noCoreRestart": soak.get("coreRestartCount") == 0,
@@ -287,48 +313,63 @@ def _sha(value: Any) -> bool:
 def _artifact_errors(data: dict[str, Any], gate: str, build: dict[str, Any] | None,
                      apk_report: dict[str, Any] | None) -> list[str]:
     errors: list[str] = []
-    artifacts = data.get("artifacts")
-    if not isinstance(artifacts, dict):
-        return ["artifacts object missing"]
-    required = ["performance-manager"]
-    if gate != "target-core-only":
-        required += ["luci-app-performance-manager", "performance-manager-rill", PRIMARY_PACKAGE]
-    for name in ("performance-manager", "luci-app-performance-manager", "performance-manager-rill"):
-        rec = artifacts.get(name)
-        if name not in required:
-            if rec not in (None, "not-installed"):
-                errors.append(f"artifacts.{name} must be null/not-installed")
-            continue
+    build_artifacts = data.get("buildArtifacts")
+    installed_artifacts = data.get("installedArtifacts")
+    if not isinstance(build_artifacts, dict):
+        errors.append("buildArtifacts object missing")
+    if not isinstance(installed_artifacts, dict):
+        errors.append("installedArtifacts object missing")
+    if errors:
+        return errors
+    for name in PACKAGE_NAMES:
+        record = build_artifacts.get(name)
+        if not isinstance(record, dict) or not _sha(record.get("apkSha256")) \
+                or not isinstance(record.get("version"), str) or not isinstance(record.get("filename"), str):
+            errors.append(f"buildArtifacts.{name} lacks exact APK/version/filename identity")
+    for name in PACKAGE_NAMES:
+        rec = installed_artifacts.get(name)
         if not isinstance(rec, dict):
-            errors.append(f"artifacts.{name} missing")
+            if gate == "target-core-only" and name != "performance-manager":
+                if rec not in (None, "not-installed"):
+                    errors.append(f"installedArtifacts.{name} must be absent")
+            elif gate != "lifecycle" and name != PRIMARY_PACKAGE:
+                if rec not in (None, "not-installed"):
+                    errors.append(f"installedArtifacts.{name} must be absent")
+            elif gate != "lifecycle":
+                errors.append(f"installedArtifacts.{name} missing")
             continue
         if not _sha(rec.get("apkSha256")) or not isinstance(rec.get("version"), str):
-            errors.append(f"artifacts.{name} lacks exact APK/version identity")
+            errors.append(f"installedArtifacts.{name} lacks exact APK/version identity")
         payload = rec.get("installedPayload")
-        if name == "performance-manager":
-            if not isinstance(payload, dict) or not _sha(payload.get("/usr/sbin/performance-manager.uc")) \
-                    or not _sha(payload.get("/usr/share/performance-manager/contracts.uc")):
-                errors.append("performance-manager installed Core/contracts payload hashes missing")
+        required_payload = ALL_IN_ONE_PAYLOAD if name == PRIMARY_PACKAGE else CORE_PAYLOAD if name == "performance-manager" else ()
+        if required_payload:
+            if not isinstance(payload, dict) or any(not _sha(payload.get(path)) for path in required_payload):
+                errors.append(f"{name} installed Core/contracts payload hashes missing")
         if build:
             expected = (build.get("packages") or {}).get(name) or {}
+            expected_record = build_artifacts.get(name) or {}
+            if expected_record.get("apkSha256") != expected.get("apkSha256"):
+                errors.append(f"buildArtifacts.{name}.apkSha256 does not match build metadata")
             if rec.get("apkSha256") != expected.get("apkSha256"):
-                errors.append(f"artifacts.{name}.apkSha256 does not match build metadata")
+                errors.append(f"installedArtifacts.{name}.apkSha256 does not match build metadata")
             if rec.get("version") != expected.get("pkgver"):
-                errors.append(f"artifacts.{name}.version does not match build metadata")
-            if name == "performance-manager":
-                expected_payload = expected.get("installedPayload") or {}
-                for path, digest in (payload or {}).items():
-                    if digest != expected_payload.get(path):
-                        errors.append(f"installed payload {path} does not match build metadata")
+                errors.append(f"installedArtifacts.{name}.version does not match build metadata")
+            expected_payload = expected.get("installedPayload") or {}
+            for path, digest in (payload or {}).items():
+                if digest != expected_payload.get(path):
+                    errors.append(f"installed payload {path} does not match build metadata")
         if apk_report:
             expected = (apk_report.get("packages") or {}).get(name) or {}
             if rec.get("apkSha256") != expected.get("sha256"):
-                errors.append(f"artifacts.{name}.apkSha256 does not match APK verifier")
+                errors.append(f"installedArtifacts.{name}.apkSha256 does not match APK verifier")
     if gate == "target-core-only":
         if data.get("primaryPackage") != "performance-manager":
             errors.append("target-core-only primaryPackage must be performance-manager")
+        primary = installed_artifacts.get("performance-manager")
+        if not isinstance(primary, dict) or data.get("primaryPackageSha256") != primary.get("apkSha256"):
+            errors.append("target-core-only primary artifact identity missing or mismatched")
     else:
-        primary = artifacts.get(PRIMARY_PACKAGE)
+        primary = installed_artifacts.get(PRIMARY_PACKAGE)
         if data.get("primaryPackage") != PRIMARY_PACKAGE:
             errors.append(f"primaryPackage must be {PRIMARY_PACKAGE}")
         if not isinstance(primary, dict) or not _sha(primary.get("apkSha256")):
@@ -398,32 +439,28 @@ def validate_evidence(data: Any, gate: str, expected_commit: str, *, require_ril
     errors.extend(_artifact_errors(data, gate, build_metadata, apk_report))
 
     if gate == "hyperv":
-        if _get(data, "environment.hypervisor") != "Hyper-V" or _get(data, "environment.nicDriver") != "hv_netvsc" \
-                or not str(_get(data, "environment.vmbusId") or ""):
+        environment = _dict(_dict(data.get("rawFacts")).get("environment"))
+        if environment.get("hypervisor") != "Hyper-V" or environment.get("nicDriver") != "hv_netvsc" \
+                or not str(environment.get("vmbusId") or ""):
             errors.append("Hyper-V semantic identity invalid")
     elif gate == "kvm":
-        if _get(data, "environment.hypervisor") not in {"KVM", "QEMU"} \
-                or not _get(data, "environment.nicDriver") or not _get(data, "environment.pciId"):
+        environment = _dict(_dict(data.get("rawFacts")).get("environment"))
+        if environment.get("hypervisor") not in {"KVM", "QEMU"} \
+                or not environment.get("nicDriver") or not environment.get("pciId"):
             errors.append("KVM/QEMU semantic identity invalid")
     elif gate in {"lan-wan-ab", "router-local-ab"}:
-        bench = data.get("benchmark") or {}
-        if bench.get("controlMethodologyFingerprint") != bench.get("candidateMethodologyFingerprint"):
-            errors.append("A/B methodology fingerprints differ")
-        if bench.get("variableCount") != 1 or bench.get("validated") is not True \
-                or not isinstance(bench.get("reward"), (int, float)):
-            errors.append("A/B validation/reward/one-variable contract invalid")
-        if gate == "lan-wan-ab" and (bench.get("routeResolved") is not True or bench.get("routeProvider") != "ip-full+rtnl-events"):
-            errors.append("LAN-WAN route evidence invalid")
-        if bench.get("rillOutcome") not in {"accepted", "reconciled"}:
-            errors.append("Rill Outcome is not final")
+        derived = evaluate_raw_facts(data, gate)
+        if not all(derived.get(name) is True for name in GATE_CHECKS[gate]):
+            errors.append("A/B canonical rawFacts evaluation failed")
     elif gate == "sysupgrade":
-        upgrade = data.get("upgrade") or {}
-        if not upgrade.get("beforeBootId") or upgrade.get("beforeBootId") == upgrade.get("afterBootId"):
+        upgrade = _dict(_dict(data.get("rawFacts")).get("upgrade"))
+        before = _dict(upgrade.get("before")); after = _dict(upgrade.get("after"))
+        if not before.get("bootId") or before.get("bootId") == after.get("bootId"):
             errors.append("sysupgrade boot identity did not change")
-        if upgrade.get("beforeVersion") == upgrade.get("afterVersion"):
+        if before.get("packageSha256") == after.get("packageSha256"):
             errors.append("sysupgrade package identity did not change")
     elif gate == "resource-soak":
-        soak = data.get("soak") or {}
+        soak = _dict(_dict(data.get("rawFacts")).get("soak"))
         if int(data.get("durationSeconds", 0)) < 86400 or int(soak.get("sampleCount", 0)) <= 0:
             errors.append("24h soak duration/sample evidence invalid")
         for key in ("idleRillObserveAcceptedDelta", "idleExpectedAdapterPersistenceEventsDelta", "idlePendingOutcomeJournalWrites"):
