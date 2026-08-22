@@ -1,9 +1,10 @@
 # Portable real-Core ucode runtime harness image (hosted Actions and local Docker).
-# CI uses the official OpenWrt x86_64 rootfs; this image lets the harness be
-# authored and validated locally on Apple Silicon before pushing to Remote CI.
-FROM alpine:3.22
-RUN apk add --no-cache ucode ucode-mod-fs ucode-mod-ubus ucode-mod-rtnl \
-    ucode-mod-uci ucode-mod-uloop ucode-mod-socket ucode-mod-math ucode-mod-log \
-    coreutils findutils grep sed
+# The workflow prepares .portable-rootfs from the pinned official OpenWrt
+# x86_64 rootfs and installs the exact OpenWrt ucode modules before this image
+# is built. Alpine does not ship OpenWrt's ucode-mod-* packages.
+FROM scratch
+ADD .portable-rootfs/ /
+ENV PATH=/usr/sbin:/usr/bin:/sbin:/bin \
+    LD_LIBRARY_PATH=/lib:/usr/lib
 WORKDIR /work
 ENTRYPOINT ["/bin/sh"]
