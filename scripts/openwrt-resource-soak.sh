@@ -78,8 +78,16 @@ out0=$(jget "$D0" '@.resources.rillCounters.rillOutcomeAccepted')
 persist0=$(jget "$D0" '@.resources.rillCounters.expectedAdapterPersistenceEvents')
 binding0=$(jget "$D0" '@.resources.rillCounters.rillBindingHighWater')
 history0=$(jget "$D0" '@.resources.persistentHistoryBytes')
+journal_files0=$(jget "$D0" '@.resources.rillExecutionHealth.journalFileCount')
+journal_bytes0=$(jget "$D0" '@.resources.rillExecutionHealth.journalBytes')
+retired0=$(jget "$D0" '@.resources.rillExecutionHealth.retired')
+intervention0=$(jget "$D0" '@.resources.rillExecutionHealth.interventionRequiredCount')
+active0=$(jget "$D0" '@.resources.rillExecutionHealth.active')
+executing0=$(jget "$D0" '@.resources.rillExecutionHealth.executing')
 for pair in "core-writes:$core_w0" "observe:$obs0" "outcome:$out0" \
-            "adapter-persistence:$persist0" "binding-high-water:$binding0" "history:$history0"; do
+            "adapter-persistence:$persist0" "binding-high-water:$binding0" "history:$history0" \
+            "journal-files:$journal_files0" "journal-bytes:$journal_bytes0" "retired:$retired0" \
+            "intervention:$intervention0" "active:$active0" "executing:$executing0"; do
   name=${pair%%:*}; value=${pair#*:}; is_uint "$value" || blocked "$name-measurement-unavailable"
 done
 
@@ -124,8 +132,16 @@ out1=$(jget "$D1" '@.resources.rillCounters.rillOutcomeAccepted')
 persist1=$(jget "$D1" '@.resources.rillCounters.expectedAdapterPersistenceEvents')
 binding1=$(jget "$D1" '@.resources.rillCounters.rillBindingHighWater')
 history1=$(jget "$D1" '@.resources.persistentHistoryBytes')
+journal_files1=$(jget "$D1" '@.resources.rillExecutionHealth.journalFileCount')
+journal_bytes1=$(jget "$D1" '@.resources.rillExecutionHealth.journalBytes')
+retired1=$(jget "$D1" '@.resources.rillExecutionHealth.retired')
+intervention1=$(jget "$D1" '@.resources.rillExecutionHealth.interventionRequiredCount')
+active1=$(jget "$D1" '@.resources.rillExecutionHealth.active')
+executing1=$(jget "$D1" '@.resources.rillExecutionHealth.executing')
 for pair in "core-writes:$core_w1" "observe:$obs1" "outcome:$out1" \
-            "adapter-persistence:$persist1" "binding-high-water:$binding1" "history:$history1"; do
+            "adapter-persistence:$persist1" "binding-high-water:$binding1" "history:$history1" \
+            "journal-files:$journal_files1" "journal-bytes:$journal_bytes1" "retired:$retired1" \
+            "intervention:$intervention1" "active:$active1" "executing:$executing1"; do
   name=${pair%%:*}; value=${pair#*:}; is_uint "$value" || blocked "final-$name-measurement-unavailable"
 done
 
@@ -134,6 +150,8 @@ persist_delta=$((persist1-persist0)); history_growth=$((history1-history0))
 [ "$core_delta" -ge 0 ] && [ "$obs_delta" -ge 0 ] && [ "$out_delta" -ge 0 ] \
   && [ "$persist_delta" -ge 0 ] && [ "$history_growth" -ge 0 ] || blocked counter-reset-during-soak
 [ "$binding1" -gt "$binding0" ] && binding_high="$binding1" || binding_high="$binding0"
+[ "$journal_files1" -ge 0 ] && [ "$journal_bytes1" -ge 0 ] && [ "$retired1" -ge 0 ] || blocked journal-measurement-invalid
+[ "$intervention1" -ge 0 ] && [ "$active1" -ge 0 ] && [ "$executing1" -ge 0 ] || blocked execution-health-measurement-invalid
 cpu_core=$(awk -v t="$core_ticks_total" -v hz="$clk" -v s="$elapsed" 'BEGIN { if (s<=0||hz<=0) print "0.000"; else printf "%.3f", (t/hz)/s*100 }')
 cpu_rill=$(awk -v t="$rill_ticks_total" -v hz="$clk" -v s="$elapsed" 'BEGIN { if (s<=0||hz<=0) print "0.000"; else printf "%.3f", (t/hz)/s*100 }')
 writes_day=$(awk -v w="$core_delta" -v s="$elapsed" 'BEGIN { if (s<=0) print "0.0"; else printf "%.1f", w*86400/s }')
@@ -152,6 +170,10 @@ awk -v x="$writes_day" -v b="$B_PM_WRITES_DAY" 'BEGIN { exit !(x<=b) }' || withi
 [ "$rill_state_max" -le "$B_RILL_STATE_BYTES" ] || within=false
 [ "$binding_high" -le "$B_BINDINGS" ] || within=false
 [ "$history_growth" -le "$B_HISTORY_GROWTH" ] || within=false
+[ "$journal_files1" -le 128 ] || within=false
+[ "$journal_bytes1" -le 2097152 ] || within=false
+[ "$retired1" -le 64 ] || within=false
+[ "$intervention1" = 0 ] || within=false
 [ "$stable" = true ] || within=false
 
 cat >"$OUT" <<EOF_JSON
@@ -179,6 +201,12 @@ cat >"$OUT" <<EOF_JSON
   "rillStateMaxFileBytes": $rill_state_max,
   "bindingHighWater": $binding_high,
   "persistentHistoryGrowthBytes": $history_growth,
+  "executionJournalFileCount": $journal_files1,
+  "executionJournalBytes": $journal_bytes1,
+  "retiredExecutionCount": $retired1,
+  "interventionRequiredCount": $intervention1,
+  "activeExecutionCount": $active1,
+  "executingExecutionCount": $executing1,
   "stableDurationSatisfied": $stable,
   "measurementUnavailable": null,
   "budgets": {

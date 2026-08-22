@@ -72,10 +72,10 @@ class ReleaseClosureE2ETests(unittest.TestCase):
                                  "statusResponse": {"ready": True}},
                         "rillDirectMutationCount": 0, "mutationAuthority": "pm-core"})
         elif gate == "target-mutation":
-            raw["mutation"] = {"candidate": {"actionId": "nic.ring.floor", "authority": "advisory-only", "mutationOwner": "pm-core"},
-                                "before": {"rx": 1}, "applyExitCode": 0,
-                                "readback": {"rx": 2}, "candidateState": {"rx": 2},
-                                "rollbackExitCode": 0, "afterRollback": {"rx": 1},
+            raw["mutation"] = {"candidate": {"actionId": "nic.ring.floor", "authority": "advisory-only", "mutationOwner": "pm-core", "targetStableId": "stable-1", "rx": 1024, "tx": 1024},
+                                "before": {"rx": 512, "tx": 512}, "applyExitCode": 0,
+                                "readback": {"rx": 1024, "tx": 1024}, "candidateState": {"rx": 1024, "tx": 1024},
+                                "rollbackExitCode": 0, "afterRollback": {"rx": 512, "tx": 512},
                                 "secondApplyExitCode": 0, "staleLocks": 0, "stalePolicies": 0,
                                 "ownershipAfter": "clean", "packetSteeringOwner": "native", "staleRuntimeState": 0}
         elif gate == "hyperv":
@@ -87,11 +87,14 @@ class ReleaseClosureE2ETests(unittest.TestCase):
                         "hotplug": {"before": "a", "after": "b"}, "targetRefStableId": True,
                         "replayCount": 1, "rollback": {"before": {"x": 1}, "after": {"x": 1}}})
         elif gate in {"lan-wan-ab", "router-local-ab"}:
-            benchmark = {"control": {"bitsPerSecond": 100, "methodology": {"tool": "iperf3", "duration": 10}},
-                         "candidate": {"bitsPerSecond": 110, "methodology": {"tool": "iperf3", "duration": 10}},
-                         "mutation": {"changedFields": ["ring.rx"], "applyExitCode": 0,
-                                       "before": {"x": 1}, "candidate": {"x": 2}, "readback": {"x": 2},
-                                       "afterRollback": {"x": 1}},
+            methodology = {"tool": "iperf3", "protocol": "tcp", "durationSeconds": 10, "direction": "forward",
+                           "clientIdentity": "lan-client-1", "endpointIdentity": "wan-endpoint-1", "streamCount": 1, "payloadMode": "throughput"}
+            benchmark = {"control": {"bitsPerSecond": 100, "methodology": methodology},
+                         "candidate": {"bitsPerSecond": 110, "methodology": dict(methodology)},
+                         "mutation": {"action": {"actionId": "nic.ring.floor", "authority": "advisory-only", "mutationOwner": "pm-core"},
+                                       "changedFields": ["ring.rx"], "applyExitCode": 0,
+                                       "before": {"rx": 512, "tx": 512}, "candidate": {"rx": 1024, "tx": 1024}, "readback": {"rx": 1024, "tx": 1024},
+                                       "afterRollback": {"rx": 512, "tx": 512}},
                          "health": {"before": {"lan": True}, "after": {"lan": True}, "regressions": []},
                          "validated": True, "reward": 0.1,
                          "rill": {"outcome": {"response": {"ok": True, "accepted": True}}},
@@ -101,15 +104,21 @@ class ReleaseClosureE2ETests(unittest.TestCase):
                 benchmark["route"] = {"resolved": True, "provider": "ip-full+rtnl-events"}
             raw["benchmark"] = benchmark
         elif gate == "sysupgrade":
-            raw["upgrade"] = {"before": {"bootId": "boot-a", "packageSha256": "1" * 64,
-                                           "configSha256": "2" * 64, "policySha256": "3" * 64},
+            raw["upgrade"] = {"transactionMarker": "sysupgrade-1", "before": {"bootId": "boot-a", "packageSha256": "1" * 64,
+                                           "configSha256": "2" * 64, "policySha256": "3" * 64, "firmware": {"identity": "fw-a"}},
                                "after": {"bootId": "boot-b", "packageSha256": records[PACKAGE_NAMES[-1]]["apkSha256"],
                                          "configSha256": "2" * 64, "policySha256": "3" * 64,
                                          "adapterSha256": PIN, "pendingMutationCount": 0,
-                                         "coreStarted": True, "staleLocks": 0}}
+                                         "coreStarted": True, "staleLocks": 0, "firmware": {"identity": "fw-b"}}}
         elif gate == "lifecycle":
-            raw["lifecycle"] = {"steps": {name: {"exitCode": 0, "observed": True}
-                                            for name in GATE_CHECKS[gate]}}
+            raw["lifecycle"] = {"phases": [
+                {"name": "split-install", "exitCode": 0, "installedPackages": {"performance-manager": {}, "luci-app-performance-manager": {}, "performance-manager-rill": {}}, "configSha256": "2" * 64},
+                {"name": "split-runtime", "corePid": 1, "ubusReady": True, "rillAdapterSha256": PIN},
+                {"name": "migration", "removeExitCode": 0, "installBundleExitCode": 0, "installedPackages": {PACKAGE_NAMES[-1]: {}}},
+                {"name": "bundle-runtime", "corePid": 2, "ubusReady": True, "configSha256": "2" * 64},
+                {"name": "uninstall", "exitCode": 0, "remainingOwnedPaths": [], "staleLocks": 0, "stalePending": 0, "staleSockets": 0},
+                {"name": "reinstall", "exitCode": 0, "installedPackages": {PACKAGE_NAMES[-1]: {}}, "corePid": 3, "ubusReady": True},
+            ]}
         elif gate == "resource-soak":
             raw["durationSeconds"] = 86400
             raw["soak"] = {"rillPresent": True, "sampleCount": 1440, "coreRestartCount": 0,
@@ -118,7 +127,9 @@ class ReleaseClosureE2ETests(unittest.TestCase):
                            "idlePendingOutcomeJournalWrites": 0, "executingJournalDelta": 0,
                            "resources": {"coreRssKiB": 1000, "rillRssKiB": 1000,
                                          "bindingHighWater": 1, "interventionRequiredCount": 0,
-                                         "persistentHistoryGrowthBytes": 1}}
+                                         "persistentHistoryGrowthBytes": 1, "executionJournalFileCount": 1,
+                                         "executionJournalBytes": 1024, "retiredExecutionCount": 1,
+                                         "activeExecutionCount": 0, "executingExecutionCount": 0}}
         return raw
 
     def test_controller_validator_and_aggregate_use_one_rawfacts_path(self):

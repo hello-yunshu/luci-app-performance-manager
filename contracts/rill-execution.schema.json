@@ -33,6 +33,7 @@
     "terminalReason": {"type": "string", "minLength": 1},
     "terminalDetail": {"type": ["object", "null"]},
     "terminalMonotonicMs": {"type": "integer", "minimum": 0},
+    "terminalSequence": {"type": "integer", "minimum": 1},
     "terminalProof": {
       "type": ["object", "null"], "additionalProperties": false,
       "required": ["ownerType", "ownerId", "ownerTerminalState", "terminalResultDigest", "decisionId", "actionId", "contextKey", "goal", "modelGeneration", "measurementClass", "reward", "validated", "rollbackCommitProof", "bootIdentity"],
