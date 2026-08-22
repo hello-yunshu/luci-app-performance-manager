@@ -3,22 +3,22 @@
   "areas": {
     "core": {
       "files": 40,
-      "sourceBytes": 258495,
-      "knownStaticPayloadBytes": 255372
+      "sourceBytes": 259330,
+      "knownStaticPayloadBytes": 256212
     },
     "luci": {
       "files": 14,
-      "sourceBytes": 36360,
+      "sourceBytes": 36355,
       "knownStaticPayloadBytes": 35487
     },
     "rill": {
       "files": 3,
-      "sourceBytes": 5300,
+      "sourceBytes": 5295,
       "knownStaticPayloadBytes": 3429
     },
     "allInOne": {
       "files": 1,
-      "sourceBytes": 4803,
+      "sourceBytes": 4798,
       "knownStaticPayloadBytes": 0
     }
   },

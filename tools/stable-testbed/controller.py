@@ -23,7 +23,61 @@ RESERVED_TRANSPORT_FIELDS = {
     "verdict", "passed", "subchecks", "validationErrors", "controller",
     "pmCommitSha", "buildRunId", "adapterSha256", "schemaVersion", "gate",
     "artifacts", "buildArtifacts", "installedArtifacts", "environment", "benchmark",
-    "upgrade", "soak", "canonical",
+    "upgrade", "soak", "canonical", "installPlan",
+}
+
+INSTALL_PLANS = {
+    "target-core-only": {
+        "primaryPackage": "performance-manager",
+        "requiredPackages": ["performance-manager"],
+        "forbiddenBusinessPackages": ["luci-app-performance-manager", "performance-manager-rill", "luci-app-performance-manager-all"],
+    },
+    "target-full": {
+        "primaryPackage": "luci-app-performance-manager-all",
+        "requiredPackages": ["luci-app-performance-manager-all"],
+        "forbiddenBusinessPackages": ["performance-manager", "luci-app-performance-manager", "performance-manager-rill"],
+    },
+    "target-mutation": {
+        "primaryPackage": "luci-app-performance-manager-all",
+        "requiredPackages": ["luci-app-performance-manager-all"],
+        "forbiddenBusinessPackages": ["performance-manager", "luci-app-performance-manager", "performance-manager-rill"],
+    },
+    "hyperv": {
+        "primaryPackage": "luci-app-performance-manager-all",
+        "requiredPackages": ["luci-app-performance-manager-all"],
+        "forbiddenBusinessPackages": ["performance-manager", "luci-app-performance-manager", "performance-manager-rill"],
+    },
+    "kvm": {
+        "primaryPackage": "luci-app-performance-manager-all",
+        "requiredPackages": ["luci-app-performance-manager-all"],
+        "forbiddenBusinessPackages": ["performance-manager", "luci-app-performance-manager", "performance-manager-rill"],
+    },
+    "lan-wan-ab": {
+        "primaryPackage": "luci-app-performance-manager-all",
+        "requiredPackages": ["luci-app-performance-manager-all"],
+        "forbiddenBusinessPackages": ["performance-manager", "luci-app-performance-manager", "performance-manager-rill"],
+    },
+    "router-local-ab": {
+        "primaryPackage": "luci-app-performance-manager-all",
+        "requiredPackages": ["luci-app-performance-manager-all"],
+        "forbiddenBusinessPackages": ["performance-manager", "luci-app-performance-manager", "performance-manager-rill"],
+    },
+    "sysupgrade": {
+        "primaryPackage": "luci-app-performance-manager-all",
+        "requiredPackages": ["luci-app-performance-manager-all"],
+        "forbiddenBusinessPackages": ["performance-manager", "luci-app-performance-manager", "performance-manager-rill"],
+    },
+    "resource-soak": {
+        "primaryPackage": "luci-app-performance-manager-all",
+        "requiredPackages": ["luci-app-performance-manager-all"],
+        "forbiddenBusinessPackages": ["performance-manager", "luci-app-performance-manager", "performance-manager-rill"],
+    },
+    "lifecycle": {
+        "phases": [
+            {"name": "split", "requiredPackages": ["performance-manager", "luci-app-performance-manager", "performance-manager-rill"]},
+            {"name": "bundle", "requiredPackages": ["luci-app-performance-manager-all"]},
+        ],
+    },
 }
 
 def unique(root: Path, name: str) -> Path:
@@ -70,7 +124,8 @@ def main(argv=None):
         "pmCommitSha": expected_sha, "buildRunId": str(build.get("workflowRunId")),
         "exactArtifacts": {name: {"path": str(path), "sha256": sha256(path)} for name, path in apks.items()},
         "adapterSha256": PIN, "ciInput": str(ci_root),
-        "requirements": "install exact local APKs; return raw installed hashes and gate observations",
+        "installPlan": INSTALL_PLANS[args.gate],
+        "requirements": "execute the repository installPlan exactly; return raw installed hashes and gate observations",
     }
     completed = subprocess.run([transport], input=json.dumps(request), text=True, capture_output=True)
     if completed.returncode != 0:

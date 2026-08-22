@@ -33,12 +33,12 @@ GATE_CHECKS = {
     "router-local-ab": ["exactPackagesInstalled", "routerLocalClient", "localEndpointPath", "sameMethodology", "oneVariable",
                         "mutationVerified", "rollbackExact", "validatedReward", "rillOutcomeFinal"],
     "sysupgrade": ["exactPackagesInstalled", "preIdentityRecorded", "postIdentityRecorded", "bootIdChanged", "configPreserved",
-                   "policyPreserved", "exactAdapterAfterUpgrade", "noUnsafePendingMutation", "coreStartedClean"],
+                   "policyPreserved", "firmwareUpgradeProven", "exactAdapterAfterUpgrade", "noUnsafePendingMutation", "coreStartedClean"],
     "lifecycle": ["install", "serviceStart", "restart", "upgradeReinstall", "configPreserved",
                   "rillOptional", "uninstallCleanup", "reinstall", "noStaleState"],
     "resource-soak": ["exactPackagesInstalled", "rillPresent", "sampledResources", "noCoreRestart", "noRillRestart",
                       "idleObserveZero", "idleAdapterPersistenceZero", "idleJournalWritesZero",
-                      "stateBoundsPass", "historyBoundsPass"],
+                      "journalMeasured", "stateBoundsPass", "historyBoundsPass"],
 }
 RILL_GATES = set(GATE_CHECKS) - {"target-core-only"}
 PRIMARY_PACKAGE = "luci-app-performance-manager-all"
@@ -51,6 +51,25 @@ ALL_IN_ONE_PAYLOAD = CORE_PAYLOAD + (
     "/www/luci-static/resources/view/performance-manager/overview.js",
     "/usr/lib/lua/luci/i18n/performance-manager.zh-cn.lmo",
 )
+
+RESOURCE_METRICS = (
+    "coreRssKiB", "rillRssKiB", "bindingHighWater", "interventionRequiredCount",
+    "persistentHistoryGrowthBytes", "executionJournalFileCount", "executionJournalBytes",
+    "retiredExecutionCount", "activeExecutionCount", "executingExecutionCount",
+)
+
+
+def _finite_nonnegative_number(value: Any) -> bool:
+    return isinstance(value, (int, float)) and not isinstance(value, bool) \
+        and math.isfinite(float(value)) and float(value) >= 0
+
+
+def _nonempty_dict(value: Any) -> bool:
+    return isinstance(value, dict) and bool(value)
+
+
+def _nonempty_string(value: Any) -> bool:
+    return isinstance(value, str) and bool(value.strip())
 
 
 def _dict(value: Any) -> dict[str, Any]:
@@ -69,7 +88,12 @@ def _exit_ok(value: Any) -> bool:
 def _methodology_equal(benchmark: dict[str, Any]) -> bool:
     control = _dict(benchmark.get("control")).get("methodology")
     candidate = _dict(benchmark.get("candidate")).get("methodology")
-    return isinstance(control, dict) and isinstance(candidate, dict) and _same(control, candidate)
+    required = ("tool", "protocol", "durationSeconds", "direction", "clientIdentity",
+                "endpointIdentity", "streamCount", "payloadMode")
+    return isinstance(control, dict) and isinstance(candidate, dict) \
+        and all(_nonempty_string(control.get(key)) or _finite_nonnegative_number(control.get(key)) for key in required) \
+        and all(_nonempty_string(candidate.get(key)) or _finite_nonnegative_number(candidate.get(key)) for key in required) \
+        and _same(control, candidate)
 
 
 def _outcome_final(benchmark: dict[str, Any]) -> bool:
@@ -93,11 +117,20 @@ def _ab_checks(facts: dict[str, Any], local: bool) -> dict[str, bool]:
     except (KeyError, TypeError, ValueError, ZeroDivisionError):
         expected_reward = math.nan
     route = _dict(benchmark.get("route"))
+    changed_fields = mutation.get("changedFields")
+    before = mutation.get("before")
+    candidate_state = mutation.get("candidate")
+    readback = mutation.get("readback")
+    rollback = mutation.get("afterRollback")
+    action = _dict(mutation.get("action"))
     checks = {
         "sameMethodology": _methodology_equal(benchmark),
-        "oneVariable": len(mutation.get("changedFields", [])) == 1,
-        "mutationVerified": _exit_ok(mutation.get("applyExitCode")) and _same(mutation.get("readback"), mutation.get("candidate")),
-        "rollbackExact": _same(mutation.get("before"), mutation.get("afterRollback")),
+        "oneVariable": isinstance(changed_fields, list) and len(changed_fields) == 1 and _nonempty_string(changed_fields[0]),
+        "mutationVerified": _exit_ok(mutation.get("applyExitCode")) and _nonempty_dict(action)
+            and action.get("actionId") == "nic.ring.floor" and action.get("authority") == "advisory-only"
+            and action.get("mutationOwner") == "pm-core" and _nonempty_dict(before)
+            and _nonempty_dict(candidate_state) and _nonempty_dict(readback) and _same(readback, candidate_state),
+        "rollbackExact": _nonempty_dict(before) and _nonempty_dict(rollback) and _same(before, rollback),
         "healthPass": health.get("before") is not None and health.get("after") is not None and health.get("regressions") == [],
         "validatedReward": benchmark.get("validated") is True and isinstance(reward, (int, float)) and not isinstance(reward, bool) and math.isfinite(float(reward)) and math.isfinite(expected_reward) and math.isclose(float(reward), expected_reward, rel_tol=1e-9, abs_tol=1e-12),
         "rillOutcomeFinal": _outcome_final(benchmark),
@@ -167,14 +200,27 @@ def evaluate_raw_facts(raw: dict[str, Any], gate: str) -> dict[str, bool]:
     elif gate == "target-mutation":
         mutation = _dict(facts.get("mutation"))
         candidate = _dict(mutation.get("candidate"))
+        action_id = candidate.get("actionId")
+        action_contracts = {
+            "nic.ring.floor": {"authority": "advisory-only", "mutationOwner": "pm-core",
+                                "required": ("targetStableId", "rx", "tx")},
+        }
+        contract = action_contracts.get(action_id)
+        before = mutation.get("before")
+        candidate_state = mutation.get("candidateState")
+        readback = mutation.get("readback")
+        after_rollback = mutation.get("afterRollback")
         checks = {
             "exactPackagesInstalled": package_layout,
-            "legalCandidate": bool(candidate.get("actionId")) and candidate.get("authority") == "advisory-only" and candidate.get("mutationOwner") == "pm-core",
-            "beforeSnapshotExact": isinstance(mutation.get("before"), dict),
+            "legalCandidate": contract is not None and candidate.get("authority") == contract["authority"]
+                and candidate.get("mutationOwner") == contract["mutationOwner"]
+                and _nonempty_string(candidate.get("targetStableId"))
+                and all(_finite_nonnegative_number(candidate.get(key)) for key in ("rx", "tx")),
+            "beforeSnapshotExact": _nonempty_dict(before) and all(_finite_nonnegative_number(before.get(key)) for key in ("rx", "tx")),
             "applyExecuted": _exit_ok(mutation.get("applyExitCode")),
-            "readbackExact": _same(mutation.get("readback"), mutation.get("candidateState")),
+            "readbackExact": _nonempty_dict(readback) and _nonempty_dict(candidate_state) and _same(readback, candidate_state),
             "manualRollback": _exit_ok(mutation.get("rollbackExitCode")),
-            "restorationExact": _same(mutation.get("before"), mutation.get("afterRollback")),
+            "restorationExact": _nonempty_dict(after_rollback) and _same(before, after_rollback),
             "secondApply": _exit_ok(mutation.get("secondApplyExitCode")),
             "cleanupComplete": mutation.get("staleLocks") == 0 and mutation.get("stalePolicies") == 0,
             "ownershipClean": mutation.get("ownershipAfter") == "clean",
@@ -193,25 +239,54 @@ def evaluate_raw_facts(raw: dict[str, Any], gate: str) -> dict[str, bool]:
         checks = {"exactPackagesInstalled": package_layout, **_ab_checks(facts, local=True)}
     elif gate == "sysupgrade":
         upgrade = _dict(facts.get("upgrade")); before = _dict(upgrade.get("before")); after = _dict(upgrade.get("after"))
+        firmware_before = _dict(before.get("firmware")); firmware_after = _dict(after.get("firmware"))
+        firmware_changed = _nonempty_string(firmware_before.get("identity")) and _nonempty_string(firmware_after.get("identity")) \
+            and firmware_before.get("identity") != firmware_after.get("identity")
         checks = {
             "exactPackagesInstalled": package_layout,
-            "preIdentityRecorded": bool(before.get("bootId")) and bool(before.get("packageSha256")),
-            "postIdentityRecorded": bool(after.get("bootId")) and bool(after.get("packageSha256")),
-            "bootIdChanged": before.get("bootId") != after.get("bootId"),
-            "configPreserved": before.get("configSha256") == after.get("configSha256"),
-            "policyPreserved": before.get("policySha256") == after.get("policySha256"),
-            "exactAdapterAfterUpgrade": after.get("adapterSha256") == PIN,
+            "preIdentityRecorded": _nonempty_string(before.get("bootId")) and _sha(before.get("packageSha256"))
+                and _sha(before.get("configSha256")) and _sha(before.get("policySha256")) and _nonempty_dict(firmware_before),
+            "postIdentityRecorded": _nonempty_string(after.get("bootId")) and _sha(after.get("packageSha256"))
+                and _sha(after.get("configSha256")) and _sha(after.get("policySha256")) and _nonempty_dict(firmware_after),
+            "bootIdChanged": _nonempty_string(before.get("bootId")) and _nonempty_string(after.get("bootId"))
+                and before.get("bootId") != after.get("bootId"),
+            "configPreserved": _sha(before.get("configSha256")) and _sha(after.get("configSha256"))
+                and before.get("configSha256") == after.get("configSha256"),
+            "policyPreserved": _sha(before.get("policySha256")) and _sha(after.get("policySha256"))
+                and before.get("policySha256") == after.get("policySha256"),
+            "exactAdapterAfterUpgrade": after.get("adapterSha256") == PIN and _sha(after.get("adapterSha256")),
+            "firmwareUpgradeProven": firmware_changed or (_nonempty_string(upgrade.get("transactionMarker"))
+                and _sha(upgrade.get("intendedImageSha256")) and firmware_after.get("imageSha256") == upgrade.get("intendedImageSha256")),
             "noUnsafePendingMutation": after.get("pendingMutationCount") == 0,
             "coreStartedClean": after.get("coreStarted") is True and after.get("staleLocks") == 0,
         }
     elif gate == "lifecycle":
-        lifecycle = _dict(facts.get("lifecycle")); steps = _dict(lifecycle.get("steps"))
-        def step_ok(name: str) -> bool:
-            item = _dict(steps.get(name))
-            return _exit_ok(item.get("exitCode")) and item.get("observed") is True
-        checks = {name: step_ok(name) for name in ("install", "serviceStart", "restart", "upgradeReinstall", "configPreserved", "rillOptional", "uninstallCleanup", "reinstall", "noStaleState")}
+        lifecycle = _dict(facts.get("lifecycle")); phases = lifecycle.get("phases")
+        phase_map = {p.get("name"): p for p in phases if isinstance(p, dict) and _nonempty_string(p.get("name"))} if isinstance(phases, list) else {}
+        split = _dict(phase_map.get("split-install")); split_runtime = _dict(phase_map.get("split-runtime"))
+        migration = _dict(phase_map.get("migration")); bundle_runtime = _dict(phase_map.get("bundle-runtime"))
+        uninstall = _dict(phase_map.get("uninstall")); reinstall = _dict(phase_map.get("reinstall"))
+        split_pkgs = _dict(split.get("installedPackages")); bundle_pkgs = _dict(migration.get("installedPackages"))
+        split_names = {name for name, value in split_pkgs.items() if isinstance(value, dict)}
+        bundle_names = {name for name, value in bundle_pkgs.items() if isinstance(value, dict)}
+        checks = {
+            "install": _exit_ok(split.get("exitCode")) and split_names == {"performance-manager", "luci-app-performance-manager", "performance-manager-rill"},
+            "serviceStart": _nonempty_string(split_runtime.get("corePid")) or (isinstance(split_runtime.get("corePid"), int) and split_runtime.get("corePid") > 0),
+            "restart": _nonempty_string(bundle_runtime.get("corePid")) or (isinstance(bundle_runtime.get("corePid"), int) and bundle_runtime.get("corePid") > 0),
+            "upgradeReinstall": _exit_ok(migration.get("removeExitCode")) and _exit_ok(migration.get("installBundleExitCode"))
+                and bundle_names == {PRIMARY_PACKAGE},
+            "configPreserved": _sha(split.get("configSha256")) and _sha(bundle_runtime.get("configSha256"))
+                and split.get("configSha256") == bundle_runtime.get("configSha256"),
+            "rillOptional": split_runtime.get("ubusReady") is True and bundle_runtime.get("ubusReady") is True,
+            "uninstallCleanup": _exit_ok(uninstall.get("exitCode")) and uninstall.get("remainingOwnedPaths") == [],
+            "reinstall": _exit_ok(reinstall.get("exitCode")) and _dict(reinstall.get("installedPackages")).keys() == {PRIMARY_PACKAGE}
+                and reinstall.get("ubusReady") is True,
+            "noStaleState": uninstall.get("staleLocks") == 0 and uninstall.get("stalePending") == 0
+                and uninstall.get("staleSockets") == 0,
+        }
     elif gate == "resource-soak":
         soak = _dict(facts.get("soak")); resources = _dict(soak.get("resources"))
+        metrics_valid = all(key in resources and _finite_nonnegative_number(resources.get(key)) for key in RESOURCE_METRICS)
         checks = {
             "exactPackagesInstalled": package_layout,
             "rillPresent": soak.get("rillPresent") is True,
@@ -221,8 +296,12 @@ def evaluate_raw_facts(raw: dict[str, Any], gate: str) -> dict[str, bool]:
             "idleObserveZero": soak.get("idleRillObserveAcceptedDelta") == 0,
             "idleAdapterPersistenceZero": soak.get("idleExpectedAdapterPersistenceEventsDelta") == 0,
             "idleJournalWritesZero": soak.get("idlePendingOutcomeJournalWrites") == 0 and soak.get("executingJournalDelta") == 0,
-            "stateBoundsPass": resources.get("coreRssKiB", 0) <= 65536 and resources.get("rillRssKiB", 0) <= 98304 and resources.get("bindingHighWater", 0) <= 64 and resources.get("interventionRequiredCount", 0) == 0,
-            "historyBoundsPass": resources.get("persistentHistoryGrowthBytes", 0) <= 262144,
+            "journalMeasured": metrics_valid and resources["executionJournalFileCount"] <= 128
+                and resources["executionJournalBytes"] <= 2097152 and resources["retiredExecutionCount"] <= 64,
+            "stateBoundsPass": metrics_valid and resources["coreRssKiB"] <= 65536 and resources["rillRssKiB"] <= 98304
+                and resources["bindingHighWater"] <= 64 and resources["interventionRequiredCount"] == 0
+                and resources["activeExecutionCount"] >= resources["executingExecutionCount"],
+            "historyBoundsPass": metrics_valid and resources["persistentHistoryGrowthBytes"] <= 262144,
         }
     return {name: checks.get(name, False) for name in names}
 
@@ -250,7 +329,8 @@ def _schema_errors(value: Any, schema: dict[str, Any], schema_dir: Path,
     """
     errors: list[str] = []
     supported = {"$schema", "$id", "$ref", "allOf", "type", "additionalProperties",
-                 "required", "properties", "items", "const", "enum", "pattern", "minimum"}
+                 "required", "properties", "items", "const", "enum", "pattern", "minimum",
+                 "minLength", "minItems"}
     unknown = set(schema) - supported
     if unknown:
         return [f"{location}: unsupported schema keywords {sorted(unknown)}"]
@@ -275,10 +355,27 @@ def _schema_errors(value: Any, schema: dict[str, Any], schema_dir: Path,
         errors.append(f"{location}: value is outside schema enum")
     if "pattern" in schema and isinstance(value, str) and re.search(schema["pattern"], value) is None:
         errors.append(f"{location}: value does not match schema pattern")
+    if "minLength" in schema and isinstance(value, str) and len(value) < schema["minLength"]:
+        errors.append(f"{location}: string is shorter than minimum length")
+    if "minItems" in schema and isinstance(value, list) and len(value) < schema["minItems"]:
+        errors.append(f"{location}: array has fewer than minimum items")
     if "minimum" in schema and isinstance(value, (int, float)) and value < schema["minimum"]:
         errors.append(f"{location}: value is below schema minimum")
     if isinstance(value, dict):
         properties = schema.get("properties", {})
+        allowed_from_allof = set()
+        if schema.get("allOf") or location.startswith("evidence.allOf["):
+            # Gate schemas refine common.schema.json through allOf.  The
+            # JSON-Schema additionalProperties rule is evaluated per schema;
+            # include the common envelope here so a refinement does not
+            # incorrectly reject the fields declared by its base schema.
+            allowed_from_allof.update({
+                "schemaVersion", "gate", "pmCommitSha", "buildRunId", "verdict", "passed",
+                "controller", "buildArtifacts", "installedArtifacts", "subchecks", "rawFacts",
+                "primaryPackage", "primaryPackageSha256", "adapterSha256", "durationSeconds",
+                "validationErrors",
+            })
+        allowed_from_allof.update(schema.get("required", []))
         for key in schema.get("required", []):
             if key not in value:
                 errors.append(f"{location}.{key}: required by schema")
@@ -286,7 +383,7 @@ def _schema_errors(value: Any, schema: dict[str, Any], schema_dir: Path,
             child_schema = properties.get(key)
             if child_schema is not None:
                 errors.extend(_schema_errors(child_value, child_schema, schema_dir, f"{location}.{key}"))
-            elif schema.get("additionalProperties") is False:
+            elif schema.get("additionalProperties") is False and key not in allowed_from_allof:
                 errors.append(f"{location}.{key}: additional property forbidden by schema")
             elif isinstance(schema.get("additionalProperties"), dict):
                 errors.extend(_schema_errors(child_value, schema["additionalProperties"], schema_dir,
@@ -457,8 +554,14 @@ def validate_evidence(data: Any, gate: str, expected_commit: str, *, require_ril
         before = _dict(upgrade.get("before")); after = _dict(upgrade.get("after"))
         if not before.get("bootId") or before.get("bootId") == after.get("bootId"):
             errors.append("sysupgrade boot identity did not change")
-        if before.get("packageSha256") == after.get("packageSha256"):
-            errors.append("sysupgrade package identity did not change")
+        if not _sha(after.get("packageSha256")):
+            errors.append("sysupgrade after PM package identity is missing or invalid")
+        elif build_metadata:
+            expected = _dict(build_metadata.get("packages")).get(PRIMARY_PACKAGE, {}).get("apkSha256")
+            if after.get("packageSha256") != expected:
+                errors.append("sysupgrade after PM package identity does not match final all-in-one artifact")
+        if not evaluate_raw_facts(data, gate).get("firmwareUpgradeProven"):
+            errors.append("sysupgrade firmware identity/transaction proof missing")
     elif gate == "resource-soak":
         soak = _dict(_dict(data.get("rawFacts")).get("soak"))
         if int(data.get("durationSeconds", 0)) < 86400 or int(soak.get("sampleCount", 0)) <= 0:

@@ -91,29 +91,44 @@ jobs:
           python3 scripts/build_release_manifest.py --assets release-assets \
             --expected-commit '${{ inputs.expected_sha }}' --version 1.0.0
           (cd release-assets && sha256sum ./* > release-checksums.txt)
-      - name: Refuse mutable/existing public identity
+      - name: Verify or create immutable tag identity and resumable draft
         shell: bash
         run: |
           set -euo pipefail
-          test -z "$(git ls-remote --tags origin refs/tags/v1.0.0)"
+          remote_tag=$(git ls-remote --tags origin 'refs/tags/v1.0.0^{}' | awk '{print $1}')
+          if [ -n "$remote_tag" ]; then
+            test "$remote_tag" = "${{ inputs.expected_sha }}" || {
+              echo "v1.0.0 exists at $remote_tag, expected ${{ inputs.expected_sha }}" >&2
+              exit 1
+            }
+          else
+            git config user.name 'github-actions[bot]'
+            git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+            git tag -a v1.0.0 "${{ inputs.expected_sha }}" -m 'OpenWrt Performance Manager v1.0.0'
+            git push origin refs/tags/v1.0.0
+          fi
           if gh release view v1.0.0 >/dev/null 2>&1; then
-            echo 'v1.0.0 release already exists; refusing overwrite' >&2
-            exit 1
+            test "$(gh release view v1.0.0 --json isDraft --jq .isDraft)" = true || {
+              echo 'v1.0.0 release exists and is public; refusing mutation' >&2
+              exit 1
+            }
           fi
         env:
           GH_TOKEN: ${{ github.token }}
-      - name: Create immutable tag and GitHub Release
+      - name: Create or resume draft GitHub Release, then publish
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git tag -a v1.0.0 "${{ inputs.expected_sha }}" -m 'OpenWrt Performance Manager v1.0.0'
-          git push origin refs/tags/v1.0.0
-          gh release create v1.0.0 release-assets/* \
-            --verify-tag --title 'OpenWrt Performance Manager v1.0.0' \
+          if gh release view v1.0.0 >/dev/null 2>&1; then
+            gh release upload v1.0.0 release-assets/* --clobber
+          else
+            gh release create v1.0.0 release-assets/* --draft --verify-tag \
+              --title 'OpenWrt Performance Manager v1.0.0' \
+              --notes-file release-assets/FINAL_AUDIT.md
+          fi
+          gh release edit v1.0.0 --draft=false --title 'OpenWrt Performance Manager v1.0.0' \
             --notes-file release-assets/FINAL_AUDIT.md
       - name: Re-download published assets and verify checksums
         shell: bash

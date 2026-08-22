@@ -380,6 +380,12 @@ class RillStableLifecycleTests(unittest.TestCase):
         self.assertFalse(snapshot["modelGeneration"]["normalV1PathIncrements"])
         self.assertEqual(snapshot["persistence"]["observe"], "ledger.register then persist")
 
+    def test_retention_uses_persistent_cross_boot_sequence(self):
+        body = function_body("rill_execution_enforce_retention")
+        self.assertIn("terminalSequence", body)
+        self.assertNotIn("terminalMonotonicMs ?? row?.createdMonotonicMs", body)
+        self.assertIn("function rill_terminal_sequence()", CORE)
+
 
 if __name__ == "__main__":
     unittest.main()

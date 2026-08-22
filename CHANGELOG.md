@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.0.0 — Final Stable candidate (2026-08-22)
+
+- Closes fail-closed Stable evidence semantics for resource metrics, firmware sysupgrade proof, lifecycle phase facts, action-specific mutation/A/B evidence, and cross-boot journal retention.
+- Keeps publication gated by one exact Final SHA and the real same-commit CI, official SDK, target matrix, and 24-hour soak aggregate.
+
 ## 1.0.0-rc.14 — Final Stable evidence closure (2026-08-22)
 
 - Share one exact artifact resolver across controller, prerelease, Stable assembly and APK staging; identical all-in-one copies pass and conflicting identities fail closed.

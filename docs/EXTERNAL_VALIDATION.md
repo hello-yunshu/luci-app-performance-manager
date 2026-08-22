@@ -1,6 +1,6 @@
 # External Validation Required for 1.0 Stable
 
-`1.0.0-rc.14` keeps the official OpenWrt SDK build compiling and verifying every split package plus the physical all-in-one APK. For download convenience, the byte-verified all-in-one APK is the sole public install asset on top of the exact Rill decision and semantic evidence chain. The bundle physically carries Core, LuCI, rpcd registrations, Simplified Chinese translation and repository-owned Rill glue; the external integration remains pinned to immutable **Rill Stable v1.2.0**. Stable still requires real target/testbed/hypervisor/sysupgrade/lifecycle/24-hour evidence that cannot be fabricated by source or container checks.
+`1.0.0` keeps the official OpenWrt SDK build compiling and verifying every split package plus the physical all-in-one APK. For download convenience, the byte-verified all-in-one APK is the sole public install asset on top of the exact Rill decision and semantic evidence chain. The bundle physically carries Core, LuCI, rpcd registrations, Simplified Chinese translation and repository-owned Rill glue; the external integration remains pinned to immutable **Rill Stable v1.2.0**. Stable publication still requires real target/testbed/hypervisor/sysupgrade/lifecycle/24-hour evidence that cannot be fabricated by source or container checks.
 
 The current official 25.12.x x86/64 target is available as OpenWrt 25.12.5, including an x86/64 rootfs and SDK. CI is pinned to that release for ucode and four-package build gates (three split packages plus the all-in-one package).
 
@@ -12,7 +12,7 @@ Required target evidence:
 4. Explicit LAN→Router→WAN and router-local controlled A/B sessions where the action semantics require them.
 5. Sysupgrade preservation via `scripts/openwrt-sysupgrade-gate.sh prepare` before the upgrade and `verify` after reboot, plus `scripts/openwrt-resource-soak.sh` for 24h or longer.
 
-Until those evidence files actually pass, the correct label is **1.0.0-rc.14**, not Stable.
+Until those evidence files actually pass, `1.0.0` remains a Final candidate and is not a public Stable release.
 
 ## Docker-based Evidence Progress
 

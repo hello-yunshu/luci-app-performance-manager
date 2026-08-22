@@ -1,1 +1,1 @@
-{"$schema":"https://json-schema.org/draft/2020-12/schema","allOf":[{"$ref":"common.schema.json"},{"properties":{"gate":{"const":"lan-wan-ab"}}}]}
+{"$schema":"https://json-schema.org/draft/2020-12/schema","allOf":[{"$ref":"common.schema.json"},{"type":"object","additionalProperties":false,"properties":{"gate":{"const":"lan-wan-ab"},"rawFacts":{"type":"object","additionalProperties":false,"required":["installedPackages","benchmark"],"properties":{"installedPackages":{"type":"object"},"benchmark":{"$ref":"ab-benchmark.schema.json"}}}}}]}
