@@ -78,6 +78,64 @@ class StableEvidenceAggregationTests(unittest.TestCase):
                 data["durationSeconds"] = 86400
                 data["soak"] = {"sampleCount": 1440, "idleRillObserveAcceptedDelta": 0,
                                 "idleExpectedAdapterPersistenceEventsDelta": 0, "idlePendingOutcomeJournalWrites": 0}
+            raw = {"installedPackages": {"performance-manager": {}, "luci-app-performance-manager": {},
+                                          "performance-manager-rill": {}, "luci-app-performance-manager-all": {}}}
+            if gate == "target-core-only":
+                raw = {"environment": {"release": "25.12.5", "target": "x86/64"},
+                       "process": {"corePid": 1}, "ubusSocketReady": True,
+                       "statusResponseValid": True, "analyzeResponseValid": True,
+                       "topologyEvidenceValid": True, "capabilitiesEvidenceValid": True,
+                       "staleLocks": 0, "installedPackages": {"performance-manager": {}}}
+            elif gate == "target-full":
+                raw.update({"permissions": {"serviceUid": 5666, "serviceUserDedicated": True,
+                                             "stateDirectoryMode": "0750",
+                                             "stateDirectoryOwner": "performance-manager-rill:performance-manager-rill"},
+                            "rill": {"adapterSha256": PINNED_ADAPTER_SHA, "connectedToCore": True,
+                                     "statusResponse": {"ready": True}},
+                            "rillDirectMutationCount": 0, "mutationAuthority": "pm-core"})
+            elif gate == "target-mutation":
+                raw["mutation"] = {"candidate": {"actionId": "nic.ring.floor", "authority": "advisory-only", "mutationOwner": "pm-core"},
+                                    "before": {"rx": 1}, "applyExitCode": 0,
+                                    "readback": {"rx": 2}, "candidateState": {"rx": 2},
+                                    "rollbackExitCode": 0, "afterRollback": {"rx": 1},
+                                    "secondApplyExitCode": 0, "staleLocks": 0, "stalePolicies": 0,
+                                    "ownershipAfter": "clean", "packetSteeringOwner": "native",
+                                    "staleRuntimeState": 0}
+            elif gate == "hyperv":
+                raw.update({"environment": {"hypervisor": "Hyper-V", "vmbusId": "vmbus-1", "nicDriver": "hv_netvsc"},
+                            "hotplug": {"before": "a", "after": "b"}, "targetRefStableId": True,
+                            "replayCount": 1, "rollback": {"before": {"x": 1}, "after": {"x": 1}}})
+            elif gate == "kvm":
+                raw.update({"environment": {"hypervisor": "KVM", "pciId": "0000:00:03.0", "nicDriver": "virtio_net"},
+                            "hotplug": {"before": "a", "after": "b"}, "targetRefStableId": True,
+                            "replayCount": 1, "rollback": {"before": {"x": 1}, "after": {"x": 1}}})
+            elif gate in {"lan-wan-ab", "router-local-ab"}:
+                benchmark = {"control": {"bitsPerSecond": 100, "methodology": {"tool": "iperf3", "duration": 10}},
+                             "candidate": {"bitsPerSecond": 110, "methodology": {"tool": "iperf3", "duration": 10}},
+                             "mutation": {"changedFields": ["ring.rx"], "applyExitCode": 0, "before": {"x": 1},
+                                           "candidate": {"x": 2}, "readback": {"x": 2}, "afterRollback": {"x": 1}},
+                             "health": {"before": {"lan": True}, "after": {"lan": True}, "regressions": []},
+                             "validated": True, "reward": 0.1,
+                             "rill": {"outcome": {"response": {"ok": True, "accepted": True}}},
+                             "client": {"role": "router-local-client" if gate == "router-local-ab" else "lan-client"},
+                             "endpoint": {"kind": "router-local" if gate == "router-local-ab" else "wan"}}
+                if gate == "lan-wan-ab": benchmark["route"] = {"resolved": True, "provider": "ip-full+rtnl-events"}
+                raw["benchmark"] = benchmark
+            elif gate == "sysupgrade":
+                raw["upgrade"] = {"before": {"bootId": "boot-a", "packageSha256": "a", "configSha256": "c", "policySha256": "p"},
+                                   "after": {"bootId": "boot-b", "packageSha256": "b", "configSha256": "c", "policySha256": "p",
+                                             "adapterSha256": PINNED_ADAPTER_SHA, "pendingMutationCount": 0,
+                                             "coreStarted": True, "staleLocks": 0}}
+            elif gate == "lifecycle":
+                raw["lifecycle"] = {"steps": {name: {"exitCode": 0, "observed": True} for name in GATE_CHECKS[gate]}}
+            elif gate == "resource-soak":
+                raw["durationSeconds"] = 86400
+                raw["soak"] = {"rillPresent": True, "sampleCount": 1440, "coreRestartCount": 0, "rillRestartCount": 0,
+                               "idleRillObserveAcceptedDelta": 0, "idleExpectedAdapterPersistenceEventsDelta": 0,
+                               "idlePendingOutcomeJournalWrites": 0, "executingJournalDelta": 0,
+                               "resources": {"coreRssKiB": 1000, "rillRssKiB": 1000, "bindingHighWater": 1,
+                                             "interventionRequiredCount": 0, "persistentHistoryGrowthBytes": 1}}
+            data["rawFacts"] = raw
         if name in RILL_PRESENT:
             data["adapterSha256"] = PINNED_ADAPTER_SHA
         return data

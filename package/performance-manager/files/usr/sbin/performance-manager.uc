@@ -2942,7 +2942,10 @@ function apply_ring(action, options) {
 			let intent=rill_prepare_outcome(tx.rillDecision,'health_only',-1.0,tx.transactionId,'rolled_back');
 			if (!intent.ok) rill_execution_finalize_without_outcome(tx.rillDecision, 'retired-restored-after-failure', 'safe-direct-verification-intent-failed', { rollback: 'exact' });
 		}
-		if (!tx_save(tx)) { release_locks(tx.requiredLocks,tx.transactionId); return {ok:false,error:'transaction-terminal-journal-write-failed',transaction:tx}; }
+		if (!tx_save(tx)) {
+			if (tx.rillDecision) rill_execution_finalize_without_outcome(tx.rillDecision, restored ? 'retired-restored-after-failure' : 'intervention-required', 'safe-direct-verification-terminal-journal-failed', { rollback: restored ? 'exact' : 'failed' });
+			release_locks(tx.requiredLocks,tx.transactionId); return {ok:false,error:'transaction-terminal-journal-write-failed',transaction:tx};
+		}
 		if (!options.runtimeOnly && restored && tx.rillDecision) {
 			let armed=rill_arm_outcome(tx.rillDecision);
 			if (!armed.ok) { rill_execution_finalize_without_outcome(tx.rillDecision, 'retired-restored-after-failure', 'safe-direct-verification-arm-failed', armed); release_locks(tx.requiredLocks,tx.transactionId); return {ok:false,error:'rill-outcome-arm-failed',transaction:tx,detail:armed}; }
@@ -3120,14 +3123,16 @@ function benchmark_start(msg) {
 			return {ok:true,stage:'candidate',session:session,companion:session.companion};
 		}
 		if (phase == 'candidate') {
-			if (session.state != 'candidate_applied') return {ok:false,error:'benchmark-not-awaiting-candidate'};
-			let valid=companion_evidence_valid(msg?.evidence,session,'candidate'); if (!valid.ok) return valid;
+			if (session.state != 'candidate_applied') { benchmark_fail_session(benchmark_path(sid),sid,'benchmark-not-awaiting-candidate'); return {ok:false,error:'benchmark-not-awaiting-candidate'}; }
+			let valid=companion_evidence_valid(msg?.evidence,session,'candidate'); if (!valid.ok) { benchmark_fail_session(benchmark_path(sid),sid,valid.error); return valid; }
 			/* Candidate must reproduce the frozen control methodology exactly.
 			 * A mismatch invalidates the A/B: no reward, no Rill outcome. */
-			if (!session.companion?.methodology || !methodology_matches(session.companion.methodology,msg.evidence))
+			if (!session.companion?.methodology || !methodology_matches(session.companion.methodology,msg.evidence)) {
+				benchmark_fail_session(benchmark_path(sid),sid,'measurement-methodology-mismatch');
 				return {ok:false,error:'measurement-methodology-mismatch',session:session};
+			}
 			let tx=json_read(tx_path(session.transactionId),null);
-			if (!tx || tx.state != 'awaiting_confirm') return {ok:false,error:'benchmark-candidate-transaction-not-live'};
+			if (!tx || tx.state != 'awaiting_confirm') { benchmark_fail_session(benchmark_path(sid),sid,'benchmark-candidate-transaction-not-live'); return {ok:false,error:'benchmark-candidate-transaction-not-live'}; }
 			let hcmp=compare_health(tx.before?.health ?? baseline_health(session.evaluationPath),baseline_health(session.evaluationPath));
 			let restore=rollback_transaction(session.transactionId,'benchmark-complete');
 			if (!restore.ok || !hcmp.pass) { benchmark_fail_session(benchmark_path(sid),sid,!restore.ok?'candidate-rollback-failed':'health-regression'); return {ok:false,error:!restore.ok?'candidate-rollback-failed':'health-regression',health:hcmp,session:session}; }

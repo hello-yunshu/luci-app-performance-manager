@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.0.0-rc.13 — Stable evidence evaluator hardening (2026-08-22)
+
+- Terminalize post-mutation journal failures and invalid benchmark candidate exits.
+- Derive every Stable testbed subcheck from raw transport observations and reject forged verdict maps.
+
 ## 1.0.0-rc.12 — All-in-one release candidate (2026-08-22)
 
 - Keep the official OpenWrt SDK build compiling and verifying every split package plus the physical `luci-app-performance-manager-all` package.

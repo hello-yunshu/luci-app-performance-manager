@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 import re
 import sys
 from pathlib import Path
@@ -40,6 +41,164 @@ GATE_CHECKS = {
 }
 RILL_GATES = set(GATE_CHECKS) - {"target-core-only"}
 PRIMARY_PACKAGE = "luci-app-performance-manager-all"
+
+
+def _dict(value: Any) -> dict[str, Any]:
+    return value if isinstance(value, dict) else {}
+
+
+def _same(left: Any, right: Any) -> bool:
+    return json.dumps(left, sort_keys=True, separators=(",", ":"), ensure_ascii=True) == \
+        json.dumps(right, sort_keys=True, separators=(",", ":"), ensure_ascii=True)
+
+
+def _exit_ok(value: Any) -> bool:
+    return isinstance(value, int) and not isinstance(value, bool) and value == 0
+
+
+def _methodology_equal(benchmark: dict[str, Any]) -> bool:
+    control = _dict(benchmark.get("control")).get("methodology")
+    candidate = _dict(benchmark.get("candidate")).get("methodology")
+    return isinstance(control, dict) and isinstance(candidate, dict) and _same(control, candidate)
+
+
+def _outcome_final(benchmark: dict[str, Any]) -> bool:
+    response = _dict(_dict(benchmark.get("rill")).get("outcome")).get("response")
+    if response.get("ok") is True and response.get("accepted") is True:
+        return True
+    error = _dict(response.get("error"))
+    return error.get("code") == "duplicateFeedback" and error.get("sameFingerprint") is True
+
+
+def _ab_checks(facts: dict[str, Any], local: bool) -> dict[str, bool]:
+    benchmark = _dict(facts.get("benchmark"))
+    control = _dict(benchmark.get("control"))
+    candidate = _dict(benchmark.get("candidate"))
+    mutation = _dict(benchmark.get("mutation"))
+    health = _dict(benchmark.get("health"))
+    reward = benchmark.get("reward")
+    try:
+        expected_reward = (float(candidate["bitsPerSecond"]) - float(control["bitsPerSecond"])) / float(control["bitsPerSecond"])
+    except (KeyError, TypeError, ValueError, ZeroDivisionError):
+        expected_reward = math.nan
+    route = _dict(benchmark.get("route"))
+    checks = {
+        "sameMethodology": _methodology_equal(benchmark),
+        "oneVariable": len(mutation.get("changedFields", [])) == 1,
+        "mutationVerified": _exit_ok(mutation.get("applyExitCode")) and _same(mutation.get("readback"), mutation.get("candidate")),
+        "rollbackExact": _same(mutation.get("before"), mutation.get("afterRollback")),
+        "healthPass": health.get("before") is not None and health.get("after") is not None and health.get("regressions") == [],
+        "validatedReward": benchmark.get("validated") is True and isinstance(reward, (int, float)) and not isinstance(reward, bool) and math.isfinite(float(reward)) and math.isfinite(expected_reward) and math.isclose(float(reward), expected_reward, rel_tol=1e-9, abs_tol=1e-12),
+        "rillOutcomeFinal": _outcome_final(benchmark),
+    }
+    if local:
+        checks.update({
+            "routerLocalClient": _dict(benchmark.get("client")).get("role") == "router-local-client",
+            "localEndpointPath": _dict(benchmark.get("endpoint")).get("kind") == "router-local",
+        })
+    else:
+        checks.update({
+            "realLanClient": _dict(benchmark.get("client")).get("role") == "lan-client",
+            "realWanEndpoint": _dict(benchmark.get("endpoint")).get("kind") == "wan",
+            "routeResolved": route.get("resolved") is True,
+            "rtnlRouteProvider": route.get("provider") == "ip-full+rtnl-events",
+        })
+    return checks
+
+
+def evaluate_raw_facts(raw: dict[str, Any], gate: str) -> dict[str, bool]:
+    """Derive every Stable subcheck from raw observations.
+
+    The transport is deliberately unable to submit verdict-shaped fields.
+    These evaluators consume measurements, command results, identities and
+    before/after records only; a forged ``subchecks`` map is never consulted.
+    """
+    names = GATE_CHECKS[gate]
+    facts = _dict(raw.get("rawFacts"))
+    environment = _dict(facts.get("environment"))
+    packages = _dict(facts.get("installedPackages"))
+    checks: dict[str, bool] = {}
+    if gate == "target-core-only":
+        checks = {
+            "openwrt2512": environment.get("release") == "25.12.5",
+            "x8664": environment.get("target") == "x86/64",
+            "coreStarted": _dict(facts.get("process")).get("corePid", 0) > 0,
+            "ubusReady": facts.get("ubusSocketReady") is True,
+            "statusValid": facts.get("statusResponseValid") is True,
+            "analyzeValid": facts.get("analyzeResponseValid") is True,
+            "topologyValid": facts.get("topologyEvidenceValid") is True,
+            "capabilitiesValid": facts.get("capabilitiesEvidenceValid") is True,
+            "noStaleLocks": facts.get("staleLocks") == 0,
+        }
+    elif gate == "target-full":
+        permissions = _dict(facts.get("permissions"))
+        rill = _dict(facts.get("rill"))
+        checks = {
+            "exactPackagesInstalled": all(isinstance(packages.get(name), dict) for name in ("performance-manager", "luci-app-performance-manager", "performance-manager-rill", PRIMARY_PACKAGE)),
+            "serviceUserRestricted": permissions.get("serviceUid") == 5666 and permissions.get("serviceUserDedicated") is True,
+            "stateDirectoryRestricted": permissions.get("stateDirectoryMode") == "0750" and permissions.get("stateDirectoryOwner") == "performance-manager-rill:performance-manager-rill",
+            "coreConnectedExactAdapter": rill.get("adapterSha256") == PIN and rill.get("connectedToCore") is True,
+            "rillStatusReady": _dict(rill.get("statusResponse")).get("ready") is True,
+            "advisoryOnlyAuthority": facts.get("rillDirectMutationCount") == 0 and facts.get("mutationAuthority") == "pm-core",
+        }
+    elif gate == "target-mutation":
+        mutation = _dict(facts.get("mutation"))
+        candidate = _dict(mutation.get("candidate"))
+        checks = {
+            "legalCandidate": bool(candidate.get("actionId")) and candidate.get("authority") == "advisory-only" and candidate.get("mutationOwner") == "pm-core",
+            "beforeSnapshotExact": isinstance(mutation.get("before"), dict),
+            "applyExecuted": _exit_ok(mutation.get("applyExitCode")),
+            "readbackExact": _same(mutation.get("readback"), mutation.get("candidateState")),
+            "manualRollback": _exit_ok(mutation.get("rollbackExitCode")),
+            "restorationExact": _same(mutation.get("before"), mutation.get("afterRollback")),
+            "secondApply": _exit_ok(mutation.get("secondApplyExitCode")),
+            "cleanupComplete": mutation.get("staleLocks") == 0 and mutation.get("stalePolicies") == 0,
+            "ownershipClean": mutation.get("ownershipAfter") == "clean",
+            "packetSteeringNotSeized": mutation.get("packetSteeringOwner") != "performance-manager",
+            "noStaleState": mutation.get("staleRuntimeState") == 0,
+        }
+    elif gate == "hyperv":
+        hotplug = _dict(facts.get("hotplug")); rollback = _dict(facts.get("rollback"))
+        checks = {"hypervisorVerified": environment.get("hypervisor") == "Hyper-V", "vmbusIdentity": bool(environment.get("vmbusId")), "hvNetvscDriver": environment.get("nicDriver") == "hv_netvsc", "hotplugObserved": hotplug.get("before") != hotplug.get("after"), "targetRefStable": facts.get("targetRefStableId") is True, "replayTested": facts.get("replayCount", 0) > 0, "rollbackExact": _same(rollback.get("before"), rollback.get("after"))}
+    elif gate == "kvm":
+        hotplug = _dict(facts.get("hotplug")); rollback = _dict(facts.get("rollback"))
+        checks = {"hypervisorVerified": environment.get("hypervisor") in {"KVM", "QEMU"}, "pciIdentity": bool(environment.get("pciId")), "nicDriverRecorded": bool(environment.get("nicDriver")), "hotplugObserved": hotplug.get("before") != hotplug.get("after"), "targetRefStable": facts.get("targetRefStableId") is True, "replayTested": facts.get("replayCount", 0) > 0, "rollbackExact": _same(rollback.get("before"), rollback.get("after"))}
+    elif gate == "lan-wan-ab":
+        checks = _ab_checks(facts, local=False)
+    elif gate == "router-local-ab":
+        checks = _ab_checks(facts, local=True)
+    elif gate == "sysupgrade":
+        upgrade = _dict(facts.get("upgrade")); before = _dict(upgrade.get("before")); after = _dict(upgrade.get("after"))
+        checks = {
+            "preIdentityRecorded": bool(before.get("bootId")) and bool(before.get("packageSha256")),
+            "postIdentityRecorded": bool(after.get("bootId")) and bool(after.get("packageSha256")),
+            "bootIdChanged": before.get("bootId") != after.get("bootId"),
+            "configPreserved": before.get("configSha256") == after.get("configSha256"),
+            "policyPreserved": before.get("policySha256") == after.get("policySha256"),
+            "exactAdapterAfterUpgrade": after.get("adapterSha256") == PIN,
+            "noUnsafePendingMutation": after.get("pendingMutationCount") == 0,
+            "coreStartedClean": after.get("coreStarted") is True and after.get("staleLocks") == 0,
+        }
+    elif gate == "lifecycle":
+        lifecycle = _dict(facts.get("lifecycle")); steps = _dict(lifecycle.get("steps"))
+        def step_ok(name: str) -> bool:
+            item = _dict(steps.get(name))
+            return _exit_ok(item.get("exitCode")) and item.get("observed") is True
+        checks = {name: step_ok(name) for name in ("install", "serviceStart", "restart", "upgradeReinstall", "configPreserved", "rillOptional", "uninstallCleanup", "reinstall", "noStaleState")}
+    elif gate == "resource-soak":
+        soak = _dict(facts.get("soak")); resources = _dict(soak.get("resources"))
+        checks = {
+            "rillPresent": soak.get("rillPresent") is True,
+            "sampledResources": soak.get("sampleCount", 0) > 0 and isinstance(resources, dict),
+            "noCoreRestart": soak.get("coreRestartCount") == 0,
+            "noRillRestart": soak.get("rillRestartCount") == 0,
+            "idleObserveZero": soak.get("idleRillObserveAcceptedDelta") == 0,
+            "idleAdapterPersistenceZero": soak.get("idleExpectedAdapterPersistenceEventsDelta") == 0,
+            "idleJournalWritesZero": soak.get("idlePendingOutcomeJournalWrites") == 0 and soak.get("executingJournalDelta") == 0,
+            "stateBoundsPass": resources.get("coreRssKiB", 0) <= 65536 and resources.get("rillRssKiB", 0) <= 98304 and resources.get("bindingHighWater", 0) <= 64 and resources.get("interventionRequiredCount", 0) == 0,
+            "historyBoundsPass": resources.get("persistentHistoryGrowthBytes", 0) <= 262144,
+        }
+    return {name: checks.get(name, False) for name in names}
 
 
 def _type_matches(value: Any, expected: str) -> bool:
@@ -221,6 +380,14 @@ def validate_evidence(data: Any, gate: str, expected_commit: str, *, require_ril
         for name in GATE_CHECKS[gate]:
             if checks.get(name) is not True:
                 errors.append(f"subcheck {name} did not pass")
+        raw_facts = data.get("rawFacts")
+        if not isinstance(raw_facts, dict):
+            errors.append("rawFacts object missing; verdicts must be derived from transport observations")
+        else:
+            derived = evaluate_raw_facts(data, gate)
+            for name in GATE_CHECKS[gate]:
+                if checks.get(name) is not derived.get(name):
+                    errors.append(f"subcheck {name} does not match repository evaluator")
     if (require_rill or gate in RILL_GATES) and data.get("adapterSha256") != PIN:
         errors.append(f"adapterSha256={data.get('adapterSha256')!r}")
     try:
