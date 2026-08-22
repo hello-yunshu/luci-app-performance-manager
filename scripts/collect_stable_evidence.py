@@ -8,7 +8,7 @@ import shutil
 import sys
 from pathlib import Path
 
-from aggregate_stable_evidence import REQUIRED
+from aggregate_stable_evidence import PORTABLE_REQUIRED, REQUIRED
 
 
 def digest(path):
@@ -21,9 +21,11 @@ def main(argv=None):
     parser.add_argument("--build-root", required=True)
     parser.add_argument("--target-root", required=True)
     parser.add_argument("--out", required=True)
+    parser.add_argument("--profile", choices=("hardware", "portable-docker"), default="hardware")
     args = parser.parse_args(argv)
     out = Path(args.out)
     out.mkdir(parents=True, exist_ok=True)
+    required = PORTABLE_REQUIRED if args.profile == "portable-docker" else REQUIRED
     roots = {
         "source": Path(args.ci_root),
         "coreRuntime": Path(args.ci_root),
@@ -34,7 +36,7 @@ def main(argv=None):
         "apkVerification": Path(args.build_root),
     }
     missing = []
-    for name, filename in REQUIRED.items():
+    for name, filename in required.items():
         root = roots.get(name, Path(args.target_root))
         candidates = [path for path in root.rglob(filename) if path.is_file()]
         if not candidates:

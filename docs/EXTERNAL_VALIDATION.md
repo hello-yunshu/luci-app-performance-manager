@@ -1,6 +1,6 @@
-# External Validation Required for 1.0 Stable
+# External Validation Profiles for 1.0.0
 
-`1.0.0` keeps the official OpenWrt SDK build compiling and verifying every split package plus the physical all-in-one APK. For download convenience, the byte-verified all-in-one APK is the sole public install asset on top of the exact Rill decision and semantic evidence chain. The bundle physically carries Core, LuCI, rpcd registrations, Simplified Chinese translation and repository-owned Rill glue; the external integration remains pinned to immutable **Rill Stable v1.2.0**. Stable publication still requires real target/testbed/hypervisor/sysupgrade/lifecycle/24-hour evidence that cannot be fabricated by source or container checks.
+`1.0.0` keeps the official OpenWrt SDK build compiling and verifying every split package plus the physical all-in-one APK. The public release uses the explicit **portable-docker** evidence profile: hosted GitHub Actions run the same-commit CI/SDK/Rill chain and a real Core ucode harness inside Docker. This profile does not claim Hyper-V, router hardware, firmware sysupgrade reboot, or a 24-hour soak; those remain separate hardware evidence requirements. The bundle physically carries Core, LuCI, rpcd registrations, Simplified Chinese translation and repository-owned Rill glue; the external integration remains pinned to immutable **Rill Stable v1.2.0**.
 
 The current official 25.12.x x86/64 target is available as OpenWrt 25.12.5, including an x86/64 rootfs and SDK. CI is pinned to that release for ucode and four-package build gates (three split packages plus the all-in-one package).
 
@@ -12,7 +12,7 @@ Required target evidence:
 4. Explicit LAN→Router→WAN and router-local controlled A/B sessions where the action semantics require them.
 5. Sysupgrade preservation via `scripts/openwrt-sysupgrade-gate.sh prepare` before the upgrade and `verify` after reboot, plus `scripts/openwrt-resource-soak.sh` for 24h or longer.
 
-Until those evidence files actually pass, `1.0.0` remains a Final candidate and is not a public Stable release.
+The hardware matrix remains available as the `hardware` profile. It is not silently substituted into `portable-docker`, and portable publication must disclose the narrower coverage in its release evidence and notes.
 
 ## Docker-based Evidence Progress
 
@@ -24,6 +24,6 @@ Status:
 - **2. Booted OpenWrt runtime gate** — PASSED inside the `owrt-pm-gate` container (25.12.5 x86/64): `scripts/openwrt-target-gate.sh` CORE-ONLY, 11/11 assertions green. Evidence: `evidence/openwrt-target-gate-25.12.5.json`.
 - **5. Historical resource soak (dev check only)** — the old 120-second sample is not Stable evidence and is not reused by the aggregator. The rc.10 gate requires ≥86400 seconds with Core and exact Rill RSS/CPU, restart counts, logical persistence counters, state bounds, and zero idle Observe/adapter-persistence/pending-Outcome-journal deltas; missing counters are `BLOCKED`, never zero-filled.
 
-Not yet satisfied (require real hypervisor or router hardware): items 3 (Hyper-V/KVM fixtures) and 4 (LAN/WAN A/B sessions), plus the full 24h soak and sysupgrade round-trip from item 5.
+Not evaluated by the portable profile: items 3 (Hyper-V/KVM fixtures) and 4 (LAN/WAN A/B sessions), plus the full 24h soak and sysupgrade round-trip from item 5.
 
 Docker notes: the OpenWrt container's netifd bridges `eth0` into `br-lan` and drops the docker default route, so it is offline by design; gates must not depend on `apk add`. The container busybox lacks float sleep, so `tools/docker-validate/sleep-shim` is installed ahead of the gate. The shipped Core is written callee-before-caller (zero forward references, verified), so runtime gates install it verbatim — there is deliberately no `convert_hoist.py` transform (CORE BLOCKER C).

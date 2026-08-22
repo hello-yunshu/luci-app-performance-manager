@@ -41,6 +41,8 @@ def main(argv=None) -> int:
         "version": args.version,
         "commit": args.expected_commit,
         "tag": f"v{args.version}",
+        "releaseProfile": final.get("releaseProfile", "hardware"),
+        "hardwareCoverage": final.get("hardwareCoverage", "REQUIRED"),
         "primaryPackage": PACKAGE,
         "primaryPackageSha256": sha256(apk),
         "artifactIdentity": identity,

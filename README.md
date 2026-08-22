@@ -281,7 +281,7 @@ make package        # 生成发布包
 - 资源 / 写入 soak：`scripts/openwrt-resource-soak.sh`
 - 外部验证证据：`docs/EXTERNAL_VALIDATION.md`
 
-> `1.0.0` 当前是待同提交证据授权的 Final candidate，并将经逐文件验证的一体化 APK 作为唯一公开安装资产。只有同提交的官方 SDK/APK、精确 Rill、Generic/Hyper-V/KVM、真实 A/B、sysupgrade、生命周期及 24 小时 Rill-present soak 全部由 Stable 聚合器判为 PASS，才允许发布 `v1.0.0`。
+> `1.0.0` 使用明确标注的 `portable-docker` 发布证据 profile：同提交官方 SDK/APK、精确 Rill、Hosted Actions 和 Docker Core ucode harness 全部通过后发布一体化 APK。该 profile 不宣称 Hyper-V、真实路由器 A/B、firmware sysupgrade 或 24 小时 soak 覆盖；这些仍需单独的 `hardware` profile 证据。
 
 ## 文档
 

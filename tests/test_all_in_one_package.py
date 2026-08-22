@@ -75,6 +75,18 @@ class AllInOnePackageTests(unittest.TestCase):
         self.assertNotIn("wc -l", workflow)
         self.assertIn("scripts/build_release_manifest.py", workflow)
 
+    def test_portable_release_matrix_is_hosted_and_discloses_hardware_scope(self):
+        matrix = (ROOT / ".github/workflows/stable-target-matrix.yml").read_text()
+        aggregate = (ROOT / ".github/workflows/stable-aggregate.yml").read_text()
+        release = (ROOT / ".github/workflows/stable-release.yml").read_text()
+        self.assertIn("name: Portable stable validation matrix", matrix)
+        self.assertIn("runs-on: ubuntu-latest", matrix)
+        self.assertNotIn("self-hosted", matrix)
+        self.assertIn("Dockerfile.local", matrix)
+        self.assertIn("portable_docker_gate.py", matrix)
+        self.assertIn('--profile "${{ inputs.profile }}"', aggregate)
+        self.assertIn("Docker-verified", release)
+
     def test_prerelease_auto_publish_is_main_same_repo_release_commit_only(self):
         workflow = (ROOT / ".github/workflows/prerelease.yml").read_text()
         for token in (

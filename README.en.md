@@ -273,7 +273,7 @@ make package        # build release artifacts
 - Resource / write soak: `scripts/openwrt-resource-soak.sh`
 - External validation evidence: `docs/EXTERNAL_VALIDATION.md`
 
-> `1.0.0` is a Final candidate and publishes the per-file-verified all-in-one APK as the sole public install asset only after authorization. `v1.0.0` is authorized only when the same-commit official SDK/APKs, exact Rill runtime, Generic/Hyper-V/KVM targets, real A/B, sysupgrade, lifecycle, and 24-hour Rill-present soak all PASS the Stable aggregator.
+> `1.0.0` uses the explicit `portable-docker` release profile: same-commit official SDK/APKs, exact Rill evidence, hosted Actions, and the Docker Core ucode harness must pass before publishing the single verified all-in-one APK. This profile does not claim Hyper-V, real-router A/B, firmware sysupgrade, or 24-hour soak coverage; those require the separate `hardware` profile.
 
 ## Documentation
 

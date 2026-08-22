@@ -16,8 +16,13 @@ on:
         required: true
         type: string
       target_run_id:
-        description: Successful same-commit Stable target matrix run ID
+        description: Successful same-commit Portable stable validation matrix run ID
         required: true
+        type: string
+      profile:
+        description: Release evidence profile
+        required: true
+        default: portable-docker
         type: string
 
 permissions:
@@ -42,7 +47,7 @@ jobs:
           mkdir -p evidence/ci evidence/build evidence/target
           python3 scripts/verify_action_run_identity.py --run-id "${{ inputs.ci_run_id }}" --expected-sha "${{ inputs.expected_sha }}" --expected-workflow 'CI' --expected-workflow-path '.github/workflows/ci.yml'
           python3 scripts/verify_action_run_identity.py --run-id "${{ inputs.build_run_id }}" --expected-sha "${{ inputs.expected_sha }}" --expected-workflow 'Build OpenWrt (remote SDK)' --expected-workflow-path '.github/workflows/build-openwrt.yml'
-          python3 scripts/verify_action_run_identity.py --run-id "${{ inputs.target_run_id }}" --expected-sha "${{ inputs.expected_sha }}" --expected-workflow 'Stable target and testbed matrix' --expected-workflow-path '.github/workflows/stable-target-matrix.yml'
+          python3 scripts/verify_action_run_identity.py --run-id "${{ inputs.target_run_id }}" --expected-sha "${{ inputs.expected_sha }}" --expected-workflow 'Portable stable validation matrix' --expected-workflow-path '.github/workflows/stable-target-matrix.yml'
           gh run download "${{ inputs.ci_run_id }}" --dir evidence/ci
           gh run download "${{ inputs.build_run_id }}" --dir evidence/build
           gh run download "${{ inputs.target_run_id }}" --dir evidence/target
@@ -52,10 +57,11 @@ jobs:
           set -euo pipefail
           python3 scripts/collect_stable_evidence.py \
             --ci-root evidence/ci --build-root evidence/build --target-root evidence/target \
-            --out stable-evidence
+            --out stable-evidence --profile "${{ inputs.profile }}"
           python3 scripts/final_release_audit.py \
             --evidence-dir stable-evidence \
-            --expected-commit "${{ inputs.expected_sha }}"
+            --expected-commit "${{ inputs.expected_sha }}" \
+            --profile "${{ inputs.profile }}"
           cp docs/FINAL_AUDIT.json stable-evidence/
           cp docs/FINAL_AUDIT.md stable-evidence/
       - name: Upload authoritative Stable evidence

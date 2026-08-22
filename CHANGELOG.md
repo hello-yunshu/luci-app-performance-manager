@@ -2,6 +2,7 @@
 
 ## 1.0.0 — Final Stable candidate (2026-08-22)
 
+- Defines the portable-docker release profile for hosted Actions plus Docker verification when hardware testbeds are unavailable; hardware coverage remains explicitly NOT_EVALUATED.
 - Closes fail-closed Stable evidence semantics for resource metrics, firmware sysupgrade proof, lifecycle phase facts, action-specific mutation/A/B evidence, and cross-boot journal retention.
 - Keeps publication gated by one exact Final SHA and the real same-commit CI, official SDK, target matrix, and 24-hour soak aggregate.
 

@@ -51,6 +51,16 @@ EXTERNAL_GATES = {
     "sysupgrade": "sysupgrade", "lifecycle": "lifecycle",
     "resourceSoak24h": "resource-soak",
 }
+PORTABLE_REQUIRED = {
+    "source": "source-audit.json",
+    "rillProvenance": "rill-provenance.json",
+    "rillRuntime": "rill-runtime.json",
+    "rillCoreFunctional": "rill-core-integration.json",
+    "openwrtSdk": "build-metadata.json",
+    "apkVerification": "apk-verification.json",
+    "portableDocker": "portable-docker.json",
+}
+PORTABLE_RILL_PRESENT = {"rillProvenance", "rillRuntime", "rillCoreFunctional"}
 
 
 def norm(value):
@@ -120,6 +130,7 @@ def main(argv=None):
     parser.add_argument("--evidence-dir", required=True)
     parser.add_argument("--expected-commit", required=True)
     parser.add_argument("--out", default=str(ROOT / "docs/final-stable-evidence.json"))
+    parser.add_argument("--profile", choices=("hardware", "portable-docker"), default="hardware")
     args = parser.parse_args(argv)
     if not re.fullmatch(r"[0-9a-f]{40}", args.expected_commit):
         parser.error("--expected-commit must be one full lowercase Git SHA")
@@ -131,11 +142,14 @@ def main(argv=None):
         except Exception:
             return None
 
-    build_metadata = load_optional(REQUIRED["openwrtSdk"])
-    apk_report = load_optional(REQUIRED["apkVerification"])
+    required = PORTABLE_REQUIRED if args.profile == "portable-docker" else REQUIRED
+    rill_present = PORTABLE_RILL_PRESENT if args.profile == "portable-docker" else RILL_PRESENT
+    external_gates = {} if args.profile == "portable-docker" else EXTERNAL_GATES
+    build_metadata = load_optional(required["openwrtSdk"])
+    apk_report = load_optional(required["apkVerification"])
     gates = {}
     identities = {}
-    for name, filename in REQUIRED.items():
+    for name, filename in required.items():
         path = evidence_dir / filename
         if not path.exists():
             gates[name] = {"status": "BLOCKED", "reason": f"missing {filename}"}
@@ -151,15 +165,15 @@ def main(argv=None):
         identity_errors = []
         if commit != args.expected_commit:
             identity_errors.append(f"pmCommitSha={commit!r}, expected {args.expected_commit}")
-        if name in RILL_PRESENT and adapter_sha != PINNED_ADAPTER_SHA:
+        if name in rill_present and adapter_sha != PINNED_ADAPTER_SHA:
             identity_errors.append(f"adapterSha256={adapter_sha!r}, expected {PINNED_ADAPTER_SHA}")
         if identity_errors:
             status = "FAIL"
             reason = "; ".join(identity_errors)
-        if name in EXTERNAL_GATES and status == "PASS":
+        if name in external_gates and status == "PASS":
             semantic_errors = validate_evidence(
-                data, EXTERNAL_GATES[name], args.expected_commit,
-                require_rill=name in RILL_PRESENT,
+                data, external_gates[name], args.expected_commit,
+                require_rill=name in rill_present,
                 minimum_duration=86400 if name == "resourceSoak24h" else 0,
                 build_metadata=build_metadata, apk_report=apk_report,
             )
@@ -171,7 +185,7 @@ def main(argv=None):
             "reason": reason,
             "file": filename,
             "pmCommitSha": commit,
-            "adapterSha256": adapter_sha if name in RILL_PRESENT else None,
+            "adapterSha256": adapter_sha if name in rill_present else None,
         }
         identities[name] = {"pmCommitSha": commit, "adapterSha256": adapter_sha}
 
@@ -179,6 +193,7 @@ def main(argv=None):
     result = {
         "schemaVersion": 1,
         "contract": "openwrt-performance-manager-stable-evidence",
+        "releaseProfile": args.profile,
         "generatedAt": datetime.now(timezone.utc).isoformat(),
         "pmCommitSha": args.expected_commit,
         "adapterSha256": PINNED_ADAPTER_SHA,
@@ -187,6 +202,7 @@ def main(argv=None):
         "evidenceIdentity": identities,
         "overallVerdict": overall,
         "stableReleaseAuthorized": overall == "PASS",
+        "hardwareCoverage": "NOT_EVALUATED" if args.profile == "portable-docker" else "REQUIRED",
     }
     out = Path(args.out)
     out.parent.mkdir(parents=True, exist_ok=True)

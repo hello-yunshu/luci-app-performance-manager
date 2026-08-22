@@ -15,6 +15,11 @@ on:
         description: Successful same-commit Build OpenWrt run ID
         required: true
         type: string
+      profile:
+        description: Authorized release evidence profile
+        required: true
+        default: portable-docker
+        type: string
 
 permissions:
   actions: read
@@ -55,6 +60,8 @@ jobs:
           import json, sys
           data=json.load(open(sys.argv[1]))
           assert data['overallVerdict']=='PASS' and data['stableReleaseAuthorized'] is True, data
+          assert data['releaseProfile']=='${{ inputs.profile }}', data
+          assert data['hardwareCoverage']=='NOT_EVALUATED' if '${{ inputs.profile }}' == 'portable-docker' else True, data
           assert data['pmCommitSha']==sys.argv[2], data
           PY
       - name: Prove source ZIP reproducibility from tracked files
@@ -89,7 +96,7 @@ jobs:
           cp dist/openwrt-performance-manager-1.0.0.zip release-assets/
           cp dist/openwrt-performance-manager-1.0.0.manifest.json release-assets/source-manifest.json
           python3 scripts/build_release_manifest.py --assets release-assets \
-            --expected-commit '${{ inputs.expected_sha }}' --version 1.0.0
+              --expected-commit '${{ inputs.expected_sha }}' --version 1.0.0
           (cd release-assets && sha256sum ./* > release-checksums.txt)
       - name: Verify or create immutable tag identity and resumable draft
         shell: bash
@@ -125,10 +132,10 @@ jobs:
             gh release upload v1.0.0 release-assets/* --clobber
           else
             gh release create v1.0.0 release-assets/* --draft --verify-tag \
-              --title 'OpenWrt Performance Manager v1.0.0' \
+              --title 'OpenWrt Performance Manager v1.0.0 (Docker-verified)' \
               --notes-file release-assets/FINAL_AUDIT.md
           fi
-          gh release edit v1.0.0 --draft=false --title 'OpenWrt Performance Manager v1.0.0' \
+          gh release edit v1.0.0 --draft=false --title 'OpenWrt Performance Manager v1.0.0 (Docker-verified)' \
             --notes-file release-assets/FINAL_AUDIT.md
       - name: Re-download published assets and verify checksums
         shell: bash

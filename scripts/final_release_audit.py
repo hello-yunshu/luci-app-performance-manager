@@ -15,12 +15,14 @@ def main(argv=None):
     parser = argparse.ArgumentParser()
     parser.add_argument("--evidence-dir", required=True)
     parser.add_argument("--expected-commit", required=True)
+    parser.add_argument("--profile", choices=("hardware", "portable-docker"), default="hardware")
     args = parser.parse_args(argv)
     out = Path(args.evidence_dir) / "final-stable-evidence.json"
     completed = subprocess.run([
         sys.executable, str(ROOT / "scripts/aggregate_stable_evidence.py"),
         "--evidence-dir", args.evidence_dir,
         "--expected-commit", args.expected_commit,
+        "--profile", args.profile,
         "--out", str(out),
     ], cwd=ROOT)
     evidence = json.loads(out.read_text()) if out.exists() else {
@@ -37,7 +39,8 @@ def main(argv=None):
         "project": "OpenWrt Performance Manager",
         "version": (ROOT / "VERSION").read_text().strip(),
         "pmCommitSha": args.expected_commit,
-        "scope": "stable-release",
+        "scope": f"{args.profile}-release",
+        "releaseProfile": args.profile,
         "stableReleaseVerdict": verdict,
         "stableReleaseAuthorized": verdict == "PASS",
         "gates": rows,
