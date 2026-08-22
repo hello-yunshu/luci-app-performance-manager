@@ -100,6 +100,10 @@
       "status": "pass"
     },
     {
+      "name": "py_compile scripts/portable_docker_gate.py",
+      "status": "pass"
+    },
+    {
       "name": "py_compile scripts/resource_budget.py",
       "status": "pass"
     },

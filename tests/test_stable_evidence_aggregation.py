@@ -7,7 +7,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
-from aggregate_stable_evidence import PINNED_ADAPTER_SHA, REQUIRED, RILL_PRESENT  # noqa: E402
+from aggregate_stable_evidence import PINNED_ADAPTER_SHA, PORTABLE_REQUIRED, REQUIRED, RILL_PRESENT  # noqa: E402
 from validate_external_evidence import GATE_CHECKS, validate_evidence  # noqa: E402
 
 
@@ -213,6 +213,36 @@ class StableEvidenceAggregationTests(unittest.TestCase):
         soak = self.evidence("resourceSoak24h")
         soak["rawFacts"]["soak"]["sampleCount"] = 0
         self.assertIn("24h soak duration/sample evidence invalid", validate_evidence(soak, "resource-soak", self.commit))
+
+    def test_portable_docker_profile_passes_without_hardware_claims(self):
+        with tempfile.TemporaryDirectory() as temp:
+            evidence_dir = Path(temp)
+            common = {"pmCommitSha": self.commit, "verdict": "PASS", "passed": True}
+            (evidence_dir / "source-audit.json").write_text(json.dumps({**common, "sourceCandidateVerdict": "PASS"}))
+            for name in ("rillProvenance", "rillRuntime", "rillCoreFunctional"):
+                (evidence_dir / PORTABLE_REQUIRED[name]).write_text(json.dumps({**common, "adapterSha256": PINNED_ADAPTER_SHA}))
+            (evidence_dir / "build-metadata.json").write_text(json.dumps({
+                "repositoryCommitSha": self.commit, "verdict": "PASS",
+                "verdicts": {"pmPackagesBuildVerdict": "PASS"},
+            }))
+            (evidence_dir / "apk-verification.json").write_text(json.dumps({
+                "pmCommitSha": self.commit, "verdict": "PASS",
+            }))
+            (evidence_dir / "portable-docker.json").write_text(json.dumps({
+                "pmCommitSha": self.commit, "profile": "portable-docker",
+                "verdict": "PASS", "hardwareCoverage": "NOT_EVALUATED",
+            }))
+            output = evidence_dir / "final.json"
+            completed = subprocess.run([
+                sys.executable, str(ROOT / "scripts/aggregate_stable_evidence.py"),
+                "--evidence-dir", str(evidence_dir), "--expected-commit", self.commit,
+                "--profile", "portable-docker", "--out", str(output),
+            ], capture_output=True, text=True)
+            self.assertEqual(completed.returncode, 0, completed.stderr + completed.stdout)
+            result = json.loads(output.read_text())
+            self.assertEqual(result["releaseProfile"], "portable-docker")
+            self.assertEqual(result["hardwareCoverage"], "NOT_EVALUATED")
+            self.assertTrue(result["stableReleaseAuthorized"])
 
 
 if __name__ == "__main__":

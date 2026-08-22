@@ -1,5 +1,14 @@
 # 1.0 Stable Release Checklist
 
+## Portable Docker release profile
+
+The current public `1.0.0` release uses `portable-docker`. It requires the
+same-commit CI/Rill chain, official SDK/APK identity, hosted Action tests, and
+the real Core ucode harness executed inside Docker. It must disclose that
+Hyper-V, KVM hotplug, real-router A/B, firmware sysupgrade reboot, and 24-hour
+hardware soak are **NOT_EVALUATED**. The checklist below remains the separate
+`hardware` profile and must not be represented as passed by portable evidence.
+
 ## Build / package
 
 - [ ] Official OpenWrt 25.12.x x86_64 SDK builds `performance-manager`.
