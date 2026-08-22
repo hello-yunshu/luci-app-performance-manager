@@ -76,12 +76,12 @@ make package/luci-app-performance-manager-all/compile V=s
 
 ### 推荐：单 APK 安装
 
-从 GitHub Release 下载 `luci-app-performance-manager-all-1.0.0_rc12-r1.apk` 后，只需安装这一份应用 APK：
+从 GitHub Release 下载 `luci-app-performance-manager-all-1.0.0_rc13-r1.apk` 后，只需安装这一份应用 APK：
 
 仓库的官方 OpenWrt SDK 编译仍会编译并校验所有拆分包以及实体一体化包；仅 GitHub Release 为了下载方便只提供一体化 APK 作为公开安装资产。
 
 ```sh
-apk add --allow-untrusted /tmp/luci-app-performance-manager-all-1.0.0_rc12-r1.apk
+apk add --allow-untrusted /tmp/luci-app-performance-manager-all-1.0.0_rc13-r1.apk
 ```
 
 它仍会通过 OpenWrt 软件源解析 `luci-base`、`rpcd`、`ucode` 等系统运行库；“单 APK”指 Performance Manager 自有的 Core、LuCI、后端、翻译和 Rill glue 已全部位于一个文件内。为避免重复拥有相同路径，它与四个拆分包（含自动生成的翻译包）互斥；已有拆分版设备应先备份 `/etc/config/performance-manager`，再在维护窗口切换包形态。
@@ -92,7 +92,7 @@ apk add --allow-untrusted /tmp/luci-app-performance-manager-all-1.0.0_rc12-r1.ap
 |---|---|
 | 推荐包名 | `luci-app-performance-manager-all`（单 APK） |
 | 目标 | OpenWrt 25.12.x / x86_64 |
-| 当前源码候选 | `1.0.0-rc.12` |
+| 当前源码候选 | `1.0.0-rc.13` |
 | 服务脚本 | `/etc/init.d/performance-manager` |
 | UCI 配置 | `/etc/config/performance-manager` |
 | 核心程序 | `/usr/sbin/performance-manager.uc` |
@@ -274,7 +274,7 @@ make package        # 生成发布包
 - 资源 / 写入 soak：`scripts/openwrt-resource-soak.sh`
 - 外部验证证据：`docs/EXTERNAL_VALIDATION.md`
 
-> `1.0.0-rc.12` 只代表待验证源码候选，并将经逐文件验证的一体化 APK 作为唯一公开安装资产。只有同提交的官方 SDK/APK、精确 Rill、Generic/Hyper-V/KVM、真实 A/B、sysupgrade、生命周期及 24 小时 Rill-present soak 全部由 Stable 聚合器判为 PASS，才允许发布 `v1.0.0`。
+> `1.0.0-rc.13` 只代表待验证源码候选，并将经逐文件验证的一体化 APK 作为唯一公开安装资产。只有同提交的官方 SDK/APK、精确 Rill、Generic/Hyper-V/KVM、真实 A/B、sysupgrade、生命周期及 24 小时 Rill-present soak 全部由 Stable 聚合器判为 PASS，才允许发布 `v1.0.0`。
 
 ## 文档
 

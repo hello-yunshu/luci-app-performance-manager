@@ -3,7 +3,7 @@
   "$id": "https://hello-yunshu.github.io/luci-app-performance-manager/evidence/common.schema.json",
   "type": "object",
   "additionalProperties": false,
-  "required": ["schemaVersion", "gate", "pmCommitSha", "buildRunId", "verdict", "passed", "controller", "artifacts", "subchecks", "primaryPackage", "primaryPackageSha256"],
+  "required": ["schemaVersion", "gate", "pmCommitSha", "buildRunId", "verdict", "passed", "controller", "artifacts", "subchecks", "rawFacts", "primaryPackage", "primaryPackageSha256"],
   "properties": {
     "schemaVersion": {"const": 1},
     "gate": {"type": "string"},

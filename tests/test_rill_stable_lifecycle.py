@@ -348,6 +348,17 @@ class RillStableLifecycleTests(unittest.TestCase):
                                                  terminal_state="retired-restored-after-failure",
                                                  reason="again"))
 
+    def test_post_mutation_terminal_journal_write_failure_is_finalized(self):
+        body = function_body("apply_ring")
+        self.assertIn("safe-direct-verification-terminal-journal-failed", body)
+        self.assertIn("transaction-terminal-journal-write-failed", body)
+
+    def test_invalid_candidate_evidence_rolls_back_and_finalizes_owner(self):
+        body = function_body("benchmark_start")
+        self.assertIn("benchmark_fail_session(benchmark_path(sid),sid,valid.error)", body)
+        self.assertIn("measurement-methodology-mismatch", body)
+        self.assertIn("benchmark-candidate-transaction-not-live", body)
+
     def test_intervention_terminal_state_is_sticky(self):
         decision = "0123456789abcdef0123456789abcdef"
         journals = {decision: {"decisionId": decision, "ownerType": "benchmark", "ownerId": "bench-a",
