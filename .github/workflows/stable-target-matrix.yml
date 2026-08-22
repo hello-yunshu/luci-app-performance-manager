@@ -92,6 +92,9 @@ jobs:
           else
             sudo chroot .portable-rootfs /bin/sh -c 'opkg update && opkg install ucode ucode-mod-fs ucode-mod-ubus ucode-mod-uci ucode-mod-rtnl ucode-mod-uloop ucode-mod-socket ucode-mod-log'
           fi
+          sudo install -D -m 0644 \
+            package/performance-manager/files/usr/share/performance-manager/contracts.uc \
+            .portable-rootfs/usr/share/performance-manager/contracts.uc
           # tar/chroot preparation runs as root; Docker's context sender runs
           # as the hosted runner and must be able to read every rootfs entry.
           sudo chown -R "$(id -u):$(id -g)" .portable-rootfs
