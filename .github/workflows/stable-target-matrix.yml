@@ -20,6 +20,10 @@ permissions:
   actions: read
   contents: read
 
+env:
+  OPENWRT_VERSION: "25.12.5"
+  OPENWRT_TARGET: "x86/64"
+
 jobs:
   portable-docker:
     runs-on: ubuntu-latest
@@ -58,7 +62,7 @@ jobs:
         run: |
           set -euo pipefail
           if python3 -m unittest discover -s tests -p 'test_*.py' > stable-output/unit-tests.log 2>&1; then
-            python3 -c 'import json; json.dump({"verdict":"PASS","testCount":183,"command":"python3 -m unittest discover -s tests -p test_*.py"}, open("stable-output/test-report.json", "w"), indent=2)'
+            python3 -c 'import json; json.dump({"verdict":"PASS","testCount":185,"command":"python3 -m unittest discover -s tests -p test_*.py"}, open("stable-output/test-report.json", "w"), indent=2)'
           else
             python3 -c 'import json; json.dump({"verdict":"FAIL","command":"python3 -m unittest discover -s tests -p test_*.py"}, open("stable-output/test-report.json", "w"), indent=2)'
             exit 1
@@ -69,6 +73,25 @@ jobs:
         run: |
           set -euo pipefail
           python3 tools/docker-validate/harness/build-harness.py "$RUNNER_TEMP/core_runtime_test.uc"
+          base="https://downloads.openwrt.org/releases/${OPENWRT_VERSION}/targets/${OPENWRT_TARGET}"
+          rootfs="openwrt-${OPENWRT_VERSION}-x86-64-rootfs.tar.gz"
+          curl -fsSL "$base/sha256sums" -o "$RUNNER_TEMP/openwrt-sha256sums"
+          rootfs_sha=$(awk -v f="*$rootfs" '$2 == f {print $1}' "$RUNNER_TEMP/openwrt-sha256sums")
+          [[ "$rootfs_sha" =~ ^[0-9a-f]{64}$ ]]
+          mkdir -p "$RUNNER_TEMP/openwrt-cache" .portable-rootfs
+          archive="$RUNNER_TEMP/openwrt-cache/$rootfs"
+          if [ ! -f "$archive" ]; then
+            curl -fsSL "$base/$rootfs" -o "$archive"
+          fi
+          printf '%s *%s\n' "$rootfs_sha" "$archive" | sha256sum -c -
+          sudo tar -xzf "$archive" -C .portable-rootfs
+          sudo rm -f .portable-rootfs/etc/resolv.conf
+          sudo cp /etc/resolv.conf .portable-rootfs/etc/resolv.conf
+          if sudo chroot .portable-rootfs /bin/sh -c 'command -v apk >/dev/null 2>&1'; then
+            sudo chroot .portable-rootfs /bin/sh -c 'apk update --no-check-certificate && apk add --no-check-certificate ucode ucode-mod-fs ucode-mod-ubus ucode-mod-uci ucode-mod-rtnl ucode-mod-uloop ucode-mod-socket ucode-mod-log'
+          else
+            sudo chroot .portable-rootfs /bin/sh -c 'opkg update && opkg install ucode ucode-mod-fs ucode-mod-ubus ucode-mod-uci ucode-mod-rtnl ucode-mod-uloop ucode-mod-socket ucode-mod-log'
+          fi
           docker build --file tools/docker-validate/Dockerfile.local --tag pm-portable-ucode:ci . > stable-output/docker-build.log 2>&1
           docker run --rm \
             --volume "$RUNNER_TEMP/core_runtime_test.uc:/tmp/core_runtime_test.uc:ro" \
