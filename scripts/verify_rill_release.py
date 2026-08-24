@@ -8,7 +8,7 @@ provenance: the contract's expected metadata is cross-checked against the
 
 Verification chain (contract expected -> signed index -> actual bytes):
 
-    v1.2.0 tag (annotated -> resolved commit)
+    pinned release tag (annotated -> resolved commit)
       -> commit == contract.tagCommitSha
       -> GitHub release (draft=false, prerelease=false)
       -> stable-index.json (payload + embedded Ed25519 signature)
@@ -101,7 +101,7 @@ def github_json(url):
 
 
 def resolve_tag_commit():
-    """Resolve refs/tags/v1.2.0 to the final commit, following annotated tags."""
+    """Resolve the contract release tag to the final commit, following annotated tags."""
     ref = github_json(f"{API}/git/ref/tags/{RELEASE_TAG}")
     obj = ref["object"]
     if obj["type"] == "commit":
@@ -310,7 +310,7 @@ def main(argv=None):
             # Compare against contract expectations.
             exp = up["adapter"]
             if adapter.get("name", "").split("-linux-")[0] != EXPECTED_ADAPTER_NAME.split("-linux-")[0]:
-                # name in index may omit the explicit -1.2.0- segment differently; use url tail.
+                # Name formatting may differ; use the URL tail as the exact asset identity.
                 tail = adapter.get("url", "").split("/")[-1]
                 if tail != EXPECTED_ADAPTER_NAME:
                     fail(f"adapter url tail {tail} != {EXPECTED_ADAPTER_NAME}")

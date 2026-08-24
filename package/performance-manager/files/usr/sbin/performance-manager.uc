@@ -34,7 +34,7 @@ const RILL_BINDINGS_TTL_MS = 3600000;
 const RILL_ADVISORY_TTL_MS = 3600000;
 const RILL_MODEL_GENERATION = 1;
 const RILL_OBSERVE_MIN_INTERVAL_MS = 30000;
-const RILL_PINNED_RELEASE_VERSION = '1.2.0';
+const RILL_PINNED_RELEASE_VERSION = '1.5.1';
 const RILL_PINNED_ADAPTER_VERSION = '0.15.0';
 const GOALS = [ 'balanced', 'throughput', 'latency', 'cpu_efficiency' ];
 /* Only throughput A/B is measurable with the current iperf3 methodology.
@@ -1898,7 +1898,7 @@ function rill_status() {
 
 function rill_integrations_payload() {
 	/* Stable, bounded array projection of integration_state() for the Rill
-	 * wire contract.  Rill v1.2.0 Observe.integrations is Vec<Value> (an
+	 * wire contract.  The current Rill Stable Observe.integrations is Vec<Value> (an
 	 * array), never an object; a deterministic key order keeps the payload
 	 * reproducible across observes. */
 	let st = integration_state();
@@ -3584,7 +3584,7 @@ function resource_usage() {
 	counters.rillExecutionRetired = retired;
 	counters.pmPersistentWrites = persistent_write_count;
 	counters.expectedAdapterPersistenceEvents = rill_runtime_counters.rillObserveAccepted + rill_runtime_counters.rillOutcomeAccepted + rill_runtime_counters.rillOutcomeReconciled;
-	counters.persistenceAccounting = 'logical/inferred-from-pinned-rill-v1.2.0-contract';
+	counters.persistenceAccounting = 'logical/inferred-from-pinned-rill-contract';
 	return {corePid:pid,coreVmRssKiB:vmrss,coreVmSizeKiB:vmsize,corePersistentWritesSinceStart:persistent_write_count,corePersistentWriteBytesSinceStart:persistent_write_bytes,persistentHistoryBytes:hs?.size ?? 0,rillOutcomeBytes:outcomes?.size ?? 0,rillLedgerBytes:ledger?.size ?? 0,historyLineLimit:MAX_HISTORY_LINES,rillCounters:counters,rillBounds:{adapterStateFileBytes:4194304,bindingCacheEntries:RILL_BINDINGS_MAX,executionJournalMaxFiles:RILL_EXECUTION_JOURNAL_MAX_FILES,executionJournalMaxBytes:RILL_EXECUTION_JOURNAL_MAX_BYTES,retiredExecutionRetentionMax:RETIRED_EXECUTION_RETENTION_MAX},rillExecutionHealth:{interventionRequired:intervention > 0,interventionRequiredCount:intervention,active:active,executing:executing,retired:retired,journalFileCount:journal_files,journalBytes:journal_bytes}};
 }
 

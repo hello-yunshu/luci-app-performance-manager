@@ -17,9 +17,9 @@ report={
  'areas':areas,
  'persistentWritePolicy':{
    'core':'event-only transaction/history/policy intents; fast/deep telemetry remains tmpfs',
-   'rill':'Pinned Rill v1.2.0 persists after every successful Observe and every successful Outcome; its state file is bounded/compacted.',
+   'rill':'Pinned Rill release from contracts/rill-dependency.json persists after every successful Observe and every successful Outcome; its state file is bounded/compacted.',
    'idleInvariant':'Periodic Core telemetry never calls Observe. With no UI/API refresh, benchmark, or configuration/topology event, rillObserveAccepted and expectedAdapterPersistenceEvents must remain unchanged.',
-   'accounting':'Core exposes logical counters inferred from the audited pinned Rill v1.2.0 contract; these are not physical flash-block write measurements.'
+   'accounting':'Core exposes logical counters inferred from the audited pinned Rill contract; these are not physical flash-block write measurements.'
  },
  'limits':{'rillMaxMessageBytes':65536,'rillRequestsPerSecond':20,'rillCoreTimeoutMs':1000,'historyReadTailLines':512,'rillValidatedOutcomeLines':2048,'rillDecisionLedgerLines':4096,'rillStateFileMaxBytes':4194304,'rillBindingCacheEntries':64,'rillExecutionJournalMaxFiles':128,'rillExecutionJournalMaxBytes':2097152,'retiredExecutionRetentionMax':64,'fastTelemetryMinimumSeconds':30,'deepTelemetryMinimumSeconds':300},
  'precommittedStableBudgets':{
