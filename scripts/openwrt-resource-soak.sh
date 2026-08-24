@@ -197,7 +197,7 @@ cat >"$OUT" <<EOF_JSON
   "rillObserveAcceptedDelta": $obs_delta,
   "rillOutcomeAcceptedDelta": $out_delta,
   "expectedAdapterPersistenceEventsDelta": $persist_delta,
-  "persistenceAccounting": "logical/inferred-from-pinned-rill-v1.2.0-contract",
+  "persistenceAccounting": "logical/inferred-from-pinned-rill-contract",
   "rillStateMaxFileBytes": $rill_state_max,
   "bindingHighWater": $binding_high,
   "persistentHistoryGrowthBytes": $history_growth,

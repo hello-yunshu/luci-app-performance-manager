@@ -61,7 +61,7 @@ printf '%s\n' "$CAP" | grep -q 'network.packet_steering.native' && pass native-p
 
 # Rill is optional. If installed, prove Core remains live while Rill is stopped,
 # then restore it and validate the effective directory access-control boundary.
-# Upstream Rill v1.2.0 does not promise a magic socket inode mode.
+# Upstream Rill does not promise a magic socket inode mode.
 rill_tested=false
 if [ "$rill_present" = true ]; then
   rill_tested=true
