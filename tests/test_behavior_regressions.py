@@ -158,23 +158,18 @@ class BehavioralRegressions(unittest.TestCase):
         self.assertIn('binary-invalid', CORE)
         self.assertIn("state: RILL_STATES.incompatible", CORE)
 
-    # 11. Upstream Rill artifact checksum/manifest gate is a real contract check.
-    def test_rill_dependency_contract_is_pinned_or_blocked(self):
+    # 11. PM-owned adapter dependency contract is exact and downstream-owned.
+    def test_rill_dependency_contract_is_pm_owned(self):
         dep = json.loads((ROOT / 'contracts/rill-dependency.json').read_text())
-        self.assertEqual(dep['protocol']['contract'], 'pm-rill-shadow')
-        self.assertEqual(dep['protocol']['protocolVersion'], 1)
+        self.assertEqual(dep['protocol']['name'], 'pm-rill-shadow')
+        self.assertEqual(dep['protocol']['version'], 1)
         self.assertEqual(set(dep['protocol']['requiredOps']), {'status', 'observe', 'outcome'})
-        up = dep['upstream']
-        art = up.get('artifact') or {}
-        if up.get('releaseVersion'):
-            self.assertNotIn('latest/download', art.get('url') or '')
-            self.assertTrue(art['sha256'])
-        else:
-            self.assertEqual(up['status'], 'external-dependency-blocked')
+        self.assertEqual(dep['adapter']['owner'], 'hello-yunshu/luci-app-performance-manager')
+        self.assertEqual(dep['adapter']['version'], '1.0.1')
+        self.assertEqual(dep['rillMl'], {'package': 'rill-ml', 'registry': 'crates.io', 'version': '1.5.1', 'resolution': 'exact', 'features': ['serde']})
         # The integration package never compiles Rill.
         makefile = (ROOT / 'package/performance-manager-rill/Makefile').read_text()
-        self.assertNotIn('cargo', makefile)
-        self.assertNotIn('rust', makefile.lower())
+        self.assertIn('performance-manager-rill-adapter', makefile)
 
     def test_rill_outcome_requires_context_binding(self):
         from contract_model import rill_outcome_context_binding

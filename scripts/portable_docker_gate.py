@@ -68,7 +68,7 @@ def main(argv=None) -> int:
     docker_log = Path(args.docker_log).read_text()
     built = (build.get("packages") or {}).get(PACKAGE) or {}
     verified = (apk.get("packages") or {}).get(PACKAGE) or {}
-    apk_path = identical_artifact(build_root, built.get("apkFilename") or "luci-app-performance-manager-all-1.0.0-r1.apk")
+    apk_path = identical_artifact(build_root, built.get("apkFilename") or "luci-app-performance-manager-all-1.0.1-r1.apk")
     actual_sha = sha256(apk_path)
 
     final_evidence = read_json(ci_root, "final-release-evidence.json")

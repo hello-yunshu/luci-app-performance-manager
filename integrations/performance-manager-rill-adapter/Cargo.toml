@@ -1,0 +1,21 @@
+[package]
+name = "performance-manager-rill-adapter"
+version = "1.0.1"
+edition = "2024"
+rust-version = "1.94"
+license = "MIT"
+repository = "https://github.com/hello-yunshu/luci-app-performance-manager"
+description = "PM-owned pm-rill-shadow v1 Unix-domain decision adapter for OpenWrt Performance Manager (advisory-only)."
+
+[[bin]]
+name = "performance-manager-rill-adapter"
+path = "src/main.rs"
+
+[dependencies]
+rill-ml = { version = "=1.5.1", features = ["serde"] }
+clap = { version = "4.5", features = ["derive"] }
+libc = "0.2"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+sha2 = "0.10"
+thiserror = "2.0"

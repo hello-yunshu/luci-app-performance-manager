@@ -16,7 +16,7 @@ fail-closed decision table can be verified locally (and in CI on any runner):
      spec over explicit/default/absolute/invalid/absent combinations and asserts
      Core (rill_binary_path) and init (resolve_binary) produce the same state.
 
-A real Core <-> real released adapter roundtrip runs separately in CI
+ A real Core <-> real PM-owned adapter roundtrip runs separately in CI
 (pm-rill-runtime / pm-core-rill-roundtrip) inside the OpenWrt rootfs; the
 pmCoreRoundtripVerdict here remains BLOCKED unless a real adapter is present.
 """
@@ -35,8 +35,8 @@ ROOT = Path(__file__).resolve().parents[1]
 SCHEMA = json.loads((ROOT / 'contracts/rill-ipc.schema.json').read_text())
 RESP_SCHEMA = json.loads((ROOT / 'contracts/rill-ipc-response.schema.json').read_text())
 DEP = json.loads((ROOT / 'contracts/rill-dependency.json').read_text())
-EXPECTED_RELEASE = DEP['upstream']['releaseVersion']
-EXPECTED_ADAPTER = DEP['upstream']['adapter']['adapterVersion']
+EXPECTED_RELEASE = DEP['rillMl']['version']
+EXPECTED_ADAPTER = DEP['adapter']['version']
 CORE = (ROOT / 'package/performance-manager/files/usr/sbin/performance-manager.uc').read_text()
 INIT = (ROOT / 'package/performance-manager-rill/files/etc/init.d/performance-manager-rill').read_text()
 # Per-job evidence isolation (rc.7 prompt section 27): this job owns ONLY
@@ -245,9 +245,9 @@ def status_accepts(resp):
 
 def resolver_states():
     """Replay the shared Core<->init resolver spec over a matrix. Returns (verdict) or raises."""
-    default_paths = ['/usr/bin/rill-pm-adapter', '/usr/sbin/rill-pm-adapter']
-    core_func = 'function rill_binary_path(' in CORE and '/usr/bin/rill-pm-adapter' in CORE and '/usr/sbin/rill-pm-adapter' in CORE
-    init_func = 'resolve_binary()' in INIT and '/usr/bin/rill-pm-adapter' in INIT and '/usr/sbin/rill-pm-adapter' in INIT
+    default_paths = ['/usr/sbin/performance-manager-rill-adapter', '/usr/bin/performance-manager-rill-adapter', '/usr/bin/rill-pm-adapter', '/usr/sbin/rill-pm-adapter']
+    core_func = 'function rill_binary_path(' in CORE and all(path in CORE for path in default_paths)
+    init_func = 'resolve_binary()' in INIT and all(path in INIT for path in default_paths)
     if not (core_func and init_func):
         raise AssertionError('Core/init resolver not both consistent')
     return {
@@ -398,12 +398,10 @@ def main() -> int:
     evidence.setdefault('pm', {}).update({'version': (ROOT / 'VERSION').read_text().strip()})
     evidence['pmCommitSha'] = os.environ.get('GITHUB_SHA') or _pm_commit()
     evidence.setdefault('rill', {}).update({
-        'releaseVersion': DEP['upstream']['releaseVersion'],
-        'releaseTag': DEP['upstream']['releaseTag'],
-        'expectedCommitSha': DEP['upstream']['tagCommitSha'],
-        'adapterReleaseAssetVersion': DEP['upstream']['adapter']['releaseAssetVersion'],
-        'adapterBinaryVersion': DEP['upstream']['adapter']['adapterVersion'],
-        'adapterProtocolVersion': DEP['upstream']['adapter']['pmAdapterProtocolVersion'],
+        'rillMlVersion': DEP['rillMl']['version'],
+        'adapterOwner': DEP['adapter']['owner'],
+        'adapterBinaryVersion': DEP['adapter']['version'],
+        'adapterProtocolVersion': DEP['protocol']['version'],
     })
     rt = evidence.setdefault('runtime', {})
     rt['executableVerdict'] = 'BLOCKED'  # real adapter binary exec/version is CI pm-rill-runtime

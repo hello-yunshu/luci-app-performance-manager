@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.0.1 — PM-owned Rill adapter migration (2026-08-25)
+
+- Moves the consumer-specific `pm-rill-shadow` v1 adapter into `integrations/performance-manager-rill-adapter/`, preserving the immutable v1.5.1 source behavior and MIT attribution.
+- Pins exact crates.io `rill-ml = 1.5.1`, commits `Cargo.lock`, builds `performance-manager-rill-adapter` as a target-specific OpenWrt package, and removes the active dependency on the RillML PM adapter Release artifact.
+- Keeps `/etc/performance-manager/rill/adapter-state.json` schema 1 compatible with PM v1.0.0 adapter state and fails closed on corrupt or incompatible state instead of silently resetting it.
+- Publishes PM v1.0.1 metadata and a machine-readable ownership handoff; real x86_64 OpenWrt roundtrip, sysupgrade, Actions and public Release status remain evidence gates.
+
 ## 1.0.0 — Final Stable candidate (2026-08-22)
 
 - Defines the portable-docker release profile for hosted Actions plus Docker verification when hardware testbeds are unavailable; hardware coverage remains explicitly NOT_EVALUATED.

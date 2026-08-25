@@ -196,12 +196,18 @@ def main(argv=None) -> int:
     if in_rill:
         prov_v, prov_reason = file_verdict("rill-provenance.json", "provenanceVerdict")
         if prov_v in ("PASS", "FAIL", "BLOCKED"):
-            tag, _ = file_verdict("rill-provenance.json", "tagIdentityVerdict")
-            idx, _ = file_verdict("rill-provenance.json", "indexSignatureVerdict")
-            art, _ = file_verdict("rill-provenance.json", "artifact", "artifactIntegrityVerdict")
-            prov_v = combine_required([tag, idx, art])
-            if prov_v != "PASS":
-                prov_reason = f"provenance sub-verdicts: tag={tag} index={idx} artifact={art}"
+            provenance = files.get("rill-provenance.json") or {}
+            if provenance.get("contract") == "pm-owned-rill-provenance":
+                if not provenance.get("adapterSha256") or not provenance.get("adapterOwner"):
+                    prov_v = "BLOCKED"
+                    prov_reason = "PM adapter provenance is missing owner or binary SHA-256"
+            else:
+                tag, _ = file_verdict("rill-provenance.json", "tagIdentityVerdict")
+                idx, _ = file_verdict("rill-provenance.json", "indexSignatureVerdict")
+                art, _ = file_verdict("rill-provenance.json", "artifact", "artifactIntegrityVerdict")
+                prov_v = combine_required([tag, idx, art])
+                if prov_v != "PASS":
+                    prov_reason = f"provenance sub-verdicts: tag={tag} index={idx} artifact={art}"
 
     # Runtime compatibility: executable/version/startup/status from the real
     # adapter runtime job.  Functional: observe/outcome/failClosed + the real
@@ -284,12 +290,12 @@ def main(argv=None) -> int:
         "evidenceSources": {name: str(ev_dir / name) for name in files},
         "missingEvidence": missing,
         "rillRelease": {
-            "releaseVersion": manifest.get("releaseVersion"),
-            "releaseTag": manifest.get("releaseTag"),
-            "releaseCommitSha": manifest.get("releaseCommitSha"),
+            "releaseVersion": manifest.get("rillMlVersion") or manifest.get("releaseVersion"),
+            "releaseTag": manifest.get("historicalReleaseTag") or manifest.get("releaseTag"),
+            "releaseCommitSha": manifest.get("historicalReleaseCommitSha") or manifest.get("releaseCommitSha"),
             "protocolContract": manifest.get("protocolContract"),
             "protocolVersion": manifest.get("protocolVersion"),
-            "artifactSha256": manifest.get("artifactSha256"),
+            "artifactSha256": manifest.get("artifactSha256") or manifest.get("adapterSha256"),
         },
         "verdicts": release_verdicts,
         "rcVerdict": rc_verdict,
