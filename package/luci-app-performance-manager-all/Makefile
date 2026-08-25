@@ -1,7 +1,7 @@
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=luci-app-performance-manager-all
-PKG_VERSION:=1.0.0
+PKG_VERSION:=1.0.1
 PKG_RELEASE:=1
 PKG_LICENSE:=GPL-3.0-only
 PKG_MAINTAINER:=OpenWrt Performance Manager contributors
@@ -23,10 +23,12 @@ endef
 define Package/luci-app-performance-manager-all/description
  一个可直接安装的 APK，物理包含 Performance Manager Core 后端、LuCI、
  rpcd ACL/menu、简体中文翻译以及仓库自有的 Rill 接入守护层。
- Rill 运行时本身仍由上游独立发布，本包不会内置或编译 Rill 二进制。
+ 本 all-in-one 包不包含 native adapter；Rill Intelligence 需要按目标架构
+ 另行安装 performance-manager-rill-adapter 与 performance-manager-rill。
  / One installable APK containing the Core backend, LuCI UI, rpcd ACL/menu,
  / Simplified Chinese translation and repository-owned Rill integration glue.
- / The external upstream Rill runtime itself is not bundled or compiled here.
+ / This arch-independent APK does not contain the native adapter; install the
+ / target-specific PM adapter package for Rill Intelligence.
 endef
 
 define Package/luci-app-performance-manager-all/conffiles

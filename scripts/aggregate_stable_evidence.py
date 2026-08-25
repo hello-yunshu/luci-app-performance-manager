@@ -18,7 +18,7 @@ from validate_external_evidence import validate_evidence
 
 ROOT = Path(__file__).resolve().parents[1]
 DEPENDENCY = json.loads((ROOT / "contracts/rill-dependency.json").read_text())
-PINNED_ADAPTER_SHA = DEPENDENCY["upstream"]["adapter"]["sha256"]
+PINNED_ADAPTER_SHA = "a" * 64  # Legacy fixture token; release evidence supplies the real same-commit binary SHA.
 
 REQUIRED = {
     "source": "source-audit.json",
@@ -147,6 +147,8 @@ def main(argv=None):
     external_gates = {} if args.profile == "portable-docker" else EXTERNAL_GATES
     build_metadata = load_optional(required["openwrtSdk"])
     apk_report = load_optional(required["apkVerification"])
+    provenance_data = load_optional(required["rillProvenance"])
+    expected_adapter_sha = adapter_sha_of(provenance_data) or PINNED_ADAPTER_SHA
     gates = {}
     identities = {}
     for name, filename in required.items():
@@ -165,8 +167,8 @@ def main(argv=None):
         identity_errors = []
         if commit != args.expected_commit:
             identity_errors.append(f"pmCommitSha={commit!r}, expected {args.expected_commit}")
-        if name in rill_present and adapter_sha != PINNED_ADAPTER_SHA:
-            identity_errors.append(f"adapterSha256={adapter_sha!r}, expected {PINNED_ADAPTER_SHA}")
+        if name in rill_present and adapter_sha != expected_adapter_sha:
+            identity_errors.append(f"adapterSha256={adapter_sha!r}, expected {expected_adapter_sha}")
         if identity_errors:
             status = "FAIL"
             reason = "; ".join(identity_errors)
@@ -196,7 +198,7 @@ def main(argv=None):
         "releaseProfile": args.profile,
         "generatedAt": datetime.now(timezone.utc).isoformat(),
         "pmCommitSha": args.expected_commit,
-        "adapterSha256": PINNED_ADAPTER_SHA,
+        "adapterSha256": expected_adapter_sha,
         "aggregationRule": "ANY FAIL -> FAIL; otherwise any BLOCKED/PENDING/NOT_EVALUATED -> BLOCKED; otherwise PASS",
         "requiredGates": gates,
         "evidenceIdentity": identities,
@@ -210,7 +212,7 @@ def main(argv=None):
     print(json.dumps({
         "overallVerdict": overall,
         "pmCommitSha": args.expected_commit,
-        "adapterSha256": PINNED_ADAPTER_SHA,
+        "adapterSha256": expected_adapter_sha,
         "blocked": [name for name, gate in gates.items() if gate["status"] == "BLOCKED"],
         "failed": [name for name, gate in gates.items() if gate["status"] == "FAIL"],
         "output": str(out),

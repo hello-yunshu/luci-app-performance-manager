@@ -1,8 +1,8 @@
-# Source Audit — 1.0.0
+# Source Audit — 1.0.1
 
 ## Decision
 
-**PASS — 1.0.0 source candidate PASS; functional integration and Stable release are NOT_EVALUATED.**
+**PASS — 1.0.1 source candidate PASS; functional integration and Stable release are NOT_EVALUATED.**
 
 This is a source-only, non-promotable audit. It does not consume old runtime
 artifacts and cannot claim functional-integration or Stable-release PASS.
@@ -17,7 +17,7 @@ artifacts and cannot claim functional-integration or Stable-release PASS.
 
 - Executable unit/contract tests: **185**, status **PASS**.
 - Rill static contract: **PASS**.
-- Rill release-pin structure: **PASS**.
+- Rill release-pin structure: **None**.
 - Rill functional integration: **NOT_EVALUATED** in this report.
 
 ## Source phase gates

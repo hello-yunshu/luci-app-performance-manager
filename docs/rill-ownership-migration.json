@@ -1,0 +1,14 @@
+{
+  "status": "NOT_RUN",
+  "pmVersion": "1.0.1",
+  "pmCommit": "WORKTREE",
+  "adapterOwner": "hello-yunshu/luci-app-performance-manager",
+  "adapterBinary": "performance-manager-rill-adapter",
+  "rillMlVersion": "1.5.1",
+  "protocol": "pm-rill-shadow",
+  "protocolVersion": 1,
+  "stateSchemaVersion": 1,
+  "openWrtX8664Roundtrip": "NOT_RUN",
+  "legacyStateMigration": "NOT_RUN",
+  "upstreamPmAdapterRequired": false
+}

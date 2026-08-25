@@ -33,7 +33,7 @@ jobs:
   aggregate:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - uses: actions/checkout@v7
         with:
           ref: ${{ inputs.expected_sha }}
       - name: Verify exact checkout
@@ -66,7 +66,7 @@ jobs:
           cp docs/FINAL_AUDIT.md stable-evidence/
       - name: Upload authoritative Stable evidence
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        uses: actions/upload-artifact@v7
         with:
           name: final-stable-evidence-${{ inputs.expected_sha }}
           path: |

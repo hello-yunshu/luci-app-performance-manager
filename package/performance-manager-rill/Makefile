@@ -1,16 +1,13 @@
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=performance-manager-rill
-PKG_VERSION:=1.0.0
+PKG_VERSION:=1.0.1
 PKG_RELEASE:=1
 PKG_LICENSE:=GPL-3.0-only
 PKG_MAINTAINER:=OpenWrt Performance Manager contributors
 
-# Rill is an EXTERNAL runtime dependency.  This package never compiles or
-# bundles Rill: it only carries the PM<->Rill integration glue and a guard
-# that manages an upstream-provided Rill binary when one is installed.
-# When no upstream Rill binary is present the integration is fail-closed and
-# reported as "external dependency blocked" by the Core capability gate.
+# The PM-owned adapter is provisioned by the companion target-specific package.
+# This package contains only service glue and the sysupgrade keep rule.
 PKG_BUILD_DEPENDS:=
 
 include $(INCLUDE_DIR)/package.mk
@@ -19,18 +16,17 @@ define Package/performance-manager-rill
   SECTION:=net
   CATEGORY:=Network
   SUBMENU:=Routing and Redirection
-  TITLE:=OpenWrt 性能管理器 Rill 集成层（外部依赖）/ PM<->Rill integration glue (external dependency)
-  DEPENDS:=+performance-manager
+  TITLE:=OpenWrt 性能管理器 PM-owned Rill 集成层 / PM-owned Rill integration glue
+  DEPENDS:=+performance-manager +performance-manager-rill-adapter
   USERID:=performance-manager-rill=5666:performance-manager-rill=5666
 endef
 
 define Package/performance-manager-rill/description
-  PM<->upstream Rill integration glue. Rill is built and released by its own
-  upstream repository; this package only installs the PM-side service guard
-  that starts an installed upstream Rill runtime and the sysupgrade keep rule
-  for Rill state. No Rill source or binary is built here.
-  / Rill 由上游仓库构建与发布，本包仅安装 PM 侧服务 guard 与升级保留规则，
-  / 不在本仓库编译任何 Rill 源码或二进制。
+ PM-owned Performance Manager adapter service glue and sysupgrade keep rule.
+ The native adapter is shipped by performance-manager-rill-adapter for the
+ target architecture; no upstream Release artifact is required.
+ / PM 自有 Rill adapter 服务 glue 与升级保留规则；native adapter 由目标架构
+ / 的 performance-manager-rill-adapter 包提供，不依赖上游 Release 二进制。
 endef
 
 define Build/Compile
