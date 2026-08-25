@@ -27,6 +27,7 @@ jobs:
         with:
           toolchain: 1.94.0
           targets: x86_64-unknown-linux-musl
+          components: rustfmt, clippy
       - name: Build and stage PM-owned adapter
         run: python3 scripts/build_pm_adapter.py --target x86_64-unknown-linux-musl
       - name: Install host dependencies

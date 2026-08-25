@@ -60,6 +60,7 @@ jobs:
         with:
           toolchain: 1.94.0
           targets: x86_64-unknown-linux-musl
+          components: rustfmt, clippy
       - uses: actions/setup-python@v7
         with:
           python-version: "3.13"
@@ -423,6 +424,7 @@ jobs:
         with:
           toolchain: 1.94.0
           targets: x86_64-unknown-linux-musl
+          components: rustfmt, clippy
       - name: PM-owned adapter quality gates
         shell: bash
         run: |
