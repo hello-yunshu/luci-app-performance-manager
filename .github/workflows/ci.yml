@@ -105,6 +105,19 @@ jobs:
         with:
           name: rill-provenance
           path: rill-evidence
+      - name: Resolve consumed adapter path from manifest
+        shell: bash
+        run: |
+          set -euo pipefail
+          ADAPTER_NAME="$(python3 - <<'PY'
+          import json
+          with open("rill-evidence/rill-consumed-manifest.json", encoding="utf-8") as handle:
+              print(json.load(handle)["artifactName"])
+          PY
+          )"
+          ADAPTER_PATH="rill-evidence/docs/${ADAPTER_NAME}"
+          test -f "$ADAPTER_PATH"
+          printf 'ADAPTER_PATH=%s\n' "$ADAPTER_PATH" >> "$GITHUB_ENV"
       - name: Resolve official OpenWrt rootfs identity
         id: openwrt-rootfs
         shell: bash
@@ -145,8 +158,8 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          chmod +x rill-evidence/docs/rill-pm-adapter-1.5.1-linux-x86_64-musl
-          sudo install -D -m 0755 rill-evidence/docs/rill-pm-adapter-1.5.1-linux-x86_64-musl rootfs/usr/bin/rill-pm-adapter
+          chmod +x "$ADAPTER_PATH"
+          sudo install -D -m 0755 "$ADAPTER_PATH" rootfs/usr/bin/rill-pm-adapter
           sudo mkdir -p rootfs/run/performance-manager rootfs/etc/performance-manager/rill
           # Start the EXACT released adapter inside the musl rootfs.
           sudo nohup chroot rootfs /usr/bin/rill-pm-adapter --socket /run/performance-manager/rill.sock --state-dir /etc/performance-manager/rill --max-message 65536 --timeout-ms 1000 >/dev/null 2>&1 &
@@ -190,6 +203,19 @@ jobs:
         with:
           name: rill-provenance
           path: rill-evidence
+      - name: Resolve consumed adapter path from manifest
+        shell: bash
+        run: |
+          set -euo pipefail
+          ADAPTER_NAME="$(python3 - <<'PY'
+          import json
+          with open("rill-evidence/rill-consumed-manifest.json", encoding="utf-8") as handle:
+              print(json.load(handle)["artifactName"])
+          PY
+          )"
+          ADAPTER_PATH="rill-evidence/docs/${ADAPTER_NAME}"
+          test -f "$ADAPTER_PATH"
+          printf 'ADAPTER_PATH=%s\n' "$ADAPTER_PATH" >> "$GITHUB_ENV"
       - name: Resolve official OpenWrt rootfs identity
         id: openwrt-rootfs
         shell: bash
@@ -230,8 +256,8 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          chmod +x rill-evidence/docs/rill-pm-adapter-1.5.1-linux-x86_64-musl
-          sudo python3 scripts/rill_core_roundtrip.py "$PWD/rootfs" "$PWD/rill-evidence/docs/rill-pm-adapter-1.5.1-linux-x86_64-musl"
+          chmod +x "$ADAPTER_PATH"
+          sudo python3 scripts/rill_core_roundtrip.py "$PWD/rootfs" "$PWD/$ADAPTER_PATH"
       - name: Verify roundtrip evidence
         shell: bash
         run: |

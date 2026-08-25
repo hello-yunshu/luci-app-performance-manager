@@ -1,0 +1,67 @@
+{
+  "schemaVersion": 1,
+  "scope": "pm-side-audited-upstream-snapshot",
+  "repository": "hello-yunshu/rill-ml",
+  "releaseTag": "v1.5.1",
+  "releaseCommitSha": "cba9b3d2fb2c6a71cb9d4a02b18852171ad05a1b",
+  "sourcePath": "crates/rill-pm-adapter/src/lib.rs",
+  "sourceSha256": "317ee840896348bb3d9b5c5ebd6f7c257a0238080aa71148076533aa0708350a",
+  "cargoManifestPath": "crates/rill-pm-adapter/Cargo.toml",
+  "cargoManifestSha256": "bd7141ddbe958a42dc1bc5df4ab64d97dd6ee1d87c96da8736d633b43393b5f5",
+  "contract": "pm-rill-shadow",
+  "protocolVersion": 1,
+  "adapterVersion": "0.15.0",
+  "requestFields": {
+    "status": ["contract", "protocolVersion", "requestId", "op", "deadlineUnixMs"],
+    "observe": ["contract", "protocolVersion", "requestId", "op", "deadlineUnixMs", "deviceProfile", "capabilityHash", "topologyGeneration", "pathId", "routeIdentity", "workloadClass", "measurementClass", "context", "integrations", "goal", "integrationFingerprint", "contextKey", "availableActions"],
+    "outcome": ["contract", "protocolVersion", "requestId", "op", "deadlineUnixMs", "decisionId", "contextKey", "actionId", "sessionId", "goal", "modelGeneration", "validated", "reward"]
+  },
+  "responseFields": {
+    "envelope": ["contract", "protocolVersion", "requestId", "ok"],
+    "status": ["adapterVersion", "rillVersion", "state", "capabilities", "modelHealth"],
+    "observe": ["decisionId", "recommendation"],
+    "outcome": ["accepted"],
+    "error": ["code", "message", "retryable"]
+  },
+  "capabilities": ["context-partitioned-model", "goal-partition", "validated-outcome", "decision-ledger", "model-health"],
+  "errorCodes": ["invalidJson", "wrongContract", "wrongProtocolVersion", "unsupportedOp", "invalidRequestId", "invalidRequest", "requestExpired", "requestTimeout", "frameTooLarge", "invalidDecisionId", "unknownDecision", "duplicateFeedback", "actionMismatch", "contextMismatch", "generationMismatch", "expiredDecision", "invalidTimestamp", "nonValidated", "nonFiniteReward", "ledgerCapacity", "partitionCapacity", "stateLoad", "statePersistence", "internal"],
+  "retryableErrorCodes": ["requestTimeout", "statePersistence", "stateLoad", "ledgerCapacity", "partitionCapacity", "internal"],
+  "limits": {
+    "defaultMaxMessageBytes": 1048576,
+    "defaultTimeoutMs": 1000,
+    "maxRequestIdLength": 128,
+    "maxStringLength": 512,
+    "maxWorkloadClassBytes": 2048,
+    "maxContextBytes": 262144,
+    "maxStateFileBytes": 4194304,
+    "maxPartitions": 256,
+    "maxActionsPerPartition": 64,
+    "decisionTtlMs": 3600000,
+    "ledgerPendingCapacity": 1024,
+    "ledgerCompletedCapacity": 4096
+  },
+  "modelGeneration": {
+    "fresh": 1,
+    "persistedReloadMinimum": 1,
+    "normalV1PathIncrements": false,
+    "sourceEvidence": ["AdapterState::new", "AdapterState::from_disk", "AdapterState::persist"]
+  },
+  "persistence": {
+    "observe": "ledger.register then persist",
+    "outcome": "ledger.apply_feedback and model update then persist",
+    "stateFile": "adapter-state.json",
+    "stateSchemaVersion": 1,
+    "maxStateFileBytes": 4194304,
+    "recovery": "missing, corrupt, oversized, or schema-mismatched state starts fresh and reports degraded health",
+    "writeMethod": "temporary file then atomic rename",
+    "accounting": "logical-inference-only-not-physical-flash-block-writes"
+  },
+  "sourceAssertions": [
+    "Request uses serde tagged op with camelCase fields and deny_unknown_fields",
+    "status, observe, and outcome are the only dispatched operations",
+    "observe returns an advisory recommendation bound to a decisionId",
+    "outcome requires validated=true, finite reward, matching decision/context/action/generation, and rejects duplicate or expired feedback",
+    "adapter never mutates OpenWrt, UCI, sysctl, or ethtool state"
+  ],
+  "note": "Audited PM-side snapshot of immutable upstream v1.5.1 at the peeled tag commit. It is derived from the tagged crates/rill-pm-adapter/src/lib.rs and Cargo.toml source, is not an upstream-owned contract file, and must be re-audited before any Rill upgrade."
+}
