@@ -53,8 +53,8 @@ jobs:
   # repository (hello-yunshu/rill-ml). This repository never compiles or natively
   # tests Rill, so there is deliberately NO Rust toolchain/cargo job here.
   #
-  # Provenance (this job): verifies the immutable v1.2.0 Stable pin end-to-end —
-  # tag identity (v1.2.0 -> dc96fdb3...) -> signed stable-index (Ed25519) ->
+  # Provenance (this job): verifies the immutable contract Stable pin end-to-end —
+  # tag identity -> signed stable-index (Ed25519) ->
   # exact x86_64-musl pm-adapter -> size+SHA integrity — via
   # scripts/verify_rill_release.py, and runs the mock-adapter pm-rill-shadow v1
   # wire harness for the PM-side fail-closed decision table. The verified
@@ -70,7 +70,7 @@ jobs:
       - run: python -m pip install --disable-pip-version-check pyyaml jsonschema pynacl
       - name: Verify PM<->Rill static dependency/protocol contract
         run: python scripts/rill_contract_check.py
-      - name: Verify v1.2.0 Stable release provenance (tag + signed index + artifact)
+      - name: Verify pinned Stable release provenance (tag + signed index + artifact)
         run: python scripts/verify_rill_release.py --out-dir docs
       - name: Run pm-rill-shadow v1 wire harness (fail-closed decision table)
         run: python scripts/rill_runtime_harness.py
@@ -86,12 +86,12 @@ jobs:
             docs/rill-integration-status.json
             docs/rill-integration-evidence.json
             docs/rill-wire-harness.json
-            docs/rill-pm-adapter-1.2.0-linux-x86_64-musl
+            docs/rill-pm-adapter-1.5.1-linux-x86_64-musl
             rill-consumed-manifest.json
           if-no-files-found: error
 
   # Real released adapter execution inside the official OpenWrt rootfs.
-  # Consumes the EXACT verified v1.2.0 x86_64-musl pm-adapter from provenance,
+  # Consumes the EXACT verified contract-selected x86_64-musl pm-adapter from provenance,
   # executes it (--version -> 0.15.0), starts it and drives the real
   # pm-rill-shadow v1 status/observe/outcome roundtrips plus fail-closed
   # negatives through scripts/rill_adapter_runtime.py. No mock, no Core mirror.
@@ -105,6 +105,19 @@ jobs:
         with:
           name: rill-provenance
           path: rill-evidence
+      - name: Resolve consumed adapter path from manifest
+        shell: bash
+        run: |
+          set -euo pipefail
+          ADAPTER_NAME="$(python3 - <<'PY'
+          import json
+          with open("rill-evidence/rill-consumed-manifest.json", encoding="utf-8") as handle:
+              print(json.load(handle)["artifactName"])
+          PY
+          )"
+          ADAPTER_PATH="rill-evidence/docs/${ADAPTER_NAME}"
+          test -f "$ADAPTER_PATH"
+          printf 'ADAPTER_PATH=%s\n' "$ADAPTER_PATH" >> "$GITHUB_ENV"
       - name: Resolve official OpenWrt rootfs identity
         id: openwrt-rootfs
         shell: bash
@@ -145,8 +158,8 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          chmod +x rill-evidence/docs/rill-pm-adapter-1.2.0-linux-x86_64-musl
-          sudo install -D -m 0755 rill-evidence/docs/rill-pm-adapter-1.2.0-linux-x86_64-musl rootfs/usr/bin/rill-pm-adapter
+          chmod +x "$ADAPTER_PATH"
+          sudo install -D -m 0755 "$ADAPTER_PATH" rootfs/usr/bin/rill-pm-adapter
           sudo mkdir -p rootfs/run/performance-manager rootfs/etc/performance-manager/rill
           # Start the EXACT released adapter inside the musl rootfs.
           sudo nohup chroot rootfs /usr/bin/rill-pm-adapter --socket /run/performance-manager/rill.sock --state-dir /etc/performance-manager/rill --max-message 65536 --timeout-ms 1000 >/dev/null 2>&1 &
@@ -175,11 +188,11 @@ jobs:
             docs/rill-runtime.json
           if-no-files-found: error
 
-  # Real shipped PM Core <-> real released v1.2.0 adapter inside the rootfs.
+  # Real shipped PM Core <-> real contract-selected adapter inside the rootfs.
   # Installs the RAW performance-manager.uc + the verified adapter at the shared
   # empty-binary default path, starts ubusd + adapter + Core, then asserts
   # `ubus call performance-manager rill_status` negotiated the real adapter
-  # (available, release 1.2.0, adapter 0.15.0, protocol 1, binary /usr/bin/...).
+  # (available, contract release/adapter identity, protocol 1, binary /usr/bin/...).
   pm-core-rill-roundtrip:
     runs-on: ubuntu-latest
     needs: pm-rill-provenance
@@ -190,6 +203,19 @@ jobs:
         with:
           name: rill-provenance
           path: rill-evidence
+      - name: Resolve consumed adapter path from manifest
+        shell: bash
+        run: |
+          set -euo pipefail
+          ADAPTER_NAME="$(python3 - <<'PY'
+          import json
+          with open("rill-evidence/rill-consumed-manifest.json", encoding="utf-8") as handle:
+              print(json.load(handle)["artifactName"])
+          PY
+          )"
+          ADAPTER_PATH="rill-evidence/docs/${ADAPTER_NAME}"
+          test -f "$ADAPTER_PATH"
+          printf 'ADAPTER_PATH=%s\n' "$ADAPTER_PATH" >> "$GITHUB_ENV"
       - name: Resolve official OpenWrt rootfs identity
         id: openwrt-rootfs
         shell: bash
@@ -230,8 +256,8 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          chmod +x rill-evidence/docs/rill-pm-adapter-1.2.0-linux-x86_64-musl
-          sudo python3 scripts/rill_core_roundtrip.py "$PWD/rootfs" "$PWD/rill-evidence/docs/rill-pm-adapter-1.2.0-linux-x86_64-musl"
+          chmod +x "$ADAPTER_PATH"
+          sudo python3 scripts/rill_core_roundtrip.py "$PWD/rootfs" "$PWD/$ADAPTER_PATH"
       - name: Verify roundtrip evidence
         shell: bash
         run: |

@@ -375,7 +375,14 @@ class RillStableLifecycleTests(unittest.TestCase):
         self.assertIn("recover_rill_executions();", CORE)
 
     def test_model_generation_one_is_upstream_audited(self):
-        snapshot = json.loads((ROOT / "contracts/upstream/rill-pm-adapter-v1.2.0-contract.json").read_text())
+        snapshot = json.loads((ROOT / "contracts/upstream/rill-pm-adapter-v1.5.1-contract.json").read_text())
+        self.assertEqual(snapshot["releaseCommitSha"], "cba9b3d2fb2c6a71cb9d4a02b18852171ad05a1b")
+        self.assertEqual(snapshot["sourcePath"], "crates/rill-pm-adapter/src/lib.rs")
+        self.assertIn("deadlineUnixMs", snapshot["requestFields"]["observe"])
+        self.assertEqual(snapshot["capabilities"], [
+            "context-partitioned-model", "goal-partition", "validated-outcome",
+            "decision-ledger", "model-health",
+        ])
         self.assertEqual(snapshot["modelGeneration"]["fresh"], 1)
         self.assertFalse(snapshot["modelGeneration"]["normalV1PathIncrements"])
         self.assertEqual(snapshot["persistence"]["observe"], "ledger.register then persist")

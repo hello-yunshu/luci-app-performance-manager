@@ -1,14 +1,14 @@
 {
   "schemaVersion": 2,
   "pm": {
-    "version": "1.0.0-rc.7"
+    "version": "1.0.0"
   },
-  "pmCommitSha": "9ba659ab55ec93bc59422f4e3162642504e7c517",
+  "pmCommitSha": "e3135cb4d91ae6ed07b05e41e4afd1ad49e76757",
   "rill": {
-    "releaseVersion": "1.2.0",
-    "releaseTag": "v1.2.0",
-    "expectedCommitSha": "dc96fdb3bf55eacdd1c093f1be08d1c9daed4400",
-    "adapterReleaseAssetVersion": "1.2.0",
+    "releaseVersion": "1.5.1",
+    "releaseTag": "v1.5.1",
+    "expectedCommitSha": "cba9b3d2fb2c6a71cb9d4a02b18852171ad05a1b",
+    "adapterReleaseAssetVersion": "1.5.1",
     "adapterBinaryVersion": "0.15.0",
     "adapterProtocolVersion": 1
   },
@@ -33,7 +33,7 @@
       "detail": "ok"
     },
     {
-      "name": "status rillVersion == 1.2.0",
+      "name": "status rillVersion == 1.5.1",
       "ok": true,
       "detail": ""
     },

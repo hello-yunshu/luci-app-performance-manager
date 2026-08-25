@@ -5,12 +5,11 @@ This is the stable PM-Core lifecycle gate.  It does NOT mirror the Core and does
 NOT use the mock adapter.  Inside the official OpenWrt rootfs it:
 
   1. installs the RAW shipped performance-manager.uc + contracts.uc (verbatim),
-  2. installs the EXACT verified rill-pm-adapter v1.2.0 artifact at
+  2. installs the EXACT verified rill-pm-adapter artifact selected by the contract at
      /usr/bin/rill-pm-adapter (the shared empty-binary default-resolution path),
   3. starts ubusd, then the real adapter, then the real Core daemon,
   4. calls `ubus call performance-manager rill_status` and asserts the Core
-     negotiated the real adapter: state available and releaseVersion 1.2.0 /
-     adapterVersion 0.15.0 / protocolVersion 1,
+     negotiated the real adapter against the contract release/adapter/protocol identity,
   5. drives production Core recommendations -> real Observe -> exact decision
      reservation -> duplicate-execution rejection -> controlled local A/B ->
      safe rollback -> persistent real Outcome,
@@ -43,6 +42,10 @@ EVIDENCE_PATH = DOCS / 'pm-core-rill-roundtrip.json'
 # per-job files by PM commit SHA.
 JOB_EVIDENCE_PATH = DOCS / 'rill-core-integration.json'
 POLL_TIMEOUT_S = 45
+DEP = json.loads((ROOT / 'contracts/rill-dependency.json').read_text())
+EXPECTED_RELEASE = DEP['upstream']['releaseVersion']
+EXPECTED_ADAPTER = DEP['upstream']['adapter']['adapterVersion']
+EXPECTED_PROTOCOL = DEP['protocol']['protocolVersion']
 
 
 def sh(*argv):
@@ -237,8 +240,8 @@ def main() -> int:
         adapter_ver = (parsed or {}).get('adapterVersion') if isinstance(parsed, dict) else None
         proto = (parsed or {}).get('protocolVersion') if isinstance(parsed, dict) else None
         binary_effective = (((parsed or {}).get('binary') or {}).get('effective')) if isinstance(parsed, dict) else None
-        pass_ = (ok and state in ('available', 'learning') and release == '1.2.0'
-                 and adapter_ver == '0.15.0' and proto == 1
+        pass_ = (ok and state in ('available', 'learning') and release == EXPECTED_RELEASE
+                 and adapter_ver == EXPECTED_ADAPTER and proto == EXPECTED_PROTOCOL
                  and binary_effective == '/usr/bin/rill-pm-adapter')
         status_verdict = 'PASS' if pass_ else 'FAIL'
         # Status compatibility is one sub-gate, not the lifecycle verdict.

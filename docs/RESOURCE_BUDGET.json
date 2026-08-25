@@ -3,8 +3,8 @@
   "areas": {
     "core": {
       "files": 40,
-      "sourceBytes": 259330,
-      "knownStaticPayloadBytes": 256212
+      "sourceBytes": 259295,
+      "knownStaticPayloadBytes": 256177
     },
     "luci": {
       "files": 14,
@@ -24,9 +24,9 @@
   },
   "persistentWritePolicy": {
     "core": "event-only transaction/history/policy intents; fast/deep telemetry remains tmpfs",
-    "rill": "Pinned Rill v1.2.0 persists after every successful Observe and every successful Outcome; its state file is bounded/compacted.",
+    "rill": "Pinned Rill release from contracts/rill-dependency.json persists after every successful Observe and every successful Outcome; its state file is bounded/compacted.",
     "idleInvariant": "Periodic Core telemetry never calls Observe. With no UI/API refresh, benchmark, or configuration/topology event, rillObserveAccepted and expectedAdapterPersistenceEvents must remain unchanged.",
-    "accounting": "Core exposes logical counters inferred from the audited pinned Rill v1.2.0 contract; these are not physical flash-block write measurements."
+    "accounting": "Core exposes logical counters inferred from the audited pinned Rill contract; these are not physical flash-block write measurements."
   },
   "limits": {
     "rillMaxMessageBytes": 65536,

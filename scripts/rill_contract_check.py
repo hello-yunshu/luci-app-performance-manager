@@ -14,7 +14,7 @@ release entry:
      unavailable/incompatible, never silently assumed OK) and the Core/init
      binary resolver implement the same resolution contract;
   3. the pinned upstream release entry is well-formed and immutable: pinned
-     versioned tag (v1.2.0), resolved tag commit (dc96fdb3...), signed Stable
+     versioned tag, resolved tag commit, signed Stable
      release index (channel stable, schemaVersion 3, publisher identity) and an
      exact adapter URL + SHA-256 (never `latest`/`main`/branch, never empty).
 
@@ -76,10 +76,20 @@ check('init declares resolve_binary resolver', 'resolve_binary()' in INIT)
 check('init resolver checks both default paths', '/usr/bin/rill-pm-adapter' in INIT and '/usr/sbin/rill-pm-adapter' in INIT)
 check('init fails closed on explicit binary', 'binary-invalid' in INIT and 'BINARY_STATE=' in INIT)
 
-# 3. Version-field distinction (release bundle 1.2.0 vs adapter crate/binary 0.15.0).
-check('minimumReleaseVersion present', DEP.get('minimumReleaseVersion')=='1.2.0')
-check('minimumAdapterVersion present', DEP.get('minimumAdapterVersion')=='0.15.0')
-check('minimumRillVersion kept only as deprecated alias', DEP.get('minimumRillVersion')==DEP.get('minimumReleaseVersion') and 'DEPRECATED' in str(DEP.get('minimumRillVersionDeprecatedNote','')))
+# 3. Version-field distinction (release bundle vs adapter crate/binary).
+up=DEP.get('upstream',{})
+adapter=up.get('adapter') or {}
+art=up.get('artifact') or {}
+ri=up.get('releaseIndex') or {}
+target=(adapter.get('target') or {})
+release=up.get('releaseVersion')
+adapter_version=adapter.get('adapterVersion')
+protocol_version=DEP.get('protocol',{}).get('protocolVersion')
+expected_tag=f'v{release}'
+expected_x86_name=f"rill-pm-adapter-{release}-linux-x86_64-musl"
+check('minimumReleaseVersion derives from upstream release', DEP.get('minimumReleaseVersion')==release)
+check('minimumAdapterVersion present', DEP.get('minimumAdapterVersion')==adapter_version=='0.15.0')
+check('minimumRillVersion kept only as deprecated alias', DEP.get('minimumRillVersion')==release and 'DEPRECATED' in str(DEP.get('minimumRillVersionDeprecatedNote','')))
 
 # 4. Integration package never compiles/bundles Rill.
 check('integration package never compiles Rill', 'cargo' not in RILL_MAKE and 'rust' not in RILL_MAKE.lower()
@@ -87,26 +97,31 @@ check('integration package never compiles Rill', 'cargo' not in RILL_MAKE and 'r
 check('no bundled Rust source', not (ROOT/'package/performance-manager-rill/src').exists())
 
 # 5. Upstream release entry policy (immutable Stable dependency).
-up=DEP.get('upstream',{})
-adapter=up.get('adapter') or {}
-art=up.get('artifact') or {}
-ri=up.get('releaseIndex') or {}
-target=(adapter.get('target') or {})
 pinned = bool(up.get('releaseVersion')) and bool(up.get('releaseTag')) and bool(up.get('tagCommitSha')) \
         and bool(adapter.get('url')) and bool(adapter.get('sha256')) and bool(adapter.get('size'))
 if pinned:
     check('release pinned (no latest/download/branch)', 'latest/download' not in (adapter.get('url') or '') and 'latest/' not in (adapter.get('url') or ''))
     check('tag commit non-empty', bool(up.get('tagCommitSha')))
-    check('release tag == v1.2.0', up.get('releaseTag')=='v1.2.0')
+    check('release tag derives from releaseVersion', up.get('releaseTag')==expected_tag)
     check('release channel == stable (never candidate)', ri.get('channel')=='stable')
     check('release index schemaVersion == 3 (fail-closed on unknown)', ri.get('schemaVersion')==3)
     check('publisher identity present', bool(ri.get('publisherKeyId')) and bool(ri.get('publicKeyHex')))
     check('adapter protocol version == 1', adapter.get('pmAdapterProtocolVersion')==1)
     check('adapter target == linux/x86_64/musl', target.get('os')=='linux' and target.get('arch')=='x86_64' and target.get('libc')=='musl')
-    check('adapter release asset version vs binary version distinct', adapter.get('releaseAssetVersion')=='1.2.0' and adapter.get('adapterVersion')=='0.15.0')
-    check('adapter name exact', adapter.get('name')=='rill-pm-adapter-1.2.0-linux-x86_64-musl')
-    check('adapter sha256 matches artifact', adapter.get('sha256')==(art or {}).get('sha256'))
-    check('adapter size matches artifact', adapter.get('size')==(art or {}).get('size'))
+    check('adapter release asset version vs binary version distinct', adapter.get('releaseAssetVersion')==release and adapter.get('adapterVersion')==adapter_version)
+    check('adapter name derives from release', adapter.get('name')==expected_x86_name)
+    check('adapter x86 identity matches artifact', all(adapter.get(k)==art.get(k) for k in ('id','name','url','sha256','size')))
+    x86 = (up.get('artifacts') or {}).get('linux-x86_64-musl') or {}
+    check('adapter x86 identity matches artifacts[x86]', all(adapter.get(k)==x86.get(k) for k in ('name','url','sha256','size')))
+    aarch = (up.get('artifacts') or {}).get('linux-aarch64-musl')
+    if aarch is not None:
+        check('aarch64 artifact identity is complete', all(aarch.get(k) for k in ('name','url','sha256','size')))
+    release_urls = [ri.get('url'), ri.get('signatureUrl'), up.get('manifestUrl'), adapter.get('url'), art.get('url')]
+    release_urls += [entry.get('url') for entry in (up.get('artifacts') or {}).values()]
+    check('all release URLs point to the pinned tag', all(isinstance(url, str) and f'/v{release}/' in url for url in release_urls))
+    check('release index and manifest URLs are identical', ri.get('url')==ri.get('signatureUrl')==up.get('manifestUrl'))
+    check('adapter sha256 matches artifact', adapter.get('sha256')==art.get('sha256'))
+    check('adapter size matches artifact', adapter.get('size')==art.get('size'))
     check('no branch URL / main / HEAD', all(x not in (adapter.get('url') or '') for x in ['/latest', 'main', 'master', 'HEAD', 'nightly', 'raw/main']))
 else:
     status_key=up.get('status','external-dependency-blocked')
