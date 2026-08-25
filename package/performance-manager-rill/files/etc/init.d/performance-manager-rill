@@ -3,12 +3,9 @@
 #
 # PM<->Rill integration guard.
 #
-# Rill is an EXTERNAL runtime dependency released by its own upstream
-# repository.  This init script never builds Rill; it only starts an
-# upstream-provided Rill binary when one is installed and enabled.
-# When no upstream Rill binary is present the integration is fail-closed:
-# the service does not start and the Core capability gate reports
-# "external dependency blocked" instead of pretending Rill is available.
+# The adapter is owned and released by Performance Manager. This init script
+# starts the target-specific PM-owned binary and never downloads a Release
+# artifact at runtime.
 
 USE_PROCD=1
 START=29
@@ -42,6 +39,16 @@ resolve_binary() {
 		fi
 		BINARY_STATE='binary-invalid'
 		return 1
+	fi
+	if [ -x /usr/sbin/performance-manager-rill-adapter ]; then
+		BINARY_RESOLVED=/usr/sbin/performance-manager-rill-adapter
+		BINARY_STATE='ok'
+		return 0
+	fi
+	if [ -x /usr/bin/performance-manager-rill-adapter ]; then
+		BINARY_RESOLVED=/usr/bin/performance-manager-rill-adapter
+		BINARY_STATE='ok'
+		return 0
 	fi
 	if [ -x /usr/bin/rill-pm-adapter ]; then
 		BINARY_RESOLVED=/usr/bin/rill-pm-adapter

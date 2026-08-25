@@ -1,21 +1,13 @@
 {
-  "schemaVersion": 3,
+  "schemaVersion": 4,
   "contract": "rill-integration-status",
-  "scope": "PM-side static protocol/dependency contract + immutable Stable release pin only",
+  "scope": "PM-owned adapter and pm-rill-shadow v1 static contract",
   "staticContractVerdict": "PASS",
-  "releasePinStructureVerdict": "PASS",
   "functionalIntegrationVerdict": "NOT_EVALUATED",
-  "promotionPolicy": "This source-only report is non-promotable. It cannot produce a feature, release-candidate, or Stable PASS.",
-  "functionalIntegrationVerification": "Only the same-commit runtime/provenance/target evidence aggregator may evaluate functional integration.",
-  "upstreamStatus": "provisioned",
-  "upstreamReleaseVersion": "1.5.1",
-  "upstreamReleaseTag": "v1.5.1",
-  "upstreamReleaseCommitSha": "cba9b3d2fb2c6a71cb9d4a02b18852171ad05a1b",
-  "upstreamAdapterReleaseAssetVersion": "1.5.1",
-  "upstreamAdapterBinaryVersion": "0.15.0",
-  "upstreamProtocolVersion": 1,
-  "provisioned": true,
-  "blockedReason": null,
+  "upstreamReleaseVerification": "historical-only",
+  "adapterOwner": "hello-yunshu/luci-app-performance-manager",
+  "adapterBinary": "performance-manager-rill-adapter",
+  "rillMlVersion": "1.5.1",
   "checks": [
     {
       "name": "schema contract const==pm-rill-shadow",
@@ -26,197 +18,76 @@
       "ok": true
     },
     {
-      "name": "DEP protocol contract==pm-rill-shadow",
+      "name": "dependency contract name",
       "ok": true
     },
     {
-      "name": "DEP protocol protocolVersion==1",
+      "name": "dependency protocol owner",
       "ok": true
     },
     {
-      "name": "DEP protocol schemaFile present",
+      "name": "dependency protocol name/version",
       "ok": true
     },
     {
-      "name": "schema ops == {status,observe,outcome}",
+      "name": "required operations match schema",
       "ok": true
     },
     {
-      "name": "Core shadow-only ops contract",
+      "name": "context key bounds match schema",
       "ok": true
     },
     {
-      "name": "DEP requiredOps match",
+      "name": "Core shadow protocol wiring",
       "ok": true
     },
     {
-      "name": "schema contextKey pattern ^ctx-v1:",
+      "name": "Core exact linked versions",
       "ok": true
     },
     {
-      "name": "schema contextKey maxLength 512",
+      "name": "Core fail-closed tokens",
       "ok": true
     },
     {
-      "name": "DEP contextKey pattern <=> schema",
+      "name": "Core canonical binary resolver",
       "ok": true
     },
     {
-      "name": "Core contextKey wiring",
+      "name": "init canonical binary resolver",
       "ok": true
     },
     {
-      "name": "Core fail-closed gate token: binary-invalid",
+      "name": "explicit binary fails closed",
       "ok": true
     },
     {
-      "name": "Core fail-closed gate token: external-runtime-not-provisioned",
+      "name": "PM adapter exact registry dependency",
       "ok": true
     },
     {
-      "name": "Core fail-closed gate token: protocol-version-mismatch",
+      "name": "PM adapter binary/package identity",
       "ok": true
     },
     {
-      "name": "Core fail-closed gate token: contract-mismatch",
+      "name": "RillML exact dependency identity",
       "ok": true
     },
     {
-      "name": "Core fail-closed gate token: missing-required-capability",
+      "name": "integration package owns adapter",
       "ok": true
     },
     {
-      "name": "Core fail-closed gate token: const RILL_CONTRACT = 'pm-rill-shadow'",
+      "name": "historical upstream fixture retained",
       "ok": true
     },
     {
-      "name": "Core fail-closed gate token: const RILL_PROTOCOL_VERSION = 1",
+      "name": "state path/schema contract",
       "ok": true
     },
     {
-      "name": "Core fail-closed gate token: RILL_STATES.incompatible",
-      "ok": true
-    },
-    {
-      "name": "Core fail-closed gate token: RILL_STATES.notProvisioned",
-      "ok": true
-    },
-    {
-      "name": "Core declares shared rill_binary_path resolver",
-      "ok": true
-    },
-    {
-      "name": "Core resolver checks both default paths",
-      "ok": true
-    },
-    {
-      "name": "Core resolver fails closed on explicit binary",
-      "ok": true
-    },
-    {
-      "name": "init declares resolve_binary resolver",
-      "ok": true
-    },
-    {
-      "name": "init resolver checks both default paths",
-      "ok": true
-    },
-    {
-      "name": "init fails closed on explicit binary",
-      "ok": true
-    },
-    {
-      "name": "minimumReleaseVersion derives from upstream release",
-      "ok": true
-    },
-    {
-      "name": "minimumAdapterVersion present",
-      "ok": true
-    },
-    {
-      "name": "minimumRillVersion kept only as deprecated alias",
-      "ok": true
-    },
-    {
-      "name": "integration package never compiles Rill",
-      "ok": true
-    },
-    {
-      "name": "no bundled Rust source",
-      "ok": true
-    },
-    {
-      "name": "release pinned (no latest/download/branch)",
-      "ok": true
-    },
-    {
-      "name": "tag commit non-empty",
-      "ok": true
-    },
-    {
-      "name": "release tag derives from releaseVersion",
-      "ok": true
-    },
-    {
-      "name": "release channel == stable (never candidate)",
-      "ok": true
-    },
-    {
-      "name": "release index schemaVersion == 3 (fail-closed on unknown)",
-      "ok": true
-    },
-    {
-      "name": "publisher identity present",
-      "ok": true
-    },
-    {
-      "name": "adapter protocol version == 1",
-      "ok": true
-    },
-    {
-      "name": "adapter target == linux/x86_64/musl",
-      "ok": true
-    },
-    {
-      "name": "adapter release asset version vs binary version distinct",
-      "ok": true
-    },
-    {
-      "name": "adapter name derives from release",
-      "ok": true
-    },
-    {
-      "name": "adapter x86 identity matches artifact",
-      "ok": true
-    },
-    {
-      "name": "adapter x86 identity matches artifacts[x86]",
-      "ok": true
-    },
-    {
-      "name": "aarch64 artifact identity is complete",
-      "ok": true
-    },
-    {
-      "name": "all release URLs point to the pinned tag",
-      "ok": true
-    },
-    {
-      "name": "release index and manifest URLs are identical",
-      "ok": true
-    },
-    {
-      "name": "adapter sha256 matches artifact",
-      "ok": true
-    },
-    {
-      "name": "adapter size matches artifact",
-      "ok": true
-    },
-    {
-      "name": "no branch URL / main / HEAD",
+      "name": "advisory-only authority",
       "ok": true
     }
-  ],
-  "note": "STATIC contract + release-pin only; never a functional-integration claim. Real tag identity, signed-index signature and artifact integrity: scripts/verify_rill_release.py. Real adapter runtime and PM Core roundtrip: pm-rill-runtime / pm-core-rill-roundtrip jobs. A blocked upstream is never a Rill PASS."
+  ]
 }

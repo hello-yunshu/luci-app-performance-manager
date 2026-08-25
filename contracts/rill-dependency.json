@@ -1,10 +1,11 @@
 {
-  "schemaVersion": 3,
-  "contract": "pm<->rill-dependency",
-  "description": "Performance Manager's declared dependency contract on the upstream RillML (Rill) repository. RillML is the official name; Rill is the contextual shorthand. Rill is an EXTERNAL runtime owned, built and released by its upstream repository; this repository never compiles, vendors or natively tests Rill. The PM-side contract is the independent 'pm-rill-shadow' v1 protocol (deliberately distinct from Rill Runtime IPC API v1/v2/v3). This contract pins the immutable Rill Stable release tag, its resolved commit, the signed stable release index (Ed25519) and the exact pm-adapter artifact (linux/x86_64/musl) consumed by the packaged performance-manager-rill integration. Three versions are deliberately kept distinct: Rill release bundle version (1.5.1), rill-pm-adapter crate/binary version (0.15.0 Preview) and PM adapter protocol version (pm-rill-shadow v1). A missing/invalid entry keeps the Core capability gate fail-closed.",
+  "schemaVersion": 4,
+  "contract": "pm-rill-dependency",
+  "description": "Performance Manager owns its pm-rill-shadow adapter and consumes the generic crates.io rill-ml package. No RillML Release adapter artifact, stable-index selection, or upstream PM adapter owner is part of the active contract.",
   "protocol": {
-    "contract": "pm-rill-shadow",
-    "protocolVersion": 1,
+    "owner": "OpenWrt Performance Manager",
+    "name": "pm-rill-shadow",
+    "version": 1,
     "schemaFile": "contracts/rill-ipc.schema.json",
     "requiredOps": ["status", "observe", "outcome"],
     "contextKeyPattern": "^ctx-v1:",
@@ -14,72 +15,34 @@
     "required": ["context-partitioned-model", "goal-partition", "validated-outcome", "decision-ledger", "model-health"],
     "optional": ["bandit", "exploration", "recommendation"]
   },
-  "minimumReleaseVersion": "1.5.1",
-  "minimumAdapterVersion": "0.15.0",
-  "minimumRillVersion": "1.5.1",
-  "minimumRillVersionDeprecatedNote": "DEPRECATED alias for release bundle version; use minimumReleaseVersion (release bundle) and minimumAdapterVersion (adapter crate/binary). minimumRillVersion must never be compared against rill-pm-adapter --version, which reports 0.15.0.",
-  "versionRangeSemantics": "runtime must satisfy pm-rill-shadow protocolVersion==1 and every required capability; higher unknown protocol major is NOT assumed compatible; missing runtime, unreachable service, protocol mismatch or capability mismatch is fail-closed. Rill release bundle version (1.5.1) and the adapter crate/binary version (0.15.0) are different concepts and are verified separately. Rill Runtime IPC API and the PM adapter protocol are different contracts.",
-  "upstream": {
-    "repository": "https://github.com/hello-yunshu/rill-ml",
-    "releaseVersion": "1.5.1",
-    "releaseTag": "v1.5.1",
-    "tagCommitSha": "cba9b3d2fb2c6a71cb9d4a02b18852171ad05a1b",
-    "tagType": "annotated",
-    "minimumReleaseVersion": "1.5.1",
-    "minimumAdapterVersion": "0.15.0",
-    "releaseIndex": {
-      "channel": "stable",
-      "schemaVersion": 3,
-      "publisherKeyId": "rillml-examples-2026-001",
-      "publicKeyHex": "29fd1fc2f22bd7e405aec167ff0a0d8de791f011c415075d4c5f9f64fd93fc2e",
-      "url": "https://github.com/hello-yunshu/rill-ml/releases/download/v1.5.1/stable-index.json",
-      "signatureUrl": "https://github.com/hello-yunshu/rill-ml/releases/download/v1.5.1/stable-index.json",
-      "signatureFormat": "ed25519",
-      "canonicalSerialization": "compact JSON of the payload object with keys sorted (json.dumps(payload, sort_keys=True, separators=(',',':')))",
-      "note": "The Ed25519 signature is embedded in the stable-index payload wrapper under the 'signature' key; there is no separate signature asset file. The signature must be verified over the canonical serialization above with the fixed publisher public key."
-    },
-    "adapter": {
-      "kind": "pm-adapter",
-      "id": "rill-pm-adapter",
-      "releaseAssetVersion": "1.5.1",
-      "adapterVersion": "0.15.0",
-      "pmAdapterProtocolVersion": 1,
-      "target": {
-        "os": "linux",
-        "arch": "x86_64",
-        "libc": "musl"
-      },
-      "name": "rill-pm-adapter-1.5.1-linux-x86_64-musl",
-      "url": "https://github.com/hello-yunshu/rill-ml/releases/download/v1.5.1/rill-pm-adapter-1.5.1-linux-x86_64-musl",
-      "sha256": "253963e3dd88a9c89129643fd22d40e0443ac2631bdb476d452da8c0121ebbb1",
-      "size": 1278072
-    },
-    "artifact": {
-      "id": "rill-pm-adapter",
-      "name": "rill-pm-adapter-1.5.1-linux-x86_64-musl",
-      "url": "https://github.com/hello-yunshu/rill-ml/releases/download/v1.5.1/rill-pm-adapter-1.5.1-linux-x86_64-musl",
-      "sha256": "253963e3dd88a9c89129643fd22d40e0443ac2631bdb476d452da8c0121ebbb1",
-      "size": 1278072
-    },
-    "artifacts": {
-      "linux-x86_64-musl": {
-        "name": "rill-pm-adapter-1.5.1-linux-x86_64-musl",
-        "url": "https://github.com/hello-yunshu/rill-ml/releases/download/v1.5.1/rill-pm-adapter-1.5.1-linux-x86_64-musl",
-        "sha256": "253963e3dd88a9c89129643fd22d40e0443ac2631bdb476d452da8c0121ebbb1",
-        "size": 1278072
-      },
-      "linux-aarch64-musl": {
-        "name": "rill-pm-adapter-1.5.1-linux-aarch64-musl",
-        "url": "https://github.com/hello-yunshu/rill-ml/releases/download/v1.5.1/rill-pm-adapter-1.5.1-linux-aarch64-musl",
-        "sha256": "0a30ec185cff3ae4973f73adf1381b76a1e4c76fdbe5308c4d6e7468157727f3",
-        "size": 1126048
-      }
-    },
-    "manifestUrl": "https://github.com/hello-yunshu/rill-ml/releases/download/v1.5.1/stable-index.json",
-    "pmAdapterProtocolVersion": 1,
-    "status": "provisioned",
-    "provisionedAt": "2026-08-24T19:30:17Z",
-    "verifiedBy": "v1.5.1 tag -> commit (cba9b3d2) identity PASS, GitHub Release draft=false/prerelease=false, stable-index.json Ed25519 signature PASS (publisher rillml-examples-2026-001), schemaVersion 3/channel stable, exact pm-adapter/linux/x86_64/musl selection, and actual downloaded SHA + size PASS.",
-    "note": "The Rill Stable release bundle is 1.5.1; the rill-pm-adapter crate/binary internal version is 0.15.0 (Preview); the PM adapter protocol is pm-rill-shadow v1. These three are distinct and reported separately. The pinned adapter is advisory-only and never mutates OpenWrt/UCI/sysctl/ethtool state. All mutations remain in PM Core. The x86/64 gate consumes the linux-x86_64-musl artifact; linux-aarch64-musl identity is recorded from the signed index but target runtime qualification remains separate."
+  "adapter": {
+    "owner": "hello-yunshu/luci-app-performance-manager",
+    "binary": "performance-manager-rill-adapter",
+    "version": "1.0.1",
+    "canonicalPath": "/usr/sbin/performance-manager-rill-adapter",
+    "license": "MIT"
+  },
+  "rillMl": {
+    "package": "rill-ml",
+    "registry": "crates.io",
+    "version": "1.5.1",
+    "resolution": "exact",
+    "features": ["serde"]
+  },
+  "state": {
+    "directory": "/etc/performance-manager/rill",
+    "file": "adapter-state.json",
+    "schemaVersion": 1,
+    "legacyVersions": ["PM v1.0.0 + Rill 1.2.0 adapter", "PM current + Rill 1.5.1 adapter"]
+  },
+  "security": {
+    "authority": "advisory-only",
+    "hostMutation": false,
+    "pmOwns": ["authorize", "govern", "apply", "verify", "rollback"]
+  },
+  "historicalCompatibility": {
+    "upstreamV151AdapterFixture": "contracts/upstream/rill-pm-adapter-v1.5.1-contract.json",
+    "upstreamV151ReleaseVerification": "historical-only",
+    "upstreamPmAdapterRequired": false
   }
 }

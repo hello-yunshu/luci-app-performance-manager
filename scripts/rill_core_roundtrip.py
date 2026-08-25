@@ -1,12 +1,11 @@
 #!/usr/bin/env python3
-"""Real PM Core <-> real released rill-pm-adapter lifecycle (CI, OpenWrt rootfs).
+"""Real PM Core <-> PM-owned adapter lifecycle (CI, OpenWrt rootfs).
 
 This is the stable PM-Core lifecycle gate.  It does NOT mirror the Core and does
 NOT use the mock adapter.  Inside the official OpenWrt rootfs it:
 
   1. installs the RAW shipped performance-manager.uc + contracts.uc (verbatim),
-  2. installs the EXACT verified rill-pm-adapter artifact selected by the contract at
-     /usr/bin/rill-pm-adapter (the shared empty-binary default-resolution path),
+  2. installs the EXACT verified PM-owned adapter artifact at its canonical path,
   3. starts ubusd, then the real adapter, then the real Core daemon,
   4. calls `ubus call performance-manager rill_status` and asserts the Core
      negotiated the real adapter against the contract release/adapter/protocol identity,
@@ -43,8 +42,8 @@ EVIDENCE_PATH = DOCS / 'pm-core-rill-roundtrip.json'
 JOB_EVIDENCE_PATH = DOCS / 'rill-core-integration.json'
 POLL_TIMEOUT_S = 45
 DEP = json.loads((ROOT / 'contracts/rill-dependency.json').read_text())
-EXPECTED_RELEASE = DEP['upstream']['releaseVersion']
-EXPECTED_ADAPTER = DEP['upstream']['adapter']['adapterVersion']
+EXPECTED_RELEASE = DEP['rillMl']['version']
+EXPECTED_ADAPTER = DEP['adapter']['version']
 EXPECTED_PROTOCOL = DEP['protocol']['protocolVersion']
 
 
@@ -148,7 +147,7 @@ def main() -> int:
         'coreSha256': hashlib.sha256(CORE.read_bytes()).hexdigest(),
         'adapter': {'name': adapter.name,
                     'sha256': hashlib.sha256(adapter.read_bytes()).hexdigest(),
-                    'installTarget': '/usr/bin/rill-pm-adapter'},
+                    'installTarget': '/usr/sbin/performance-manager-rill-adapter'},
         'ubusdStarted': False, 'adapterStarted': False, 'daemonStarted': False,
         'published': False, 'rillStatus': None,
         'lifecycle': {
@@ -164,7 +163,7 @@ def main() -> int:
         log('installing raw Core + contracts + verified adapter into rootfs')
         sh('sudo', 'install', '-D', '-m', '0755', str(CORE), str(rootfs / 'usr/sbin/performance-manager.uc'))
         sh('sudo', 'install', '-D', '-m', '0644', str(CONTRACTS), str(rootfs / 'usr/share/performance-manager/contracts.uc'))
-        sh('sudo', 'install', '-D', '-m', '0755', str(adapter), str(rootfs / 'usr/bin/rill-pm-adapter'))
+        sh('sudo', 'install', '-D', '-m', '0755', str(adapter), str(rootfs / 'usr/sbin/performance-manager-rill-adapter'))
         # Core's unique default is /run/performance-manager/rill.sock.  The
         # official rootfs does not guarantee these runtime directories exist.
         for d in ('run', 'run/performance-manager', 'var/run/ubus', 'var/run',
@@ -190,8 +189,8 @@ def main() -> int:
         if not ev['ubusdStarted']:
             log('FATAL: ubusd exited'); return 1
 
-        log('starting real rill-pm-adapter')
-        a = chroot(rootfs, '/usr/bin/rill-pm-adapter',
+        log('starting real performance-manager-rill-adapter')
+        a = chroot(rootfs, '/usr/sbin/performance-manager-rill-adapter',
                    '--socket', '/run/performance-manager/rill.sock',
                    '--state-dir', '/etc/performance-manager/rill',
                    '--max-message', '65536', '--timeout-ms', '1000')
@@ -205,11 +204,10 @@ def main() -> int:
                 out, _ = a.communicate(timeout=3)
             except Exception:
                 pass
-            log('FATAL: rill-pm-adapter exited early rc=%s output=%r' % (rc, (out or '')[-800:]))
+            log('FATAL: performance-manager-rill-adapter exited early rc=%s output=%r' % (rc, (out or '')[-800:]))
             return 1
 
-        # Adapter publishes the socket (shared empty-binary default path is the
-        # installed /usr/bin/rill-pm-adapter; socket is the Core's default).
+        # Adapter publishes the socket at the Core's canonical default path.
         sock = rootfs / 'run/performance-manager/rill.sock'
         sock_deadline = time.time() + 15
         while time.time() < sock_deadline:
@@ -218,7 +216,7 @@ def main() -> int:
             time.sleep(0.5)
         if not sock.exists():
             log('FATAL: adapter socket never appeared'); ev['verdict'] = 'FAIL'; return 1
-        log('adapter at /usr/bin/rill-pm-adapter published %s' % sock)
+        log('adapter at /usr/sbin/performance-manager-rill-adapter published %s' % sock)
 
         log('starting raw shipped Performance Manager Core daemon')
         daemon = chroot(rootfs, '/usr/sbin/performance-manager.uc')
@@ -236,13 +234,13 @@ def main() -> int:
         ok = isinstance(parsed, dict)
         ev['rillStatus'] = parsed if parsed else payload
         state = (parsed or {}).get('state') if isinstance(parsed, dict) else None
-        release = (parsed or {}).get('releaseVersion') if isinstance(parsed, dict) else None
+        release = (parsed or {}).get('rillVersion') if isinstance(parsed, dict) else None
         adapter_ver = (parsed or {}).get('adapterVersion') if isinstance(parsed, dict) else None
         proto = (parsed or {}).get('protocolVersion') if isinstance(parsed, dict) else None
         binary_effective = (((parsed or {}).get('binary') or {}).get('effective')) if isinstance(parsed, dict) else None
         pass_ = (ok and state in ('available', 'learning') and release == EXPECTED_RELEASE
                  and adapter_ver == EXPECTED_ADAPTER and proto == EXPECTED_PROTOCOL
-                 and binary_effective == '/usr/bin/rill-pm-adapter')
+                 and binary_effective == '/usr/sbin/performance-manager-rill-adapter')
         status_verdict = 'PASS' if pass_ else 'FAIL'
         # Status compatibility is one sub-gate, not the lifecycle verdict.
         # Keep the overall evidence BLOCKED until Observe -> exact execution ->
@@ -346,7 +344,7 @@ def main() -> int:
         # Restart the exact adapter after Observe and before Outcome.  Its
         # persistent decision ledger must preserve the pending decision.
         stop_process(a)
-        a = chroot(rootfs, '/usr/bin/rill-pm-adapter',
+        a = chroot(rootfs, '/usr/sbin/performance-manager-rill-adapter',
                    '--socket', '/run/performance-manager/rill.sock',
                    '--state-dir', '/etc/performance-manager/rill',
                    '--max-message', '65536', '--timeout-ms', '1000')

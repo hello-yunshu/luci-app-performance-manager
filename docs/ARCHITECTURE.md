@@ -1,4 +1,4 @@
-# Architecture — 1.0.0-rc.8
+# Architecture — 1.0.1
 
 ## Authority boundary
 
@@ -10,14 +10,14 @@ Rill is a sidecar, not an actuator:
 
 The Companion Agent is an endpoint evidence utility for explicit tests and has no router-control surface.
 
-### Rill externalization
+### PM-owned Rill adapter
 
-Since 1.0.0-rc.4 Rill is an **external runtime dependency**: Performance Manager only consumes the Rill binary built and released by the Rill upstream repository. This repository no longer vendors, compiles, cross-compiles or natively tests Rill's Rust implementation (`performance-manager-rill/src/` was removed). `performance-manager-rill` is now an integration/meta package — no Rust build path, `PKG_BUILD_DEPENDS` empty, `Build/Compile` a no-op — containing only PM-specific glue: a fail-closed init guard and `lib/upgrade/keep.d`. Its init script starts nothing when the upstream Rill binary is absent and logs `external Rill runtime not installed; integration blocked (fail-closed)`.
+Since 1.0.1 the consumer-specific adapter is owned by Performance Manager at `integrations/performance-manager-rill-adapter/`. It links exact crates.io `rill-ml = 1.5.1`, implements only the advisory `pm-rill-shadow` v1 contract, and is packaged as target-specific `performance-manager-rill-adapter`. The arch-independent all-in-one APK does not contain native code; install the target package for Rill Intelligence. No RillML Release adapter artifact is downloaded or selected.
 
-- The `shadow` rill UCI section gains a `binary` option (default empty) pointing at the upstream Rill runtime path; empty = external dependency not installed and integration is blocked.
-- `contracts/rill-dependency.json` formalizes the PM↔Rill dependency contract (protocol api=2, ops status/observe/outcome, `ctx-v1:` ContextKey maxLength 512, required capabilities, `minimumRillVersion`, upstream release provenance); `scripts/rill_contract_check.py` validates it.
+- The `shadow` rill UCI section resolves explicit paths first, then `/usr/sbin/performance-manager-rill-adapter`, `/usr/bin/performance-manager-rill-adapter`, and only then legacy paths; invalid explicit paths fail closed.
+- `contracts/rill-dependency.json` formalizes PM ownership, exact `rill-ml` registry dependency, protocol v1, state schema 1 and advisory authority; `scripts/rill_contract_check.py` validates it.
 - Core enforces a capability/protocol gate: `external-runtime-missing`, `protocol-major-mismatch`, `RILL_PROTOCOL_API`, shadow-only ops. Rill missing/unreachable/protocol-incompatible ⇒ Rill unavailable/incompatible, fail-closed, never auto-apply, never fake recommendation.
-- Ownership split: `performance-manager` owns Core; `luci-app-performance-manager` owns the LuCI UI; `performance-manager-rill` owns only the PM↔upstream Rill glue; the Rill upstream owns the native runtime/ML/cross-build/version/release.
+- Ownership split: `performance-manager` owns Core; `luci-app-performance-manager` owns the LuCI UI; Performance Manager owns the adapter, packaging and release; RillML owns only generic crates and contracts.
 
 ## Core invariants
 

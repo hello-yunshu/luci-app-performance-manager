@@ -15,15 +15,20 @@ env:
 jobs:
   # Official OpenWrt SDK build for the packages this repository OWNS:
   # performance-manager (Core), luci-app-performance-manager (UI), the
-  # performance-manager-rill integration package (which never compiles Rill),
+  # performance-manager-rill integration package and PM-owned native adapter,
   # and the physical all-in-one APK containing all repository-owned payloads.
   # Real build evidence comes from this remote Action — never a local mock.
-  # Rill is an EXTERNAL dependency: no Rust toolchain/cargo job exists here.
   openwrt-sdk-build:
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - uses: actions/checkout@v7
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: 1.94.0
+          targets: x86_64-unknown-linux-musl
+      - name: Build and stage PM-owned adapter
+        run: python3 scripts/build_pm_adapter.py --target x86_64-unknown-linux-musl
       - name: Install host dependencies
         shell: bash
         run: |
@@ -56,7 +61,7 @@ jobs:
           echo "filename=$sdk" >> "$GITHUB_OUTPUT"
           echo "sha256=$sdk_archive_sha" >> "$GITHUB_OUTPUT"
       - name: Restore verified OpenWrt SDK archive
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
+        uses: actions/cache@v6
         with:
           path: .cache/openwrt-sdk/${{ steps.openwrt-sdk.outputs.filename }}
           key: openwrt-sdk-${{ runner.os }}-${{ runner.arch }}-${{ env.OPENWRT_VERSION }}-${{ steps.openwrt-sdk.outputs.sha256 }}
@@ -88,7 +93,7 @@ jobs:
           echo "sha256=$feeds_sha" >> "$GITHUB_OUTPUT"
       - name: Restore pinned OpenWrt feed repositories
         id: openwrt-feeds-cache
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
+        uses: actions/cache@v6
         with:
           path: ${{ env.SDKDIR }}/feeds
           key: openwrt-feeds-${{ runner.os }}-${{ runner.arch }}-${{ env.OPENWRT_VERSION }}-${{ steps.openwrt-feeds.outputs.sha256 }}
@@ -116,6 +121,8 @@ jobs:
         run: cd "$SDKDIR" && make -j2 package/luci-app-performance-manager/compile V=s
       - name: Build Rill integration package (glue only, never compiles Rill)
         run: cd "$SDKDIR" && make -j2 package/performance-manager-rill/compile V=s
+      - name: Build PM-owned native adapter package
+        run: cd "$SDKDIR" && make -j2 package/performance-manager-rill-adapter/compile V=s
       - name: Build all-in-one APK (Core + LuCI + rpcd + zh-cn + Rill glue)
         run: cd "$SDKDIR" && make -j2 package/luci-app-performance-manager-all/compile V=s
       - name: Assert expected packages present (exact APK metadata match)
@@ -124,7 +131,7 @@ jobs:
           set -euo pipefail
           cd "$SDKDIR"
           find bin -name '*.apk' -o -name '*.ipk' | sort
-          # Version part of the APK pkgver: VERSION is 1.0.0-rc.11 -> 1.0.0_rc11.
+          # Version part of the APK pkgver is derived from VERSION.
           apk_version="$(sed -E 's/-rc\./_rc/' "$GITHUB_WORKSPACE/VERSION")"
           # Exact verification reads .PKGINFO (pkgname/pkgver/arch/deps) instead
           # of filename prefix, so performance-manager and performance-manager-rill
@@ -165,14 +172,14 @@ jobs:
             --verification docs/apk-verification.json \
             --out all-in-one-release
       - name: Upload exact all-in-one prerelease asset
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        uses: actions/upload-artifact@v7
         with:
           name: openwrt-${{ env.SDK_CACHE_TAG }}-all-in-one-apk
           path: all-in-one-release/
           if-no-files-found: error
       - name: Upload package artifacts and build evidence
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        uses: actions/upload-artifact@v7
         with:
           name: openwrt-${{ env.SDK_CACHE_TAG }}-packages-and-evidence
           path: |
@@ -203,9 +210,9 @@ jobs:
     runs-on: ubuntu-latest
     needs: openwrt-sdk-build
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - uses: actions/checkout@v7
       - name: Download SDK build evidence
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        uses: actions/download-artifact@v8
         with:
           name: openwrt-25.12.5-x86-64-packages-and-evidence
           path: evidence
@@ -236,7 +243,7 @@ jobs:
             --expected-commit "$GITHUB_SHA" \
             --out docs/final-release-evidence.json
       - name: Upload final build evidence
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        uses: actions/upload-artifact@v7
         with:
           name: final-release-evidence-build
           path: docs/final-release-evidence.json

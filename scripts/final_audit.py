@@ -86,12 +86,11 @@ local_pass = (
     and host.get("errorCount") == 0
     and source.get("allPassed") is True
     and rill_static.get("staticContractVerdict") == "PASS"
-    and rill_static.get("releasePinStructureVerdict") == "PASS"
 )
 
 packages = {}
 for name in ("performance-manager", "luci-app-performance-manager", "performance-manager-rill",
-             "luci-app-performance-manager-all"):
+             "performance-manager-rill-adapter", "luci-app-performance-manager-all"):
     root = ROOT / "package" / name
     files = [path for path in root.rglob("*") if path.is_file() and "__pycache__" not in path.parts]
     packages[name] = {

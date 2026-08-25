@@ -64,7 +64,19 @@
       "status": "pass"
     },
     {
+      "name": "py_compile scripts/build_pm_adapter.py",
+      "status": "pass"
+    },
+    {
+      "name": "py_compile scripts/build_pm_provenance.py",
+      "status": "pass"
+    },
+    {
       "name": "py_compile scripts/build_release_manifest.py",
+      "status": "pass"
+    },
+    {
+      "name": "py_compile scripts/check_action_refs.py",
       "status": "pass"
     },
     {
@@ -145,6 +157,10 @@
     },
     {
       "name": "py_compile scripts/verify_apks.py",
+      "status": "pass"
+    },
+    {
+      "name": "py_compile scripts/verify_historical_rill_release.py",
       "status": "pass"
     },
     {

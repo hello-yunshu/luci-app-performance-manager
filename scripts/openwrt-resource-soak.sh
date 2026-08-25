@@ -30,7 +30,7 @@ jget() { printf '%s\n' "$1" | jsonfilter -e "$2" 2>/dev/null || true; }
 is_uint() { case "$1" in ''|*[!0-9]*) return 1;; *) return 0;; esac; }
 ticks() { awk '{print $14+$15}' "/proc/$1/stat" 2>/dev/null || true; }
 rss() { awk '/^VmRSS:/ {print $2}' "/proc/$1/status" 2>/dev/null || true; }
-rill_pid() { pidof rill-pm-adapter 2>/dev/null | awk '{print $1}'; }
+rill_pid() { pidof performance-manager-rill-adapter 2>/dev/null | awk '{print $1}'; }
 state_max() {
   max=0
   for file in "$RILL_STATE_DIR"/*; do
