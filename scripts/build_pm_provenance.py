@@ -29,6 +29,7 @@ def main() -> int:
         "provenanceVerdict": "PASS",
         "adapterOwner": dep["adapter"]["owner"],
         "adapterBinary": dep["adapter"]["binary"],
+        "artifactName": f'{dep["adapter"]["binary"]}-x86_64-linux-musl',
         "adapterVersion": dep["adapter"]["version"],
         "adapterSha256": sha,
         "adapterSize": size,

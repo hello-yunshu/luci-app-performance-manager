@@ -43,7 +43,7 @@ def main() -> int:
         "protocolContract": dep["protocol"]["name"],
         "protocolVersion": dep["protocol"]["version"],
         "stateSchemaVersion": dep["state"]["schemaVersion"],
-        "artifactName": adapter["binary"],
+        "artifactName": f'{adapter["binary"]}-x86_64-linux-musl',
         "artifactSha256": None,
         "artifactSize": None,
         "status": "pm-owned",
