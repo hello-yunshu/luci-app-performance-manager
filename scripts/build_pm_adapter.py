@@ -32,7 +32,7 @@ def main() -> int:
         cwd=ROOT,
         check=True,
     )
-    source = ROOT / "target" / args.target / args.profile / "performance-manager-rill-adapter"
+    source = MANIFEST.parent / "target" / args.target / args.profile / "performance-manager-rill-adapter"
     destination = ROOT / "package/performance-manager-rill-adapter/files/usr/sbin/performance-manager-rill-adapter"
     if not source.is_file():
         raise SystemExit(f"missing adapter binary: {source}")
