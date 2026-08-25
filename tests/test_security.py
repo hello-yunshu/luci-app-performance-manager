@@ -7,7 +7,7 @@ SCHEMA=json.loads((ROOT/'contracts/rill-ipc.schema.json').read_text())
 def allowed_ops():
     """Allowed op values = the per-op consts of the oneOf branches
     (statusRequest/observeRequest/outcomeRequest in rill-ipc.schema.json,
-    mirroring the tagged Request enum in rill-pm-adapter v1.2.0)."""
+    mirroring the tagged Request enum in rill-pm-adapter v1.5.1)."""
     return [SCHEMA['$defs'][k]['properties']['op']['const']
             for k in ('statusRequest', 'observeRequest', 'outcomeRequest')]
 
