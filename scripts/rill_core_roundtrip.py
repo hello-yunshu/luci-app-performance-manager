@@ -44,7 +44,7 @@ POLL_TIMEOUT_S = 45
 DEP = json.loads((ROOT / 'contracts/rill-dependency.json').read_text())
 EXPECTED_RELEASE = DEP['rillMl']['version']
 EXPECTED_ADAPTER = DEP['adapter']['version']
-EXPECTED_PROTOCOL = DEP['protocol']['protocolVersion']
+EXPECTED_PROTOCOL = DEP['protocol']['version']
 
 
 def sh(*argv):
