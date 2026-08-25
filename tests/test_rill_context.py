@@ -10,7 +10,7 @@ CORE = (ROOT / 'package/performance-manager/files/usr/sbin/performance-manager.u
 
 def branch_required(op):
     """Required fields of the oneOf per-op branch (rill-ipc.schema.json mirrors
-    the tagged Request enum in rill-pm-adapter v1.2.0 lib.rs)."""
+    the tagged Request enum in rill-pm-adapter v1.5.1 lib.rs)."""
     node = SCHEMA['$defs'].get(f'{op}Request')
     return set(node['required']) if node else set()
 
@@ -55,7 +55,7 @@ class RillContextTests(unittest.TestCase):
                 self.assertIn(field, CORE)
 
     def test_outcome_validated_only_after_safe_rollback(self):
-        # The v1.2.0 schema types validated as a boolean (not a const), so the
+        # The v1.5.1 schema types validated as a boolean (not a const), so the
         # validated-only-after-safety rule is enforced by the Core, not the
         # wire schema: a reward/outcome is only emitted after safe rollback of
         # the candidate and a health pass; otherwise no reward is sent at all.
@@ -74,7 +74,7 @@ class RillContextTests(unittest.TestCase):
         self.assertIn('const GOALS = [ \'balanced\', \'throughput\', \'latency\', \'cpu_efficiency\' ]', CORE)
 
     def test_measurement_class_values_match_core(self):
-        # Rill v1.2.0 types measurementClass as an open string; the Core is the
+        # Rill v1.5.1 types measurementClass as an open string; the Core is the
         # source of the closed set of methodology values.
         self.assertIn("['controlled_ab','passive_before_after','health_only']", CORE)
         for value in ('controlled_ab', 'passive_before_after', 'health_only'):
