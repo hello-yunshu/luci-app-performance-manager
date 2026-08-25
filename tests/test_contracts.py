@@ -104,7 +104,7 @@ class ContractTests(unittest.TestCase):
         v=jsonschema.Draft202012Validator(sch)
         # The schema is oneOf over per-op $defs with additionalProperties:false,
         # mirroring the tagged Request enum (deny_unknown_fields) in
-        # crates/rill-pm-adapter/src/lib.rs v1.2.0: a valid outcome carries ONLY
+        # crates/rill-pm-adapter/src/lib.rs v1.5.1: a valid outcome carries ONLY
         # the outcomeRequest fields (no observe-only metadata).
         outcome={ 'contract':'pm-rill-shadow','protocolVersion':1,'requestId':'o1','op':'outcome','validated':True,'actionId':'nic.ring.floor','decisionId':'d1','goal':'balanced','modelGeneration':1,
                   'sessionId':'s1','reward':0.25,
