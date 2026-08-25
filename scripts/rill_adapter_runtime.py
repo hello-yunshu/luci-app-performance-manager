@@ -17,7 +17,7 @@ the real runtime verdicts that the wire harness deliberately leaves BLOCKED:
                         REAL adapter with its frozen error codes (never silently
                         accepted, never a self-invented mock contract)
 
-Protocol source of truth: pinned Rill v1.2.0
+Protocol source of truth: the pinned Rill release in contracts/rill-dependency.json
   crates/rill-pm-adapter/src/lib.rs  (Request/Response envelopes, error codes,
                                       observe/outcome ledger semantics)
   crates/rill-pm-adapter/src/main.rs (NDJSON framing, oversized-frame fail-closed)
@@ -31,7 +31,7 @@ non-zero (BLOCKED included): there is no "BLOCKED + green workflow" path.
 
 Usage:
   python3 scripts/rill_adapter_runtime.py \
-    --adapter <path/to/rill-pm-adapter-1.2.0-linux-x86_64-musl> \
+    --adapter <path/to/contract-selected-rill-pm-adapter> \
     --socket /run/pm-rill.sock \
     --state-dir <dir> --out-dir docs
 """
@@ -53,14 +53,16 @@ RESP_SCHEMA = json.loads((ROOT / 'contracts/rill-ipc-response.schema.json').read
 DEP = json.loads((ROOT / 'contracts/rill-dependency.json').read_text())
 
 # Expected wire identity, driven by the pinned dependency contract (never
-# hardcoded elsewhere).  Three distinct versions: release bundle 1.2.0, adapter
+# hardcoded elsewhere).  Three distinct versions: release bundle, adapter
 # crate/binary 0.15.0 (Preview), pm-rill-shadow protocol v1.
-EXPECTED_RELEASE = (DEP.get('upstream') or {}).get('releaseVersion', '1.2.0')
-EXPECTED_ADAPTER = (DEP.get('upstream', {}).get('adapter') or {}).get('adapterVersion', '0.15.0')
+EXPECTED_RELEASE = (DEP.get('upstream') or {}).get('releaseVersion')
+EXPECTED_ADAPTER = (DEP.get('upstream', {}).get('adapter') or {}).get('adapterVersion')
 CONTRACT = (DEP.get('protocol') or {}).get('contract', 'pm-rill-shadow')
 PROTOCOL = (DEP.get('protocol') or {}).get('protocolVersion', 1)
 REQUIRED_CAPS = list((DEP.get('capabilities') or {}).get('required', []))
 MAX_REQUEST_ID_LEN = 128
+if not EXPECTED_RELEASE or not EXPECTED_ADAPTER:
+    raise SystemExit('FATAL: contract release/adapter identity is missing')
 
 try:
     import jsonschema
@@ -203,7 +205,7 @@ def status_gate(res, request_id):
     if not ok:
         return (False, reason)
     resp = res['resp']
-    # Real wire fields: rillVersion (1.2.0) and adapterVersion (0.15.0).
+    # Real wire fields are compared with the contract-selected identities.
     if resp.get('rillVersion') != EXPECTED_RELEASE:
         return (False, f"rillVersion={resp.get('rillVersion')!r} != {EXPECTED_RELEASE}")
     if resp.get('adapterVersion') != EXPECTED_ADAPTER:
@@ -354,7 +356,7 @@ def main(argv=None) -> int:
                f"rc={vp.returncode}" + ('' if vp.returncode == 0 else f" out={vp.stdout.strip()[:120]} err={vp.stderr.strip()[:120]}"))
         combined = (vp.stdout + vp.stderr)
         if vp.returncode == 0:
-            # Adapter crate/binary version is 0.15.0 (Preview), NOT the release 1.2.0.
+            # Adapter crate/binary version is distinct from the release bundle version.
             rt['versionVerdict'] = 'PASS' if EXPECTED_ADAPTER in combined else 'FAIL'
             record(log, f'adapter --version reports {EXPECTED_ADAPTER}', rt['versionVerdict'],
                    ''.join(combined.splitlines())[:160])

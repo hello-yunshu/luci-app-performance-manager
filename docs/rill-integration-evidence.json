@@ -1,43 +1,43 @@
 {
   "schemaVersion": 2,
   "pm": {
-    "version": "1.0.0-rc.7"
+    "version": "1.0.0"
   },
   "rill": {
-    "releaseVersion": "1.2.0",
-    "releaseTag": "v1.2.0",
-    "expectedCommitSha": "dc96fdb3bf55eacdd1c093f1be08d1c9daed4400",
-    "resolvedCommitSha": "dc96fdb3bf55eacdd1c093f1be08d1c9daed4400",
+    "releaseVersion": "1.5.1",
+    "releaseTag": "v1.5.1",
+    "expectedCommitSha": "cba9b3d2fb2c6a71cb9d4a02b18852171ad05a1b",
+    "resolvedCommitSha": "cba9b3d2fb2c6a71cb9d4a02b18852171ad05a1b",
     "tagType": "annotated",
     "tagIdentityVerdict": "PASS"
   },
   "release": {
-    "tag": "v1.2.0",
+    "tag": "v1.5.1",
     "draft": false,
     "prerelease": false,
-    "publishedAt": "2026-08-18T13:36:11Z",
-    "htmlUrl": "https://github.com/hello-yunshu/rill-ml/releases/tag/v1.2.0"
+    "publishedAt": "2026-08-24T19:30:17Z",
+    "htmlUrl": "https://github.com/hello-yunshu/rill-ml/releases/tag/v1.5.1"
   },
   "releaseIndex": {
     "schemaVersion": 3,
     "channel": "stable",
     "publisherKeyId": "rillml-examples-2026-001",
-    "generatedAt": "2026-08-18T13:36:06Z",
+    "generatedAt": "2026-08-24T19:30:10Z",
     "indexSignatureVerdict": "PASS"
   },
   "artifact": {
-    "name": "rill-pm-adapter-1.2.0-linux-x86_64-musl",
-    "url": "https://github.com/hello-yunshu/rill-ml/releases/download/v1.2.0/rill-pm-adapter-1.2.0-linux-x86_64-musl",
+    "name": "rill-pm-adapter-1.5.1-linux-x86_64-musl",
+    "url": "https://github.com/hello-yunshu/rill-ml/releases/download/v1.5.1/rill-pm-adapter-1.5.1-linux-x86_64-musl",
     "targetOs": "linux",
     "targetArch": "x86_64",
     "targetLibc": "musl",
     "pmAdapterProtocolVersion": 1,
-    "releaseAssetVersion": "1.2.0",
+    "releaseAssetVersion": "1.5.1",
     "adapterVersion": "0.15.0",
-    "signedIndexSize": 1278136,
-    "actualSize": 1278136,
-    "signedIndexSha256": "84fcfa65c59639281b9d33f39d480ea063b3093857101dcc3bcf9462d96f9579",
-    "actualSha256": "84fcfa65c59639281b9d33f39d480ea063b3093857101dcc3bcf9462d96f9579",
+    "signedIndexSize": 1278072,
+    "actualSize": 1278072,
+    "signedIndexSha256": "253963e3dd88a9c89129643fd22d40e0443ac2631bdb476d452da8c0121ebbb1",
+    "actualSha256": "253963e3dd88a9c89129643fd22d40e0443ac2631bdb476d452da8c0121ebbb1",
     "sha256Match": true,
     "sizeMatch": true,
     "artifactIntegrityVerdict": "PASS"

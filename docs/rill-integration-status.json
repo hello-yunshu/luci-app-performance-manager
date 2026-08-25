@@ -8,10 +8,10 @@
   "promotionPolicy": "This source-only report is non-promotable. It cannot produce a feature, release-candidate, or Stable PASS.",
   "functionalIntegrationVerification": "Only the same-commit runtime/provenance/target evidence aggregator may evaluate functional integration.",
   "upstreamStatus": "provisioned",
-  "upstreamReleaseVersion": "1.2.0",
-  "upstreamReleaseTag": "v1.2.0",
-  "upstreamReleaseCommitSha": "dc96fdb3bf55eacdd1c093f1be08d1c9daed4400",
-  "upstreamAdapterReleaseAssetVersion": "1.2.0",
+  "upstreamReleaseVersion": "1.5.1",
+  "upstreamReleaseTag": "v1.5.1",
+  "upstreamReleaseCommitSha": "cba9b3d2fb2c6a71cb9d4a02b18852171ad05a1b",
+  "upstreamAdapterReleaseAssetVersion": "1.5.1",
   "upstreamAdapterBinaryVersion": "0.15.0",
   "upstreamProtocolVersion": 1,
   "provisioned": true,
@@ -126,7 +126,7 @@
       "ok": true
     },
     {
-      "name": "minimumReleaseVersion present",
+      "name": "minimumReleaseVersion derives from upstream release",
       "ok": true
     },
     {
@@ -154,7 +154,7 @@
       "ok": true
     },
     {
-      "name": "release tag == v1.2.0",
+      "name": "release tag derives from releaseVersion",
       "ok": true
     },
     {
@@ -182,7 +182,27 @@
       "ok": true
     },
     {
-      "name": "adapter name exact",
+      "name": "adapter name derives from release",
+      "ok": true
+    },
+    {
+      "name": "adapter x86 identity matches artifact",
+      "ok": true
+    },
+    {
+      "name": "adapter x86 identity matches artifacts[x86]",
+      "ok": true
+    },
+    {
+      "name": "aarch64 artifact identity is complete",
+      "ok": true
+    },
+    {
+      "name": "all release URLs point to the pinned tag",
+      "ok": true
+    },
+    {
+      "name": "release index and manifest URLs are identical",
       "ok": true
     },
     {
