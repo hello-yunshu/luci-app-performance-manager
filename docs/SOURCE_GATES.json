@@ -1,17 +1,17 @@
 {
-  "planningBaseline": "v0.3.2 Contract Freeze",
+  "planningBaseline": "PM-owned adapter migration",
   "scope": "structural-source-only",
   "forbiddenApi": [
     [
-      "no Cargo.toml reintroduced",
+      "PM-owned Cargo.toml is present",
       true
     ],
     [
-      "no Cargo.lock reintroduced",
+      "PM-owned Cargo.lock is committed",
       true
     ],
     [
-      "no Rust .rs source reintroduced",
+      "Rust source is isolated to PM-owned adapter",
       true
     ],
     [
@@ -19,11 +19,11 @@
       true
     ],
     [
-      "no forbidden cargo/rustc invocation in CI",
+      "PM adapter cargo invocation is explicit",
       true
     ],
     [
-      "all third-party Actions are immutable full-SHA pins",
+      "all third-party Actions use readable refs",
       true
     ]
   ],
@@ -134,5 +134,5 @@
     }
   },
   "allPassed": true,
-  "note": "These gates are STRUCTURAL evidence only: file/schema/function-wiring presence plus forbidden-API guards (no Cargo/Rust/cargo build). They do NOT prove complex behavior is correct. Real behavior is verified by (1) the real Core ucode runtime harness (tools/docker-validate/harness -> core-runtime-harness.log), (2) LuCI render smoke, (3) the Remote OpenWrt SDK build, and (4) exact APK metadata validation. Target build/runtime/virtualization/forwarding/soak gates are tracked separately."
+  "note": "These gates are STRUCTURAL evidence only: file/schema/function-wiring presence plus ownership/tooling policy guards. They do NOT prove complex behavior is correct. Real behavior is verified by the PM adapter Cargo gates, real Core ucode runtime harness, LuCI render smoke, Remote OpenWrt SDK build, and exact APK metadata validation. Target build/runtime/virtualization/forwarding/soak gates are tracked separately."
 }

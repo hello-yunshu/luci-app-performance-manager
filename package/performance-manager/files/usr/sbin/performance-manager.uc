@@ -34,8 +34,8 @@ const RILL_BINDINGS_TTL_MS = 3600000;
 const RILL_ADVISORY_TTL_MS = 3600000;
 const RILL_MODEL_GENERATION = 1;
 const RILL_OBSERVE_MIN_INTERVAL_MS = 30000;
-const RILL_PINNED_RELEASE_VERSION = '1.5.1';
-const RILL_PINNED_ADAPTER_VERSION = '0.15.0';
+const RILL_LINKED_RILL_ML_VERSION = '1.5.1';
+const RILL_PINNED_ADAPTER_VERSION = '1.0.1';
 const GOALS = [ 'balanced', 'throughput', 'latency', 'cpu_efficiency' ];
 /* Only throughput A/B is measurable with the current iperf3 methodology.
  * Other goals fail-closed rather than silently degrading to throughput. */
@@ -1803,7 +1803,7 @@ function rill_binary_path() {
 			return { ok: false, binary: configured, effective: null, source: 'explicit', reason: 'binary-invalid' };
 		return { ok: true, binary: configured, effective: configured, source: 'explicit', reason: 'ok' };
 	}
-	for (let path in [ '/usr/bin/rill-pm-adapter', '/usr/sbin/rill-pm-adapter' ])
+	for (let path in [ '/usr/sbin/performance-manager-rill-adapter', '/usr/bin/performance-manager-rill-adapter', '/usr/bin/rill-pm-adapter', '/usr/sbin/rill-pm-adapter' ])
 		if (file_executable(path))
 			return { ok: true, binary: path, effective: path, source: 'default', reason: 'ok' };
 	return { ok: false, binary: '', effective: null, source: 'default', reason: 'not-provisioned' };
@@ -1828,6 +1828,8 @@ function rill_validate_status_response(request, response) {
 	if (response.ok !== true) return { ok: false, error: response.error?.code ?? 'status-rejected' };
 	if (type(response.capabilities) != 'array' || type(response.modelHealth) != 'object') return { ok: false, error: 'status-fields-invalid' };
 	if (!length(response.adapterVersion ?? '') || !length(response.rillVersion ?? '')) return { ok: false, error: 'status-version-missing' };
+	if (response.adapterVersion != RILL_PINNED_ADAPTER_VERSION) return { ok: false, error: 'adapter-version-mismatch' };
+	if (response.rillVersion != RILL_LINKED_RILL_ML_VERSION) return { ok: false, error: 'rill-ml-version-mismatch' };
 	return { ok: true };
 }
 
@@ -1893,7 +1895,7 @@ function rill_status() {
 	if (health.overall != 'healthy')
 		return { enabled: true, mode: 'shadow', status: 'Shadow · Unhealthy', state: RILL_STATES.unhealthy, reason: 'model-unhealthy', compatibility: 'compatible', transport: 'connected', modelHealth: health, protocolVersion: RILL_PROTOCOL_VERSION, binary: bmeta, detail: r.response };
 	let learning = resp.state == 'learning';
-	return { enabled: true, mode: 'shadow', authority: 'advisory-only', status: learning ? 'Shadow · Learning' : 'Shadow · Available', state: learning ? RILL_STATES.learning : RILL_STATES.available, reason: null, compatibility: 'compatible', transport: 'connected', adapterVersion: resp.adapterVersion ?? RILL_PINNED_ADAPTER_VERSION, rillVersion: resp.rillVersion ?? RILL_PINNED_RELEASE_VERSION, releaseVersion: RILL_PINNED_RELEASE_VERSION, protocolVersion: resp.protocolVersion ?? RILL_PROTOCOL_VERSION, binary: bmeta, detail: r.response };
+	return { enabled: true, mode: 'shadow', authority: 'advisory-only', status: learning ? 'Shadow · Learning' : 'Shadow · Available', state: learning ? RILL_STATES.learning : RILL_STATES.available, reason: null, compatibility: 'compatible', transport: 'connected', adapterVersion: resp.adapterVersion, rillVersion: resp.rillVersion, linkedRillMlVersion: RILL_LINKED_RILL_ML_VERSION, protocolVersion: resp.protocolVersion ?? RILL_PROTOCOL_VERSION, binary: bmeta, detail: r.response };
 }
 
 function rill_integrations_payload() {

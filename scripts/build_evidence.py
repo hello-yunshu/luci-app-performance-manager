@@ -2,9 +2,9 @@
 """Generate build-metadata.json for the remote OpenWrt SDK build gate.
 
 This is the auditable evidence record required by the RC gate: it captures the
-repository commit, OpenWrt version/architecture, SDK identity/digest, feed
-commits, the packages that were built, the package manager format, the pinned
-upstream Rill release this repo consumes (never `latest`), and the overall
+ repository commit, OpenWrt version/architecture, SDK identity/digest, feed
+ commits, the packages that were built, the package manager format, the exact
+ PM-owned adapter dependency and the overall
 PASS/FAIL verdict. It is emitted by the remote GitHub Actions build job; the
 script is kept runnable on the host so the schema and field population can be
 reused and tested without a toolchain.
@@ -81,11 +81,11 @@ def main(argv):
 
     dep_file = ROOT / 'contracts' / 'rill-dependency.json'
     dep = json.loads(dep_file.read_text()) if dep_file.exists() else {}
-    up = dep.get('upstream') or {}
-    rill_repo = up.get('repository') or None
-    rill_version = up.get('releaseVersion') or None
-    rill_checksum = (up.get('artifact') or {}).get('sha256') or None
-    rill_status = up.get('status') or 'external-dependency-blocked'
+    rill_contract = dep.get('rillMl') or {}
+    rill_repo = rill_contract.get('registry') or None
+    rill_version = rill_contract.get('version') or None
+    rill_checksum = None
+    rill_status = 'pm-owned'
 
     # Evidence is consumed from the per-job evidence files (prompt section 27),
     # so a job can never read a JSON another parallel job overwrote.  Each job
@@ -145,17 +145,8 @@ def main(argv):
         return 'BLOCKED'
 
     def _prov_verdicts():
-        # Provenance verdicts live under DIFFERENT objects in the evidence
-        # (rill.tagIdentityVerdict / releaseIndex.indexSignatureVerdict /
-        # artifact.artifactIntegrityVerdict), not all under `rill`.  The
-        # per-job rill-provenance.json mirrors the same split (tag at top level,
-        # artifact integrity nested under artifact).  Read the REAL paths.
         if _prov_job:
-            return [
-                _prov_job.get('tagIdentityVerdict'),
-                _prov_job.get('indexSignatureVerdict'),
-                (_prov_job.get('artifact') or {}).get('artifactIntegrityVerdict'),
-            ]
+            return [_prov_job.get('provenanceVerdict')]
         return [
             _ril.get('tagIdentityVerdict'),
             _relidx.get('indexSignatureVerdict'),
@@ -182,6 +173,7 @@ def main(argv):
         'performance-manager',
         'luci-app-performance-manager',
         'performance-manager-rill',
+        'performance-manager-rill-adapter',
         'luci-app-performance-manager-all',
     ]
     package_shas = {}
@@ -213,34 +205,12 @@ def main(argv):
     pm_build_verdict = 'PASS' if (apk_report is not None and all(produced[n] for n in packages)) else 'FAIL'
     apk_exact_verdict = 'PASS' if (apk_report or {}).get('verdict') == 'PASS' else 'FAIL'
 
-    # Rill Gate 1 — Artifact Provenance: pinned release tag/URL/SHA256/asset and
-    # tag commit, never `latest`/`main`.  A not-provisioned (blocked) upstream is
-    # an honest state (the Core fails closed); a provisioned-but-broken pin FAILS.
-    # A provisioned pin is the baseline; an authoritative PASS additionally
-    # requires the signed upstream evidence verdicts (tag identity, Ed25519 index
-    # signature, artifact integrity) from docs/rill-integration-evidence.json --
-    # a hand-written SHA alone is never enough (prompt \u00a712/\u00a729).
-    artifact = up.get('artifact') or {}
-    artifact_url = artifact.get('url') or ''
-    provisioned = bool(up.get('releaseVersion') or artifact_url)
-    if not provisioned:
-        rill_provenance = 'BLOCKED'
-        rill_provenance_reason = 'no upstream Rill release provisioned (external-dependency-blocked)'
-    elif not (artifact.get('sha256') and artifact_url and 'latest/download' not in artifact_url
-              and up.get('releaseVersion') and up.get('tagCommitSha')):
-        rill_provenance = 'FAIL'
-        rill_provenance_reason = 'upstream Rill release entry is incomplete or unpinned'
-    else:
-        _evidence_prov = combine_required(_prov_verdicts())
-        if _evidence_prov == 'FAIL':
-            rill_provenance = 'FAIL'
-            rill_provenance_reason = 'evidence provenance verdict FAIL (tag identity / index signature / artifact integrity)'
-        elif _evidence_prov == 'PASS':
-            rill_provenance = 'PASS'
-            rill_provenance_reason = None
-        else:
-            rill_provenance = 'BLOCKED'
-            rill_provenance_reason = 'pin present but signed upstream evidence not resolved in this job'
+    # Current provenance is the PM-owned same-commit binary; the immutable
+    # upstream v1.5.1 fixture is verified by a separate historical gate.
+    if _prov_job:
+        rill_checksum = _prov_job.get('adapterSha256')
+    rill_provenance = combine_required(_prov_verdicts())
+    rill_provenance_reason = None if rill_provenance == 'PASS' else 'same-commit PM adapter provenance not resolved'
 
     # Rill Gates 2 (Runtime Compatibility) and 3 (Functional Integration) require
     # executing the real adapter and are recorded by the gate jobs. The verdicts

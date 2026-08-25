@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
-"""Real released rill-pm-adapter RUNTIME + pm-rill-shadow v1 protocol roundtrip.
+"""Real PM-owned adapter runtime + pm-rill-shadow v1 protocol roundtrip.
 
 This is NOT a mock and NOT a Core mirror.  It is a minimal protocol client that
-talks to a REAL released `rill-pm-adapter` binary over its unix socket and fills
+talks to a REAL PM-owned adapter binary over its unix socket and fills
 the real runtime verdicts that the wire harness deliberately leaves BLOCKED:
 
-  executableVerdict  -- the exact released adapter runs (`--version`)
+  executableVerdict  -- the exact PM-owned adapter runs (`--version`)
   versionVerdict     -- `--version` reports the adapter crate version (0.15.0)
   startupVerdict     -- the adapter has published a connectable unix socket
   statusVerdict      -- real status roundtrip (contract/protocol/requestId echo/
@@ -17,10 +17,11 @@ the real runtime verdicts that the wire harness deliberately leaves BLOCKED:
                         REAL adapter with its frozen error codes (never silently
                         accepted, never a self-invented mock contract)
 
-Protocol source of truth: the pinned Rill release in contracts/rill-dependency.json
-  crates/rill-pm-adapter/src/lib.rs  (Request/Response envelopes, error codes,
+Protocol source of truth: the vendored PM adapter in integrations/ plus the exact
+crates.io dependency in contracts/rill-dependency.json
+  integrations/performance-manager-rill-adapter/src/lib.rs  (Request/Response envelopes, error codes,
                                       observe/outcome ledger semantics)
-  crates/rill-pm-adapter/src/main.rs (NDJSON framing, oversized-frame fail-closed)
+  integrations/performance-manager-rill-adapter/src/main.rs (NDJSON framing, oversized-frame fail-closed)
 
 Every positive verdict requires an actual `ok:true` envelope with the requestId
 echoed back and the real upstream wire fields verified (rillVersion/adapterVersion
@@ -52,17 +53,15 @@ SCHEMA = json.loads((ROOT / 'contracts/rill-ipc.schema.json').read_text())
 RESP_SCHEMA = json.loads((ROOT / 'contracts/rill-ipc-response.schema.json').read_text())
 DEP = json.loads((ROOT / 'contracts/rill-dependency.json').read_text())
 
-# Expected wire identity, driven by the pinned dependency contract (never
-# hardcoded elsewhere).  Three distinct versions: release bundle, adapter
-# crate/binary 0.15.0 (Preview), pm-rill-shadow protocol v1.
-EXPECTED_RELEASE = (DEP.get('upstream') or {}).get('releaseVersion')
-EXPECTED_ADAPTER = (DEP.get('upstream', {}).get('adapter') or {}).get('adapterVersion')
+# Expected wire identity, driven by the PM-owned dependency contract.
+EXPECTED_RELEASE = (DEP.get('rillMl') or {}).get('version')
+EXPECTED_ADAPTER = (DEP.get('adapter') or {}).get('version')
 CONTRACT = (DEP.get('protocol') or {}).get('contract', 'pm-rill-shadow')
 PROTOCOL = (DEP.get('protocol') or {}).get('protocolVersion', 1)
 REQUIRED_CAPS = list((DEP.get('capabilities') or {}).get('required', []))
 MAX_REQUEST_ID_LEN = 128
 if not EXPECTED_RELEASE or not EXPECTED_ADAPTER:
-    raise SystemExit('FATAL: contract release/adapter identity is missing')
+    raise SystemExit('FATAL: PM-owned adapter/RillML identity is missing')
 
 try:
     import jsonschema
@@ -324,7 +323,7 @@ def fresh_observe(bus, request_id, state_dir, context_key, goal):
 
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser()
-    ap.add_argument('--adapter', required=True, help='path to the released rill-pm-adapter binary')
+    ap.add_argument('--adapter', required=True, help='path to the PM-owned adapter binary')
     ap.add_argument('--socket', required=True, help='unix socket path of the running adapter')
     ap.add_argument('--state-dir', default='/etc/performance-manager/rill')
     ap.add_argument('--out-dir', default=str(ROOT.parent / 'docs'))

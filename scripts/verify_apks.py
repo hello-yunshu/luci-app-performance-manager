@@ -36,6 +36,7 @@ EXPECTED = [
     'performance-manager',
     'luci-app-performance-manager',
     'performance-manager-rill',
+    'performance-manager-rill-adapter',
     'luci-app-performance-manager-all',
 ]
 ALL_IN_ONE = 'luci-app-performance-manager-all'
@@ -48,6 +49,7 @@ REQUIRED_DEPENDS = {
         'luci-base', 'rpcd', 'performance-manager', 'luci-i18n-base-zh-cn',
     },
     'performance-manager-rill': {'performance-manager'},
+    'performance-manager-rill-adapter': {'libc'},
     ALL_IN_ONE: {
         'luci-base', 'rpcd', 'luci-i18n-base-zh-cn', 'ubus', 'uci', 'ucode',
         'ucode-mod-fs', 'ucode-mod-ubus', 'ucode-mod-uci', 'ucode-mod-rtnl',

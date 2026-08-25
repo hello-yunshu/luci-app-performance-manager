@@ -1,4 +1,4 @@
-.PHONY: test lint syntax source-gates audit package
+.PHONY: test lint syntax source-gates action-refs audit package adapter
 
 test:
 	python3 -m unittest discover -s tests -v
@@ -12,7 +12,14 @@ syntax:
 source-gates:
 	python3 scripts/source_gates.py
 
+action-refs:
+	python3 scripts/check_action_refs.py
+
+adapter:
+	python3 scripts/build_pm_adapter.py
+
 audit:
+	python3 scripts/check_action_refs.py
 	python3 scripts/final_audit.py
 
 package: audit

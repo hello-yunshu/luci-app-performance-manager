@@ -26,7 +26,7 @@
 - **Telemetry + Health Guard**: evidence/confidence Analyzer, baseline-relative health gate, resource locks, durable pending markers, verified rollback and a real monotonic commit-confirm engine
 - **Phase-7 benchmark orchestration**: irqbalance, backlog/budget, buffers, busy poll, tx queue, coalescing, CC, qdisc, SFO/HFO/SFE and CPU governor; providers run only when an exact reversible contract exists
 - **Controlled A/B truthfulness**: persisted control evidence → one-variable transactional candidate → candidate evidence → verified rollback → result persistence → optional Rill outcome; missing/invalid evidence never becomes `validated=true`
-- **RillML (Rill) Shadow learning**: RillML is an external runtime dependency built and released by its upstream repository; PM only consumes its advisory through a bounded shadow-only IPC protocol (context drift detection, validated-outcome weighting, Decision Ledger, model health), failing closed without faking recommendations when Rill is missing or incompatible
+- **RillML (Rill) Shadow learning**: PM owns the consumer-specific adapter and links exact crates.io `rill-ml` 1.5.1 through the bounded shadow-only IPC protocol (context drift detection, validated-outcome weighting, Decision Ledger, model health), failing closed without faking recommendations when the adapter is missing or incompatible
 - **Assisted Auto**: explicit opt-in only — maintenance window + low-traffic gate + safe allowlist
 - **Multi-platform guidance**: generic x86, Hyper-V and KVM (including Proxmox VE guest guidance)
 - **Companion Agent**: an explicit LAN/WAN iperf3 endpoint tool with no router-mutation authority
@@ -48,7 +48,7 @@
 |---|---|
 | `performance-manager` | procd-managed ucode/ubus Core: contracts, discovery, telemetry, transaction engine and safe actions |
 | `luci-app-performance-manager` | Supported-first LuCI UI (Simplified Chinese) |
-| `performance-manager-rill` | PM ↔ upstream Rill integration glue: consumes the upstream Rill release only, never compiles Rill |
+| `performance-manager-rill` | PM-owned adapter service glue; the target-specific `performance-manager-rill-adapter` package ships the native binary |
 | `luci-app-performance-manager-all` | Recommended all-in-one APK: physically contains Core, LuCI, rpcd ACL/menu, Simplified Chinese translation and Rill glue; it does not depend on the three split application packages |
 
 ## Installation
@@ -190,14 +190,14 @@ package/luci-app-performance-manager-all/Makefile  # merges all owned runtime co
                           │ performance-manager-rill │
                           │   (integration glue)     │
                           └───────────┬────────────┘
-                                      │ consumes upstream release
+                                      │ owns adapter + exact rill-ml
                           ┌───────────▼────────────┐
-                          │  RillML upstream runtime  │
-                          │ (built/released upstream) │
+                          │ PM-owned adapter runtime  │
+                          │ exact crates.io rill-ml   │
                           └────────────────────────┘
 ```
 
-> **RillML (Rill) is an external runtime dependency.** RillML's source, Rust toolchain, cross-platform compilation and binary release all belong to the RillML upstream repository; this repository does not vendor, compile or natively test RillML's Rust implementation. `performance-manager-rill` is PM-specific integration glue (fail-closed capability gate + service glue) that only consumes and verifies the upstream release artifact.
+> **Consumer ownership boundary.** Performance Manager owns `pm-rill-shadow` and its native adapter. The adapter links exact crates.io `rill-ml` 1.5.1; it does not consume a PM-specific RillML Release artifact. RillML remains the owner of generic crates and contracts.
 
 **Data flow**:
 
@@ -254,13 +254,13 @@ This project is built and verified automatically with GitHub Actions, triggered 
 
 **`ci.yml` (source & behavior audit, non-compiling)**
 - **static**: unit tests + contract validation + source gates + final audit + LuCI JS syntax & render smoke
-- **rill-contract**: verifies the PM ↔ upstream Rill dependency contract and pinned upstream release provenance (never compiles Rill), and emits `rill-consumed-manifest.json`
+- **adapter-rust / rill-contract**: verifies the PM-owned adapter with exact crates.io `rill-ml` 1.5.1, retained historical v1.5.1 fixture, and emits `rill-consumed-manifest.json`
 - **openwrt-ucode**: compiles and validates Core ucode inside the official OpenWrt 25.12.5 rootfs
 
 **`build-openwrt.yml` (remote official SDK build)**
-- **openwrt-sdk-build**: builds the three split packages plus the all-in-one APK with the official SDK, and emits `build-metadata.json`, `checksums.txt` and audit-evidence artifacts
+- **openwrt-sdk-build**: builds the four split packages plus the all-in-one APK with the official SDK, and emits `build-metadata.json`, `checksums.txt` and audit-evidence artifacts
 
-> This repository no longer has a `rill-native` / Rill SDK build job: no Rust toolchain is installed to compile Rill. Rill's native build and tests are the responsibility of the Rill upstream repository's Actions.
+> The native build here is intentionally limited to the consumer-owned adapter. Generic `rill-ml` crates remain a crates.io dependency; the PM adapter is built by this repository's Rust CI and target-specific OpenWrt package job.
 
 Local quick verification:
 

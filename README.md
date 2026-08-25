@@ -26,7 +26,7 @@
 - **Telemetry + Health Guard**：evidence/confidence Analyzer、baseline-relative 健康门禁、资源锁、持久 pending marker、verified rollback 与真实 monotonic commit-confirm 引擎
 - **Phase-7 Benchmark 编排**：irqbalance、backlog/budget、buffers、busy poll、tx queue、coalescing、CC、qdisc、SFO/HFO/SFE、CPU governor；只有存在精确可逆契约时才执行 provider
 - **受控 A/B 真值**：持久 control evidence → 单变量事务 candidate → candidate evidence → 验证后回滚 → 结果持久化 → 可选 Rill outcome；缺失 / 无效 evidence 永远不会变成 `validated=true`
-- **RillML（简称 Rill）Shadow 学习**：RillML 是外部运行时依赖，由上游仓库构建与发布；PM 只通过有界 shadow-only IPC 协议消费其 advisory（上下文漂移检测、validated outcome 加权、Decision Ledger、模型健康），缺失 / 不兼容时 fail-closed 且不伪造建议
+- **RillML（简称 Rill）Shadow 学习**：PM 自有 `performance-manager-rill-adapter` 精确链接 crates.io `rill-ml` 1.5.1，通过有界 shadow-only IPC 协议提供 advisory（上下文漂移检测、validated outcome 加权、Decision Ledger、模型健康），缺失 / 不兼容时 fail-closed 且不伪造建议
 - **Assisted Auto**：默认关闭，必须显式选择 + 维护窗口 + 低流量门禁 + 安全 allowlist
 - **多平台指导**：Generic x86、Hyper-V、KVM（含 Proxmox VE guest 建议）
 - **Companion Agent**：显式 LAN/WAN iperf3 端点工具，不拥有路由器修改权限
@@ -199,7 +199,7 @@ package/luci-app-performance-manager-all/Makefile  # 将上述自有运行内容
                           └───────────┬────────────┘
                                       │ 消费上游正式发布产物
                           ┌───────────▼────────────┐
-                          │  RillML upstream runtime  │
+                          │ PM-owned adapter + rill-ml │
                           │  (上游仓库构建/发布)      │
                           └────────────────────────┘
 ```
@@ -262,7 +262,7 @@ package/luci-app-performance-manager-all/Makefile  # 将上述自有运行内容
 
 **`ci.yml`（源码与行为审计，不编译）**
 - **static**：单测 + 契约校验 + source gates + final audit + LuCI JS 语法 & render smoke
-- **rill-contract**：验证 PM ↔ 上游 Rill 依赖契约与固定 upstream release 溯源（不编译 Rill），并产出 `rill-consumed-manifest.json`
+- **rill-contract**：验证 PM-owned adapter、精确 crates.io `rill-ml` 依赖与 `pm-rill-shadow` 契约，并产出 `rill-consumed-manifest.json`
 - **openwrt-ucode**：官方 OpenWrt 25.12.5 rootfs 中编译校验 Core ucode
 
 **`build-openwrt.yml`（远程官方 SDK 构建）**

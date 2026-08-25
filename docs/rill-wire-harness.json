@@ -1,16 +1,18 @@
 {
   "schemaVersion": 2,
   "pm": {
-    "version": "1.0.0"
+    "version": "1.0.1"
   },
-  "pmCommitSha": "e3135cb4d91ae6ed07b05e41e4afd1ad49e76757",
+  "pmCommitSha": "e948b90609d42572c4ef8c8fc42c8255407b912c",
   "rill": {
     "releaseVersion": "1.5.1",
     "releaseTag": "v1.5.1",
     "expectedCommitSha": "cba9b3d2fb2c6a71cb9d4a02b18852171ad05a1b",
     "adapterReleaseAssetVersion": "1.5.1",
-    "adapterBinaryVersion": "0.15.0",
-    "adapterProtocolVersion": 1
+    "adapterBinaryVersion": "1.0.1",
+    "adapterProtocolVersion": 1,
+    "rillMlVersion": "1.5.1",
+    "adapterOwner": "hello-yunshu/luci-app-performance-manager"
   },
   "runtime": {
     "executableVerdict": "BLOCKED",
@@ -38,7 +40,7 @@
       "detail": ""
     },
     {
-      "name": "status adapterVersion == 0.15.0",
+      "name": "status adapterVersion == 1.0.1",
       "ok": true,
       "detail": ""
     },

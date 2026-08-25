@@ -63,24 +63,24 @@ class ResourceBudgetTests(unittest.TestCase):
 
 
 class ContractTests(unittest.TestCase):
-    def test_github_actions_follow_immutable_full_sha_pins(self):
+    def test_github_actions_follow_readable_refs(self):
         expected = {
-            "actions/checkout": "3d3c42e5aac5ba805825da76410c181273ba90b1",
-            "actions/setup-python": "5fda3b95a4ea91299a34e894583c3862153e4b97",
-            "actions/cache": "55cc8345863c7cc4c66a329aec7e433d2d1c52a9",
-            "actions/upload-artifact": "043fb46d1a93c77aae656e7c1c64a875d1fc6a0a",
-            "actions/download-artifact": "3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c",
+            "actions/checkout": "v7",
+            "actions/setup-python": "v7",
+            "actions/cache": "v6",
+            "actions/upload-artifact": "v7",
+            "actions/download-artifact": "v8",
         }
         found = set()
         for workflow in (ROOT / ".github/workflows").glob("*.yml"):
             for action, ref in re.findall(r"uses:\s*(actions/[\w-]+)@([^\s]+)", workflow.read_text()):
                 found.add(action)
                 self.assertEqual(ref, expected[action], f"{workflow.name}: {action}")
-                self.assertRegex(ref, r"^[0-9a-f]{40}$")
+                self.assertRegex(ref, r"^v[0-9]+$")
         self.assertEqual(found, set(expected))
 
     def test_openwrt_download_caches_remain_digest_bound_and_fail_closed(self):
-        cache_action = "actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9"
+        cache_action = "actions/cache@v6"
         ci = (ROOT / ".github/workflows/ci.yml").read_text()
         build = (ROOT / ".github/workflows/build-openwrt.yml").read_text()
 
