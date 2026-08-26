@@ -16,7 +16,8 @@ from validate_external_evidence import GATE_CHECKS, PIN  # noqa: E402
 
 
 PACKAGE_NAMES = ("performance-manager", "luci-app-performance-manager",
-                 "performance-manager-rill", "luci-app-performance-manager-all")
+                 "performance-manager-rill", "performance-manager-rill-adapter",
+                 "luci-app-performance-manager-all")
 GATES = ("target-core-only", "target-full", "target-mutation", "hyperv", "kvm",
          "lan-wan-ab", "router-local-ab", "sysupgrade", "lifecycle", "resource-soak")
 
@@ -58,6 +59,11 @@ class ReleaseClosureE2ETests(unittest.TestCase):
             "apkSha256": records[installed_name]["apkSha256"], "version": "1.0.0-r1",
             "installedPayload": records[installed_name]["installedPayload"],
         }}}
+        if gate != "target-core-only":
+            raw["installedPackages"]["performance-manager-rill-adapter"] = {
+                "apkSha256": records["performance-manager-rill-adapter"]["apkSha256"],
+                "version": "1.0.0-r1", "installedPayload": {},
+            }
         if gate == "target-core-only":
             raw.update({"environment": {"release": "25.12.5", "target": "x86/64"},
                         "process": {"corePid": 1}, "ubusSocketReady": True,
@@ -112,12 +118,12 @@ class ReleaseClosureE2ETests(unittest.TestCase):
                                          "coreStarted": True, "staleLocks": 0, "firmware": {"identity": "fw-b"}}}
         elif gate == "lifecycle":
             raw["lifecycle"] = {"phases": [
-                {"name": "split-install", "exitCode": 0, "installedPackages": {"performance-manager": {}, "luci-app-performance-manager": {}, "performance-manager-rill": {}}, "configSha256": "2" * 64},
+                {"name": "split-install", "exitCode": 0, "installedPackages": {"performance-manager": {}, "luci-app-performance-manager": {}, "performance-manager-rill": {}, "performance-manager-rill-adapter": {}}, "configSha256": "2" * 64},
                 {"name": "split-runtime", "corePid": 1, "ubusReady": True, "rillAdapterSha256": PIN},
-                {"name": "migration", "removeExitCode": 0, "installBundleExitCode": 0, "installedPackages": {PACKAGE_NAMES[-1]: {}}},
+                {"name": "migration", "removeExitCode": 0, "installBundleExitCode": 0, "installedPackages": {PACKAGE_NAMES[-1]: {}, "performance-manager-rill-adapter": {}}},
                 {"name": "bundle-runtime", "corePid": 2, "ubusReady": True, "configSha256": "2" * 64},
                 {"name": "uninstall", "exitCode": 0, "remainingOwnedPaths": [], "staleLocks": 0, "stalePending": 0, "staleSockets": 0},
-                {"name": "reinstall", "exitCode": 0, "installedPackages": {PACKAGE_NAMES[-1]: {}}, "corePid": 3, "ubusReady": True},
+                {"name": "reinstall", "exitCode": 0, "installedPackages": {PACKAGE_NAMES[-1]: {}, "performance-manager-rill-adapter": {}}, "corePid": 3, "ubusReady": True},
             ]}
         elif gate == "resource-soak":
             raw["durationSeconds"] = 86400

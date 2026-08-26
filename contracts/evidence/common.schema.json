@@ -22,17 +22,18 @@
     },
     "buildArtifacts": {
       "type": "object", "additionalProperties": false,
-      "required": ["performance-manager", "luci-app-performance-manager", "performance-manager-rill", "luci-app-performance-manager-all"],
+      "required": ["performance-manager", "luci-app-performance-manager", "performance-manager-rill", "performance-manager-rill-adapter", "luci-app-performance-manager-all"],
       "properties": {
         "performance-manager": {"type": "object", "additionalProperties": true},
         "luci-app-performance-manager": {"type": "object", "additionalProperties": true},
         "performance-manager-rill": {"type": "object", "additionalProperties": true},
+        "performance-manager-rill-adapter": {"type": "object", "additionalProperties": true},
         "luci-app-performance-manager-all": {"type": "object", "additionalProperties": true}
       }
     },
     "installedArtifacts": {
       "type": "object", "additionalProperties": true,
-      "required": ["performance-manager", "luci-app-performance-manager", "performance-manager-rill", "luci-app-performance-manager-all"]
+      "required": ["performance-manager", "luci-app-performance-manager", "performance-manager-rill", "performance-manager-rill-adapter", "luci-app-performance-manager-all"]
     },
     "subchecks": {"type": "object", "additionalProperties": {"type": "boolean"}},
     "rawFacts": {"type": "object", "additionalProperties": true},

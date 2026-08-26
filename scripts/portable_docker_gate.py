@@ -68,8 +68,12 @@ def main(argv=None) -> int:
     docker_log = Path(args.docker_log).read_text()
     built = (build.get("packages") or {}).get(PACKAGE) or {}
     verified = (apk.get("packages") or {}).get(PACKAGE) or {}
-    apk_path = identical_artifact(build_root, built.get("apkFilename") or "luci-app-performance-manager-all-1.0.1-r1.apk")
+    apk_path = identical_artifact(build_root, built.get("apkFilename") or "luci-app-performance-manager-all-1.0.2-r1.apk")
     actual_sha = sha256(apk_path)
+    adapter = (build.get("packages") or {}).get("performance-manager-rill-adapter") or {}
+    adapter_path = identical_artifact(build_root, adapter.get("apkFilename") or "performance-manager-rill-adapter-1.0.2-r1.apk")
+    adapter_sha = sha256(adapter_path)
+    adapter_verified = (apk.get("packages") or {}).get("performance-manager-rill-adapter") or {}
 
     final_evidence = read_json(ci_root, "final-release-evidence.json")
     final_commit = final_evidence.get("expectedCommitSha") or final_evidence.get("pmCommitSha") or final_evidence.get("commit")
@@ -81,6 +85,7 @@ def main(argv=None) -> int:
             apk.get("pmCommitSha") == args.expected_commit
             and apk.get("verdict") == "PASS"
             and verified.get("sha256") == built.get("apkSha256") == actual_sha
+            and adapter_verified.get("sha256") == adapter.get("apkSha256") == adapter_sha
         ),
         "rillCiChain": final_commit == args.expected_commit and final_verdict == "PASS",
         "dockerCoreRuntime": "PORTABLE_DOCKER_PASS" in docker_log,
@@ -107,6 +112,7 @@ def main(argv=None) -> int:
         "passed": not errors,
         "checks": checks,
         "apk": {"filename": apk_path.name, "sha256": actual_sha, "version": verified.get("expectedVersion")},
+        "adapterApk": {"filename": adapter_path.name, "sha256": adapter_sha},
         "hardwareCoverage": "NOT_EVALUATED",
         "unsupportedHardwareGates": [
             "Hyper-V/vmbus/hv_netvsc", "KVM hotplug", "LAN-WAN A/B hardware",

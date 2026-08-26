@@ -42,7 +42,8 @@ GATE_CHECKS = {
 }
 RILL_GATES = set(GATE_CHECKS) - {"target-core-only"}
 PRIMARY_PACKAGE = "luci-app-performance-manager-all"
-PACKAGE_NAMES = ("performance-manager", "luci-app-performance-manager", "performance-manager-rill", PRIMARY_PACKAGE)
+ADAPTER_PACKAGE = "performance-manager-rill-adapter"
+PACKAGE_NAMES = ("performance-manager", "luci-app-performance-manager", "performance-manager-rill", ADAPTER_PACKAGE, PRIMARY_PACKAGE)
 CORE_PAYLOAD = ("/usr/sbin/performance-manager.uc", "/usr/share/performance-manager/contracts.uc")
 ALL_IN_ONE_PAYLOAD = CORE_PAYLOAD + (
     "/etc/init.d/performance-manager", "/etc/init.d/performance-manager-rill",
@@ -157,7 +158,7 @@ def _package_layout_ok(packages: dict[str, Any], gate: str) -> bool:
         return present == {"performance-manager"}
     if gate == "lifecycle":
         return True
-    return present == {PRIMARY_PACKAGE}
+    return present == {PRIMARY_PACKAGE, ADAPTER_PACKAGE}
 
 
 def evaluate_raw_facts(raw: dict[str, Any], gate: str) -> dict[str, bool]:
@@ -270,16 +271,16 @@ def evaluate_raw_facts(raw: dict[str, Any], gate: str) -> dict[str, bool]:
         split_names = {name for name, value in split_pkgs.items() if isinstance(value, dict)}
         bundle_names = {name for name, value in bundle_pkgs.items() if isinstance(value, dict)}
         checks = {
-            "install": _exit_ok(split.get("exitCode")) and split_names == {"performance-manager", "luci-app-performance-manager", "performance-manager-rill"},
+            "install": _exit_ok(split.get("exitCode")) and split_names == {"performance-manager", "luci-app-performance-manager", "performance-manager-rill", ADAPTER_PACKAGE},
             "serviceStart": _nonempty_string(split_runtime.get("corePid")) or (isinstance(split_runtime.get("corePid"), int) and split_runtime.get("corePid") > 0),
             "restart": _nonempty_string(bundle_runtime.get("corePid")) or (isinstance(bundle_runtime.get("corePid"), int) and bundle_runtime.get("corePid") > 0),
             "upgradeReinstall": _exit_ok(migration.get("removeExitCode")) and _exit_ok(migration.get("installBundleExitCode"))
-                and bundle_names == {PRIMARY_PACKAGE},
+                and bundle_names == {PRIMARY_PACKAGE, ADAPTER_PACKAGE},
             "configPreserved": _sha(split.get("configSha256")) and _sha(bundle_runtime.get("configSha256"))
                 and split.get("configSha256") == bundle_runtime.get("configSha256"),
             "rillOptional": split_runtime.get("ubusReady") is True and bundle_runtime.get("ubusReady") is True,
             "uninstallCleanup": _exit_ok(uninstall.get("exitCode")) and uninstall.get("remainingOwnedPaths") == [],
-            "reinstall": _exit_ok(reinstall.get("exitCode")) and _dict(reinstall.get("installedPackages")).keys() == {PRIMARY_PACKAGE}
+            "reinstall": _exit_ok(reinstall.get("exitCode")) and _dict(reinstall.get("installedPackages")).keys() == {PRIMARY_PACKAGE, ADAPTER_PACKAGE}
                 and reinstall.get("ubusReady") is True,
             "noStaleState": uninstall.get("staleLocks") == 0 and uninstall.get("stalePending") == 0
                 and uninstall.get("staleSockets") == 0,
@@ -429,9 +430,11 @@ def _artifact_errors(data: dict[str, Any], gate: str, build: dict[str, Any] | No
             if gate == "target-core-only" and name != "performance-manager":
                 if rec not in (None, "not-installed"):
                     errors.append(f"installedArtifacts.{name} must be absent")
-            elif gate != "lifecycle" and name != PRIMARY_PACKAGE:
+            elif gate != "lifecycle" and name not in {PRIMARY_PACKAGE, ADAPTER_PACKAGE}:
                 if rec not in (None, "not-installed"):
                     errors.append(f"installedArtifacts.{name} must be absent")
+            elif gate != "lifecycle" and name == ADAPTER_PACKAGE:
+                errors.append(f"installedArtifacts.{name} missing")
             elif gate != "lifecycle":
                 errors.append(f"installedArtifacts.{name} missing")
             continue
