@@ -34,8 +34,8 @@ const RILL_BINDINGS_TTL_MS = 3600000;
 const RILL_ADVISORY_TTL_MS = 3600000;
 const RILL_MODEL_GENERATION = 1;
 const RILL_OBSERVE_MIN_INTERVAL_MS = 30000;
-const RILL_LINKED_RILL_ML_VERSION = '1.5.1';
-const RILL_PINNED_ADAPTER_VERSION = '1.0.1';
+const RILL_LINKED_RILL_ML_VERSION = '1.5.3';
+const RILL_PINNED_ADAPTER_VERSION = '1.0.2';
 const GOALS = [ 'balanced', 'throughput', 'latency', 'cpu_efficiency' ];
 /* Only throughput A/B is measurable with the current iperf3 methodology.
  * Other goals fail-closed rather than silently degrading to throughput. */

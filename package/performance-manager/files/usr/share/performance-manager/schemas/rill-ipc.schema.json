@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://openwrt-performance-manager.local/schema/rill-ipc.json",
   "title": "PmRillShadowRequest",
-  "description": "Formal pm-rill-shadow v1 request protocol between Core and the PM-owned performance-manager-rill-adapter linked to exact crates.io rill-ml 1.5.1. Unknown fields are rejected and every operation enforces additionalProperties:false.",
+  "description": "Formal pm-rill-shadow v1 request protocol between Core and the PM-owned performance-manager-rill-adapter linked to exact crates.io rill-ml 1.5.3. Unknown fields are rejected and every operation enforces additionalProperties:false.",
   "type": "object",
   "oneOf": [
     {

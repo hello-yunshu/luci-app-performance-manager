@@ -10,6 +10,7 @@ from artifact_identity import ArtifactIdentityError, resolve_artifact, sha256
 
 
 PACKAGE = "luci-app-performance-manager-all"
+ADAPTER_PACKAGE = "performance-manager-rill-adapter"
 
 
 def main(argv=None) -> int:
@@ -34,6 +35,16 @@ def main(argv=None) -> int:
     except ArtifactIdentityError as exc:
         raise RuntimeError(str(exc)) from exc
     apk = Path(identity["canonicalPath"])
+    adapter_build = (build.get("packages") or {}).get(ADAPTER_PACKAGE) or {}
+    adapter_expected = adapter_build.get("apkSha256")
+    adapter_filename = adapter_build.get("apkFilename") or adapter_build.get("filename")
+    if not adapter_expected or not adapter_filename:
+        raise RuntimeError("build metadata lacks exact target-specific adapter APK identity")
+    try:
+        adapter_identity = resolve_artifact(ADAPTER_PACKAGE, adapter_expected, [root], adapter_filename)
+    except ArtifactIdentityError as exc:
+        raise RuntimeError(str(exc)) from exc
+    adapter_apk = Path(adapter_identity["canonicalPath"])
     files = [{"name": path.name, "bytes": path.stat().st_size, "sha256": sha256(path)}
              for path in sorted(root.iterdir()) if path.is_file()]
     manifest = {
@@ -45,6 +56,9 @@ def main(argv=None) -> int:
         "hardwareCoverage": final.get("hardwareCoverage", "REQUIRED"),
         "primaryPackage": PACKAGE,
         "primaryPackageSha256": sha256(apk),
+        "adapterPackage": ADAPTER_PACKAGE,
+        "adapterPackageSha256": sha256(adapter_apk),
+        "adapterArtifactIdentity": adapter_identity,
         "artifactIdentity": identity,
         "openwrtRelease": build.get("openwrtVersion"),
         "sdkArchiveSha256": build.get("sdkArchiveSha256"),
