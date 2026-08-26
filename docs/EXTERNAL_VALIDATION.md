@@ -1,8 +1,8 @@
-# External Validation Profiles for 1.0.0
+# External Validation Profiles for 1.0.2
 
-`1.0.1` keeps the official OpenWrt SDK build compiling and verifying every split package plus the physical arch-independent all-in-one APK. The target-specific PM-owned adapter is built from the same commit with exact crates.io `rill-ml` 1.5.1 and exercised in the official 25.12.5 x86_64 musl rootfs. The all-in-one APK does not contain native adapter code. This profile does not claim Hyper-V, router hardware, firmware sysupgrade reboot, or a 24-hour soak until those evidence gates complete.
+`1.0.2` keeps the official OpenWrt SDK build compiling and verifying every split package, the physical arch-independent all-in-one APK, and the target-specific PM-owned adapter APK. The adapter is built from the same commit with exact crates.io `rill-ml` 1.5.3 and exercised in the official 25.12.5 x86_64 musl rootfs. The all-in-one APK does not contain native adapter code; install it together with the adapter APK. This profile does not claim Hyper-V, router hardware, firmware sysupgrade reboot, or a 24-hour soak until those evidence gates complete.
 
-The current official 25.12.x x86/64 target is available as OpenWrt 25.12.5, including an x86/64 rootfs and SDK. CI is pinned to that release for ucode and five-package build gates (four split packages plus the all-in-one package).
+The current official 25.12.x x86/64 target is available as OpenWrt 25.12.5, including an x86/64 rootfs and SDK. CI is pinned to that release for ucode and five-package build gates (Core, LuCI, Rill glue, PM-owned adapter, and all-in-one package).
 
 Required target evidence:
 
@@ -20,7 +20,7 @@ Validation can be driven locally from the official 25.12.5 x86/64 rootfs via Doc
 
 Status:
 
-- **1. GitHub CI** — owned by `.github/workflows/ci.yml` (`static`, `adapter-rust`, `pm-rill-provenance` with PM-owned artifact provenance, `pm-rill-runtime` with real adapter execution, `pm-core-rill-roundtrip` with raw Core ↔ PM adapter, `openwrt-ucode` official 25.12.5 rootfs compile of Core) and `.github/workflows/build-openwrt.yml` → `openwrt-sdk-build` (official SDK builds the four split packages and `luci-app-performance-manager-all`, then verifies exact metadata and bundle payloads; emits build-metadata.json + checksums.txt).
+- **1. GitHub CI** — owned by `.github/workflows/ci.yml` (`static`, `adapter-rust`, `pm-rill-provenance` with PM-owned artifact provenance, `pm-rill-runtime` with real adapter execution, `pm-core-rill-roundtrip` with raw Core ↔ PM adapter, `openwrt-ucode` official 25.12.5 rootfs compile of Core) and `.github/workflows/build-openwrt.yml` → `openwrt-sdk-build` (official SDK builds Core, LuCI, Rill glue, PM-owned adapter, and `luci-app-performance-manager-all`, then verifies exact metadata and bundle payloads; emits build-metadata.json + checksums.txt).
 - **2. Booted OpenWrt runtime gate** — PASSED inside the `owrt-pm-gate` container (25.12.5 x86/64): `scripts/openwrt-target-gate.sh` CORE-ONLY, 11/11 assertions green. Evidence: `evidence/openwrt-target-gate-25.12.5.json`.
 - **5. Historical resource soak (dev check only)** — the old 120-second sample is not Stable evidence and is not reused by the aggregator. The rc.10 gate requires ≥86400 seconds with Core and exact Rill RSS/CPU, restart counts, logical persistence counters, state bounds, and zero idle Observe/adapter-persistence/pending-Outcome-journal deltas; missing counters are `BLOCKED`, never zero-filled.
 

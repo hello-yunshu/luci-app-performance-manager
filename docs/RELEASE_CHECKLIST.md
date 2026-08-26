@@ -2,7 +2,7 @@
 
 ## Portable Docker release profile
 
-The current public `1.0.0` release uses `portable-docker`. It requires the
+The current public `1.0.2` release uses `portable-docker`. It requires the
 same-commit CI/Rill chain, official SDK/APK identity, hosted Action tests, and
 the real Core ucode harness executed inside Docker. It must disclose that
 Hyper-V, KVM hotplug, real-router A/B, firmware sysupgrade reboot, and 24-hour
@@ -14,7 +14,7 @@ hardware soak are **NOT_EVALUATED**. The checklist below remains the separate
 - [ ] Official OpenWrt 25.12.x x86_64 SDK builds `performance-manager`.
 - [ ] SDK builds `luci-app-performance-manager`.
 - [ ] SDK builds `performance-manager-rill` as an integration/meta package (no Rust build; fail-closed init guard and `lib/upgrade/keep.d` packaged).
-- [ ] SDK builds `luci-app-performance-manager-all`; exact APK verification proves all Core/LuCI/rpcd/Rill-glue source files match and the compiled zh-cn LMO is present.
+- [ ] SDK builds `luci-app-performance-manager-all` and `performance-manager-rill-adapter`; exact APK verification proves all Core/LuCI/rpcd/Rill-glue source files match, the compiled zh-cn LMO is present, and the target-specific adapter APK is byte-identified.
 - [ ] Official OpenWrt rootfs compiles Core ucode with all declared modules.
 
 ## Runtime / topology / ownership

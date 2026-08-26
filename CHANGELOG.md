@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.0.2 — RillML 1.5.3 and public adapter APK (2026-08-27)
+
+- Updates the PM-owned adapter and exact crates.io dependency to `rill-ml = 1.5.3`; the retained upstream v1.5.1 adapter remains historical-only.
+- Publishes the target-specific `performance-manager-rill-adapter` APK alongside the arch-independent all-in-one APK, with same-commit SDK metadata and checksum verification.
+- Keeps the all-in-one/split installation boundary explicit and preserves the advisory-only `pm-rill-shadow` v1 contract.
+
 ## 1.0.1 — PM-owned Rill adapter migration (2026-08-25)
 
 - Moves the consumer-specific `pm-rill-shadow` v1 adapter into `integrations/performance-manager-rill-adapter/`, preserving the immutable v1.5.1 source behavior and MIT attribution.

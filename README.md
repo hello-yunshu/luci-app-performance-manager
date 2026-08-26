@@ -26,7 +26,7 @@
 - **Telemetry + Health Guard**：evidence/confidence Analyzer、baseline-relative 健康门禁、资源锁、持久 pending marker、verified rollback 与真实 monotonic commit-confirm 引擎
 - **Phase-7 Benchmark 编排**：irqbalance、backlog/budget、buffers、busy poll、tx queue、coalescing、CC、qdisc、SFO/HFO/SFE、CPU governor；只有存在精确可逆契约时才执行 provider
 - **受控 A/B 真值**：持久 control evidence → 单变量事务 candidate → candidate evidence → 验证后回滚 → 结果持久化 → 可选 Rill outcome；缺失 / 无效 evidence 永远不会变成 `validated=true`
-- **RillML（简称 Rill）Shadow 学习**：PM 自有 `performance-manager-rill-adapter` 精确链接 crates.io `rill-ml` 1.5.1，通过有界 shadow-only IPC 协议提供 advisory（上下文漂移检测、validated outcome 加权、Decision Ledger、模型健康），缺失 / 不兼容时 fail-closed 且不伪造建议
+- **RillML（简称 Rill）Shadow 学习**：PM 自有 `performance-manager-rill-adapter` 精确链接 crates.io `rill-ml` 1.5.3，通过有界 shadow-only IPC 协议提供 advisory（上下文漂移检测、validated outcome 加权、Decision Ledger、模型健康），缺失 / 不兼容时 fail-closed 且不伪造建议
 - **Assisted Auto**：默认关闭，必须显式选择 + 维护窗口 + 低流量门禁 + 安全 allowlist
 - **多平台指导**：Generic x86、Hyper-V、KVM（含 Proxmox VE guest 建议）
 - **Companion Agent**：显式 LAN/WAN iperf3 端点工具，不拥有路由器修改权限
@@ -77,18 +77,19 @@ make package/performance-manager-rill/compile V=s
 make package/luci-app-performance-manager-all/compile V=s
 ```
 
-CI 仍会同时构建并 exact verify Core、LuCI、Rill glue 与 all-in-one 四种包；普通用户 Release 只公开 all-in-one APK。
+CI 仍会同时构建并 exact verify Core、LuCI、Rill glue、PM-owned adapter 与 all-in-one 五种包；普通用户 Release 同时公开 all-in-one APK 与当前目标 adapter APK。
 
 > 也可以直接依赖 GitHub Actions 的 `build-openwrt.yml` → `openwrt-sdk-build` job 产出构建结果，无需本地 SDK。
 
 ### 推荐：单 APK 安装
 
-从 GitHub Release 下载 `luci-app-performance-manager-all-1.0.0-r1.apk` 后，只需安装这一份应用 APK：
+从 GitHub Release 下载同一版本的 `luci-app-performance-manager-all-1.0.2-r1.apk` 与目标架构的 `performance-manager-rill-adapter-1.0.2-r1.apk`，再安装这两份应用包：
 
-仓库的官方 OpenWrt SDK 编译仍会编译并校验所有拆分包以及实体一体化包；仅 GitHub Release 为了下载方便只提供一体化 APK 作为公开安装资产。
+仓库的官方 OpenWrt SDK 编译仍会编译并校验所有拆分包以及实体一体化包；公开 Release 同时提供 all-in-one 与当前正式目标的 native adapter APK。
 
 ```sh
-apk add --allow-untrusted /tmp/luci-app-performance-manager-all-1.0.0-r1.apk
+apk add --allow-untrusted /tmp/luci-app-performance-manager-all-1.0.2-r1.apk
+apk add --allow-untrusted /tmp/performance-manager-rill-adapter-1.0.2-r1.apk
 ```
 
 它仍会通过 OpenWrt 软件源解析 `luci-base`、`rpcd`、`ucode` 等系统运行库；“单 APK”指 Performance Manager 自有的 Core、LuCI、后端、翻译和 Rill glue 已全部位于一个文件内。为避免重复拥有相同路径，它与四个拆分包（含自动生成的翻译包）互斥；已有拆分版设备应先备份 `/etc/config/performance-manager`，再在维护窗口切换包形态。
@@ -99,7 +100,7 @@ apk add --allow-untrusted /tmp/luci-app-performance-manager-all-1.0.0-r1.apk
 |---|---|
 | 推荐包名 | `luci-app-performance-manager-all`（单 APK） |
 | 目标 | OpenWrt 25.12.x / x86_64 |
-| 当前源码候选 | `1.0.0` |
+| 当前源码候选 | `1.0.2` |
 | 服务脚本 | `/etc/init.d/performance-manager` |
 | UCI 配置 | `/etc/config/performance-manager` |
 | 核心程序 | `/usr/sbin/performance-manager.uc` |
@@ -281,7 +282,7 @@ make package        # 生成发布包
 - 资源 / 写入 soak：`scripts/openwrt-resource-soak.sh`
 - 外部验证证据：`docs/EXTERNAL_VALIDATION.md`
 
-> `1.0.0` 使用明确标注的 `portable-docker` 发布证据 profile：同提交官方 SDK/APK、精确 Rill、Hosted Actions 和 Docker Core ucode harness 全部通过后发布一体化 APK。该 profile 不宣称 Hyper-V、真实路由器 A/B、firmware sysupgrade 或 24 小时 soak 覆盖；这些仍需单独的 `hardware` profile 证据。
+> `1.0.2` 使用明确标注的 `portable-docker` 发布证据 profile：同提交官方 SDK/APK、精确 Rill、Hosted Actions 和 Docker Core ucode harness 全部通过后发布 all-in-one APK 与 x86_64-musl adapter APK。该 profile 不宣称 Hyper-V、真实路由器 A/B、firmware sysupgrade 或 24 小时 soak 覆盖；这些仍需单独的 `hardware` profile 证据。
 
 ## 文档
 

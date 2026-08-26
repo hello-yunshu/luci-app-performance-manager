@@ -11,6 +11,7 @@ from artifact_identity import ArtifactIdentityError, resolve_artifact, sha256
 
 
 PACKAGE = "luci-app-performance-manager-all"
+ADAPTER_PACKAGE = "performance-manager-rill-adapter"
 
 
 def _files(root: Path, name: str) -> list[Path]:
@@ -69,6 +70,16 @@ def assemble_public_apk(
     output_root.mkdir(parents=True, exist_ok=True)
     target = output_root / source.name
     shutil.copy2(source, target)
+    adapter_verified = (verification.get("packages") or {}).get(ADAPTER_PACKAGE) or {}
+    adapter_built = (metadata.get("packages") or {}).get(ADAPTER_PACKAGE) or {}
+    adapter_filename = adapter_verified.get("filename") or adapter_built.get("apkFilename") or adapter_built.get("filename")
+    adapter_sha_values = {adapter_verified.get("sha256"), adapter_built.get("apkSha256")}
+    if adapter_verified.get("status") != "ok" or None in adapter_sha_values or len(adapter_sha_values) != 1 or not adapter_filename:
+        raise ArtifactIdentityError("target-specific adapter APK identity is incomplete or conflicting")
+    adapter_identity = resolve_artifact(ADAPTER_PACKAGE, next(iter(adapter_sha_values)), [input_root], adapter_filename)
+    adapter_source = Path(adapter_identity["canonicalPath"])
+    adapter_target = output_root / adapter_source.name
+    shutil.copy2(adapter_source, adapter_target)
     for name in ("all-in-one-release-manifest.json", "all-in-one-checksums.txt",
                  "build-metadata.json", "apk-verification.json", "rill-consumed-manifest.json"):
         source_path = _files(input_root, name)
@@ -84,6 +95,12 @@ def assemble_public_apk(
         "canonicalPath": str(target),
         "filename": target.name,
         "sha256": sha256(target),
+        "adapter": {
+            **adapter_identity,
+            "canonicalPath": str(adapter_target),
+            "filename": adapter_target.name,
+            "sha256": sha256(adapter_target),
+        },
     }
     return result
 

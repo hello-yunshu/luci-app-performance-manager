@@ -26,7 +26,7 @@
 - **Telemetry + Health Guard**: evidence/confidence Analyzer, baseline-relative health gate, resource locks, durable pending markers, verified rollback and a real monotonic commit-confirm engine
 - **Phase-7 benchmark orchestration**: irqbalance, backlog/budget, buffers, busy poll, tx queue, coalescing, CC, qdisc, SFO/HFO/SFE and CPU governor; providers run only when an exact reversible contract exists
 - **Controlled A/B truthfulness**: persisted control evidence → one-variable transactional candidate → candidate evidence → verified rollback → result persistence → optional Rill outcome; missing/invalid evidence never becomes `validated=true`
-- **RillML (Rill) Shadow learning**: PM owns the consumer-specific adapter and links exact crates.io `rill-ml` 1.5.1 through the bounded shadow-only IPC protocol (context drift detection, validated-outcome weighting, Decision Ledger, model health), failing closed without faking recommendations when the adapter is missing or incompatible
+- **RillML (Rill) Shadow learning**: PM owns the consumer-specific adapter and links exact crates.io `rill-ml` 1.5.3 through the bounded shadow-only IPC protocol (context drift detection, validated-outcome weighting, Decision Ledger, model health), failing closed without faking recommendations when the adapter is missing or incompatible
 - **Assisted Auto**: explicit opt-in only — maintenance window + low-traffic gate + safe allowlist
 - **Multi-platform guidance**: generic x86, Hyper-V and KVM (including Proxmox VE guest guidance)
 - **Companion Agent**: an explicit LAN/WAN iperf3 endpoint tool with no router-mutation authority
@@ -76,12 +76,13 @@ make package/luci-app-performance-manager-all/compile V=s
 
 ### Recommended: one-APK installation
 
-Download `luci-app-performance-manager-all-1.0.0-r1.apk` from the GitHub Release, then install that single application APK:
+Download `luci-app-performance-manager-all-1.0.2-r1.apk` and the target-specific `performance-manager-rill-adapter-1.0.2-r1.apk` from the GitHub Release, then install both application packages:
 
-The repository's official OpenWrt SDK build still compiles and verifies every split package and the physical all-in-one package. The all-in-one-only rule applies to the public Release download for convenience.
+The repository's official OpenWrt SDK build still compiles and verifies every split package and the physical all-in-one package. The public Release includes the all-in-one package plus the current target-specific native adapter package.
 
 ```sh
-apk add --allow-untrusted /tmp/luci-app-performance-manager-all-1.0.0-r1.apk
+apk add --allow-untrusted /tmp/luci-app-performance-manager-all-1.0.2-r1.apk
+apk add --allow-untrusted /tmp/performance-manager-rill-adapter-1.0.2-r1.apk
 ```
 
 OpenWrt still resolves system runtime libraries such as `luci-base`, `rpcd` and `ucode` from its configured repositories. “One APK” means all Performance Manager-owned Core, LuCI, backend, translation and Rill-glue payloads are in one file. It conflicts with the four split packages (including the auto-generated translation package) so duplicate file ownership is impossible. Back up `/etc/config/performance-manager` and switch package forms only during a maintenance window on devices already using the split packages.
@@ -92,7 +93,7 @@ OpenWrt still resolves system runtime libraries such as `luci-base`, `rpcd` and 
 |---|---|
 | Recommended package | `luci-app-performance-manager-all` (one APK) |
 | Target | OpenWrt 25.12.x / x86_64 |
-| Current source candidate | `1.0.0` |
+| Current source candidate | `1.0.2` |
 | Service script | `/etc/init.d/performance-manager` |
 | UCI config | `/etc/config/performance-manager` |
 | Core binary | `/usr/sbin/performance-manager.uc` |
@@ -197,7 +198,7 @@ package/luci-app-performance-manager-all/Makefile  # merges all owned runtime co
                           └────────────────────────┘
 ```
 
-> **Consumer ownership boundary.** Performance Manager owns `pm-rill-shadow` and its native adapter. The adapter links exact crates.io `rill-ml` 1.5.1; it does not consume a PM-specific RillML Release artifact. RillML remains the owner of generic crates and contracts.
+> **Consumer ownership boundary.** Performance Manager owns `pm-rill-shadow` and its native adapter. The adapter links exact crates.io `rill-ml` 1.5.3; it does not consume a PM-specific RillML Release artifact. RillML remains the owner of generic crates and contracts. The upstream PM adapter active surface was removed in RillML 1.5.2; the retained v1.5.1 fixture is historical-only.
 
 **Data flow**:
 
@@ -254,11 +255,11 @@ This project is built and verified automatically with GitHub Actions, triggered 
 
 **`ci.yml` (source & behavior audit, non-compiling)**
 - **static**: unit tests + contract validation + source gates + final audit + LuCI JS syntax & render smoke
-- **adapter-rust / rill-contract**: verifies the PM-owned adapter with exact crates.io `rill-ml` 1.5.1, retained historical v1.5.1 fixture, and emits `rill-consumed-manifest.json`
+- **adapter-rust / rill-contract**: verifies the PM-owned adapter with exact crates.io `rill-ml` 1.5.3, retained historical v1.5.1 fixture, and emits `rill-consumed-manifest.json`
 - **openwrt-ucode**: compiles and validates Core ucode inside the official OpenWrt 25.12.5 rootfs
 
 **`build-openwrt.yml` (remote official SDK build)**
-- **openwrt-sdk-build**: builds the four split packages plus the all-in-one APK with the official SDK, and emits `build-metadata.json`, `checksums.txt` and audit-evidence artifacts
+- **openwrt-sdk-build**: builds the four split packages (including the PM-owned native adapter) plus the all-in-one APK with the official SDK, and emits `build-metadata.json`, `checksums.txt` and audit-evidence artifacts
 
 > The native build here is intentionally limited to the consumer-owned adapter. Generic `rill-ml` crates remain a crates.io dependency; the PM adapter is built by this repository's Rust CI and target-specific OpenWrt package job.
 
@@ -273,7 +274,7 @@ make package        # build release artifacts
 - Resource / write soak: `scripts/openwrt-resource-soak.sh`
 - External validation evidence: `docs/EXTERNAL_VALIDATION.md`
 
-> `1.0.0` uses the explicit `portable-docker` release profile: same-commit official SDK/APKs, exact Rill evidence, hosted Actions, and the Docker Core ucode harness must pass before publishing the single verified all-in-one APK. This profile does not claim Hyper-V, real-router A/B, firmware sysupgrade, or 24-hour soak coverage; those require the separate `hardware` profile.
+> `1.0.2` uses the explicit `portable-docker` release profile: same-commit official SDK/APKs, exact Rill evidence, hosted Actions, and the Docker Core ucode harness must pass before publishing the verified all-in-one and x86_64-musl adapter APKs. This profile does not claim Hyper-V, real-router A/B, firmware sysupgrade, or 24-hour soak coverage; those require the separate `hardware` profile.
 
 ## Documentation
 

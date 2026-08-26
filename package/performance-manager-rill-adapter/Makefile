@@ -1,7 +1,7 @@
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=performance-manager-rill-adapter
-PKG_VERSION:=1.0.1
+PKG_VERSION:=1.0.2
 PKG_RELEASE:=1
 PKG_LICENSE:=MIT
 PKG_MAINTAINER:=OpenWrt Performance Manager contributors
@@ -20,7 +20,7 @@ endef
 define Package/performance-manager-rill-adapter/description
  PM-owned native performance-manager-rill-adapter for pm-rill-shadow v1.
  The binary is built from this repository and links exact crates.io rill-ml
- 1.5.1; it is target-specific and is never downloaded from RillML Release.
+ 1.5.3; it is target-specific and is never downloaded from RillML Release.
 endef
 
 define Build/Compile
