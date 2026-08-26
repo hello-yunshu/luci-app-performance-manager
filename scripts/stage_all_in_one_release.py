@@ -13,6 +13,7 @@ from artifact_identity import ArtifactIdentityError, resolve_artifact, sha256  #
 
 
 PACKAGE = "luci-app-performance-manager-all"
+ADAPTER_PACKAGE = "performance-manager-rill-adapter"
 
 
 def main(argv=None) -> int:
@@ -43,6 +44,17 @@ def main(argv=None) -> int:
     out.mkdir(parents=True, exist_ok=True)
     target = out / expected_name
     shutil.copy2(source, target)
+    adapter_record = (report.get("packages") or {}).get(ADAPTER_PACKAGE) or {}
+    adapter_name = adapter_record.get("filename")
+    adapter_sha = adapter_record.get("sha256")
+    if adapter_record.get("status") != "ok" or not adapter_name or not adapter_sha:
+        raise RuntimeError("target-specific PM adapter APK lacks exact verified identity")
+    try:
+        adapter_identity = resolve_artifact(ADAPTER_PACKAGE, adapter_sha, [sdk_dir], adapter_name)
+    except ArtifactIdentityError as exc:
+        raise RuntimeError(str(exc)) from exc
+    adapter_target = out / adapter_name
+    shutil.copy2(adapter_identity["canonicalPath"], adapter_target)
     manifest = {
         "schemaVersion": 1,
         "contract": "performance-manager-all-in-one-prerelease",
@@ -67,12 +79,22 @@ def main(argv=None) -> int:
                 "/usr/lib/lua/luci/i18n/performance-manager.zh-cn.lmo"
             ),
         },
+        "adapterPackage": {
+            "package": ADAPTER_PACKAGE,
+            "filename": adapter_target.name,
+            "sha256": sha256(adapter_target),
+            "bytes": adapter_target.stat().st_size,
+            "copies": adapter_identity["copies"],
+            "copyCount": adapter_identity["copyCount"],
+            "allCopiesIdentical": adapter_identity["allCopiesIdentical"],
+        },
     }
     manifest_path = out / "all-in-one-release-manifest.json"
     manifest_path.write_text(json.dumps(manifest, ensure_ascii=False, indent=2) + "\n")
     checksum_path = out / "all-in-one-checksums.txt"
     checksum_path.write_text(
-        f"{sha256(target)}  {target.name}\n{sha256(manifest_path)}  {manifest_path.name}\n"
+        f"{sha256(target)}  {target.name}\n{sha256(adapter_target)}  {adapter_target.name}\n"
+        f"{sha256(manifest_path)}  {manifest_path.name}\n"
     )
     print(json.dumps(manifest, ensure_ascii=False, indent=2))
     return 0

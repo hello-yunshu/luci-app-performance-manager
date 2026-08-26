@@ -165,8 +165,8 @@ class BehavioralRegressions(unittest.TestCase):
         self.assertEqual(dep['protocol']['version'], 1)
         self.assertEqual(set(dep['protocol']['requiredOps']), {'status', 'observe', 'outcome'})
         self.assertEqual(dep['adapter']['owner'], 'hello-yunshu/luci-app-performance-manager')
-        self.assertEqual(dep['adapter']['version'], '1.0.1')
-        self.assertEqual(dep['rillMl'], {'package': 'rill-ml', 'registry': 'crates.io', 'version': '1.5.1', 'resolution': 'exact', 'features': ['serde']})
+        self.assertEqual(dep['adapter']['version'], '1.0.2')
+        self.assertEqual(dep['rillMl'], {'package': 'rill-ml', 'registry': 'crates.io', 'version': '1.5.3', 'resolution': 'exact', 'features': ['serde']})
         # The integration package never compiles Rill.
         makefile = (ROOT / 'package/performance-manager-rill/Makefile').read_text()
         self.assertIn('performance-manager-rill-adapter', makefile)

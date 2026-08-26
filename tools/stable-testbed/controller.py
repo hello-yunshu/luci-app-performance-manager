@@ -34,48 +34,48 @@ INSTALL_PLANS = {
     },
     "target-full": {
         "primaryPackage": "luci-app-performance-manager-all",
-        "requiredPackages": ["luci-app-performance-manager-all"],
+        "requiredPackages": ["luci-app-performance-manager-all", "performance-manager-rill-adapter"],
         "forbiddenBusinessPackages": ["performance-manager", "luci-app-performance-manager", "performance-manager-rill"],
     },
     "target-mutation": {
         "primaryPackage": "luci-app-performance-manager-all",
-        "requiredPackages": ["luci-app-performance-manager-all"],
+        "requiredPackages": ["luci-app-performance-manager-all", "performance-manager-rill-adapter"],
         "forbiddenBusinessPackages": ["performance-manager", "luci-app-performance-manager", "performance-manager-rill"],
     },
     "hyperv": {
         "primaryPackage": "luci-app-performance-manager-all",
-        "requiredPackages": ["luci-app-performance-manager-all"],
+        "requiredPackages": ["luci-app-performance-manager-all", "performance-manager-rill-adapter"],
         "forbiddenBusinessPackages": ["performance-manager", "luci-app-performance-manager", "performance-manager-rill"],
     },
     "kvm": {
         "primaryPackage": "luci-app-performance-manager-all",
-        "requiredPackages": ["luci-app-performance-manager-all"],
+        "requiredPackages": ["luci-app-performance-manager-all", "performance-manager-rill-adapter"],
         "forbiddenBusinessPackages": ["performance-manager", "luci-app-performance-manager", "performance-manager-rill"],
     },
     "lan-wan-ab": {
         "primaryPackage": "luci-app-performance-manager-all",
-        "requiredPackages": ["luci-app-performance-manager-all"],
+        "requiredPackages": ["luci-app-performance-manager-all", "performance-manager-rill-adapter"],
         "forbiddenBusinessPackages": ["performance-manager", "luci-app-performance-manager", "performance-manager-rill"],
     },
     "router-local-ab": {
         "primaryPackage": "luci-app-performance-manager-all",
-        "requiredPackages": ["luci-app-performance-manager-all"],
+        "requiredPackages": ["luci-app-performance-manager-all", "performance-manager-rill-adapter"],
         "forbiddenBusinessPackages": ["performance-manager", "luci-app-performance-manager", "performance-manager-rill"],
     },
     "sysupgrade": {
         "primaryPackage": "luci-app-performance-manager-all",
-        "requiredPackages": ["luci-app-performance-manager-all"],
+        "requiredPackages": ["luci-app-performance-manager-all", "performance-manager-rill-adapter"],
         "forbiddenBusinessPackages": ["performance-manager", "luci-app-performance-manager", "performance-manager-rill"],
     },
     "resource-soak": {
         "primaryPackage": "luci-app-performance-manager-all",
-        "requiredPackages": ["luci-app-performance-manager-all"],
+        "requiredPackages": ["luci-app-performance-manager-all", "performance-manager-rill-adapter"],
         "forbiddenBusinessPackages": ["performance-manager", "luci-app-performance-manager", "performance-manager-rill"],
     },
     "lifecycle": {
         "phases": [
-            {"name": "split", "requiredPackages": ["performance-manager", "luci-app-performance-manager", "performance-manager-rill"]},
-            {"name": "bundle", "requiredPackages": ["luci-app-performance-manager-all"]},
+            {"name": "split", "requiredPackages": ["performance-manager", "luci-app-performance-manager", "performance-manager-rill", "performance-manager-rill-adapter"]},
+            {"name": "bundle", "requiredPackages": ["luci-app-performance-manager-all", "performance-manager-rill-adapter"]},
         ],
     },
 }
@@ -141,7 +141,7 @@ def main(argv=None):
         raise RuntimeError("transport must return exactly one rawFacts object")
     facts = raw["rawFacts"]
     installed = facts.get("installedPackages") if isinstance(facts.get("installedPackages"), dict) else {}
-    installed_artifacts = {name: installed.get(name) for name in ("performance-manager", "luci-app-performance-manager", "performance-manager-rill", "luci-app-performance-manager-all")}
+    installed_artifacts = {name: installed.get(name) for name in ("performance-manager", "luci-app-performance-manager", "performance-manager-rill", "performance-manager-rill-adapter", "luci-app-performance-manager-all")}
     build_artifacts = {
         name: {
             "apkSha256": record.get("apkSha256"),

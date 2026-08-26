@@ -16,7 +16,7 @@ class StableEvidenceAggregationTests(unittest.TestCase):
 
     def artifact(self, name):
         rec = {"apkSha256": {"performance-manager": "1", "luci-app-performance-manager": "2",
-                             "performance-manager-rill": "3", "luci-app-performance-manager-all": "7"}[name] * 64,
+                             "performance-manager-rill": "3", "performance-manager-rill-adapter": "8", "luci-app-performance-manager-all": "7"}[name] * 64,
                "version": "1.0.0_rc10-r1", "filename": f"{name}-1.0.0_rc10-r1.apk", "installedPayload": {}}
         if name in {"performance-manager", "luci-app-performance-manager-all"}:
             rec["installedPayload"] = {"/usr/sbin/performance-manager.uc": "4" * 64,
@@ -46,10 +46,10 @@ class StableEvidenceAggregationTests(unittest.TestCase):
             data["packages"] = {pkg: {"apkSha256": self.artifact(pkg)["apkSha256"],
                                       "pkgver": "1.0.0_rc10-r1",
                                       "installedPayload": self.artifact(pkg)["installedPayload"]}
-                                for pkg in ("performance-manager", "luci-app-performance-manager", "performance-manager-rill", "luci-app-performance-manager-all")}
+                                for pkg in ("performance-manager", "luci-app-performance-manager", "performance-manager-rill", "performance-manager-rill-adapter", "luci-app-performance-manager-all")}
         elif name == "apkVerification":
             data["packages"] = {pkg: {"sha256": self.artifact(pkg)["apkSha256"]}
-                                for pkg in ("performance-manager", "luci-app-performance-manager", "performance-manager-rill", "luci-app-performance-manager-all")}
+                                for pkg in ("performance-manager", "luci-app-performance-manager", "performance-manager-rill", "performance-manager-rill-adapter", "luci-app-performance-manager-all")}
         external = {
             "targetCoreOnly": "target-core-only", "targetFull": "target-full", "targetMutation": "target-mutation",
             "hyperV": "hyperv", "kvm": "kvm", "lanWanAb": "lan-wan-ab", "routerLocalAb": "router-local-ab",
@@ -60,19 +60,20 @@ class StableEvidenceAggregationTests(unittest.TestCase):
             data.update({"schemaVersion": 1, "gate": gate, "buildRunId": "99",
                          "controller": {"source": "repository", "path": f"tools/stable-testbed/run-{gate}.sh", "sha256": "6" * 64},
                          "subchecks": {check: True for check in GATE_CHECKS[gate]},
-                         "buildArtifacts": {pkg: self.artifact(pkg) for pkg in ("performance-manager", "luci-app-performance-manager", "performance-manager-rill", "luci-app-performance-manager-all")},
-                         "installedArtifacts": {pkg: None for pkg in ("performance-manager", "luci-app-performance-manager", "performance-manager-rill", "luci-app-performance-manager-all")}})
+                         "buildArtifacts": {pkg: self.artifact(pkg) for pkg in ("performance-manager", "luci-app-performance-manager", "performance-manager-rill", "performance-manager-rill-adapter", "luci-app-performance-manager-all")},
+                         "installedArtifacts": {pkg: None for pkg in ("performance-manager", "luci-app-performance-manager", "performance-manager-rill", "performance-manager-rill-adapter", "luci-app-performance-manager-all")}})
             if gate == "target-core-only":
                 data["installedArtifacts"]["performance-manager"] = self.artifact("performance-manager")
                 data["primaryPackage"] = "performance-manager"
                 data["primaryPackageSha256"] = data["installedArtifacts"]["performance-manager"]["apkSha256"]
             else:
                 data["installedArtifacts"]["luci-app-performance-manager-all"] = self.artifact("luci-app-performance-manager-all")
+                data["installedArtifacts"]["performance-manager-rill-adapter"] = self.artifact("performance-manager-rill-adapter")
                 data["primaryPackage"] = "luci-app-performance-manager-all"
                 data["primaryPackageSha256"] = data["installedArtifacts"]["luci-app-performance-manager-all"]["apkSha256"]
             if gate == "resource-soak":
                 data["durationSeconds"] = 86400
-            raw = {"installedPackages": {"luci-app-performance-manager-all": {}}}
+            raw = {"installedPackages": {"luci-app-performance-manager-all": {}, "performance-manager-rill-adapter": {}}}
             if gate == "target-core-only":
                 raw = {"environment": {"release": "25.12.5", "target": "x86/64"},
                        "process": {"corePid": 1}, "ubusSocketReady": True,
@@ -123,12 +124,12 @@ class StableEvidenceAggregationTests(unittest.TestCase):
                                              "coreStarted": True, "staleLocks": 0, "firmware": {"identity": "fw-b"}}}
             elif gate == "lifecycle":
                 raw["lifecycle"] = {"phases": [
-                    {"name": "split-install", "exitCode": 0, "installedPackages": {"performance-manager": {}, "luci-app-performance-manager": {}, "performance-manager-rill": {}}, "configSha256": "e" * 64},
+                    {"name": "split-install", "exitCode": 0, "installedPackages": {"performance-manager": {}, "luci-app-performance-manager": {}, "performance-manager-rill": {}, "performance-manager-rill-adapter": {}}, "configSha256": "e" * 64},
                     {"name": "split-runtime", "corePid": 1, "ubusReady": True, "rillAdapterSha256": PINNED_ADAPTER_SHA},
-                    {"name": "migration", "removeExitCode": 0, "installBundleExitCode": 0, "installedPackages": {"luci-app-performance-manager-all": {}}},
+                    {"name": "migration", "removeExitCode": 0, "installBundleExitCode": 0, "installedPackages": {"luci-app-performance-manager-all": {}, "performance-manager-rill-adapter": {}}},
                     {"name": "bundle-runtime", "corePid": 2, "ubusReady": True, "configSha256": "e" * 64},
                     {"name": "uninstall", "exitCode": 0, "remainingOwnedPaths": [], "staleLocks": 0, "stalePending": 0, "staleSockets": 0},
-                    {"name": "reinstall", "exitCode": 0, "installedPackages": {"luci-app-performance-manager-all": {}}, "corePid": 3, "ubusReady": True},
+                    {"name": "reinstall", "exitCode": 0, "installedPackages": {"luci-app-performance-manager-all": {}, "performance-manager-rill-adapter": {}}, "corePid": 3, "ubusReady": True},
                 ]}
             elif gate == "resource-soak":
                 raw["durationSeconds"] = 86400

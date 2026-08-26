@@ -1,4 +1,4 @@
-# Architecture — 1.0.1
+# Architecture — 1.0.2
 
 ## Authority boundary
 
@@ -12,7 +12,7 @@ The Companion Agent is an endpoint evidence utility for explicit tests and has n
 
 ### PM-owned Rill adapter
 
-Since 1.0.1 the consumer-specific adapter is owned by Performance Manager at `integrations/performance-manager-rill-adapter/`. It links exact crates.io `rill-ml = 1.5.1`, implements only the advisory `pm-rill-shadow` v1 contract, and is packaged as target-specific `performance-manager-rill-adapter`. The arch-independent all-in-one APK does not contain native code; install the target package for Rill Intelligence. No RillML Release adapter artifact is downloaded or selected.
+Since 1.0.1 the consumer-specific adapter is owned by Performance Manager at `integrations/performance-manager-rill-adapter/`. It links exact crates.io `rill-ml = 1.5.3`, implements only the advisory `pm-rill-shadow` v1 contract, and is packaged as target-specific `performance-manager-rill-adapter`. The arch-independent all-in-one APK does not contain native code; install it together with the target package for Rill Intelligence. No RillML Release adapter artifact is downloaded or selected; the upstream PM adapter active surface was removed in RillML 1.5.2.
 
 - The `shadow` rill UCI section resolves explicit paths first, then `/usr/sbin/performance-manager-rill-adapter`, `/usr/bin/performance-manager-rill-adapter`, and only then legacy paths; invalid explicit paths fail closed.
 - `contracts/rill-dependency.json` formalizes PM ownership, exact `rill-ml` registry dependency, protocol v1, state schema 1 and advisory authority; `scripts/rill_contract_check.py` validates it.

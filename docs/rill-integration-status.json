@@ -7,7 +7,7 @@
   "upstreamReleaseVerification": "historical-only",
   "adapterOwner": "hello-yunshu/luci-app-performance-manager",
   "adapterBinary": "performance-manager-rill-adapter",
-  "rillMlVersion": "1.5.1",
+  "rillMlVersion": "1.5.3",
   "checks": [
     {
       "name": "schema contract const==pm-rill-shadow",
