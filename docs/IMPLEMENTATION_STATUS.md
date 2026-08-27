@@ -1,4 +1,18 @@
-# Implementation Status — 1.0.0-rc.8
+# Implementation Status — 1.0.2
+
+## Current Rill 1.5.3 release state
+
+The current PM-owned adapter release is `1.0.2`. It consumes exact crates.io
+`rill-ml` `1.5.3`, keeps `pm-rill-shadow` protocol v1, and publishes both the
+all-in-one APK and the target-specific `performance-manager-rill-adapter`
+APK for OpenWrt 25.12.x x86_64. The real musl adapter runtime, official
+OpenWrt rootfs, Core roundtrip, remote SDK build, and same-commit evidence
+chain are blocking GitHub Actions gates. The public release uses the
+`portable-docker` profile and therefore does not claim physical hardware or
+24-hour soak coverage. The v1.5.1 upstream adapter files below are historical
+compatibility evidence only; they are not current provisioning inputs.
+
+The sections below are retained as implementation history.
 
 This repository implements the frozen planning pack v0.3.2 through Phase 12 as a **source candidate**. rc.8 closes the exact Rill decision/outcome lifecycle, idle persistence amplification, resource measurement, effective socket access control, and evidence-promotion gaps. “Source candidate” does **not** mean runtime, target, testbed, 24-hour soak, or Stable PASS; those verdicts are exclusively produced by the same-commit Stable aggregator.
 

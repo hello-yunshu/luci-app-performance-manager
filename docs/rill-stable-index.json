@@ -1,4 +1,5 @@
 {
+  "evidenceStatus": "historical-only",
   "payload": {
     "schemaVersion": 3,
     "channel": "stable",
