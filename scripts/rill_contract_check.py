@@ -59,7 +59,7 @@ status = {
     "scope": "PM-owned adapter and pm-rill-shadow v1 static contract",
     "staticContractVerdict": "PASS" if ok else "FAIL",
     "functionalIntegrationVerdict": "NOT_EVALUATED",
-    "upstreamReleaseVerification": "historical-only",
+    "upstreamReleaseVerification": "current rill-ml identity is contract-pinned; historical adapter fixture separately verified",
     "adapterOwner": DEP["adapter"]["owner"],
     "adapterBinary": DEP["adapter"]["binary"],
     "rillMlVersion": DEP["rillMl"]["version"],
