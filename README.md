@@ -61,12 +61,17 @@
 ### 源码构建（OpenWrt SDK / buildroot）
 
 ```sh
-mkdir -p package/openwrt-performance-manager
-cp -a /path/to/openwrt-performance-manager/package/* package/openwrt-performance-manager/
+# 1. 在 Performance Manager 仓库中先构建并 stage native adapter
+cd /path/to/openwrt-performance-manager
+python3 scripts/build_pm_adapter.py --target x86_64-unknown-linux-musl
+
+# 2. 再进入 OpenWrt SDK
+cd /path/to/openwrt-sdk
 ./scripts/feeds update -a
 ./scripts/feeds install -a
+mkdir -p package/openwrt-performance-manager
+cp -a /path/to/openwrt-performance-manager/package/* package/openwrt-performance-manager/
 make defconfig
-python3 scripts/build_pm_adapter.py --target x86_64-unknown-linux-musl
 make package/performance-manager-rill-adapter/compile V=s
 make package/performance-manager/compile V=s
 make package/luci-app-performance-manager/compile V=s
@@ -262,7 +267,7 @@ package/luci-app-performance-manager-all/Makefile  # 将上述自有运行内容
 
 本项目使用 GitHub Actions 自动构建与验证，推送 main 分支或手动触发即可运行：
 
-**`ci.yml`（源码与行为审计，不编译）**
+**`ci.yml`（源码、行为、契约与 PM-owned adapter 验证）**
 - **static**：单测 + 契约校验 + source gates + final audit + LuCI JS 语法 & render smoke
 - **rill-contract**：验证 PM-owned adapter、精确 crates.io `rill-ml` 依赖与 `pm-rill-shadow` 契约，并产出 `rill-consumed-manifest.json`
 - **openwrt-ucode**：官方 OpenWrt 25.12.5 rootfs 中编译校验 Core ucode
