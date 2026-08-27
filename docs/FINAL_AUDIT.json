@@ -1,7 +1,7 @@
 {
   "schemaVersion": 3,
   "project": "OpenWrt Performance Manager",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "pmCommitSha": "WORKTREE_UNCOMMITTED",
   "scope": "source-only",
   "sourceCandidateVerdict": "PASS",
@@ -31,7 +31,7 @@
       "name": "rill-static-contract",
       "evidenceClass": "source",
       "status": "PASS",
-      "outputTail": "rill-contract (PM-owned static): 20/20 checks passed; staticContractVerdict=PASS\n"
+      "outputTail": "rill-contract (PM-owned static): 21/21 checks passed; staticContractVerdict=PASS\n"
     },
     {
       "name": "resource-budget",
@@ -44,7 +44,7 @@
     "unitAndContractTests": {
       "status": "PASS",
       "count": 185,
-      "outputTail": "ation.json\": \"9ba659a\",\n    \"build-metadata.json\": \"9ba659a\",\n    \"apk-verification.json\": \"9ba659a\"\n  },\n  \"missingEvidence\": [],\n  \"errors\": [],\n  \"output\": \"/var/folders/ng/57pdwsd97zl6qbjwh_sqrts80000gn/T/tmp8vk041mt/final.json\"\n}\n{\n  \"scope\": \"rill\",\n  \"overallVerdict\": \"FAIL\",\n  \"rcVerdict\": \"PASS\",\n  \"evidenceChainVerdict\": \"FAIL\",\n  \"apkPackagesBuildVerdict\": \"OUT_OF_SCOPE\",\n  \"apkExactVerificationVerdict\": \"OUT_OF_SCOPE\",\n  \"rillArtifactProvenanceVerdict\": \"PASS\",\n  \"rillRuntimeCompatibilityVerdict\": \"PASS\",\n  \"rillFunctionalIntegrationVerdict\": \"PASS\",\n  \"evidenceCommits\": {\n    \"rill-provenance.json\": \"9ba659a\",\n    \"rill-runtime.json\": \"<missing>\",\n    \"rill-core-integration.json\": \"9ba659a\"\n  },\n  \"missingEvidence\": [],\n  \"errors\": [\n    \"evidence file(s) carry no PM commit SHA: rill-runtime.json\"\n  ],\n  \"output\": \"/var/folders/ng/57pdwsd97zl6qbjwh_sqrts80000gn/T/tmpvhm3ujri/final.json\"\n}\n{\n  \"scope\": \"rill\",\n  \"overallVerdict\": \"FAIL\",\n  \"rcVerdict\": \"BLOCKED\",\n  \"evidenceChainVerdict\": \"FAIL\",\n  \"apkPackagesBuildVerdict\": \"OUT_OF_SCOPE\",\n  \"apkExactVerificationVerdict\": \"OUT_OF_SCOPE\",\n  \"rillArtifactProvenanceVerdict\": \"PASS\",\n  \"rillRuntimeCompatibilityVerdict\": \"PASS\",\n  \"rillFunctionalIntegrationVerdict\": \"BLOCKED\",\n  \"evidenceCommits\": {\n    \"rill-provenance.json\": \"9ba659a\",\n    \"rill-runtime.json\": \"9ba659a\"\n  },\n  \"missingEvidence\": [\n    \"rill-core-integration.json\"\n  ],\n  \"errors\": [\n    \"missing required per-job evidence: rill-core-integration.json\"\n  ],\n  \"output\": \"/var/folders/ng/57pdwsd97zl6qbjwh_sqrts80000gn/T/tmph0pauimr/final.json\"\n}\n{\n  \"scope\": \"rill\",\n  \"overallVerdict\": \"FAIL\",\n  \"rcVerdict\": \"FAIL\",\n  \"evidenceChainVerdict\": \"PASS\",\n  \"apkPackagesBuildVerdict\": \"OUT_OF_SCOPE\",\n  \"apkExactVerificationVerdict\": \"OUT_OF_SCOPE\",\n  \"rillArtifactProvenanceVerdict\": \"FAIL\",\n  \"rillRuntimeCompatibilityVerdict\": \"PASS\",\n  \"rillFunctionalIntegrationVerdict\": \"PASS\",\n  \"evidenceCommits\": {\n    \"rill-provenance.json\": \"9ba659a\",\n    \"rill-runtime.json\": \"9ba659a\",\n    \"rill-core-integration.json\": \"9ba659a\"\n  },\n  \"missingEvidence\": [],\n  \"errors\": [],\n  \"output\": \"/var/folders/ng/57pdwsd97zl6qbjwh_sqrts80000gn/T/tmpokdlwqp4/final.json\"\n}\n{\n  \"scope\": \"rill\",\n  \"overallVerdict\": \"PASS\",\n  \"rcVerdict\": \"PASS\",\n  \"evidenceChainVerdict\": \"PASS\",\n  \"apkPackagesBuildVerdict\": \"OUT_OF_SCOPE\",\n  \"apkExactVerificationVerdict\": \"OUT_OF_SCOPE\",\n  \"rillArtifactProvenanceVerdict\": \"PASS\",\n  \"rillRuntimeCompatibilityVerdict\": \"PASS\",\n  \"rillFunctionalIntegrationVerdict\": \"PASS\",\n  \"evidenceCommits\": {\n    \"rill-provenance.json\": \"9ba659a\",\n    \"rill-runtime.json\": \"9ba659a\",\n    \"rill-core-integration.json\": \"9ba659a\"\n  },\n  \"missingEvidence\": [],\n  \"errors\": [],\n  \"output\": \"/var/folders/ng/57pdwsd97zl6qbjwh_sqrts80000gn/T/tmpx7eexfm8/final.json\"\n}\n{\n  \"scope\": \"build\",\n  \"overallVerdict\": \"PASS\",\n  \"rcVerdict\": \"PASS\",\n  \"evidenceChainVerdict\": \"PASS\",\n  \"apkPackagesBuildVerdict\": \"PASS\",\n  \"apkExactVerificationVerdict\": \"PASS\",\n  \"rillArtifactProvenanceVerdict\": \"OUT_OF_SCOPE\",\n  \"rillRuntimeCompatibilityVerdict\": \"OUT_OF_SCOPE\",\n  \"rillFunctionalIntegrationVerdict\": \"OUT_OF_SCOPE\",\n  \"evidenceCommits\": {\n    \"build-metadata.json\": \"9ba659a\",\n    \"apk-verification.json\": \"9ba659a\"\n  },\n  \"missingEvidence\": [],\n  \"errors\": [],\n  \"output\": \"/var/folders/ng/57pdwsd97zl6qbjwh_sqrts80000gn/T/tmpiggrvkub/final.json\"\n}\n{\n  \"scope\": \"rill\",\n  \"overallVerdict\": \"FAIL\",\n  \"rcVerdict\": \"FAIL\",\n  \"evidenceChainVerdict\": \"PASS\",\n  \"apkPackagesBuildVerdict\": \"OUT_OF_SCOPE\",\n  \"apkExactVerificationVerdict\": \"OUT_OF_SCOPE\",\n  \"rillArtifactProvenanceVerdict\": \"PASS\",\n  \"rillRuntimeCompatibilityVerdict\": \"PASS\",\n  \"rillFunctionalIntegrationVerdict\": \"FAIL\",\n  \"evidenceCommits\": {\n    \"rill-provenance.json\": \"9ba659a\",\n    \"rill-runtime.json\": \"9ba659a\",\n    \"rill-core-integration.json\": \"9ba659a\"\n  },\n  \"missingEvidence\": [],\n  \"errors\": [],\n  \"output\": \"/var/folders/ng/57pdwsd97zl6qbjwh_sqrts80000gn/T/tmp__74_ck3/final.json\"\n}\n"
+      "outputTail": "ation.json\": \"9ba659a\",\n    \"build-metadata.json\": \"9ba659a\",\n    \"apk-verification.json\": \"9ba659a\"\n  },\n  \"missingEvidence\": [],\n  \"errors\": [],\n  \"output\": \"/var/folders/ng/57pdwsd97zl6qbjwh_sqrts80000gn/T/tmpklm44cqp/final.json\"\n}\n{\n  \"scope\": \"rill\",\n  \"overallVerdict\": \"FAIL\",\n  \"rcVerdict\": \"PASS\",\n  \"evidenceChainVerdict\": \"FAIL\",\n  \"apkPackagesBuildVerdict\": \"OUT_OF_SCOPE\",\n  \"apkExactVerificationVerdict\": \"OUT_OF_SCOPE\",\n  \"rillArtifactProvenanceVerdict\": \"PASS\",\n  \"rillRuntimeCompatibilityVerdict\": \"PASS\",\n  \"rillFunctionalIntegrationVerdict\": \"PASS\",\n  \"evidenceCommits\": {\n    \"rill-provenance.json\": \"9ba659a\",\n    \"rill-runtime.json\": \"<missing>\",\n    \"rill-core-integration.json\": \"9ba659a\"\n  },\n  \"missingEvidence\": [],\n  \"errors\": [\n    \"evidence file(s) carry no PM commit SHA: rill-runtime.json\"\n  ],\n  \"output\": \"/var/folders/ng/57pdwsd97zl6qbjwh_sqrts80000gn/T/tmp1pllhh8n/final.json\"\n}\n{\n  \"scope\": \"rill\",\n  \"overallVerdict\": \"FAIL\",\n  \"rcVerdict\": \"BLOCKED\",\n  \"evidenceChainVerdict\": \"FAIL\",\n  \"apkPackagesBuildVerdict\": \"OUT_OF_SCOPE\",\n  \"apkExactVerificationVerdict\": \"OUT_OF_SCOPE\",\n  \"rillArtifactProvenanceVerdict\": \"PASS\",\n  \"rillRuntimeCompatibilityVerdict\": \"PASS\",\n  \"rillFunctionalIntegrationVerdict\": \"BLOCKED\",\n  \"evidenceCommits\": {\n    \"rill-provenance.json\": \"9ba659a\",\n    \"rill-runtime.json\": \"9ba659a\"\n  },\n  \"missingEvidence\": [\n    \"rill-core-integration.json\"\n  ],\n  \"errors\": [\n    \"missing required per-job evidence: rill-core-integration.json\"\n  ],\n  \"output\": \"/var/folders/ng/57pdwsd97zl6qbjwh_sqrts80000gn/T/tmp0d7bt5q4/final.json\"\n}\n{\n  \"scope\": \"rill\",\n  \"overallVerdict\": \"FAIL\",\n  \"rcVerdict\": \"FAIL\",\n  \"evidenceChainVerdict\": \"PASS\",\n  \"apkPackagesBuildVerdict\": \"OUT_OF_SCOPE\",\n  \"apkExactVerificationVerdict\": \"OUT_OF_SCOPE\",\n  \"rillArtifactProvenanceVerdict\": \"FAIL\",\n  \"rillRuntimeCompatibilityVerdict\": \"PASS\",\n  \"rillFunctionalIntegrationVerdict\": \"PASS\",\n  \"evidenceCommits\": {\n    \"rill-provenance.json\": \"9ba659a\",\n    \"rill-runtime.json\": \"9ba659a\",\n    \"rill-core-integration.json\": \"9ba659a\"\n  },\n  \"missingEvidence\": [],\n  \"errors\": [],\n  \"output\": \"/var/folders/ng/57pdwsd97zl6qbjwh_sqrts80000gn/T/tmpt0qwigr8/final.json\"\n}\n{\n  \"scope\": \"rill\",\n  \"overallVerdict\": \"PASS\",\n  \"rcVerdict\": \"PASS\",\n  \"evidenceChainVerdict\": \"PASS\",\n  \"apkPackagesBuildVerdict\": \"OUT_OF_SCOPE\",\n  \"apkExactVerificationVerdict\": \"OUT_OF_SCOPE\",\n  \"rillArtifactProvenanceVerdict\": \"PASS\",\n  \"rillRuntimeCompatibilityVerdict\": \"PASS\",\n  \"rillFunctionalIntegrationVerdict\": \"PASS\",\n  \"evidenceCommits\": {\n    \"rill-provenance.json\": \"9ba659a\",\n    \"rill-runtime.json\": \"9ba659a\",\n    \"rill-core-integration.json\": \"9ba659a\"\n  },\n  \"missingEvidence\": [],\n  \"errors\": [],\n  \"output\": \"/var/folders/ng/57pdwsd97zl6qbjwh_sqrts80000gn/T/tmpl78d85it/final.json\"\n}\n{\n  \"scope\": \"build\",\n  \"overallVerdict\": \"PASS\",\n  \"rcVerdict\": \"PASS\",\n  \"evidenceChainVerdict\": \"PASS\",\n  \"apkPackagesBuildVerdict\": \"PASS\",\n  \"apkExactVerificationVerdict\": \"PASS\",\n  \"rillArtifactProvenanceVerdict\": \"OUT_OF_SCOPE\",\n  \"rillRuntimeCompatibilityVerdict\": \"OUT_OF_SCOPE\",\n  \"rillFunctionalIntegrationVerdict\": \"OUT_OF_SCOPE\",\n  \"evidenceCommits\": {\n    \"build-metadata.json\": \"9ba659a\",\n    \"apk-verification.json\": \"9ba659a\"\n  },\n  \"missingEvidence\": [],\n  \"errors\": [],\n  \"output\": \"/var/folders/ng/57pdwsd97zl6qbjwh_sqrts80000gn/T/tmpoewin7rj/final.json\"\n}\n{\n  \"scope\": \"rill\",\n  \"overallVerdict\": \"FAIL\",\n  \"rcVerdict\": \"FAIL\",\n  \"evidenceChainVerdict\": \"PASS\",\n  \"apkPackagesBuildVerdict\": \"OUT_OF_SCOPE\",\n  \"apkExactVerificationVerdict\": \"OUT_OF_SCOPE\",\n  \"rillArtifactProvenanceVerdict\": \"PASS\",\n  \"rillRuntimeCompatibilityVerdict\": \"PASS\",\n  \"rillFunctionalIntegrationVerdict\": \"FAIL\",\n  \"evidenceCommits\": {\n    \"rill-provenance.json\": \"9ba659a\",\n    \"rill-runtime.json\": \"9ba659a\",\n    \"rill-core-integration.json\": \"9ba659a\"\n  },\n  \"missingEvidence\": [],\n  \"errors\": [],\n  \"output\": \"/var/folders/ng/57pdwsd97zl6qbjwh_sqrts80000gn/T/tmp3z3rb53f/final.json\"\n}\n"
     },
     "hostSyntaxChecks": {
       "status": "PASS",
@@ -272,7 +272,7 @@
       "scope": "PM-owned adapter and pm-rill-shadow v1 static contract",
       "staticContractVerdict": "PASS",
       "functionalIntegrationVerdict": "NOT_EVALUATED",
-      "upstreamReleaseVerification": "historical-only",
+      "upstreamReleaseVerification": "current rill-ml identity is contract-pinned; historical adapter fixture separately verified",
       "adapterOwner": "hello-yunshu/luci-app-performance-manager",
       "adapterBinary": "performance-manager-rill-adapter",
       "rillMlVersion": "1.5.3",
@@ -342,6 +342,10 @@
           "ok": true
         },
         {
+          "name": "RillML exact release identity",
+          "ok": true
+        },
+        {
           "name": "integration package owns adapter",
           "ok": true
         },
@@ -403,27 +407,27 @@
     "performance-manager": {
       "files": 40,
       "bytes": 259149,
-      "makefileSha256": "d66cf82fa9b98936bdd9e4838c0912be1eecbc5d578d5983dc4144b0c152992f"
+      "makefileSha256": "33d899786cca8ee0b7b4fb23786aebca1d715a764fb9559ddaa7df5151d8b721"
     },
     "luci-app-performance-manager": {
       "files": 14,
       "bytes": 36355,
-      "makefileSha256": "dc953689eec697754a351842fc31c93ede018c8bd6017b47c54f217294cc8ebc"
+      "makefileSha256": "8dfd805d90a7ab8657a336f07090d66d393b230356117351811697196fe16cc1"
     },
     "performance-manager-rill": {
       "files": 3,
       "bytes": 5100,
-      "makefileSha256": "5676b6d862478e73f46d95319609c521bb28b31185604b3b777b33c77a262175"
+      "makefileSha256": "547f9c56ef50f05f6901df542d91f2200e0b33775de1322a7a5e75b7b8295727"
     },
     "performance-manager-rill-adapter": {
       "files": 1,
       "bytes": 1082,
-      "makefileSha256": "f1228ac2be3074ddd90fffc3b75f54e73302d1fa73d8561eb09b28127a25817f"
+      "makefileSha256": "5ec9c79905723e08eeafa44829ffc6c12a21b83221e50a328a84ff9b72741635"
     },
     "luci-app-performance-manager-all": {
       "files": 1,
       "bytes": 4930,
-      "makefileSha256": "4712e318f56c0c142ca8fe441462af12dbeb0e02635cca338a90cf4b1ae0731b"
+      "makefileSha256": "9dcf981af3023552f46ae1e901cee05a3bcccb4fd893e099288756d34af395c3"
     }
   },
   "toolchainAvailability": {
@@ -431,5 +435,5 @@
     "rustc": true,
     "ucode": false
   },
-  "decision": "1.0.2 source candidate PASS; functional integration and Stable release are NOT_EVALUATED"
+  "decision": "1.0.3 source candidate PASS; functional integration and Stable release are NOT_EVALUATED"
 }

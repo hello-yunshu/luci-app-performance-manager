@@ -93,7 +93,7 @@ jobs:
 
   # Real PM-owned adapter execution inside the official OpenWrt rootfs.
   # Consumes the EXACT verified contract-selected x86_64-musl PM adapter from provenance,
-  # executes it (--version -> 1.0.2), starts it and drives the real
+  # executes it (--version -> 1.0.3), starts it and drives the real
   # pm-rill-shadow v1 status/observe/outcome roundtrips plus fail-closed
   # negatives through scripts/rill_adapter_runtime.py. No mock, no Core mirror.
   pm-rill-runtime:
@@ -436,7 +436,7 @@ jobs:
           cargo clippy --locked --all-targets -- -D warnings
           cargo test --locked
           cargo build --locked --release --target x86_64-unknown-linux-musl
-          test "$(target/x86_64-unknown-linux-musl/release/performance-manager-rill-adapter --version | head -n1)" = "performance-manager-rill-adapter 1.0.2"
+          test "$(target/x86_64-unknown-linux-musl/release/performance-manager-rill-adapter --version | head -n1)" = "performance-manager-rill-adapter 1.0.3"
 
   # Final release evidence aggregation (rc.7 prompt 29/43): downloads the
   # per-job Rill evidence from the three Rill jobs and runs the authoritative

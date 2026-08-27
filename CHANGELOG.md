@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.0.3 — Rill 1.5.3 release identity repair (2026-08-27)
+
+- Rebuilds the PM-owned adapter and package set as `1.0.3` from one final main commit.
+- Publishes the x86_64 target-specific adapter APK together with the all-in-one APK and a consistent Rill 1.5.3 consumption manifest.
+- Keeps the immutable v1.0.2 release unchanged; its mixed historical Rill identity is not reused.
+
 ## 1.0.2 — RillML 1.5.3 and public adapter APK (2026-08-27)
 
 - Updates the PM-owned adapter and exact crates.io dependency to `rill-ml = 1.5.3`; the retained upstream v1.5.1 adapter remains historical-only.

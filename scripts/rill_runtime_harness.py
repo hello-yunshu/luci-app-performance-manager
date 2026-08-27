@@ -394,15 +394,20 @@ def main() -> int:
     evidence = {}
     if OUT.exists():
         evidence = json.loads(OUT.read_text())
+    evidence['evidenceStatus'] = 'source-wire-harness'
     evidence['schemaVersion'] = 2
     evidence.setdefault('pm', {}).update({'version': (ROOT / 'VERSION').read_text().strip()})
     evidence['pmCommitSha'] = os.environ.get('GITHUB_SHA') or _pm_commit()
-    evidence.setdefault('rill', {}).update({
+    evidence['rill'] = {
+        'releaseVersion': DEP['rillMl']['version'],
+        'releaseTag': DEP['rillRelease']['tag'],
+        'expectedCommitSha': DEP['rillRelease']['commit'],
         'rillMlVersion': DEP['rillMl']['version'],
         'adapterOwner': DEP['adapter']['owner'],
         'adapterBinaryVersion': DEP['adapter']['version'],
         'adapterProtocolVersion': DEP['protocol']['version'],
-    })
+        'upstreamPmAdapterRequired': False,
+    }
     rt = evidence.setdefault('runtime', {})
     rt['executableVerdict'] = 'BLOCKED'  # real adapter binary exec/version is CI pm-rill-runtime
     rt['versionVerdict'] = 'BLOCKED'
