@@ -64,8 +64,8 @@ def main(argv=None) -> int:
         "sdkArchiveSha256": build.get("sdkArchiveSha256"),
         "rill": {
             "releaseVersion": rill.get("rillMlVersion") or rill.get("releaseVersion"),
-            "releaseTag": rill.get("historicalReleaseTag") or rill.get("releaseTag"),
-            "releaseCommitSha": rill.get("historicalReleaseCommitSha") or rill.get("releaseCommitSha"),
+            "releaseTag": rill.get("releaseTag") or rill.get("historicalReleaseTag"),
+            "releaseCommitSha": rill.get("releaseCommitSha") or rill.get("historicalReleaseCommitSha"),
             "artifactSha256": rill.get("artifactSha256") or rill.get("adapterSha256"),
             "adapterOwner": rill.get("adapterOwner"),
             "adapterVersion": rill.get("adapterVersion"),

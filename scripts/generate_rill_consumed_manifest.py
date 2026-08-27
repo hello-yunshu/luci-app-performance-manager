@@ -27,6 +27,7 @@ def main() -> int:
     dep = json.loads((ROOT / "contracts/rill-dependency.json").read_text())
     adapter = dep["adapter"]
     rill = dep["rillMl"]
+    release = dep["rillRelease"]
     manifest = {
         "schemaVersion": 3,
         "contract": "pm-owned-rill-consumption",
@@ -40,6 +41,9 @@ def main() -> int:
         "rillMlRegistry": rill["registry"],
         "rillMlVersion": rill["version"],
         "rillMlResolution": rill["resolution"],
+        "releaseTag": release["tag"],
+        "releaseCommitSha": release["commit"],
+        "stableIndexSha256": release["stableIndexSha256"],
         "protocolContract": dep["protocol"]["name"],
         "protocolVersion": dep["protocol"]["version"],
         "stateSchemaVersion": dep["state"]["schemaVersion"],
