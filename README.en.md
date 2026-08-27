@@ -66,11 +66,15 @@ cp -a /path/to/openwrt-performance-manager/package/* package/openwrt-performance
 ./scripts/feeds update -a
 ./scripts/feeds install -a
 make defconfig
+python3 scripts/build_pm_adapter.py --target x86_64-unknown-linux-musl
+make package/performance-manager-rill-adapter/compile V=s
 make package/performance-manager/compile V=s
 make package/luci-app-performance-manager/compile V=s
 make package/performance-manager-rill/compile V=s
 make package/luci-app-performance-manager-all/compile V=s
 ```
+
+`build_pm_adapter.py` builds and stages the target-specific native adapter from this repository's Rust source; the generated binary must not be committed. The recommended installation model is `luci-app-performance-manager-all` plus the target-specific `performance-manager-rill-adapter` package. The all-in-one package already contains the `performance-manager-rill` service glue, so installing that split glue package separately is unnecessary.
 
 > You can also rely on the GitHub Actions `build-openwrt.yml` → `openwrt-sdk-build` job to produce the build instead of using a local SDK.
 

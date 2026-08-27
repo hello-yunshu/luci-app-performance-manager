@@ -48,7 +48,7 @@
 |---|---|
 | `performance-manager` | procd 管理的 ucode/ubus Core：contracts、discovery、telemetry、事务引擎与安全动作 |
 | `luci-app-performance-manager` | Supported-first LuCI 界面（简体中文） |
-| `performance-manager-rill` | PM ↔ 上游 Rill 集成开关（integration glue）：只消费上游 Rill 正式发布产物，不编译 Rill 源码 |
+| `performance-manager-rill` | PM-owned 集成服务 glue；native adapter 由同仓库的 `performance-manager-rill-adapter` 构建、测试、打包与发布，并链接 exact `rill-ml` 1.5.3 |
 | `luci-app-performance-manager-all` | 推荐的一体化 APK：物理包含 Core、LuCI、rpcd ACL/menu、简体中文翻译和 Rill glue；不依赖上述三个拆分业务包 |
 
 ## 安装
@@ -66,18 +66,15 @@ cp -a /path/to/openwrt-performance-manager/package/* package/openwrt-performance
 ./scripts/feeds update -a
 ./scripts/feeds install -a
 make defconfig
+python3 scripts/build_pm_adapter.py --target x86_64-unknown-linux-musl
+make package/performance-manager-rill-adapter/compile V=s
 make package/performance-manager/compile V=s
 make package/luci-app-performance-manager/compile V=s
 make package/performance-manager-rill/compile V=s
-```
-
-上述是源码自行构建的默认模块化 split 路径。Rill glue 可按需启用；官方用户 Release 的一体化 APK 是独立的 packaging 目标：
-
-```sh
 make package/luci-app-performance-manager-all/compile V=s
 ```
 
-CI 仍会同时构建并 exact verify Core、LuCI、Rill glue、PM-owned adapter 与 all-in-one 五种包；普通用户 Release 同时公开 all-in-one APK 与当前目标 adapter APK。
+`build_pm_adapter.py` 先从本仓库的 Rust adapter 源码构建并 stage 目标架构 binary；binary 是生成物，不提交到 Git。随后 SDK 会构建并校验 Core、LuCI、PM-owned adapter、Rill glue 与 all-in-one 五种包。推荐安装模型是 `luci-app-performance-manager-all` 加目标架构的 `performance-manager-rill-adapter`；不需要另行安装 `performance-manager-rill`，因为 all-in-one 已包含服务 glue。
 
 > 也可以直接依赖 GitHub Actions 的 `build-openwrt.yml` → `openwrt-sdk-build` job 产出构建结果，无需本地 SDK。
 
@@ -198,14 +195,18 @@ package/luci-app-performance-manager-all/Makefile  # 将上述自有运行内容
                           │ performance-manager-rill │
                           │   (integration glue)     │
                           └───────────┬────────────┘
-                                      │ 消费上游正式发布产物
+                                      │ pm-rill-shadow v1 / UDS
                           ┌───────────▼────────────┐
-                          │ PM-owned adapter + rill-ml │
-                          │  (上游仓库构建/发布)      │
+                          │ PM-owned native adapter │
+                          │ 本仓库构建/测试/打包发布 │
+                          └───────────┬────────────┘
+                                      │ Rust crate dependency
+                          ┌───────────▼────────────┐
+                          │ crates.io rill-ml 1.5.3 │
                           └────────────────────────┘
 ```
 
-> **RillML（简称 Rill）是外部运行时依赖。** Rill 的源码、Rust toolchain、跨平台编译与二进制发布全部由 Rill 上游仓库负责；本仓库不内置、不编译、不测试 Rill 的 Rust 实现。`performance-manager-rill` 只是 PM 专属的集成 glue（fail-closed 能力门禁 + 服务 glue），只消费并校验上游正式发布产物。
+> **所有权边界。** `performance-manager-rill` 是 PM integration glue；`performance-manager-rill-adapter` 是本仓库 PM-owned native adapter，由本仓库构建、测试、打包和发布，并依赖 exact crates.io `rill-ml` 1.5.3。RillML 上游负责通用 crate 与协议，不提供本仓库的 PM adapter binary。
 
 **数据流**：
 
@@ -240,7 +241,7 @@ package/luci-app-performance-manager-all/Makefile  # 将上述自有运行内容
 |---|---|---|---|
 | `enabled` | boolean | 1 | 启用 Rill Shadow |
 | `mode` | enum | shadow | 只读学习，无 Apply 权限 |
-| `binary` | string | (空) | 上游提供的 Rill 运行时二进制路径；为空 = 外部依赖未安装，集成 fail-closed / 阻塞 |
+| `binary` | string | (空) | PM-owned adapter 二进制路径，通常为 `/usr/sbin/performance-manager-rill-adapter`；缺失时集成 fail-closed / 阻塞 |
 | `socket` | string | /run/performance-manager/rill.sock | UDS 路径 |
 | `max_message` | integer | 65536 | 最大消息字节 |
 | `timeout_ms` | integer | 1000 | 调用超时 |
@@ -269,7 +270,7 @@ package/luci-app-performance-manager-all/Makefile  # 将上述自有运行内容
 **`build-openwrt.yml`（远程官方 SDK 构建）**
 - **openwrt-sdk-build**：官方 SDK 构建三个拆分包及一体化 APK，并产出 `build-metadata.json`、`checksums.txt` 与审计证据 artifact
 
-> 本仓库不再有 `rill-native` / Rill SDK build job：不安装 Rust 工具链编译 Rill。Rill 的 native 构建与测试由 Rill 上游仓库的 Actions 负责。
+> 本仓库的 Rust job 与 OpenWrt SDK job 会构建和验证 PM-owned adapter；它只将 exact crates.io `rill-ml` 1.5.3 作为依赖，不把 generic RillML 仓库复制进本项目。
 
 本地快速验证：
 
