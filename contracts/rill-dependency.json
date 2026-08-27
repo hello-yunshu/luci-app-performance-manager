@@ -29,6 +29,11 @@
     "resolution": "exact",
     "features": ["serde"]
   },
+  "rillRelease": {
+    "tag": "v1.5.3",
+    "commit": "621ed42bf6a4ea29b19f45a5dfa75f50f68173a9",
+    "stableIndexSha256": "05b73e70ab4a58e2bf3f7e4b4ae1487b9e3a56cb9e2cea80a2730ca84ac52dde"
+  },
   "state": {
     "directory": "/etc/performance-manager/rill",
     "file": "adapter-state.json",

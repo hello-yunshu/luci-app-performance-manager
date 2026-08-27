@@ -74,6 +74,10 @@
       "ok": true
     },
     {
+      "name": "RillML exact release identity",
+      "ok": true
+    },
+    {
       "name": "integration package owns adapter",
       "ok": true
     },
