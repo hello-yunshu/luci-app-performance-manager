@@ -4,7 +4,7 @@
   "scope": "PM-owned adapter and pm-rill-shadow v1 static contract",
   "staticContractVerdict": "PASS",
   "functionalIntegrationVerdict": "NOT_EVALUATED",
-  "upstreamReleaseVerification": "historical-only",
+  "upstreamReleaseVerification": "current rill-ml identity is contract-pinned; historical adapter fixture separately verified",
   "adapterOwner": "hello-yunshu/luci-app-performance-manager",
   "adapterBinary": "performance-manager-rill-adapter",
   "rillMlVersion": "1.5.3",
