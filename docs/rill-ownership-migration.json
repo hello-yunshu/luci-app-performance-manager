@@ -3,7 +3,7 @@
   "contract": "pm-owned-rill-adapter-current-state",
   "status": "TEMPLATE",
   "evidenceType": "template",
-  "pmVersion": "1.0.2",
+  "pmVersion": "1.0.3",
   "pmCommit": null,
   "adapterOwner": "hello-yunshu/luci-app-performance-manager",
   "adapterBinary": "performance-manager-rill-adapter",

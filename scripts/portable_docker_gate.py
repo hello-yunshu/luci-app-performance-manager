@@ -68,10 +68,10 @@ def main(argv=None) -> int:
     docker_log = Path(args.docker_log).read_text()
     built = (build.get("packages") or {}).get(PACKAGE) or {}
     verified = (apk.get("packages") or {}).get(PACKAGE) or {}
-    apk_path = identical_artifact(build_root, built.get("apkFilename") or "luci-app-performance-manager-all-1.0.2-r1.apk")
+    apk_path = identical_artifact(build_root, built.get("apkFilename") or "luci-app-performance-manager-all-1.0.3-r1.apk")
     actual_sha = sha256(apk_path)
     adapter = (build.get("packages") or {}).get("performance-manager-rill-adapter") or {}
-    adapter_path = identical_artifact(build_root, adapter.get("apkFilename") or "performance-manager-rill-adapter-1.0.2-r1.apk")
+    adapter_path = identical_artifact(build_root, adapter.get("apkFilename") or "performance-manager-rill-adapter-1.0.3-r1.apk")
     adapter_sha = sha256(adapter_path)
     adapter_verified = (apk.get("packages") or {}).get("performance-manager-rill-adapter") or {}
 

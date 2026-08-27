@@ -2,7 +2,7 @@
 
 ## Portable Docker release profile
 
-The current public `1.0.2` release uses `portable-docker`. It requires the
+The current public `1.0.3` release uses `portable-docker`. It requires the
 same-commit CI/Rill chain, official SDK/APK identity, hosted Action tests, and
 the real Core ucode harness executed inside Docker. It must disclose that
 Hyper-V, KVM hotplug, real-router A/B, firmware sysupgrade reboot, and 24-hour

@@ -83,13 +83,13 @@ CI 仍会同时构建并 exact verify Core、LuCI、Rill glue、PM-owned adapter
 
 ### 推荐：单 APK 安装
 
-从 GitHub Release 下载同一版本的 `luci-app-performance-manager-all-1.0.2-r1.apk` 与目标架构的 `performance-manager-rill-adapter-1.0.2-r1.apk`，再安装这两份应用包：
+从 GitHub Release 下载同一版本的 `luci-app-performance-manager-all-1.0.3-r1.apk` 与目标架构的 `performance-manager-rill-adapter-1.0.3-r1.apk`，再安装这两份应用包：
 
 仓库的官方 OpenWrt SDK 编译仍会编译并校验所有拆分包以及实体一体化包；公开 Release 同时提供 all-in-one 与当前正式目标的 native adapter APK。
 
 ```sh
-apk add --allow-untrusted /tmp/luci-app-performance-manager-all-1.0.2-r1.apk
-apk add --allow-untrusted /tmp/performance-manager-rill-adapter-1.0.2-r1.apk
+apk add --allow-untrusted /tmp/luci-app-performance-manager-all-1.0.3-r1.apk
+apk add --allow-untrusted /tmp/performance-manager-rill-adapter-1.0.3-r1.apk
 ```
 
 它仍会通过 OpenWrt 软件源解析 `luci-base`、`rpcd`、`ucode` 等系统运行库；“单 APK”指 Performance Manager 自有的 Core、LuCI、后端、翻译和 Rill glue 已全部位于一个文件内。为避免重复拥有相同路径，它与四个拆分包（含自动生成的翻译包）互斥；已有拆分版设备应先备份 `/etc/config/performance-manager`，再在维护窗口切换包形态。
@@ -100,7 +100,7 @@ apk add --allow-untrusted /tmp/performance-manager-rill-adapter-1.0.2-r1.apk
 |---|---|
 | 推荐包名 | `luci-app-performance-manager-all`（单 APK） |
 | 目标 | OpenWrt 25.12.x / x86_64 |
-| 当前源码候选 | `1.0.2` |
+| 当前源码候选 | `1.0.3` |
 | 服务脚本 | `/etc/init.d/performance-manager` |
 | UCI 配置 | `/etc/config/performance-manager` |
 | 核心程序 | `/usr/sbin/performance-manager.uc` |
@@ -282,7 +282,7 @@ make package        # 生成发布包
 - 资源 / 写入 soak：`scripts/openwrt-resource-soak.sh`
 - 外部验证证据：`docs/EXTERNAL_VALIDATION.md`
 
-> `1.0.2` 使用明确标注的 `portable-docker` 发布证据 profile：同提交官方 SDK/APK、精确 Rill、Hosted Actions 和 Docker Core ucode harness 全部通过后发布 all-in-one APK 与 x86_64-musl adapter APK。该 profile 不宣称 Hyper-V、真实路由器 A/B、firmware sysupgrade 或 24 小时 soak 覆盖；这些仍需单独的 `hardware` profile 证据。
+> `1.0.3` 使用明确标注的 `portable-docker` 发布证据 profile：同提交官方 SDK/APK、精确 Rill、Hosted Actions 和 Docker Core ucode harness 全部通过后发布 all-in-one APK 与 x86_64-musl adapter APK。该 profile 不宣称 Hyper-V、真实路由器 A/B、firmware sysupgrade 或 24 小时 soak 覆盖；这些仍需单独的 `hardware` profile 证据。
 
 ## 文档
 

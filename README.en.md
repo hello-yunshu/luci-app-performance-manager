@@ -76,13 +76,13 @@ make package/luci-app-performance-manager-all/compile V=s
 
 ### Recommended: one-APK installation
 
-Download `luci-app-performance-manager-all-1.0.2-r1.apk` and the target-specific `performance-manager-rill-adapter-1.0.2-r1.apk` from the GitHub Release, then install both application packages:
+Download `luci-app-performance-manager-all-1.0.3-r1.apk` and the target-specific `performance-manager-rill-adapter-1.0.3-r1.apk` from the GitHub Release, then install both application packages:
 
 The repository's official OpenWrt SDK build still compiles and verifies every split package and the physical all-in-one package. The public Release includes the all-in-one package plus the current target-specific native adapter package.
 
 ```sh
-apk add --allow-untrusted /tmp/luci-app-performance-manager-all-1.0.2-r1.apk
-apk add --allow-untrusted /tmp/performance-manager-rill-adapter-1.0.2-r1.apk
+apk add --allow-untrusted /tmp/luci-app-performance-manager-all-1.0.3-r1.apk
+apk add --allow-untrusted /tmp/performance-manager-rill-adapter-1.0.3-r1.apk
 ```
 
 OpenWrt still resolves system runtime libraries such as `luci-base`, `rpcd` and `ucode` from its configured repositories. “One APK” means all Performance Manager-owned Core, LuCI, backend, translation and Rill-glue payloads are in one file. It conflicts with the four split packages (including the auto-generated translation package) so duplicate file ownership is impossible. Back up `/etc/config/performance-manager` and switch package forms only during a maintenance window on devices already using the split packages.
@@ -93,7 +93,7 @@ OpenWrt still resolves system runtime libraries such as `luci-base`, `rpcd` and 
 |---|---|
 | Recommended package | `luci-app-performance-manager-all` (one APK) |
 | Target | OpenWrt 25.12.x / x86_64 |
-| Current source candidate | `1.0.2` |
+| Current source candidate | `1.0.3` |
 | Service script | `/etc/init.d/performance-manager` |
 | UCI config | `/etc/config/performance-manager` |
 | Core binary | `/usr/sbin/performance-manager.uc` |
@@ -274,7 +274,7 @@ make package        # build release artifacts
 - Resource / write soak: `scripts/openwrt-resource-soak.sh`
 - External validation evidence: `docs/EXTERNAL_VALIDATION.md`
 
-> `1.0.2` uses the explicit `portable-docker` release profile: same-commit official SDK/APKs, exact Rill evidence, hosted Actions, and the Docker Core ucode harness must pass before publishing the verified all-in-one and x86_64-musl adapter APKs. This profile does not claim Hyper-V, real-router A/B, firmware sysupgrade, or 24-hour soak coverage; those require the separate `hardware` profile.
+> `1.0.3` uses the explicit `portable-docker` release profile: same-commit official SDK/APKs, exact Rill evidence, hosted Actions, and the Docker Core ucode harness must pass before publishing the verified all-in-one and x86_64-musl adapter APKs. This profile does not claim Hyper-V, real-router A/B, firmware sysupgrade, or 24-hour soak coverage; those require the separate `hardware` profile.
 
 ## Documentation
 

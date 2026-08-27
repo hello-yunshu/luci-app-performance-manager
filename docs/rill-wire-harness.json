@@ -1,19 +1,19 @@
 {
-  "evidenceStatus": "historical-only",
+  "evidenceStatus": "source-wire-harness",
   "schemaVersion": 2,
   "pm": {
-    "version": "1.0.2"
+    "version": "1.0.3"
   },
-  "pmCommitSha": "36e7f803ad182592aeab47f74fa1f614f3f8681d",
+  "pmCommitSha": "5c322f4e879d6d45ae0b52b496fa21e58b78fa34",
   "rill": {
-    "releaseVersion": "1.5.1",
-    "releaseTag": "v1.5.1",
-    "expectedCommitSha": "cba9b3d2fb2c6a71cb9d4a02b18852171ad05a1b",
-    "adapterReleaseAssetVersion": "1.5.1",
-    "adapterBinaryVersion": "1.0.2",
-    "adapterProtocolVersion": 1,
+    "releaseVersion": "1.5.3",
+    "releaseTag": "v1.5.3",
+    "expectedCommitSha": "621ed42bf6a4ea29b19f45a5dfa75f50f68173a9",
     "rillMlVersion": "1.5.3",
-    "adapterOwner": "hello-yunshu/luci-app-performance-manager"
+    "adapterOwner": "hello-yunshu/luci-app-performance-manager",
+    "adapterBinaryVersion": "1.0.3",
+    "adapterProtocolVersion": 1,
+    "upstreamPmAdapterRequired": false
   },
   "runtime": {
     "executableVerdict": "BLOCKED",
@@ -41,7 +41,7 @@
       "detail": ""
     },
     {
-      "name": "status adapterVersion == 1.0.2",
+      "name": "status adapterVersion == 1.0.3",
       "ok": true,
       "detail": ""
     },

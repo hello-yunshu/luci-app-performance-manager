@@ -1,8 +1,8 @@
-# Source Audit — 1.0.2
+# Source Audit — 1.0.3
 
 ## Decision
 
-**PASS — 1.0.2 source candidate PASS; functional integration and Stable release are NOT_EVALUATED.**
+**PASS — 1.0.3 source candidate PASS; functional integration and Stable release are NOT_EVALUATED.**
 
 This is a source-only, non-promotable audit. It does not consume old runtime
 artifacts and cannot claim functional-integration or Stable-release PASS.
