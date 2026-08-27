@@ -1,4 +1,4 @@
-# Architecture — 1.0.2
+# Architecture — 1.0.3
 
 ## Authority boundary
 

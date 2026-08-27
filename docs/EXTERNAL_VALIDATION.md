@@ -1,6 +1,6 @@
-# External Validation Profiles for 1.0.2
+# External Validation Profiles for 1.0.3
 
-`1.0.2` keeps the official OpenWrt SDK build compiling and verifying every split package, the physical arch-independent all-in-one APK, and the target-specific PM-owned adapter APK. The adapter is built from the same commit with exact crates.io `rill-ml` 1.5.3 and exercised in the official 25.12.5 x86_64 musl rootfs. The all-in-one APK does not contain native adapter code; install it together with the adapter APK. This profile does not claim Hyper-V, router hardware, firmware sysupgrade reboot, or a 24-hour soak until those evidence gates complete.
+`1.0.3` keeps the official OpenWrt SDK build compiling and verifying every split package, the physical arch-independent all-in-one APK, and the target-specific PM-owned adapter APK. The adapter is built from the same commit with exact crates.io `rill-ml` 1.5.3 and exercised in the official 25.12.5 x86_64 musl rootfs. The all-in-one APK does not contain native adapter code; install it together with the adapter APK. This profile does not claim Hyper-V, router hardware, firmware sysupgrade reboot, or a 24-hour soak until those evidence gates complete.
 
 The current official 25.12.x x86/64 target is available as OpenWrt 25.12.5, including an x86/64 rootfs and SDK. CI is pinned to that release for ucode and five-package build gates (Core, LuCI, Rill glue, PM-owned adapter, and all-in-one package).
 
