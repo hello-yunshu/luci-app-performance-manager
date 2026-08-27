@@ -18,7 +18,7 @@
   "adapter": {
     "owner": "hello-yunshu/luci-app-performance-manager",
     "binary": "performance-manager-rill-adapter",
-    "version": "1.0.2",
+    "version": "1.0.3",
     "canonicalPath": "/usr/sbin/performance-manager-rill-adapter",
     "license": "MIT"
   },

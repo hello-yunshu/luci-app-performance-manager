@@ -1,6 +1,6 @@
 'use strict';
 
-export const VERSION = '1.0.2';
+export const VERSION = '1.0.3';
 export const SCHEMA_VERSION = 2;
 export const WORKLOAD_CLASSES = [
 	'plain_forwarding', 'local_endpoint', 'transparent_proxy', 'vpn_tunnel',

@@ -41,7 +41,7 @@ jobs:
         run: |
           set -euo pipefail
           test "$(git rev-parse HEAD)" = "${{ inputs.expected_sha }}"
-          test "$(cat VERSION)" = '1.0.2'
+          test "$(cat VERSION)" = '1.0.3'
           python3 scripts/verify_action_run_identity.py --run-id '${{ inputs.aggregate_run_id }}' --expected-sha '${{ inputs.expected_sha }}' --expected-workflow 'Stable evidence aggregate' --expected-workflow-path '.github/workflows/stable-aggregate.yml'
           python3 scripts/verify_action_run_identity.py --run-id '${{ inputs.build_run_id }}' --expected-sha '${{ inputs.expected_sha }}' --expected-workflow 'Build OpenWrt (remote SDK)' --expected-workflow-path '.github/workflows/build-openwrt.yml'
       - name: Download exact build and final Stable evidence
@@ -72,12 +72,12 @@ jobs:
           export SOURCE_DATE_EPOCH
           python3 scripts/make_release.py
           first=''
-          first=$(sha256sum dist/openwrt-performance-manager-1.0.2.zip | awk '{print $1}')
-          cp dist/openwrt-performance-manager-1.0.2.zip /tmp/source-first.zip
+          first=$(sha256sum "dist/openwrt-performance-manager-$(cat VERSION).zip" | awk '{print $1}')
+          cp "dist/openwrt-performance-manager-$(cat VERSION).zip" /tmp/source-first.zip
           python3 scripts/make_release.py
-          second=$(sha256sum dist/openwrt-performance-manager-1.0.2.zip | awk '{print $1}')
+          second=$(sha256sum "dist/openwrt-performance-manager-$(cat VERSION).zip" | awk '{print $1}')
           test "$first" = "$second"
-          cmp /tmp/source-first.zip dist/openwrt-performance-manager-1.0.2.zip
+          cmp /tmp/source-first.zip "dist/openwrt-performance-manager-$(cat VERSION).zip"
       - name: Assemble exact release inventory and manifest
         shell: bash
         run: |
@@ -94,30 +94,32 @@ jobs:
             file="${files[0]}"
             cp "$file" release-assets/
           done
-          cp dist/openwrt-performance-manager-1.0.2.zip release-assets/
-          cp dist/openwrt-performance-manager-1.0.2.manifest.json release-assets/source-manifest.json
+          cp "dist/openwrt-performance-manager-$(cat VERSION).zip" release-assets/
+          cp "dist/openwrt-performance-manager-$(cat VERSION).manifest.json" release-assets/source-manifest.json
           python3 scripts/build_release_manifest.py --assets release-assets \
-              --expected-commit '${{ inputs.expected_sha }}' --version 1.0.2
+              --expected-commit '${{ inputs.expected_sha }}' --version "$(cat VERSION)"
           (cd release-assets && sha256sum ./* > release-checksums.txt)
       - name: Verify or create immutable tag identity and resumable draft
         shell: bash
         run: |
           set -euo pipefail
-          remote_tag=$(git ls-remote --tags origin 'refs/tags/v1.0.2^{}' | awk '{print $1}')
+          version=$(cat VERSION)
+          tag="v$version"
+          remote_tag=$(git ls-remote --tags origin "refs/tags/${tag}^{}" | awk '{print $1}')
           if [ -n "$remote_tag" ]; then
             test "$remote_tag" = "${{ inputs.expected_sha }}" || {
-              echo "v1.0.2 exists at $remote_tag, expected ${{ inputs.expected_sha }}" >&2
+              echo "$tag exists at $remote_tag, expected ${{ inputs.expected_sha }}" >&2
               exit 1
             }
           else
             git config user.name 'github-actions[bot]'
             git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-            git tag -a v1.0.2 "${{ inputs.expected_sha }}" -m 'OpenWrt Performance Manager v1.0.2'
-            git push origin refs/tags/v1.0.2
+            git tag -a "$tag" "${{ inputs.expected_sha }}" -m "OpenWrt Performance Manager $tag"
+            git push origin "refs/tags/$tag"
           fi
-          if gh release view v1.0.2 >/dev/null 2>&1; then
-            test "$(gh release view v1.0.2 --json isDraft --jq .isDraft)" = true || {
-              echo 'v1.0.2 release exists and is public; refusing mutation' >&2
+          if gh release view "$tag" >/dev/null 2>&1; then
+            test "$(gh release view "$tag" --json isDraft --jq .isDraft)" = true || {
+              echo "$tag release exists and is public; refusing mutation" >&2
               exit 1
             }
           fi
@@ -129,14 +131,16 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          if gh release view v1.0.2 >/dev/null 2>&1; then
-            gh release upload v1.0.2 release-assets/* --clobber
+          version=$(cat VERSION)
+          tag="v$version"
+          if gh release view "$tag" >/dev/null 2>&1; then
+            gh release upload "$tag" release-assets/* --clobber
           else
-            gh release create v1.0.2 release-assets/* --draft --verify-tag \
-              --title 'OpenWrt Performance Manager v1.0.2 (Docker-verified)' \
+            gh release create "$tag" release-assets/* --draft --verify-tag \
+              --title "OpenWrt Performance Manager $tag (Docker-verified)" \
               --notes-file release-assets/FINAL_AUDIT.md
           fi
-          gh release edit v1.0.2 --draft=false --title 'OpenWrt Performance Manager v1.0.2 (Docker-verified)' \
+          gh release edit "$tag" --draft=false --title "OpenWrt Performance Manager $tag (Docker-verified)" \
             --notes-file release-assets/FINAL_AUDIT.md
       - name: Re-download published assets and verify checksums
         shell: bash
@@ -145,5 +149,5 @@ jobs:
         run: |
           set -euo pipefail
           mkdir published
-          gh release download v1.0.2 --dir published
+          gh release download "v$(cat VERSION)" --dir published
           (cd published && sha256sum -c release-checksums.txt)
