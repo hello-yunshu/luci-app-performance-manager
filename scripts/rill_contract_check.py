@@ -46,6 +46,7 @@ adapter_dependency = next((line for line in ADAPTER_MANIFEST.splitlines() if lin
 check("PM adapter exact registry dependency", 'version = "=1.5.3"' in adapter_dependency and "git" not in adapter_dependency and "path" not in adapter_dependency)
 check("PM adapter binary/package identity", DEP["adapter"]["owner"] == "hello-yunshu/luci-app-performance-manager" and DEP["adapter"]["binary"] == "performance-manager-rill-adapter" and DEP["adapter"]["version"] == "1.0.2")
 check("RillML exact dependency identity", DEP["rillMl"] == {"package": "rill-ml", "registry": "crates.io", "version": "1.5.3", "resolution": "exact", "features": ["serde"]})
+check("RillML exact release identity", DEP["rillRelease"] == {"tag": "v1.5.3", "commit": "621ed42bf6a4ea29b19f45a5dfa75f50f68173a9", "stableIndexSha256": "05b73e70ab4a58e2bf3f7e4b4ae1487b9e3a56cb9e2cea80a2730ca84ac52dde"})
 check("integration package owns adapter", "+performance-manager-rill-adapter" in RILL_MAKE and "rill-pm-adapter" not in RILL_MAKE)
 check("historical upstream fixture retained", (ROOT / "contracts/upstream/rill-pm-adapter-v1.5.1-contract.json").exists())
 check("state path/schema contract", DEP["state"]["directory"] == "/etc/performance-manager/rill" and DEP["state"]["schemaVersion"] == 1)

@@ -291,8 +291,8 @@ def main(argv=None) -> int:
         "missingEvidence": missing,
         "rillRelease": {
             "releaseVersion": manifest.get("rillMlVersion") or manifest.get("releaseVersion"),
-            "releaseTag": manifest.get("historicalReleaseTag") or manifest.get("releaseTag"),
-            "releaseCommitSha": manifest.get("historicalReleaseCommitSha") or manifest.get("releaseCommitSha"),
+            "releaseTag": manifest.get("releaseTag") or manifest.get("historicalReleaseTag"),
+            "releaseCommitSha": manifest.get("releaseCommitSha") or manifest.get("historicalReleaseCommitSha"),
             "protocolContract": manifest.get("protocolContract"),
             "protocolVersion": manifest.get("protocolVersion"),
             "artifactSha256": manifest.get("artifactSha256") or manifest.get("adapterSha256"),
