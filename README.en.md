@@ -61,12 +61,17 @@
 ### Build from source (OpenWrt SDK / buildroot)
 
 ```sh
-mkdir -p package/openwrt-performance-manager
-cp -a /path/to/openwrt-performance-manager/package/* package/openwrt-performance-manager/
+# 1. Build and stage the native adapter in the Performance Manager repository
+cd /path/to/openwrt-performance-manager
+python3 scripts/build_pm_adapter.py --target x86_64-unknown-linux-musl
+
+# 2. Then enter the OpenWrt SDK
+cd /path/to/openwrt-sdk
 ./scripts/feeds update -a
 ./scripts/feeds install -a
+mkdir -p package/openwrt-performance-manager
+cp -a /path/to/openwrt-performance-manager/package/* package/openwrt-performance-manager/
 make defconfig
-python3 scripts/build_pm_adapter.py --target x86_64-unknown-linux-musl
 make package/performance-manager-rill-adapter/compile V=s
 make package/performance-manager/compile V=s
 make package/luci-app-performance-manager/compile V=s
@@ -257,7 +262,7 @@ package/luci-app-performance-manager-all/Makefile  # merges all owned runtime co
 
 This project is built and verified automatically with GitHub Actions, triggered by pushing to main or manually:
 
-**`ci.yml` (source & behavior audit, non-compiling)**
+**`ci.yml` (source, behavior, contract & PM-owned adapter verification)**
 - **static**: unit tests + contract validation + source gates + final audit + LuCI JS syntax & render smoke
 - **adapter-rust / rill-contract**: verifies the PM-owned adapter with exact crates.io `rill-ml` 1.5.3, retained historical v1.5.1 fixture, and emits `rill-consumed-manifest.json`
 - **openwrt-ucode**: compiles and validates Core ucode inside the official OpenWrt 25.12.5 rootfs
