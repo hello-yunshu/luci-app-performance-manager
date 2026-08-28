@@ -25,8 +25,8 @@ config core 'main'
 config rill 'shadow'
 	option enabled '1'
 	option mode 'shadow'
-	# Path to the upstream-provided Rill runtime binary.  Empty = external
-	# dependency not installed; the integration is fail-closed/blocked.
+	# Path to the PM-owned temporary compatibility bridge. Empty resolves the
+	# default adapter paths; a missing or invalid bridge is fail-closed/blocked.
 	option binary ''
 	option socket '/run/performance-manager/rill.sock'
 	option max_message '65536'

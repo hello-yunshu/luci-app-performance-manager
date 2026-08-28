@@ -26,7 +26,7 @@
 - **Telemetry + Health Guard**：evidence/confidence Analyzer、baseline-relative 健康门禁、资源锁、持久 pending marker、verified rollback 与真实 monotonic commit-confirm 引擎
 - **Phase-7 Benchmark 编排**：irqbalance、backlog/budget、buffers、busy poll、tx queue、coalescing、CC、qdisc、SFO/HFO/SFE、CPU governor；只有存在精确可逆契约时才执行 provider
 - **受控 A/B 真值**：持久 control evidence → 单变量事务 candidate → candidate evidence → 验证后回滚 → 结果持久化 → 可选 Rill outcome；缺失 / 无效 evidence 永远不会变成 `validated=true`
-- **Rill Runtime Shadow 学习**：PM 通过独立的 `rill-runtime` 包接入通用 Runtime v3；当前保留 `performance-manager-rill-adapter` 作为明确标注的临时 pm-rill-shadow v1 兼容桥，直到 v3 的状态迁移与 OpenWrt 升级证据完成。两者都不能写入主机配置，缺失 / 不兼容时 fail-closed
+- **Rill Runtime Shadow 学习**：PM 当前仍通过 `performance-manager-rill-adapter` 使用明确标注的临时 pm-rill-shadow v1 兼容桥；通用 Runtime v3 包已独立验证但尚未切换为 PM 的运行时依赖。两者都不能写入主机配置，缺失 / 不兼容时 fail-closed
 - **Assisted Auto**：默认关闭，必须显式选择 + 维护窗口 + 低流量门禁 + 安全 allowlist
 - **多平台指导**：Generic x86、Hyper-V、KVM（含 Proxmox VE guest 建议）
 - **Companion Agent**：显式 LAN/WAN iperf3 端点工具，不拥有路由器修改权限
@@ -48,7 +48,7 @@
 |---|---|
 | `performance-manager` | procd 管理的 ucode/ubus Core：contracts、discovery、telemetry、事务引擎与安全动作 |
 | `luci-app-performance-manager` | Supported-first LuCI 界面（简体中文） |
-| `performance-manager-rill` | 可选 PM 集成服务 glue；依赖包拥有 `/usr/bin/rill-runtime`，并暂时连接兼容桥 |
+| `performance-manager-rill` | 可选 PM 集成服务 glue；当前仅连接 PM-owned 临时兼容桥 |
 | `performance-manager-rill-adapter` | 可选、目标架构的临时 pm-rill-shadow v1 兼容桥；不是通用 Runtime |
 | `luci-app-performance-manager-all` | 推荐的一体化 APK：物理包含 Core、LuCI、rpcd ACL/menu、简体中文翻译；不包含 Rill glue 或兼容桥 |
 
@@ -79,7 +79,7 @@ make package/performance-manager-rill/compile V=s
 make package/luci-app-performance-manager-all/compile V=s
 ```
 
-随后 SDK 会构建并校验 Core、LuCI、通用 Runtime、临时兼容桥、Rill glue 与 all-in-one 包。推荐基础安装是 `luci-app-performance-manager-all`；需要当前 Shadow 集成时，再安装 `performance-manager-rill`、`rill-runtime` 与目标架构的临时兼容桥。
+随后 SDK 会构建并校验 Core、LuCI、通用 Runtime、临时兼容桥、Rill glue 与 all-in-one 包。推荐基础安装是 `luci-app-performance-manager-all`；需要当前 Shadow 集成时，再安装 `performance-manager-rill` 与目标架构的临时兼容桥。`rill-runtime` 目前不属于该桥接路径的运行时依赖。
 
 > 也可以直接依赖 GitHub Actions 的 `build-openwrt.yml` → `openwrt-sdk-build` job 产出构建结果，无需本地 SDK。
 
@@ -205,14 +205,10 @@ package/luci-app-performance-manager-all/Makefile  # 将上述自有运行内容
                           ┌───────────▼────────────┐
                           │ temporary compatibility │
                           │ bridge; not Runtime      │
-                          └───────────┬────────────┘
-                                      │ generic IPC v3
-                          ┌───────────▼────────────┐
-                          │ /usr/bin/rill-runtime  │
                           └────────────────────────┘
 ```
 
-> **所有权边界。** `/usr/bin/rill-runtime` 由 Rill 的 OpenWrt 包拥有；PM 只拥有消费者 glue。`performance-manager-rill-adapter` 是临时兼容桥，仍使用旧的 pm-rill-shadow v1，直到通用 Runtime v3 的状态迁移、升级和同提交设备证据完成；它不是 Runtime，也不应被发布说明写成 Runtime。
+> **所有权边界。** `/usr/bin/rill-runtime` 由 Rill 的 OpenWrt 包拥有，但当前 PM bridge 不依赖它；PM 只拥有消费者 glue 与 `performance-manager-rill-adapter`。该 adapter 仍使用旧的 pm-rill-shadow v1，直到通用 Runtime v3 的状态迁移、升级和同提交设备证据完成；它不是 Runtime，也不应被发布说明写成 Runtime。
 
 **数据流**：
 
@@ -247,7 +243,7 @@ package/luci-app-performance-manager-all/Makefile  # 将上述自有运行内容
 |---|---|---|---|
 | `enabled` | boolean | 1 | 启用 Rill Shadow |
 | `mode` | enum | shadow | 只读学习，无 Apply 权限 |
-| `binary` | string | (空) | 临时兼容桥路径；通用 Runtime 的固定路径是 `/usr/bin/rill-runtime`，缺失或不兼容时集成 fail-closed / 阻塞 |
+| `binary` | string | (空) | 临时兼容桥路径；空值按 adapter 默认路径解析，缺失或不兼容时集成 fail-closed / 阻塞 |
 | `socket` | string | /run/performance-manager/rill.sock | UDS 路径 |
 | `max_message` | integer | 65536 | 最大消息字节 |
 | `timeout_ms` | integer | 1000 | 调用超时 |

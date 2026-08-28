@@ -28,7 +28,7 @@ jobs:
       - uses: actions/checkout@v7
         with:
           repository: hello-yunshu/rill-openwrt-packages
-          ref: 1832c8138d3aa9f1db8986d7fa33bdcbf515af90
+          ref: ce1b6cc04e4317d60403b9244327f422231297fd
           path: rill-openwrt-packages
       - uses: dtolnay/rust-toolchain@stable
         with:
