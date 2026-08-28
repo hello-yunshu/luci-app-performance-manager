@@ -15,20 +15,18 @@ define Package/luci-app-performance-manager-all
   SUBMENU:=3. Applications
   TITLE:=OpenWrt 性能管理器全功能单包 / Performance Manager all-in-one APK
   DEPENDS:=+luci-base +rpcd +luci-i18n-base-zh-cn +ubus +uci +ucode +ucode-mod-fs +ucode-mod-ubus +ucode-mod-uci +ucode-mod-rtnl +ucode-mod-uloop +ucode-mod-socket +ucode-mod-log
-  CONFLICTS:=performance-manager luci-app-performance-manager luci-i18n-performance-manager-zh-cn performance-manager-rill
-  USERID:=performance-manager-rill=5666:performance-manager-rill=5666
+  CONFLICTS:=performance-manager luci-app-performance-manager luci-i18n-performance-manager-zh-cn
   PKGARCH:=all
 endef
 
 define Package/luci-app-performance-manager-all/description
  一个可直接安装的 APK，物理包含 Performance Manager Core 后端、LuCI、
- rpcd ACL/menu、简体中文翻译以及仓库自有的 Rill 接入守护层。
- 本 all-in-one 包不包含 native adapter；Rill Intelligence 需要按目标架构
- 另行安装 performance-manager-rill-adapter 与 performance-manager-rill。
- / One installable APK containing the Core backend, LuCI UI, rpcd ACL/menu,
- / Simplified Chinese translation and repository-owned Rill integration glue.
- / This arch-independent APK does not contain the native adapter; install the
- / target-specific PM adapter package for Rill Intelligence.
+ rpcd ACL/menu 与简体中文翻译。Rill integration 是独立可选包，安装
+ performance-manager-rill 时由依赖解析通用 rill-runtime 与临时兼容桥。
+ / Core, LuCI, ACL/menu and translations only. Rill integration is optional
+ / and is provided by performance-manager-rill plus the generic rill-runtime.
+ / This arch-independent APK intentionally contains no Rill service glue or
+ / native compatibility bridge; install the optional integration packages.
 endef
 
 define Package/luci-app-performance-manager-all/conffiles
@@ -86,9 +84,6 @@ define Package/luci-app-performance-manager-all/install
 	echo "uci set luci.languages.zh_cn='简体中文 (Simplified Chinese)'; uci commit luci" \
 		> $(1)/etc/uci-defaults/luci-i18n-performance-manager-zh-cn
 	chmod 0755 $(1)/etc/uci-defaults/luci-i18n-performance-manager-zh-cn
-
-	$(INSTALL_BIN) $(CURDIR)/../performance-manager-rill/files/etc/init.d/performance-manager-rill $(1)/etc/init.d/performance-manager-rill
-	$(INSTALL_DATA) $(CURDIR)/../performance-manager-rill/files/lib/upgrade/keep.d/performance-manager-rill $(1)/lib/upgrade/keep.d/performance-manager-rill
 endef
 
 $(eval $(call BuildPackage,luci-app-performance-manager-all))

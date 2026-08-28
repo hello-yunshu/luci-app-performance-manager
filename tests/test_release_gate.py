@@ -11,7 +11,7 @@ class ReleaseGateSourceTests(unittest.TestCase):
         self.assertIn('/usr/sbin/performance-manager.uc',bundle)
         self.assertIn('/usr/lib/lua/luci/i18n/performance-manager.zh-cn.lmo',bundle)
         self.assertIn('luci-app-performance-manager/htdocs',bundle)
-        self.assertIn('performance-manager-rill/files',bundle)
+        self.assertNotIn('performance-manager-rill/files',bundle)
         self.assertNotIn('+performance-manager ',bundle)
         self.assertNotIn('+luci-app-performance-manager',bundle)
     def test_core_independent(self):

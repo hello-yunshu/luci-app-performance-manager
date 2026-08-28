@@ -37,6 +37,7 @@ EXPECTED = [
     'luci-app-performance-manager',
     'performance-manager-rill',
     'performance-manager-rill-adapter',
+    'rill-runtime',
     'luci-app-performance-manager-all',
 ]
 ALL_IN_ONE = 'luci-app-performance-manager-all'
@@ -50,6 +51,7 @@ REQUIRED_DEPENDS = {
     },
     'performance-manager-rill': {'performance-manager'},
     'performance-manager-rill-adapter': {'libc'},
+    'rill-runtime': {'libc'},
     ALL_IN_ONE: {
         'luci-base', 'rpcd', 'luci-i18n-base-zh-cn', 'ubus', 'uci', 'ucode',
         'ucode-mod-fs', 'ucode-mod-ubus', 'ucode-mod-uci', 'ucode-mod-rtnl',
@@ -76,7 +78,6 @@ def bundle_source_payloads():
         (ROOT / 'package/performance-manager/files', Path('/')),
         (ROOT / 'package/luci-app-performance-manager/htdocs', Path('/www')),
         (ROOT / 'package/luci-app-performance-manager/root', Path('/')),
-        (ROOT / 'package/performance-manager-rill/files', Path('/')),
     )
     payloads = {}
     for source_root, install_root in roots:
@@ -555,6 +556,14 @@ def main(argv):
                 installed_payload[TRANSLATION_PATH] = translation_rec
             report['packages'][name]['installedPayload'] = installed_payload
             report['packages'][name]['core'] = installed_payload[CORE_PATH]
+        if name == 'rill-runtime':
+            runtime_payload = apk_file_content(apk, '/usr/bin/rill-runtime')
+            report['packages'][name]['runtimeBinary'] = {
+                'path': '/usr/bin/rill-runtime',
+                'status': 'present' if runtime_payload is not None else 'missing',
+            }
+            if runtime_payload is None:
+                failures.append('rill-runtime: /usr/bin/rill-runtime not found inside APK')
         print(f"OK {name}: {apk.name} pkgver={pkgver} arch={pkgarch} sha256={report['packages'][name]['sha256']}")
 
     # Reject any stray APK that is not one of the expected packages but

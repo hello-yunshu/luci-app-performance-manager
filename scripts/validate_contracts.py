@@ -167,7 +167,7 @@ for msg in sorted(js_ids):
 # it is not allowed to regress into a meta package depending on the split APKs.
 bundle=(ROOT/'package/luci-app-performance-manager-all/Makefile').read_text()
 for token in ['po2lmo','/usr/sbin/performance-manager.uc','luci-app-performance-manager/htdocs',
-              'luci-app-performance-manager/root/usr/share/rpcd','performance-manager-rill/files',
+              'luci-app-performance-manager/root/usr/share/rpcd',
               '/usr/lib/lua/luci/i18n/performance-manager.zh-cn.lmo']:
     if token not in bundle: fail(f'all-in-one physical payload mechanism missing: {token}')
 bundle_pkg=re.search(r'define Package/luci-app-performance-manager-all\n(.*?)\nendef',bundle,re.S)
@@ -176,8 +176,9 @@ else:
     for forbidden in ['+performance-manager ', '+luci-app-performance-manager', '+performance-manager-rill']:
         if forbidden in bundle_pkg.group(1): fail(f'all-in-one meta dependency forbidden: {forbidden}')
     for conflict in ['performance-manager','luci-app-performance-manager',
-                     'luci-i18n-performance-manager-zh-cn','performance-manager-rill']:
+                     'luci-i18n-performance-manager-zh-cn']:
         if conflict not in bundle_pkg.group(1): fail(f'all-in-one split-owner conflict missing: {conflict}')
+    if 'performance-manager-rill' in bundle_pkg.group(1): fail('all-in-one must not own the temporary Rill compatibility bridge')
 if 'PROVIDES:=' in bundle: fail('all-in-one must not alias split package names through APK PROVIDES')
 
 # Scan only the repository's own files.  In CI the workspace also contains the
