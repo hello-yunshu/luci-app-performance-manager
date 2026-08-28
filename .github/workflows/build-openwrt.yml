@@ -131,9 +131,12 @@ jobs:
       - name: Build Rill integration package (glue only, never compiles Rill)
         run: cd "$SDKDIR" && make -j2 package/performance-manager-rill/compile V=s
       - name: Build canonical generic Rill Runtime package
-        env:
-          CI: ""
-        run: cd "$SDKDIR" && make -j2 package/rill-runtime/compile V=s
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd "$SDKDIR"
+          unset CI
+          make -j2 package/rill-runtime/compile V=s
       - name: Build PM-owned native adapter package
         run: cd "$SDKDIR" && make -j2 package/performance-manager-rill-adapter/compile V=s
       - name: Build all-in-one APK (Core + LuCI + rpcd + zh-cn + Rill glue)
