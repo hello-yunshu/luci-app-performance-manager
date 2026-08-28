@@ -139,11 +139,8 @@ jobs:
             echo 'OpenWrt Rust feed still enables CI LLVM downloads' >&2
             exit 1
           fi
-          rustc_path="$(rustup which rustc --toolchain 1.94.0)"
-          cargo_path="$(rustup which cargo --toolchain 1.94.0)"
-          mkdir -p "$SDKDIR/staging_dir/host/bin"
-          install -m 0755 "$rustc_path" "$SDKDIR/staging_dir/host/bin/rustc"
-          install -m 0755 "$cargo_path" "$SDKDIR/staging_dir/host/bin/cargo"
+          RUST_TOOLCHAIN=1.94.0 RUST_STAGING_DIR="$SDKDIR/staging_dir/host" \
+            "$GITHUB_WORKSPACE/rill-openwrt-packages/scripts/stage_rust_toolchain.sh"
           "$SDKDIR/staging_dir/host/bin/rustc" --version | grep -F 'rustc 1.94.0'
           mkdir -p package/openwrt-performance-manager
           cp -a "$GITHUB_WORKSPACE"/package/* package/openwrt-performance-manager/
