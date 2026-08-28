@@ -112,6 +112,7 @@ jobs:
           if [ '${{ steps.openwrt-feeds-cache.outputs.cache-hit }}' != 'true' ]; then
             ./scripts/feeds update -a
           fi
+          ./scripts/feeds install rust
           python3 "$GITHUB_WORKSPACE/scripts/pin_feeds.py"
       - name: Install feeds and local packages
         shell: bash
