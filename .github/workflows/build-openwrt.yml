@@ -17,7 +17,8 @@ jobs:
   # performance-manager (Core), luci-app-performance-manager (UI), the
   # performance-manager-rill integration package and temporary compatibility
   # bridge, plus the physical all-in-one APK. The generic rill-runtime package
-  # is staged from the canonical Rill repository and owns /usr/bin/rill-runtime.
+  # is staged from the independent pinned OpenWrt feed and owns
+  # /usr/bin/rill-runtime.
   # Real build evidence comes from this remote Action — never a local mock.
   openwrt-sdk-build:
     runs-on: ubuntu-latest
@@ -26,9 +27,9 @@ jobs:
       - uses: actions/checkout@v7
       - uses: actions/checkout@v7
         with:
-          repository: hello-yunshu/rill-ml
-          ref: main
-          path: rill-ml
+          repository: hello-yunshu/rill-openwrt-packages
+          ref: 1832c8138d3aa9f1db8986d7fa33bdcbf515af90
+          path: rill-openwrt-packages
       - uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: 1.94.0
@@ -131,7 +132,7 @@ jobs:
           fi
           mkdir -p package/openwrt-performance-manager
           cp -a "$GITHUB_WORKSPACE"/package/* package/openwrt-performance-manager/
-          cp -a "$GITHUB_WORKSPACE"/rill-ml/packaging/openwrt/rill-runtime package/rill-runtime
+          cp -a "$GITHUB_WORKSPACE"/rill-openwrt-packages/package/rill-runtime package/rill-runtime
           make defconfig
       - name: Build Core
         run: cd "$SDKDIR" && make -j2 package/performance-manager/compile V=s

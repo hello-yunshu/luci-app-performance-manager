@@ -1829,8 +1829,11 @@ function rill_validate_status_response(request, response) {
 	if (type(response.capabilities) != 'array' || type(response.modelHealth) != 'object') return { ok: false, error: 'status-fields-invalid' };
 	if (!length(response.adapterVersion ?? '') || !length(response.rillVersion ?? '')) return { ok: false, error: 'status-version-missing' };
 	if (response.adapterVersion != RILL_PINNED_ADAPTER_VERSION) return { ok: false, error: 'adapter-version-mismatch' };
-	if (response.rillVersion != RILL_LINKED_RILL_ML_VERSION) return { ok: false, error: 'rill-ml-version-mismatch' };
-	return { ok: true };
+	/* The protocol/contract and capability checks above are the ABI gate. The
+	 * RillML patch version is retained as provenance, not as a second exact
+	 * compatibility gate, so a compatible Stable runtime can be qualified and
+	 * reported without a needless patch-version lock. */
+	return { ok: true, rillVersion: response.rillVersion, rillVersionPinned: response.rillVersion == RILL_LINKED_RILL_ML_VERSION };
 }
 
 function rill_validate_observe_response(request, response) {
