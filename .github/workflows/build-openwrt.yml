@@ -30,6 +30,15 @@ jobs:
           repository: hello-yunshu/rill-openwrt-packages
           ref: 4c39c797d9b435c2c2657e5fae17afbcef71393b
           path: rill-openwrt-packages
+      - name: Cache PM Cargo registry
+        uses: actions/cache@v6
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+          key: pm-openwrt-cargo-${{ runner.os }}-${{ hashFiles('Cargo.lock', 'integrations/performance-manager-rill-adapter/Cargo.lock') }}
+          restore-keys: |
+            pm-openwrt-cargo-${{ runner.os }}-
       - uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: 1.94.0
