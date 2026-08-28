@@ -28,7 +28,7 @@ jobs:
       - uses: actions/checkout@v7
         with:
           repository: hello-yunshu/rill-openwrt-packages
-          ref: 2837064a8c1431c13f24bc11090d9a32aad27c25
+          ref: 4c39c797d9b435c2c2657e5fae17afbcef71393b
           path: rill-openwrt-packages
       - uses: dtolnay/rust-toolchain@stable
         with:
@@ -130,6 +130,11 @@ jobs:
             echo 'OpenWrt Rust feed still enables CI LLVM downloads' >&2
             exit 1
           fi
+          rustc_path="$(rustup which rustc --toolchain 1.94.0)"
+          cargo_path="$(rustup which cargo --toolchain 1.94.0)"
+          install -m 0755 "$rustc_path" "$SDKDIR/staging_dir/host/bin/rustc"
+          install -m 0755 "$cargo_path" "$SDKDIR/staging_dir/host/bin/cargo"
+          "$SDKDIR/staging_dir/host/bin/rustc" --version | grep -F 'rustc 1.94.0'
           mkdir -p package/openwrt-performance-manager
           cp -a "$GITHUB_WORKSPACE"/package/* package/openwrt-performance-manager/
           cp -a "$GITHUB_WORKSPACE"/rill-openwrt-packages/package/rill-runtime package/rill-runtime
@@ -141,9 +146,15 @@ jobs:
       - name: Build Rill integration package (glue only, never compiles Rill)
         run: cd "$SDKDIR" && make -j2 package/performance-manager-rill/compile V=s
       - name: Build canonical generic Rill Runtime package
+        env:
+          GH_TOKEN: ${{ github.token }}
         shell: bash
         run: |
           set -euo pipefail
+          package_commit="$(git -C "$GITHUB_WORKSPACE/rill-openwrt-packages" rev-parse HEAD)"
+          qualification_run="$(gh api "repos/hello-yunshu/rill-openwrt-packages/actions/workflows/qualify.yml/runs?head_sha=${package_commit}&status=completed&per_page=100" --jq '.workflow_runs[] | select(.conclusion=="success") | .id' | head -n1)"
+          test -n "$qualification_run"
+          gh api "repos/hello-yunshu/rill-openwrt-packages/actions/runs/${qualification_run}/artifacts" --jq '.artifacts[] | select(.name=="qualification-evidence" and .expired==false) | .id' | grep -q .
           cd "$SDKDIR"
           unset CI
           make -j2 package/rill-runtime/compile V=s
