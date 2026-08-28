@@ -141,6 +141,7 @@ jobs:
           fi
           rustc_path="$(rustup which rustc --toolchain 1.94.0)"
           cargo_path="$(rustup which cargo --toolchain 1.94.0)"
+          mkdir -p "$SDKDIR/staging_dir/host/bin"
           install -m 0755 "$rustc_path" "$SDKDIR/staging_dir/host/bin/rustc"
           install -m 0755 "$cargo_path" "$SDKDIR/staging_dir/host/bin/cargo"
           "$SDKDIR/staging_dir/host/bin/rustc" --version | grep -F 'rustc 1.94.0'
