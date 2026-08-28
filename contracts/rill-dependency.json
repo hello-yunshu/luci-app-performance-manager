@@ -1,7 +1,7 @@
 {
-  "schemaVersion": 4,
+  "schemaVersion": 5,
   "contract": "pm-rill-dependency",
-  "description": "Performance Manager owns its pm-rill-shadow adapter and consumes the generic crates.io rill-ml package. No RillML Release adapter artifact, stable-index selection, or upstream PM adapter owner is part of the active contract.",
+  "description": "Performance Manager currently uses a temporary compatibility bridge while the package-owned generic rill-runtime IPC v3 contract is qualified for Stable. The bridge is not the Runtime and its removal is a tracked migration gate.",
   "protocol": {
     "owner": "OpenWrt Performance Manager",
     "name": "pm-rill-shadow",
@@ -49,5 +49,15 @@
     "upstreamV151AdapterFixture": "contracts/upstream/rill-pm-adapter-v1.5.1-contract.json",
     "upstreamV151ReleaseVerification": "historical-only",
     "upstreamPmAdapterRequired": false
+  },
+  "migration": {
+    "status": "temporary-compatibility-bridge",
+    "targetPackage": "rill-runtime",
+    "targetBinary": "/usr/bin/rill-runtime",
+    "stableCutoverRequires": [
+      "generic stateful Runtime IPC v3 qualification",
+      "deterministic adapter-state backup and migration evidence",
+      "PM same-commit OpenWrt coexistence and upgrade tests"
+    ]
   }
 }

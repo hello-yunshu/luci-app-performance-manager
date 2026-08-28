@@ -13,14 +13,14 @@ define Package/performance-manager-rill-adapter
   SECTION:=net
   CATEGORY:=Network
   SUBMENU:=Routing and Redirection
-  TITLE:=PM-owned Rill shadow adapter (native target binary)
+  TITLE:=PM Rill compatibility bridge (temporary target binary)
   DEPENDS:=+libc
 endef
 
 define Package/performance-manager-rill-adapter/description
- PM-owned native performance-manager-rill-adapter for pm-rill-shadow v1.
- The binary is built from this repository and links exact crates.io rill-ml
- 1.5.3; it is target-specific and is never downloaded from RillML Release.
+ Temporary PM compatibility bridge for pm-rill-shadow v1. It is target
+ specific and remains only until the generic rill-runtime IPC v3 contract is
+ promoted for PM Stable. It must not be described or packaged as the Runtime.
 endef
 
 define Build/Compile

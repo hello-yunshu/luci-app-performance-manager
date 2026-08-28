@@ -15,14 +15,20 @@ env:
 jobs:
   # Official OpenWrt SDK build for the packages this repository OWNS:
   # performance-manager (Core), luci-app-performance-manager (UI), the
-  # performance-manager-rill integration package and PM-owned native adapter,
-  # and the physical all-in-one APK containing all repository-owned payloads.
+  # performance-manager-rill integration package and temporary compatibility
+  # bridge, plus the physical all-in-one APK. The generic rill-runtime package
+  # is staged from the canonical Rill repository and owns /usr/bin/rill-runtime.
   # Real build evidence comes from this remote Action — never a local mock.
   openwrt-sdk-build:
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v7
+      - uses: actions/checkout@v7
+        with:
+          repository: hello-yunshu/rill-ml
+          ref: main
+          path: rill-ml
       - uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: 1.94.0
@@ -115,6 +121,7 @@ jobs:
           ./scripts/feeds install -a
           mkdir -p package/openwrt-performance-manager
           cp -a "$GITHUB_WORKSPACE"/package/* package/openwrt-performance-manager/
+          cp -a "$GITHUB_WORKSPACE"/rill-ml/packaging/openwrt/rill-runtime package/rill-runtime
           make defconfig
       - name: Build Core
         run: cd "$SDKDIR" && make -j2 package/performance-manager/compile V=s
@@ -122,6 +129,8 @@ jobs:
         run: cd "$SDKDIR" && make -j2 package/luci-app-performance-manager/compile V=s
       - name: Build Rill integration package (glue only, never compiles Rill)
         run: cd "$SDKDIR" && make -j2 package/performance-manager-rill/compile V=s
+      - name: Build canonical generic Rill Runtime package
+        run: cd "$SDKDIR" && make -j2 package/rill-runtime/compile V=s
       - name: Build PM-owned native adapter package
         run: cd "$SDKDIR" && make -j2 package/performance-manager-rill-adapter/compile V=s
       - name: Build all-in-one APK (Core + LuCI + rpcd + zh-cn + Rill glue)

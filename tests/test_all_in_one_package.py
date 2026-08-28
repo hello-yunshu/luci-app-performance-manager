@@ -27,7 +27,7 @@ class AllInOnePackageTests(unittest.TestCase):
         self.assertIn("/usr/sbin/performance-manager.uc", makefile)
         self.assertIn("luci-app-performance-manager/htdocs", makefile)
         self.assertIn("luci-app-performance-manager/root/usr/share/rpcd", makefile)
-        self.assertIn("performance-manager-rill/files", makefile)
+        self.assertNotIn("performance-manager-rill/files", makefile)
         self.assertNotIn("+performance-manager ", makefile)
         self.assertNotIn("+luci-app-performance-manager", makefile)
         self.assertNotIn("PROVIDES:=", makefile)
@@ -39,7 +39,6 @@ class AllInOnePackageTests(unittest.TestCase):
             "performance-manager",
             "luci-app-performance-manager",
             "luci-i18n-performance-manager-zh-cn",
-            "performance-manager-rill",
         })
 
     def test_exact_verifier_maps_all_owned_source_payloads(self):
@@ -52,14 +51,13 @@ class AllInOnePackageTests(unittest.TestCase):
             ROOT / "package/performance-manager/files",
             ROOT / "package/luci-app-performance-manager/htdocs",
             ROOT / "package/luci-app-performance-manager/root",
-            ROOT / "package/performance-manager-rill/files",
         ):
             expected_sources.extend(p for p in source_root.rglob("*") if p.is_file())
         self.assertEqual(set(payloads.values()), set(expected_sources))
         self.assertIn("/usr/sbin/performance-manager.uc", payloads)
         self.assertIn("/www/luci-static/resources/view/performance-manager/overview.js", payloads)
         self.assertIn("/usr/share/rpcd/acl.d/luci-app-performance-manager.json", payloads)
-        self.assertIn("/etc/init.d/performance-manager-rill", payloads)
+        self.assertNotIn("/etc/init.d/performance-manager-rill", payloads)
 
     def test_remote_sdk_build_and_verifier_require_bundle(self):
         workflow = (ROOT / ".github/workflows/build-openwrt.yml").read_text()
