@@ -22,7 +22,7 @@ jobs:
   # Real build evidence comes from this remote Action — never a local mock.
   openwrt-sdk-build:
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 120
     steps:
       - uses: actions/checkout@v7
       - uses: actions/checkout@v7
