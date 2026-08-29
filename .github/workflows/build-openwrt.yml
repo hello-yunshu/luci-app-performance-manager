@@ -216,6 +216,7 @@ jobs:
           find bin -name '*.apk' -o -name '*.ipk' | sort
           # Version part of the APK pkgver is derived from VERSION.
           apk_version="$(sed -E 's/-rc\./_rc/' "$GITHUB_WORKSPACE/VERSION")"
+          rill_runtime_version="$(sed -n 's/^PKG_VERSION:=//p' "$GITHUB_WORKSPACE/rill-openwrt-packages/package/rill-runtime/Makefile")"
           # Exact verification reads .PKGINFO (pkgname/pkgver/arch/deps) instead
           # of filename prefix, so performance-manager and performance-manager-rill
           # can never be confused and a stale rc.3 artifact can never pass.
@@ -225,7 +226,7 @@ jobs:
           # OpenWrt 25.x APKs are zstd-compressed; Python's tarfile cannot read
           # zstd, so verify_apks.py needs the zstandard module.
           python3 -m pip install --disable-pip-version-check zstandard
-          python3 "$GITHUB_WORKSPACE/scripts/verify_apks.py" "$PWD" "$apk_version" "$PACKAGE_ARCH"
+          python3 "$GITHUB_WORKSPACE/scripts/verify_apks.py" "$PWD" "$apk_version" "$PACKAGE_ARCH" "$rill_runtime_version"
       - name: Generate build metadata (auditable evidence)
         shell: bash
         run: |
