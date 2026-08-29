@@ -73,7 +73,7 @@ jobs:
         run: |
           python scripts/build_pm_adapter.py --target x86_64-unknown-linux-musl
           mkdir -p docs
-          cp package/performance-manager-rill-adapter/files/usr/sbin/performance-manager-rill-adapter docs/performance-manager-rill-adapter-x86_64-linux-musl
+          cp package/performance-manager-rill-adapter/files/usr/sbin/performance-manager-rill-adapter docs/performance-manager-rill-adapter-x86_64-unknown-linux-musl
           python scripts/build_pm_provenance.py
       - name: Run pm-rill-shadow v1 wire harness (fail-closed decision table)
         run: python scripts/rill_runtime_harness.py
@@ -87,7 +87,7 @@ jobs:
             docs/rill-provenance.json
             docs/rill-integration-status.json
             docs/rill-wire-harness.json
-            docs/performance-manager-rill-adapter-x86_64-linux-musl
+            docs/performance-manager-rill-adapter-x86_64-unknown-linux-musl
             rill-consumed-manifest.json
           if-no-files-found: error
 

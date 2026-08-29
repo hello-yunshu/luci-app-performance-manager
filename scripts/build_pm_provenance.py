@@ -13,7 +13,7 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 def main() -> int:
-    binary = ROOT / "docs/performance-manager-rill-adapter-x86_64-linux-musl"
+    binary = ROOT / "docs/performance-manager-rill-adapter-x86_64-unknown-linux-musl"
     if not binary.is_file():
         raise SystemExit(f"missing PM-owned musl adapter: {binary}")
     dep = json.loads((ROOT / "contracts/rill-dependency.json").read_text())
@@ -29,7 +29,7 @@ def main() -> int:
         "provenanceVerdict": "PASS",
         "adapterOwner": dep["adapter"]["owner"],
         "adapterBinary": dep["adapter"]["binary"],
-        "artifactName": f'{dep["adapter"]["binary"]}-x86_64-linux-musl',
+        "artifactName": f'{dep["adapter"]["binary"]}-x86_64-unknown-linux-musl',
         "adapterVersion": dep["adapter"]["version"],
         "adapterSha256": sha,
         "adapterSize": size,
