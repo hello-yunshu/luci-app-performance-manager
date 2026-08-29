@@ -42,11 +42,18 @@ def main(argv: list[str] | None = None) -> int:
     pairs = []
     for metadata_path in metadata_files:
         metadata = json.loads(metadata_path.read_text())
-        candidates = [p for p in verification_files if p.parent == metadata_path.parent]
+        metadata_arch = metadata.get("architecture")
+        candidates = []
+        for verification_path in verification_files:
+            verification = json.loads(verification_path.read_text())
+            if verification.get("arch") == metadata_arch:
+                candidates.append((verification_path, verification))
         if len(candidates) != 1:
-            raise RuntimeError(f"cannot pair {metadata_path} with one target verification report")
-        verification_path = candidates[0]
-        verification = json.loads(verification_path.read_text())
+            raise RuntimeError(
+                f"cannot pair {metadata_path} with one target verification report "
+                f"for architecture {metadata_arch!r}"
+            )
+        verification_path, verification = candidates[0]
         if metadata.get("repositoryCommitSha") != args.expected_commit or \
                 verification.get("pmCommitSha") != args.expected_commit:
             raise RuntimeError(f"same-commit evidence mismatch under {metadata_path.parent}")
