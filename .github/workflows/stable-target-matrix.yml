@@ -105,6 +105,16 @@ jobs:
             pm-portable-ucode:ci /tmp/core_runtime_test.uc 2>&1 | tee stable-output/docker-runtime.log
           printf '\nPORTABLE_DOCKER_PASS\n' >> stable-output/docker-runtime.log
 
+      - name: Show Docker build log after failure
+        if: failure()
+        shell: bash
+        run: |
+          if [ -f stable-output/docker-build.log ]; then
+            echo "::group::Docker build log from failed fast build"
+            cat stable-output/docker-build.log
+            echo "::endgroup::"
+          fi
+
       - name: Build portable release evidence
         shell: bash
         run: |
