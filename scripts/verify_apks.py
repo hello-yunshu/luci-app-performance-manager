@@ -25,7 +25,7 @@ the wrong arch, a stray old-version artifact, or if the APK's Core file does not
 match the tested source.
 
 Usage:
-  python3 scripts/verify_apks.py <sdk_dir> <expected_version> <arch>
+  python3 scripts/verify_apks.py <sdk_dir> <expected_version> <arch> [rill_runtime_version]
 """
 from __future__ import annotations
 import gzip, hashlib, io, json, os, struct, subprocess, sys, tarfile, zlib
@@ -438,11 +438,12 @@ def sha256(path):
 
 def main(argv):
     if len(argv) < 4:
-        print('usage: verify_apks.py <sdk_dir> <expected_version> <arch>', file=sys.stderr)
+        print('usage: verify_apks.py <sdk_dir> <expected_version> <arch> [rill_runtime_version]', file=sys.stderr)
         return 2
     sdk_dir = Path(argv[1])
     expected_version = argv[2]
     arch = argv[3]
+    rill_runtime_version = argv[4] if len(argv) > 4 else expected_version
 
     apks = sorted(sdk_dir.rglob('*.apk'))
     if not apks:
@@ -461,7 +462,9 @@ def main(argv):
 
     report = {'schemaVersion': 1, 'contract': 'apk-exact-verification',
               'pmCommitSha': _pm_commit(),
-              'expectedVersion': expected_version, 'arch': arch, 'packages': {}}
+              'expectedVersion': expected_version,
+              'rillRuntimeVersion': rill_runtime_version,
+              'arch': arch, 'packages': {}}
     failures = []
 
     for name in EXPECTED:
@@ -485,17 +488,18 @@ def main(argv):
         # pkgver is "<version>-r<release>"; the version part must equal the repo
         # version (e.g. 1.0.0_rc10) so a stale candidate can never pass.
         ver_part = pkgver.split('-r')[0]
+        package_version = rill_runtime_version if name == 'rill-runtime' else expected_version
         # Architecture-independent packages (LuCI apps, translations) are built
         # as `noarch`/`all`, which matches ANY target; only a concrete, differing
         # arch is a mismatch.
         arch_ok = (pkgarch in ('noarch', 'all') if name in ARCH_INDEPENDENT else pkgarch == arch)
-        if ver_part != expected_version:
-            failures.append(f'{name}: pkgver {pkgver!r} != expected {expected_version!r}')
+        if ver_part != package_version:
+            failures.append(f'{name}: pkgver {pkgver!r} != expected {package_version!r}')
         if not arch_ok:
             failures.append(f'{name}: arch {pkgarch!r} != expected {arch!r}')
         if missing_deps:
             failures.append(f'{name}: required dependencies missing: {", ".join(missing_deps)}')
-        identity_ok = ver_part == expected_version and arch_ok and not missing_deps
+        identity_ok = ver_part == package_version and arch_ok and not missing_deps
         report['packages'][name] = {
             'status': 'ok' if identity_ok else 'mismatch',
             'filename': apk.name,
