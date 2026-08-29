@@ -14,6 +14,7 @@ define Package/performance-manager
   SUBMENU:=Routing and Redirection
   TITLE:=OpenWrt 性能管理器核心（以能力为先的性能控制平面）/ Capability-first OpenWrt performance control plane
   DEPENDS:=+ubus +uci +ucode +ucode-mod-fs +ucode-mod-ubus +ucode-mod-uci +ucode-mod-rtnl +ucode-mod-uloop +ucode-mod-socket +ucode-mod-log
+  PKGARCH:=all
 endef
 
 define Package/performance-manager/description

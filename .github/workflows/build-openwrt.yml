@@ -8,10 +8,6 @@ on:
 permissions:
   contents: read
 
-env:
-  OPENWRT_VERSION: "25.12.5"   # primary supported baseline (APK)
-  OPENWRT_TARGET: "x86/64"
-
 jobs:
   # Official OpenWrt SDK build for the packages this repository OWNS:
   # performance-manager (Core), luci-app-performance-manager (UI), the
@@ -23,12 +19,37 @@ jobs:
   openwrt-sdk-build:
     runs-on: ubuntu-latest
     timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - openwrt_version: "25.12.5"
+            openwrt_target: "x86"
+            openwrt_subtarget: "64"
+            sdk_prefix: "x86-64"
+            package_arch: "x86_64"
+            rust_target: "x86_64-unknown-linux-musl"
+            elf_machine: "Advanced Micro Devices X86-64"
+          - openwrt_version: "25.12.5"
+            openwrt_target: "armsr"
+            openwrt_subtarget: "armv8"
+            sdk_prefix: "armsr-armv8"
+            package_arch: "aarch64_generic"
+            rust_target: "aarch64-unknown-linux-musl"
+            elf_machine: "AArch64"
+    env:
+      OPENWRT_VERSION: ${{ matrix.openwrt_version }}
+      OPENWRT_TARGET: ${{ matrix.openwrt_target }}
+      OPENWRT_SUBTARGET: ${{ matrix.openwrt_subtarget }}
+      SDK_PREFIX: ${{ matrix.sdk_prefix }}
+      PACKAGE_ARCH: ${{ matrix.package_arch }}
+      RUST_TARGET: ${{ matrix.rust_target }}
     steps:
       - uses: actions/checkout@v7
       - uses: actions/checkout@v7
         with:
           repository: hello-yunshu/rill-openwrt-packages
-          ref: 4c39c797d9b435c2c2657e5fae17afbcef71393b
+          ref: 9af8fe825204b2d1e4a4330dfdb3700f44c392ce
           path: rill-openwrt-packages
       - name: Cache PM Cargo registry
         uses: actions/cache@v6
@@ -42,11 +63,11 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: 1.94.0
-          targets: x86_64-unknown-linux-musl
+          targets: ${{ matrix.rust_target }}
           components: rustfmt, clippy
       - name: Build and stage PM-owned adapter
-        run: python3 scripts/build_pm_adapter.py --target x86_64-unknown-linux-musl
-      - name: Install host dependencies
+        run: python3 scripts/build_pm_adapter.py --target ${{ matrix.rust_target }}
+      - name: Install SDK host dependencies
         shell: bash
         run: |
           set -euo pipefail
@@ -58,9 +79,9 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          base="https://downloads.openwrt.org/releases/${OPENWRT_VERSION}/targets/${OPENWRT_TARGET}"
+          base="https://downloads.openwrt.org/releases/${OPENWRT_VERSION}/targets/${OPENWRT_TARGET}/${OPENWRT_SUBTARGET}"
           curl --fail --silent --show-error --location --retry 3 --connect-timeout 30 --max-time 120 "$base/" -o /tmp/index.html
-          sdk=$(grep -oE "openwrt-sdk-${OPENWRT_VERSION}-x86-64_[^\"< ]+\.tar\.zst" /tmp/index.html | head -n1)
+          sdk=$(grep -oE "openwrt-sdk-${OPENWRT_VERSION}-[^\"< ]+[.]tar[.]zst" /tmp/index.html | grep -m1 -F "${SDK_PREFIX}_")
           test -n "$sdk"
           curl --fail --silent --show-error --location --retry 3 --connect-timeout 30 --max-time 120 "$base/sha256sums" -o /tmp/sha256sums
           # Capture the REAL official SDK archive digest from sha256sums (not a
@@ -73,7 +94,7 @@ jobs:
             echo "SDK_ARCHIVE_SHA256=$sdk_archive_sha"
             echo "SDK_ARCHIVE_NAME=$sdk"
             echo "FEEDS_BUILDINFO_URL=$base/feeds.buildinfo"
-            echo "SDK_CACHE_TAG=${OPENWRT_VERSION}-${OPENWRT_TARGET//\//-}"
+            echo "SDK_CACHE_TAG=${OPENWRT_VERSION}-${OPENWRT_TARGET//\//-}-${OPENWRT_SUBTARGET}-${PACKAGE_ARCH}"
           } >> "$GITHUB_ENV"
           echo "filename=$sdk" >> "$GITHUB_OUTPUT"
           echo "sha256=$sdk_archive_sha" >> "$GITHUB_OUTPUT"
@@ -86,7 +107,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          base="https://downloads.openwrt.org/releases/${OPENWRT_VERSION}/targets/${OPENWRT_TARGET}"
+          base="https://downloads.openwrt.org/releases/${OPENWRT_VERSION}/targets/${OPENWRT_TARGET}/${OPENWRT_SUBTARGET}"
           archive=".cache/openwrt-sdk/$SDK_ARCHIVE_NAME"
           mkdir -p "$(dirname "$archive")"
           if [ ! -f "$archive" ]; then
@@ -94,7 +115,7 @@ jobs:
           fi
           printf '%s *%s\n' "$SDK_ARCHIVE_SHA256" "$archive" | sha256sum -c -
           tar --zstd -xf "$archive"
-          sdkdir=$(find . -maxdepth 1 -type d -name "openwrt-sdk-${OPENWRT_VERSION}-x86-64_*" | head -n1)
+          sdkdir=$(find . -maxdepth 1 -type d -name "openwrt-sdk-${OPENWRT_VERSION}-${SDK_PREFIX}_*" | head -n1)
           test -n "$sdkdir"
           echo "SDKDIR=$sdkdir" >> "$GITHUB_ENV"
       - name: Resolve official feed identity
@@ -162,6 +183,15 @@ jobs:
           qualification_run="$(gh api "repos/hello-yunshu/rill-openwrt-packages/actions/workflows/qualify.yml/runs?head_sha=${package_commit}&status=completed&per_page=100" --jq '.workflow_runs[] | select(.conclusion=="success") | .id' | head -n1)"
           test -n "$qualification_run"
           gh api "repos/hello-yunshu/rill-openwrt-packages/actions/runs/${qualification_run}/artifacts" --jq '.artifacts[] | select(.name=="qualification-evidence" and .expired==false) | .id' | grep -q .
+          qualification_dir="$RUNNER_TEMP/rill-qualification"
+          mkdir -p "$qualification_dir"
+          gh run download "$qualification_run" --repo hello-yunshu/rill-openwrt-packages --name qualification-evidence --dir "$qualification_dir"
+          qualification_file=$(find "$qualification_dir" -type f -name qualification.json -print -quit)
+          test -n "$qualification_file"
+          jq -e --arg arch "$PACKAGE_ARCH" --arg commit "$package_commit" \
+            '.schemaVersion==2 and .packageCommit==$commit and .releaseEligible==true
+             and (.targets|type)=="array" and any(.targets[]; .packageArch==$arch and .qualificationState=="PASS")' \
+            "$qualification_file" >/dev/null
           cd "$SDKDIR"
           unset CI
           bash "$GITHUB_WORKSPACE/scripts/openwrt-build-diagnostic.sh" package/rill-runtime/compile
@@ -186,7 +216,7 @@ jobs:
           # OpenWrt 25.x APKs are zstd-compressed; Python's tarfile cannot read
           # zstd, so verify_apks.py needs the zstandard module.
           python3 -m pip install --disable-pip-version-check zstandard
-          python3 "$GITHUB_WORKSPACE/scripts/verify_apks.py" "$PWD" "$apk_version" "x86_64"
+          python3 "$GITHUB_WORKSPACE/scripts/verify_apks.py" "$PWD" "$apk_version" "$PACKAGE_ARCH"
       - name: Generate build metadata (auditable evidence)
         shell: bash
         run: |
@@ -255,11 +285,12 @@ jobs:
     needs: openwrt-sdk-build
     steps:
       - uses: actions/checkout@v7
-      - name: Download SDK build evidence
+      - name: Download all target SDK build evidence
         uses: actions/download-artifact@v8
         with:
-          name: openwrt-25.12.5-x86-64-packages-and-evidence
           path: evidence
+          pattern: openwrt-*-packages-and-evidence
+          merge-multiple: false
       - name: Aggregate final build evidence (same-commit SDK/APK chain)
         shell: bash
         run: |
@@ -279,9 +310,9 @@ jobs:
               return 1
             fi
           }
-          copy_unique_evidence build-metadata.json required
-          copy_unique_evidence apk-verification.json required
-          copy_unique_evidence rill-consumed-manifest.json optional
+          python3 scripts/aggregate_build_matrix_evidence.py \
+            --input evidence --out docs --expected-commit "$GITHUB_SHA" \
+            --expected-arch x86_64 --expected-arch aarch64_generic
           python3 scripts/aggregate_final_evidence.py \
             --evidence-dir docs --scope build \
             --expected-commit "$GITHUB_SHA" \

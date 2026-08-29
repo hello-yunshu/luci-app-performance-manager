@@ -57,7 +57,8 @@ jobs:
           set -euo pipefail
           python3 scripts/collect_stable_evidence.py \
             --ci-root evidence/ci --build-root evidence/build --target-root evidence/target \
-            --out stable-evidence --profile "${{ inputs.profile }}"
+            --out stable-evidence --profile "${{ inputs.profile }}" \
+            --expected-commit "${{ inputs.expected_sha }}"
           python3 scripts/final_release_audit.py \
             --evidence-dir stable-evidence \
             --expected-commit "${{ inputs.expected_sha }}" \

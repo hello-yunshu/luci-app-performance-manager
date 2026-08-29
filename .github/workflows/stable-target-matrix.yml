@@ -62,7 +62,7 @@ jobs:
         run: |
           set -euo pipefail
           if python3 -m unittest discover -s tests -p 'test_*.py' > stable-output/unit-tests.log 2>&1; then
-            python3 -c 'import json; json.dump({"verdict":"PASS","testCount":185,"command":"python3 -m unittest discover -s tests -p test_*.py"}, open("stable-output/test-report.json", "w"), indent=2)'
+            python3 -c 'import json; json.dump({"verdict":"PASS","testCount":186,"command":"python3 -m unittest discover -s tests -p test_*.py"}, open("stable-output/test-report.json", "w"), indent=2)'
           else
             python3 -c 'import json; json.dump({"verdict":"FAIL","command":"python3 -m unittest discover -s tests -p test_*.py"}, open("stable-output/test-report.json", "w"), indent=2)'
             exit 1
@@ -120,12 +120,19 @@ jobs:
         run: |
           set -euo pipefail
           mapfile -t build_files < <(find stable-input/build -name build-metadata.json -type f -print)
-          test "${#build_files[@]}" = 1
           mapfile -t apk_files < <(find stable-input/build -name apk-verification.json -type f -print)
-          test "${#apk_files[@]}" = 1
+          test "${#build_files[@]}" = 2
+          test "${#apk_files[@]}" = 2
+          selected_build=$(find stable-input/build -type f -path '*x86-64-64-x86_64-packages-and-evidence/build-metadata.json' -print -quit)
+          selected_apk=$(find stable-input/build -type f -path '*x86-64-64-x86_64-packages-and-evidence/apk-verification.json' -print -quit)
+          test -n "$selected_build"
+          test -n "$selected_apk"
+          selected_root="$RUNNER_TEMP/portable-x86-build"
+          mkdir -p "$selected_root"
+          cp -a "$(dirname "$selected_build")/." "$selected_root/"
           python3 scripts/portable_docker_gate.py \
             --expected-commit "${{ inputs.expected_sha }}" \
-            --build-root stable-input/build \
+            --build-root "$selected_root" \
             --ci-root stable-input/ci \
             --docker-log stable-output/docker-runtime.log \
             --test-report stable-output/test-report.json \

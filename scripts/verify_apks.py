@@ -41,6 +41,12 @@ EXPECTED = [
     'luci-app-performance-manager-all',
 ]
 ALL_IN_ONE = 'luci-app-performance-manager-all'
+ARCH_INDEPENDENT = {
+    'performance-manager',
+    'luci-app-performance-manager',
+    'performance-manager-rill',
+    ALL_IN_ONE,
+}
 REQUIRED_DEPENDS = {
     'performance-manager': {
         'ubus', 'uci', 'ucode', 'ucode-mod-fs', 'ucode-mod-ubus', 'ucode-mod-uci',
@@ -49,7 +55,7 @@ REQUIRED_DEPENDS = {
     'luci-app-performance-manager': {
         'luci-base', 'rpcd', 'performance-manager', 'luci-i18n-base-zh-cn',
     },
-    'performance-manager-rill': {'performance-manager'},
+    'performance-manager-rill': {'performance-manager', 'performance-manager-rill-adapter'},
     'performance-manager-rill-adapter': {'libc'},
     'rill-runtime': {'libc'},
     ALL_IN_ONE: {
@@ -482,7 +488,7 @@ def main(argv):
         # Architecture-independent packages (LuCI apps, translations) are built
         # as `noarch`/`all`, which matches ANY target; only a concrete, differing
         # arch is a mismatch.
-        arch_ok = pkgarch in ('noarch', 'all') or pkgarch == arch
+        arch_ok = (pkgarch in ('noarch', 'all') if name in ARCH_INDEPENDENT else pkgarch == arch)
         if ver_part != expected_version:
             failures.append(f'{name}: pkgver {pkgver!r} != expected {expected_version!r}')
         if not arch_ok:
@@ -501,6 +507,10 @@ def main(argv):
             'requiredDepends': sorted(REQUIRED_DEPENDS[name]),
             'missingDepends': missing_deps,
         }
+        if name == 'performance-manager-rill-adapter':
+            report['packages'][name]['releaseFilename'] = (
+                f'{apk.stem}_{arch}{apk.suffix}'
+            )
         # Core, and every repository-owned file in the all-in-one APK, must be
         # byte-for-byte identical to the source exercised by local gates.
         if name in ('performance-manager', ALL_IN_ONE):

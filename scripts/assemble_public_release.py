@@ -31,6 +31,27 @@ def read_one_json(root: Path, name: str, *, required: bool = True) -> tuple[Path
     return values[0]
 
 
+def read_matrix_reports(root: Path) -> list[tuple[Path, dict, Path, dict]]:
+    metadata = _files(root, "build-metadata.json")
+    verification = _files(root, "apk-verification.json")
+    if not metadata or len(metadata) != len(verification):
+        raise ArtifactIdentityError("matrix build metadata and APK verification counts disagree")
+    pairs = []
+    for metadata_path in metadata:
+        candidates = [path for path in verification if path.parent == metadata_path.parent]
+        if len(candidates) != 1:
+            raise ArtifactIdentityError(f"cannot pair target evidence under {metadata_path.parent}")
+        verification_path = candidates[0]
+        build = json.loads(metadata_path.read_text())
+        report = json.loads(verification_path.read_text())
+        if build.get("verdict") != "PASS" or report.get("verdict") != "PASS":
+            raise ArtifactIdentityError(f"target evidence is not PASS under {metadata_path.parent}")
+        if build.get("repositoryCommitSha") != report.get("pmCommitSha"):
+            raise ArtifactIdentityError(f"target evidence commit mismatch under {metadata_path.parent}")
+        pairs.append((metadata_path, build, verification_path, report))
+    return pairs
+
+
 def assemble_public_apk(
     *,
     input_root: Path,
@@ -39,68 +60,126 @@ def assemble_public_apk(
     expected_filename: str | None = None,
 ) -> dict:
     """Resolve, verify, and stage exactly one public all-in-one APK."""
-    _, manifest = read_one_json(input_root, "all-in-one-release-manifest.json", required=False)
-    _, verification = read_one_json(input_root, "apk-verification.json")
-    _, metadata = read_one_json(input_root, "build-metadata.json")
-    if verification.get("verdict") != "PASS" or verification.get("pmCommitSha") != expected_commit:
-        raise ArtifactIdentityError("APK verification is not a PASS for the expected commit")
-    if metadata.get("verdict") != "PASS" or metadata.get("repositoryCommitSha") != expected_commit:
-        raise ArtifactIdentityError("build metadata is not a PASS for the expected commit")
-
-    verified = (verification.get("packages") or {}).get(PACKAGE) or {}
-    built = (metadata.get("packages") or {}).get(PACKAGE) or {}
-    expected_sha_values = {
-        verified.get("sha256"),
-        built.get("apkSha256"),
-        (manifest or {}).get("apk", {}).get("sha256"),
-    }
-    if None in expected_sha_values or len(expected_sha_values) != 1:
-        raise ArtifactIdentityError(f"all-in-one SHA identities disagree: {sorted(str(value) for value in expected_sha_values)}")
-    filename = expected_filename or verified.get("filename") or built.get("apkFilename") or built.get("filename")
-    if manifest:
-        if manifest.get("pmCommitSha") != expected_commit or manifest.get("package") != PACKAGE:
-            raise ArtifactIdentityError("all-in-one release manifest identity mismatch")
-        filename = filename or (manifest.get("apk") or {}).get("filename")
+    pairs = read_matrix_reports(input_root)
+    if any(build.get("repositoryCommitSha") != expected_commit for _, build, _, _ in pairs):
+        raise ArtifactIdentityError("matrix build evidence is not for the expected commit")
+    manifest_paths = _files(input_root, "all-in-one-release-manifest.json")
+    manifests = [json.loads(path.read_text()) for path in manifest_paths]
+    if any(manifest.get("pmCommitSha") != expected_commit or manifest.get("package") != PACKAGE
+           for manifest in manifests):
+        raise ArtifactIdentityError("all-in-one release manifest identity mismatch")
+    verified_records = [(build, report, (report.get("packages") or {}).get(PACKAGE) or {})
+                        for _, build, _, report in pairs]
+    apk_sha_values = {record.get("sha256") for _, _, record in verified_records}
+    apk_sha_values.update((build.get("packages") or {}).get(PACKAGE, {}).get("apkSha256")
+                          for build, _, _ in verified_records)
+    apk_sha_values.discard(None)
+    if len(apk_sha_values) != 1:
+        raise ArtifactIdentityError(f"all-in-one SHA identities disagree: {sorted(apk_sha_values)}")
+    filename_values = {record.get("filename") for _, _, record in verified_records}
+    filename_values.update((manifest.get("apk") or {}).get("filename") for manifest in manifests)
+    filename_values.discard(None)
+    filename = expected_filename or (next(iter(filename_values)) if len(filename_values) == 1 else None)
     if not filename:
-        raise ArtifactIdentityError("all-in-one filename is missing from authoritative metadata")
+        raise ArtifactIdentityError("all-in-one filename is missing or differs across targets")
 
-    apk_sha = next(iter(expected_sha_values))
+    apk_sha = next(iter(apk_sha_values))
     identity = resolve_artifact(PACKAGE, apk_sha, [input_root], filename)
     source = Path(identity["canonicalPath"])
     output_root.mkdir(parents=True, exist_ok=True)
     target = output_root / source.name
     shutil.copy2(source, target)
-    adapter_verified = (verification.get("packages") or {}).get(ADAPTER_PACKAGE) or {}
-    adapter_built = (metadata.get("packages") or {}).get(ADAPTER_PACKAGE) or {}
-    adapter_filename = adapter_verified.get("filename") or adapter_built.get("apkFilename") or adapter_built.get("filename")
-    adapter_sha_values = {adapter_verified.get("sha256"), adapter_built.get("apkSha256")}
-    if adapter_verified.get("status") != "ok" or None in adapter_sha_values or len(adapter_sha_values) != 1 or not adapter_filename:
-        raise ArtifactIdentityError("target-specific adapter APK identity is incomplete or conflicting")
-    adapter_identity = resolve_artifact(ADAPTER_PACKAGE, next(iter(adapter_sha_values)), [input_root], adapter_filename)
-    adapter_source = Path(adapter_identity["canonicalPath"])
-    adapter_target = output_root / adapter_source.name
-    shutil.copy2(adapter_source, adapter_target)
-    for name in ("all-in-one-release-manifest.json", "all-in-one-checksums.txt",
-                 "build-metadata.json", "apk-verification.json", "rill-consumed-manifest.json"):
-        source_path = _files(input_root, name)
-        if not source_path:
-            if name == "rill-consumed-manifest.json":
-                continue
-            raise ArtifactIdentityError(f"missing {name} under {input_root}")
-        if name.endswith(".json"):
-            read_one_json(input_root, name)
-        shutil.copy2(source_path[0], output_root / name)
+    adapter_identities = []
+    for _, build, _, report in pairs:
+        adapter_verified = (report.get("packages") or {}).get(ADAPTER_PACKAGE) or {}
+        adapter_built = (build.get("packages") or {}).get(ADAPTER_PACKAGE) or {}
+        adapter_filename = adapter_verified.get("filename") or adapter_built.get("apkFilename")
+        adapter_sha = adapter_verified.get("sha256") or adapter_built.get("apkSha256")
+        if adapter_verified.get("status") != "ok" or not adapter_filename or not adapter_sha:
+            raise ArtifactIdentityError("target-specific adapter APK identity is incomplete")
+        adapter_identity = resolve_artifact(ADAPTER_PACKAGE, adapter_sha, [input_root], adapter_filename)
+        adapter_source = Path(adapter_identity["canonicalPath"])
+        adapter_release_name = adapter_built.get("releaseFilename") or adapter_verified.get("releaseFilename")
+        adapter_target = output_root / (adapter_release_name or adapter_source.name)
+        if adapter_target.exists():
+            raise ArtifactIdentityError(f"duplicate target adapter release name: {adapter_target.name}")
+        shutil.copy2(adapter_source, adapter_target)
+        adapter_identities.append({
+            **adapter_identity,
+            "canonicalPath": str(adapter_target),
+            "filename": adapter_target.name,
+            "sha256": sha256(adapter_target),
+            "packageArch": build.get("architecture"),
+            "target": build.get("target"),
+            "openwrtVersion": build.get("openwrtVersion"),
+        })
+    # Keep one deterministic all-in-one manifest/checksum as a human-readable
+    # convenience; matrix evidence remains target-specific in the input.
+    dedicated_manifest = manifests[0] if manifests else None
+    if dedicated_manifest:
+        (output_root / "all-in-one-release-manifest.json").write_text(
+            json.dumps(dedicated_manifest, ensure_ascii=False, indent=2) + "\n"
+        )
+    checksum_lines = [f"{sha256(target)}  {target.name}\n"]
+    checksum_lines.extend(f"{item['sha256']}  {item['filename']}\n" for item in adapter_identities)
+    (output_root / "all-in-one-checksums.txt").write_text("".join(checksum_lines))
+    # Release consumers need one aggregate identity, not an arbitrary target's
+    # report.  The per-target records retain the exact SDK/arch provenance.
+    aggregate_packages = {}
+    package_names = sorted({name for _, build, _, report in pairs
+                            for name in set((build.get("packages") or {})) | set((report.get("packages") or {}))})
+    for name in package_names:
+        target_records = []
+        for _, build, _, report in pairs:
+            verified = (report.get("packages") or {}).get(name) or {}
+            built = (build.get("packages") or {}).get(name) or {}
+            target_records.append({"packageArch": build.get("architecture"), "target": build.get("target"),
+                                   "openwrtVersion": build.get("openwrtVersion"),
+                                   "packageManagerFormat": build.get("packageManagerFormat"),
+                                   "apkFilename": built.get("apkFilename") or verified.get("filename"),
+                                   "releaseFilename": built.get("releaseFilename") or verified.get("releaseFilename"),
+                                   "apkSha256": built.get("apkSha256") or verified.get("sha256"),
+                                   "status": verified.get("status")})
+        aggregate_packages[name] = {"status": "ok", "targets": target_records}
+    aggregate_metadata = {"schemaVersion": 2, "repositoryCommitSha": expected_commit,
+                          "openwrtVersion": "multi-target", "architecture": "multi-target",
+                          "target": "multi-target", "packageManagerFormat": "multi-format",
+                          "targets": [{"openwrtVersion": build.get("openwrtVersion"), "target": build.get("target"),
+                                       "packageArch": build.get("architecture"),
+                                       "packageManagerFormat": build.get("packageManagerFormat"),
+                                       "sdkIdentity": build.get("sdkIdentity"),
+                                       "sdkArchiveSha256": build.get("sdkArchiveSha256")}
+                                      for _, build, _, _ in pairs],
+                          "packages": aggregate_packages, "verdicts": {"pmPackagesBuildVerdict": "PASS",
+                          "apkExactVerificationVerdict": "PASS"}, "verdict": "PASS"}
+    (output_root / "build-metadata.json").write_text(json.dumps(aggregate_metadata, indent=2) + "\n")
+    (output_root / "apk-verification.json").write_text(json.dumps({
+        "schemaVersion": 2, "pmCommitSha": expected_commit, "arch": "multi-target",
+        "targets": [{"packageArch": report.get("arch"), "target": build.get("target"),
+                      "report": report} for _, build, _, report in pairs],
+        "packages": aggregate_packages, "verdict": "PASS", "failures": []
+    }, indent=2) + "\n")
+    consumed_paths = _files(input_root, "rill-consumed-manifest.json")
+    if consumed_paths:
+        consumed = json.loads(consumed_paths[0].read_text())
+        consumed_by_parent = {path.parent: json.loads(path.read_text()) for path in consumed_paths}
+        consumed["targets"] = [
+            {"packageArch": build.get("architecture"), "target": build.get("target"),
+             "openwrtVersion": build.get("openwrtVersion"),
+             "artifactName": (consumed_by_parent.get(metadata_path.parent) or consumed).get("artifactName"),
+             "rustTarget": (consumed_by_parent.get(metadata_path.parent) or consumed).get("rustTarget")}
+            for metadata_path, build, _, _ in pairs
+        ]
+        (output_root / "rill-consumed-manifest.json").write_text(
+            json.dumps(consumed, ensure_ascii=False, indent=2) + "\n"
+        )
     result = {
         **identity,
         "canonicalPath": str(target),
         "filename": target.name,
         "sha256": sha256(target),
-        "adapter": {
-            **adapter_identity,
-            "canonicalPath": str(adapter_target),
-            "filename": adapter_target.name,
-            "sha256": sha256(adapter_target),
-        },
+        "adapters": adapter_identities,
+        "adapter": adapter_identities[0],
     }
     return result
 

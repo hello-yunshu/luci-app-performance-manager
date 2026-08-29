@@ -40,6 +40,10 @@
       "status": "pass"
     },
     {
+      "name": "py_compile scripts/aggregate_build_matrix_evidence.py",
+      "status": "pass"
+    },
+    {
       "name": "py_compile scripts/aggregate_final_evidence.py",
       "status": "pass"
     },

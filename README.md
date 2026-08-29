@@ -56,7 +56,7 @@
 
 ### 前置条件
 
-- OpenWrt 25.12.x / x86_64
+- OpenWrt 25.12.x / x86_64 或 aarch64_generic；当前真实运行时 gate 仍以 x86_64 为准
 - OpenWrt SDK 或 buildroot 构建环境（用于源码构建）
 
 ### 源码构建（OpenWrt SDK / buildroot）
@@ -87,7 +87,7 @@ make package/luci-app-performance-manager-all/compile V=s
 
 从 GitHub Release 下载 `luci-app-performance-manager-all-1.0.3-r1.apk`；如启用当前临时 Shadow 集成，再下载目标架构的兼容桥及 `performance-manager-rill` 包：
 
-仓库的官方 OpenWrt SDK 编译仍会编译并校验所有拆分包以及实体一体化包；公开 Release 同时提供 all-in-one 与当前正式目标的 native adapter APK。
+仓库的官方 OpenWrt SDK 编译仍会编译并校验所有拆分包以及实体一体化包；公开 Release 同时提供 arch-independent all-in-one 与每个已 qualification 目标的 native adapter APK，当前矩阵为 x86_64 和 aarch64_generic。
 
 ```sh
 apk add --allow-untrusted /tmp/luci-app-performance-manager-all-1.0.3-r1.apk
@@ -102,7 +102,7 @@ apk add --allow-untrusted /tmp/performance-manager-rill-adapter-1.0.3-r1.apk
 | 项目 | 值 |
 |---|---|
 | 推荐包名 | `luci-app-performance-manager-all`（单 APK） |
-| 目标 | OpenWrt 25.12.x / x86_64 |
+| 目标 | OpenWrt 25.12.x / x86_64、aarch64_generic（包级）；运行时证据为 x86_64 |
 | 当前源码候选 | `1.0.3` |
 | 服务脚本 | `/etc/init.d/performance-manager` |
 | UCI 配置 | `/etc/config/performance-manager` |

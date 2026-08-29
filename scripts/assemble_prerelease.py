@@ -20,6 +20,13 @@ def artifact_root(root: Path, suffix: str) -> Path:
     return matches[0]
 
 
+def artifact_roots(root: Path, suffix: str) -> list[Path]:
+    matches = sorted(path for path in root.iterdir() if path.is_dir() and path.name.endswith(suffix))
+    if not matches:
+        raise RuntimeError(f"expected an artifact root ending {suffix!r}")
+    return matches
+
+
 def main(argv=None) -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--input", required=True)
@@ -32,20 +39,14 @@ def main(argv=None) -> int:
     input_root = Path(args.input).resolve()
     output = Path(args.out).resolve()
     source_dist = Path(args.source_dist).resolve()
-    dedicated = artifact_root(input_root, "-all-in-one-apk")
-    build_root = artifact_root(input_root, "-packages-and-evidence")
+    dedicated = artifact_roots(input_root, "-all-in-one-apk")[0]
+    artifact_roots(input_root, "-packages-and-evidence")
     final_root = artifact_root(input_root, "final-release-evidence-build")
 
     _, manifest = read_one_json(dedicated, "all-in-one-release-manifest.json")
-    _, verification = read_one_json(build_root, "apk-verification.json")
-    _, metadata = read_one_json(build_root, "build-metadata.json")
     _, final = read_one_json(final_root, "final-release-evidence.json")
     if manifest.get("pmCommitSha") != args.expected_sha or manifest.get("package") != PACKAGE:
         raise RuntimeError("all-in-one manifest identity mismatch")
-    if verification.get("verdict") != "PASS" or verification.get("pmCommitSha") != args.expected_sha:
-        raise RuntimeError("APK verification verdict or commit mismatch")
-    if metadata.get("verdict") != "PASS" or metadata.get("repositoryCommitSha") != args.expected_sha:
-        raise RuntimeError("build metadata verdict or commit mismatch")
     if final.get("overallVerdict") != "PASS" or final.get("expectedCommitSha") != args.expected_sha:
         raise RuntimeError("final build evidence verdict or commit mismatch")
 
@@ -65,11 +66,9 @@ def main(argv=None) -> int:
     output.mkdir(parents=True, exist_ok=True)
     owned = {
         "all-in-one-checksums.txt": dedicated / "all-in-one-checksums.txt",
-        "build-metadata.json": next(path for path in build_root.rglob("build-metadata.json") if path.is_file()),
-        "apk-verification.json": next(path for path in build_root.rglob("apk-verification.json") if path.is_file()),
         "final-release-evidence.json": next(path for path in final_root.rglob("final-release-evidence.json") if path.is_file()),
-        "FINAL_AUDIT.json": next(path for path in build_root.rglob("FINAL_AUDIT.json") if path.is_file()),
-        "FINAL_AUDIT.md": next(path for path in build_root.rglob("FINAL_AUDIT.md") if path.is_file()),
+        "FINAL_AUDIT.json": next(path for path in input_root.rglob("FINAL_AUDIT.json") if path.is_file()),
+        "FINAL_AUDIT.md": next(path for path in input_root.rglob("FINAL_AUDIT.md") if path.is_file()),
         source_zip.name: source_zip,
         source_manifest.name: source_manifest,
     }

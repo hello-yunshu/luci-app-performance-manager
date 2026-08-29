@@ -55,7 +55,7 @@
 
 ### Prerequisites
 
-- OpenWrt 25.12.x / x86_64
+- OpenWrt 25.12.x / x86_64 or aarch64_generic; current real runtime gates remain x86_64-scoped
 - An OpenWrt SDK or buildroot environment (for source builds)
 
 ### Build from source (OpenWrt SDK / buildroot)
@@ -87,7 +87,7 @@ make package/luci-app-performance-manager-all/compile V=s
 
 Download `luci-app-performance-manager-all-1.0.3-r1.apk` and the target-specific `performance-manager-rill-adapter-1.0.3-r1.apk` from the GitHub Release, then install both application packages:
 
-The repository's official OpenWrt SDK build still compiles and verifies every split package and the physical all-in-one package. The public Release includes the all-in-one package plus the current target-specific native adapter package.
+The repository's official OpenWrt SDK build still compiles and verifies every split package and the physical all-in-one package. The public Release includes the architecture-independent all-in-one package plus one target-specific native adapter for each qualified target; the current matrix is x86_64 and aarch64_generic.
 
 ```sh
 apk add --allow-untrusted /tmp/luci-app-performance-manager-all-1.0.3-r1.apk
@@ -101,7 +101,7 @@ OpenWrt still resolves system runtime libraries such as `luci-base`, `rpcd` and 
 | Item | Value |
 |---|---|
 | Recommended package | `luci-app-performance-manager-all` (one APK) |
-| Target | OpenWrt 25.12.x / x86_64 |
+| Target | OpenWrt 25.12.x / x86_64, aarch64_generic (package-level); runtime evidence is x86_64 |
 | Current source candidate | `1.0.3` |
 | Service script | `/etc/init.d/performance-manager` |
 | UCI config | `/etc/config/performance-manager` |

@@ -5,8 +5,8 @@
 The current PM-owned adapter release candidate is `1.0.3`. It consumes exact crates.io
 `rill-ml` `1.5.3`, keeps `pm-rill-shadow` protocol v1, and publishes both the
 all-in-one APK and the target-specific `performance-manager-rill-adapter`
-APK for OpenWrt 25.12.x x86_64. The real musl adapter runtime, official
-OpenWrt rootfs, Core roundtrip, remote SDK build, and same-commit evidence
+APK for OpenWrt 25.12.x x86_64 and aarch64_generic. The real musl adapter runtime,
+official OpenWrt rootfs, Core roundtrip, remote SDK build, and same-commit evidence
 chain must be re-run for the final `1.0.3` commit. The public release uses the
 `portable-docker` profile and therefore does not claim physical hardware or
 24-hour soak coverage. The immutable v1.0.2 release is not reused because its
