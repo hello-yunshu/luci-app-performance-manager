@@ -73,11 +73,11 @@ def main(argv):
     run_id = env('GITHUB_RUN_ID', 'local')
     workflow = env('GITHUB_WORKFLOW', 'build-openwrt')
     openwrt_version = env('OPENWRT_VERSION', argv[1] if len(argv) > 1 else '25.12.5')
-    target = env('OPENWRT_TARGET', 'x86/64')
+    target = env('OPENWRT_TARGET', 'x86') + '/' + env('OPENWRT_SUBTARGET', '64')
     sdk_dir = env('SDKDIR', argv[2] if len(argv) > 2 else '')
     sdk_identity = Path(sdk_dir).name if sdk_dir else 'not-built-local'
-    arch = 'x86_64'
-    pkg_manager = 'apk'  # OpenWrt 25.12 uses apk; ipk is legacy (24.10 and earlier).
+    arch = env('PACKAGE_ARCH', 'x86_64')
+    pkg_manager = env('PACKAGE_MANAGER', 'apk')
 
     dep_file = ROOT / 'contracts' / 'rill-dependency.json'
     dep = json.loads(dep_file.read_text()) if dep_file.exists() else {}
@@ -252,6 +252,8 @@ def main(argv):
             entry['status'] = rec.get('status')
             if rec.get('filename'):
                 entry['apkFilename'] = rec['filename']
+            if rec.get('releaseFilename'):
+                entry['releaseFilename'] = rec['releaseFilename']
             if rec.get('sha256'):
                 entry['apkSha256'] = rec['sha256']
             if rec.get('pkgver'):

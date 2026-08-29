@@ -28,23 +28,42 @@ def main(argv=None) -> int:
     if final.get("pmCommitSha") != args.expected_commit or final.get("overallVerdict") != "PASS" \
             or final.get("stableReleaseAuthorized") is not True:
         raise RuntimeError("Stable evidence is not authorized for the expected commit")
-    expected_sha = ((build.get("packages") or {}).get(PACKAGE) or {}).get("apkSha256")
-    expected_filename = ((build.get("packages") or {}).get(PACKAGE) or {}).get("apkFilename")
+    primary_records = ((build.get("packages") or {}).get(PACKAGE) or {}).get("targets") or []
+    primary_sha_values = {record.get("apkSha256") for record in primary_records}
+    primary_sha_values.discard(None)
+    if len(primary_sha_values) != 1:
+        raise RuntimeError("build metadata lacks one stable all-in-one APK identity across targets")
+    expected_sha = next(iter(primary_sha_values))
+    expected_filename_values = {record.get("apkFilename") for record in primary_records}
+    expected_filename_values.discard(None)
+    expected_filename = next(iter(expected_filename_values)) if len(expected_filename_values) == 1 else None
     try:
-        identity = resolve_artifact(PACKAGE, expected_sha, [root], expected_filename)
+        primary_identity = resolve_artifact(PACKAGE, expected_sha, [root], expected_filename)
     except ArtifactIdentityError as exc:
         raise RuntimeError(str(exc)) from exc
-    apk = Path(identity["canonicalPath"])
+    apk = Path(primary_identity["canonicalPath"])
     adapter_build = (build.get("packages") or {}).get(ADAPTER_PACKAGE) or {}
-    adapter_expected = adapter_build.get("apkSha256")
-    adapter_filename = adapter_build.get("apkFilename") or adapter_build.get("filename")
-    if not adapter_expected or not adapter_filename:
-        raise RuntimeError("build metadata lacks exact target-specific adapter APK identity")
-    try:
-        adapter_identity = resolve_artifact(ADAPTER_PACKAGE, adapter_expected, [root], adapter_filename)
-    except ArtifactIdentityError as exc:
-        raise RuntimeError(str(exc)) from exc
-    adapter_apk = Path(adapter_identity["canonicalPath"])
+    adapter_records = adapter_build.get("targets") or []
+    if not adapter_records:
+        raise RuntimeError("build metadata lacks target-specific adapter identities")
+    adapter_identities = []
+    for record in adapter_records:
+        adapter_expected = record.get("apkSha256")
+        adapter_filename = record.get("releaseFilename") or record.get("apkFilename")
+        if not adapter_expected or not adapter_filename:
+            raise RuntimeError("build metadata lacks an exact target-specific adapter identity")
+        try:
+            adapter_identity = resolve_artifact(ADAPTER_PACKAGE, adapter_expected, [root], adapter_filename)
+        except ArtifactIdentityError as exc:
+            raise RuntimeError(str(exc)) from exc
+        adapter_identities.append({
+            "packageArch": record.get("packageArch"),
+            "target": record.get("target"),
+            "openwrtVersion": record.get("openwrtVersion"),
+            "releaseFilename": record.get("releaseFilename") or adapter_filename,
+            "sha256": sha256(Path(adapter_identity["canonicalPath"])),
+            "identity": adapter_identity,
+        })
     files = [{"name": path.name, "bytes": path.stat().st_size, "sha256": sha256(path)}
              for path in sorted(root.iterdir()) if path.is_file()]
     manifest = {
@@ -57,9 +76,10 @@ def main(argv=None) -> int:
         "primaryPackage": PACKAGE,
         "primaryPackageSha256": sha256(apk),
         "adapterPackage": ADAPTER_PACKAGE,
-        "adapterPackageSha256": sha256(adapter_apk),
-        "adapterArtifactIdentity": adapter_identity,
-        "artifactIdentity": identity,
+        "adapterPackageSha256": adapter_identities[0]["sha256"],
+        "adapterPackageSha256s": [item["sha256"] for item in adapter_identities],
+        "adapterArtifacts": adapter_identities,
+        "artifactIdentity": primary_identity,
         "openwrtRelease": build.get("openwrtVersion"),
         "sdkArchiveSha256": build.get("sdkArchiveSha256"),
         "rill": {

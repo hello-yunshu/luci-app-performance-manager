@@ -19,6 +19,7 @@ define Package/performance-manager-rill
   SUBMENU:=Routing and Redirection
   TITLE:=OpenWrt 性能管理器 PM-owned Rill 集成层 / PM-owned Rill integration glue
   DEPENDS:=+performance-manager +performance-manager-rill-adapter
+  PKGARCH:=all
   USERID:=performance-manager-rill=5666:performance-manager-rill=5666
 endef
 

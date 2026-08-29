@@ -9,6 +9,7 @@ import sys
 from pathlib import Path
 
 from aggregate_stable_evidence import PORTABLE_REQUIRED, REQUIRED
+from aggregate_build_matrix_evidence import main as aggregate_build_matrix
 
 
 def digest(path):
@@ -21,10 +22,22 @@ def main(argv=None):
     parser.add_argument("--build-root", required=True)
     parser.add_argument("--target-root", required=True)
     parser.add_argument("--out", required=True)
+    parser.add_argument("--expected-commit", required=True)
     parser.add_argument("--profile", choices=("hardware", "portable-docker"), default="hardware")
     args = parser.parse_args(argv)
     out = Path(args.out)
     out.mkdir(parents=True, exist_ok=True)
+    build_root = Path(args.build_root)
+    build_metadata = list(build_root.rglob("build-metadata.json"))
+    verification = list(build_root.rglob("apk-verification.json"))
+    if len(build_metadata) > 1 or len(verification) > 1:
+        matrix_out = out / ".build-matrix"
+        aggregate_build_matrix([
+            "--input", str(build_root), "--out", str(matrix_out),
+            "--expected-commit", args.expected_commit,
+            "--expected-arch", "x86_64", "--expected-arch", "aarch64_generic",
+        ])
+        build_root = matrix_out
     required = PORTABLE_REQUIRED if args.profile == "portable-docker" else REQUIRED
     roots = {
         "source": Path(args.ci_root),
@@ -32,8 +45,8 @@ def main(argv=None):
         "rillProvenance": Path(args.ci_root),
         "rillRuntime": Path(args.ci_root),
         "rillCoreFunctional": Path(args.ci_root),
-        "openwrtSdk": Path(args.build_root),
-        "apkVerification": Path(args.build_root),
+        "openwrtSdk": build_root,
+        "apkVerification": build_root,
     }
     missing = []
     for name, filename in required.items():

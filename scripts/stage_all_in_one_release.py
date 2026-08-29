@@ -53,7 +53,8 @@ def main(argv=None) -> int:
         adapter_identity = resolve_artifact(ADAPTER_PACKAGE, adapter_sha, [sdk_dir], adapter_name)
     except ArtifactIdentityError as exc:
         raise RuntimeError(str(exc)) from exc
-    adapter_target = out / adapter_name
+    adapter_release_name = adapter_record.get('releaseFilename') or adapter_name
+    adapter_target = out / adapter_release_name
     shutil.copy2(adapter_identity["canonicalPath"], adapter_target)
     manifest = {
         "schemaVersion": 1,
@@ -82,6 +83,7 @@ def main(argv=None) -> int:
         "adapterPackage": {
             "package": ADAPTER_PACKAGE,
             "filename": adapter_target.name,
+            "sourceFilename": adapter_name,
             "sha256": sha256(adapter_target),
             "bytes": adapter_target.stat().st_size,
             "copies": adapter_identity["copies"],
