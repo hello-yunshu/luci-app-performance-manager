@@ -147,11 +147,11 @@ jobs:
           cp -a "$GITHUB_WORKSPACE"/rill-openwrt-packages/package/rill-runtime package/rill-runtime
           make defconfig
       - name: Build Core
-        run: cd "$SDKDIR" && make -j2 package/performance-manager/compile V=s
+        run: cd "$SDKDIR" && bash "$GITHUB_WORKSPACE/scripts/openwrt-build-diagnostic.sh" package/performance-manager/compile
       - name: Build LuCI
-        run: cd "$SDKDIR" && make -j2 package/luci-app-performance-manager/compile V=s
+        run: cd "$SDKDIR" && bash "$GITHUB_WORKSPACE/scripts/openwrt-build-diagnostic.sh" package/luci-app-performance-manager/compile
       - name: Build Rill integration package (glue only, never compiles Rill)
-        run: cd "$SDKDIR" && make -j2 package/performance-manager-rill/compile V=s
+        run: cd "$SDKDIR" && bash "$GITHUB_WORKSPACE/scripts/openwrt-build-diagnostic.sh" package/performance-manager-rill/compile
       - name: Build canonical generic Rill Runtime package
         env:
           GH_TOKEN: ${{ github.token }}
@@ -164,11 +164,11 @@ jobs:
           gh api "repos/hello-yunshu/rill-openwrt-packages/actions/runs/${qualification_run}/artifacts" --jq '.artifacts[] | select(.name=="qualification-evidence" and .expired==false) | .id' | grep -q .
           cd "$SDKDIR"
           unset CI
-          make -j2 package/rill-runtime/compile V=s
+          bash "$GITHUB_WORKSPACE/scripts/openwrt-build-diagnostic.sh" package/rill-runtime/compile
       - name: Build PM-owned native adapter package
-        run: cd "$SDKDIR" && make -j2 package/performance-manager-rill-adapter/compile V=s
+        run: cd "$SDKDIR" && bash "$GITHUB_WORKSPACE/scripts/openwrt-build-diagnostic.sh" package/performance-manager-rill-adapter/compile
       - name: Build all-in-one APK (Core + LuCI + rpcd + zh-cn + Rill glue)
-        run: cd "$SDKDIR" && make -j2 package/luci-app-performance-manager-all/compile V=s
+        run: cd "$SDKDIR" && bash "$GITHUB_WORKSPACE/scripts/openwrt-build-diagnostic.sh" package/luci-app-performance-manager-all/compile
       - name: Assert expected packages present (exact APK metadata match)
         shell: bash
         run: |
