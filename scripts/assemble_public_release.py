@@ -117,9 +117,9 @@ def resolve_target_copy(*, input_root: Path, package: str, expected_sha: str, fi
     that single path so unrelated target copies cannot look like a conflict.
     """
     candidates = [path for path in _files(input_root, filename) if sha256(path) == expected_sha]
-    if len(candidates) != 1:
+    if not candidates:
         raise ArtifactIdentityError(
-            f"{package}: expected one target copy for {filename} and {expected_sha}, found {len(candidates)}"
+            f"{package}: no target copy found for {filename} and {expected_sha}"
         )
     return resolve_artifact(package, expected_sha, [candidates[0]], filename)
 
