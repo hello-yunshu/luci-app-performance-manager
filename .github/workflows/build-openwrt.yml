@@ -213,7 +213,6 @@ jobs:
             --upstream-repository hello-yunshu/rill-ml \
             --upstream-tag "v${rill_runtime_version}" \
             --upstream-commit "$(jq -r '.upstream.commit' "$GITHUB_WORKSPACE/rill-openwrt-packages/metadata/rill-runtime.json")" \
-            --upstream-archive-sha256 "$(jq -r '.upstream.archiveSha256' "$GITHUB_WORKSPACE/rill-openwrt-packages/metadata/rill-runtime.json")" \
             --openwrt-version "$OPENWRT_VERSION" \
             --package-arch "$PACKAGE_ARCH" \
             --pkgtype apk
