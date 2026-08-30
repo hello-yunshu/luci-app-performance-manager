@@ -55,7 +55,7 @@
 
 ### Prerequisites
 
-- OpenWrt 25.12.x / x86_64 or aarch64_generic; current real runtime gates remain x86_64-scoped
+- OpenWrt 25.12.x / x86_64, aarch64_generic, or aarch64_cortex-a53; current real runtime gates remain x86_64-scoped
 - An OpenWrt SDK or buildroot environment (for source builds)
 
 ### Build from source (OpenWrt SDK / buildroot)
@@ -85,14 +85,23 @@ make package/luci-app-performance-manager-all/compile V=s
 
 ### Recommended: one-APK installation
 
-Download `luci-app-performance-manager-all-1.0.3-r1.apk`, `performance-manager-rill-1.0.3-r1.apk`, and the target-specific `performance-manager-rill-adapter-1.0.3-r1.apk` from the GitHub Release, then install the three Rill-enabled application packages:
+Download `luci-app-performance-manager-all-1.0.3-r1.apk` and `performance-manager-rill-1.0.3-r1.apk` from the GitHub Release, then choose the adapter matching the device architecture. The next Release uses architecture-qualified adapter assets (the examples below retain the current candidate version):
 
 The repository's official OpenWrt SDK build still compiles and verifies every split package and the physical all-in-one package. The public Release includes one copy each of the architecture-independent all-in-one and Rill glue packages, plus one target-specific native adapter for each qualified target; the current matrix is x86_64, aarch64_generic, and aarch64_cortex-a53. The independent `rill-runtime` package is obtained from `hello-yunshu/rill-openwrt-packages` and is not copied into this Release.
+
+```text
+performance-manager-rill-adapter-1.0.3-r1_x86_64.apk
+performance-manager-rill-adapter-1.0.3-r1_aarch64_generic.apk
+performance-manager-rill-adapter-1.0.3-r1_aarch64_cortex-a53.apk
+```
 
 ```sh
 apk add --allow-untrusted /tmp/luci-app-performance-manager-all-1.0.3-r1.apk
 apk add --allow-untrusted /tmp/performance-manager-rill-1.0.3-r1.apk
-apk add --allow-untrusted /tmp/performance-manager-rill-adapter-1.0.3-r1.apk
+# Install exactly one adapter matching the device architecture:
+apk add --allow-untrusted /tmp/performance-manager-rill-adapter-1.0.3-r1_x86_64.apk
+# For aarch64_generic use *_aarch64_generic.apk;
+# for aarch64_cortex-a53 use *_aarch64_cortex-a53.apk.
 ```
 
 OpenWrt still resolves system runtime libraries such as `luci-base`, `rpcd` and `ucode` from its configured repositories. The all-in-one APK contains the Core, LuCI, backend and translation payloads; `performance-manager-rill` owns the service glue and the adapter package owns the native binary. The all-in-one package conflicts with the Core/LuCI split packages so duplicate file ownership is impossible. Back up `/etc/config/performance-manager` and switch package forms only during a maintenance window on devices already using the split packages.

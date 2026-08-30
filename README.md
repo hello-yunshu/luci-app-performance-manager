@@ -85,14 +85,23 @@ make package/luci-app-performance-manager-all/compile V=s
 
 ### 推荐：单 APK 安装
 
-从 GitHub Release 下载 `luci-app-performance-manager-all-1.0.3-r1.apk`；如启用当前临时 Shadow 集成，再下载目标架构的兼容桥及 `performance-manager-rill` 包：
+从 GitHub Release 下载 `luci-app-performance-manager-all-1.0.3-r1.apk`；如启用当前临时 Shadow 集成，再下载 `performance-manager-rill` 包和与设备架构匹配的 adapter。下一版 Release 的 adapter 需要按架构选择（以下沿用当前候选版本号示例）：
 
 仓库的官方 OpenWrt SDK 编译仍会编译并校验所有拆分包以及实体一体化包；公开 Release 提供一份 arch-independent all-in-one、一份 `performance-manager-rill` glue 包，以及每个已 qualification 目标的一份 native adapter APK，当前矩阵为 x86_64、aarch64_generic 和 aarch64_cortex-a53。`rill-runtime` 不复制进 PM Release。
+
+```text
+performance-manager-rill-adapter-1.0.3-r1_x86_64.apk
+performance-manager-rill-adapter-1.0.3-r1_aarch64_generic.apk
+performance-manager-rill-adapter-1.0.3-r1_aarch64_cortex-a53.apk
+```
 
 ```sh
 apk add --allow-untrusted /tmp/luci-app-performance-manager-all-1.0.3-r1.apk
 apk add --allow-untrusted /tmp/performance-manager-rill-1.0.3-r1.apk
-apk add --allow-untrusted /tmp/performance-manager-rill-adapter-1.0.3-r1.apk
+# 仅安装与设备架构匹配的一份 adapter：
+apk add --allow-untrusted /tmp/performance-manager-rill-adapter-1.0.3-r1_x86_64.apk
+# aarch64_generic 设备选择 *_aarch64_generic.apk；
+# aarch64_cortex-a53 设备选择 *_aarch64_cortex-a53.apk。
 ```
 
 它仍会通过 OpenWrt 软件源解析 `luci-base`、`rpcd`、`ucode` 等系统运行库；“单 APK”只表示 Performance Manager 自有的 Core、LuCI、后端和翻译位于一个文件内。它与三个 Core/LuCI 拆分包互斥；Rill 集成包是可选的独立所有者。已有拆分版设备应先备份 `/etc/config/performance-manager`，再在维护窗口切换包形态。
@@ -102,7 +111,7 @@ apk add --allow-untrusted /tmp/performance-manager-rill-adapter-1.0.3-r1.apk
 | 项目 | 值 |
 |---|---|
 | 推荐包名 | `luci-app-performance-manager-all`（单 APK） |
-| 目标 | OpenWrt 25.12.x / x86_64、aarch64_generic（包级）；运行时证据为 x86_64 |
+| 目标 | OpenWrt 25.12.x / x86_64、aarch64_generic、aarch64_cortex-a53（包级）；运行时证据为 x86_64 |
 | 当前源码候选 | `1.0.3` |
 | 服务脚本 | `/etc/init.d/performance-manager` |
 | UCI 配置 | `/etc/config/performance-manager` |
