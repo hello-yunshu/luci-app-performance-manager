@@ -277,6 +277,7 @@ def main(argv):
         'openwrtVersion': openwrt_version,
         'architecture': arch,
         'target': target,
+        'rustTarget': env('RUST_TARGET'),
         'sdkIdentity': sdk_identity,
         'sdkDir': sdk_dir or None,
         # sdkTreeAnchorSha256 is the digest of the SDK root Makefile (a stable
@@ -296,6 +297,14 @@ def main(argv):
         'rillConsumedVersion': rill_version,
         'rillConsumedArtifactSha256': rill_checksum,
         'rillUpstreamStatus': rill_status,
+        'externalRuntime': {
+            'package': 'rill-runtime',
+            'repository': 'hello-yunshu/rill-openwrt-packages',
+            'commit': env('RILL_OPENWRT_PACKAGE_COMMIT'),
+            'qualificationArtifact': 'qualification-evidence',
+            'qualificationRequired': True,
+            'publicReleaseIncluded': False,
+        },
         'rillArtifactProvenanceReason': rill_provenance_reason,
         'evidenceSources': {
             'provenance': str(ROOT / 'docs' / 'rill-provenance.json') if _prov_job else str(ROOT / 'docs' / 'rill-integration-evidence.json'),

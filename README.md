@@ -50,13 +50,13 @@
 | `luci-app-performance-manager` | Supported-first LuCI 界面（简体中文） |
 | `performance-manager-rill` | 可选 PM 集成服务 glue；当前仅连接 PM-owned 临时兼容桥 |
 | `performance-manager-rill-adapter` | 可选、目标架构的临时 pm-rill-shadow v1 兼容桥；不是通用 Runtime |
-| `luci-app-performance-manager-all` | 推荐的一体化 APK：物理包含 Core、LuCI、rpcd ACL/menu、简体中文翻译；不包含 Rill glue 或兼容桥 |
+| `luci-app-performance-manager-all` | 推荐的一体化 APK：物理包含 Core、LuCI、rpcd ACL/menu、简体中文翻译；不包含 Rill glue 或兼容桥，Rill glue 由独立 `performance-manager-rill` 包提供 |
 
 ## 安装
 
 ### 前置条件
 
-- OpenWrt 25.12.x / x86_64 或 aarch64_generic；当前真实运行时 gate 仍以 x86_64 为准
+- OpenWrt 25.12.5 / x86_64、aarch64_generic 或 aarch64_cortex-a53；当前真实运行时 gate 仍以 x86_64 为准
 - OpenWrt SDK 或 buildroot 构建环境（用于源码构建）
 
 ### 源码构建（OpenWrt SDK / buildroot）
@@ -79,7 +79,7 @@ make package/performance-manager-rill/compile V=s
 make package/luci-app-performance-manager-all/compile V=s
 ```
 
-随后 SDK 会构建并校验 Core、LuCI、通用 Runtime、临时兼容桥、Rill glue 与 all-in-one 包。推荐基础安装是 `luci-app-performance-manager-all`；需要当前 Shadow 集成时，再安装 `performance-manager-rill` 与目标架构的临时兼容桥。`rill-runtime` 目前不属于该桥接路径的运行时依赖。
+随后 SDK 会构建并校验 Core、LuCI、通用 Runtime、临时兼容桥、Rill glue 与 all-in-one 包。推荐基础安装是 `luci-app-performance-manager-all`；需要当前 Shadow 集成时，再安装 `performance-manager-rill` 与目标架构的临时兼容桥。`rill-runtime` 目前不属于该桥接路径的运行时依赖，应从 `hello-yunshu/rill-openwrt-packages` 独立 provision。
 
 > 也可以直接依赖 GitHub Actions 的 `build-openwrt.yml` → `openwrt-sdk-build` job 产出构建结果，无需本地 SDK。
 
@@ -87,7 +87,7 @@ make package/luci-app-performance-manager-all/compile V=s
 
 从 GitHub Release 下载 `luci-app-performance-manager-all-1.0.3-r1.apk`；如启用当前临时 Shadow 集成，再下载目标架构的兼容桥及 `performance-manager-rill` 包：
 
-仓库的官方 OpenWrt SDK 编译仍会编译并校验所有拆分包以及实体一体化包；公开 Release 同时提供 arch-independent all-in-one 与每个已 qualification 目标的 native adapter APK，当前矩阵为 x86_64 和 aarch64_generic。
+仓库的官方 OpenWrt SDK 编译仍会编译并校验所有拆分包以及实体一体化包；公开 Release 提供一份 arch-independent all-in-one、一份 `performance-manager-rill` glue 包，以及每个已 qualification 目标的一份 native adapter APK，当前矩阵为 x86_64、aarch64_generic 和 aarch64_cortex-a53。`rill-runtime` 不复制进 PM Release。
 
 ```sh
 apk add --allow-untrusted /tmp/luci-app-performance-manager-all-1.0.3-r1.apk

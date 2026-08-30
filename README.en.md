@@ -49,7 +49,7 @@
 | `performance-manager` | procd-managed ucode/ubus Core: contracts, discovery, telemetry, transaction engine and safe actions |
 | `luci-app-performance-manager` | Supported-first LuCI UI (Simplified Chinese) |
 | `performance-manager-rill` | PM-owned adapter service glue; the target-specific `performance-manager-rill-adapter` package ships the native binary |
-| `luci-app-performance-manager-all` | Recommended all-in-one APK: physically contains Core, LuCI, rpcd ACL/menu, Simplified Chinese translation and Rill glue; it does not depend on the three split application packages |
+| `luci-app-performance-manager-all` | Recommended all-in-one APK: physically contains Core, LuCI, rpcd ACL/menu and Simplified Chinese translation; Rill glue remains the separate `performance-manager-rill` package |
 
 ## Installation
 
@@ -79,29 +79,30 @@ make package/performance-manager-rill/compile V=s
 make package/luci-app-performance-manager-all/compile V=s
 ```
 
-`build_pm_adapter.py` builds and stages the target-specific native adapter from this repository's Rust source; the generated binary must not be committed. The recommended installation model is `luci-app-performance-manager-all` plus the target-specific `performance-manager-rill-adapter` package. The all-in-one package already contains the `performance-manager-rill` service glue, so installing that split glue package separately is unnecessary.
+`build_pm_adapter.py` builds and stages the target-specific native adapter from this repository's Rust source; the generated binary must not be committed. The recommended Rill installation model is `luci-app-performance-manager-all`, `performance-manager-rill`, and the matching target-specific `performance-manager-rill-adapter` package. The all-in-one package does not contain the Rill service glue.
 
 > You can also rely on the GitHub Actions `build-openwrt.yml` → `openwrt-sdk-build` job to produce the build instead of using a local SDK.
 
 ### Recommended: one-APK installation
 
-Download `luci-app-performance-manager-all-1.0.3-r1.apk` and the target-specific `performance-manager-rill-adapter-1.0.3-r1.apk` from the GitHub Release, then install both application packages:
+Download `luci-app-performance-manager-all-1.0.3-r1.apk`, `performance-manager-rill-1.0.3-r1.apk`, and the target-specific `performance-manager-rill-adapter-1.0.3-r1.apk` from the GitHub Release, then install the three Rill-enabled application packages:
 
-The repository's official OpenWrt SDK build still compiles and verifies every split package and the physical all-in-one package. The public Release includes the architecture-independent all-in-one package plus one target-specific native adapter for each qualified target; the current matrix is x86_64 and aarch64_generic.
+The repository's official OpenWrt SDK build still compiles and verifies every split package and the physical all-in-one package. The public Release includes one copy each of the architecture-independent all-in-one and Rill glue packages, plus one target-specific native adapter for each qualified target; the current matrix is x86_64, aarch64_generic, and aarch64_cortex-a53. The independent `rill-runtime` package is obtained from `hello-yunshu/rill-openwrt-packages` and is not copied into this Release.
 
 ```sh
 apk add --allow-untrusted /tmp/luci-app-performance-manager-all-1.0.3-r1.apk
+apk add --allow-untrusted /tmp/performance-manager-rill-1.0.3-r1.apk
 apk add --allow-untrusted /tmp/performance-manager-rill-adapter-1.0.3-r1.apk
 ```
 
-OpenWrt still resolves system runtime libraries such as `luci-base`, `rpcd` and `ucode` from its configured repositories. “One APK” means all Performance Manager-owned Core, LuCI, backend, translation and Rill-glue payloads are in one file. It conflicts with the four split packages (including the auto-generated translation package) so duplicate file ownership is impossible. Back up `/etc/config/performance-manager` and switch package forms only during a maintenance window on devices already using the split packages.
+OpenWrt still resolves system runtime libraries such as `luci-base`, `rpcd` and `ucode` from its configured repositories. The all-in-one APK contains the Core, LuCI, backend and translation payloads; `performance-manager-rill` owns the service glue and the adapter package owns the native binary. The all-in-one package conflicts with the Core/LuCI split packages so duplicate file ownership is impossible. Back up `/etc/config/performance-manager` and switch package forms only during a maintenance window on devices already using the split packages.
 
 ### Package info
 
 | Item | Value |
 |---|---|
 | Recommended package | `luci-app-performance-manager-all` (one APK) |
-| Target | OpenWrt 25.12.x / x86_64, aarch64_generic (package-level); runtime evidence is x86_64 |
+| Target | OpenWrt 25.12.5 / x86_64, aarch64_generic, aarch64_cortex-a53 (package-level); runtime evidence is x86_64 |
 | Current source candidate | `1.0.3` |
 | Service script | `/etc/init.d/performance-manager` |
 | UCI config | `/etc/config/performance-manager` |
