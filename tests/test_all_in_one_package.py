@@ -121,6 +121,9 @@ class AllInOnePackageTests(unittest.TestCase):
             adapter = sdk / "performance-manager-rill-adapter-1.0.0_rc10-r1.apk"
             adapter.write_bytes(b"exact-adapter-apk")
             adapter_digest = hashlib.sha256(adapter.read_bytes()).hexdigest()
+            integration = sdk / "performance-manager-rill-1.0.0_rc10-r1.apk"
+            integration.write_bytes(b"exact-rill-glue-apk")
+            integration_digest = hashlib.sha256(integration.read_bytes()).hexdigest()
             report = {
                 "verdict": "PASS", "pmCommitSha": "a" * 40,
                 "expectedVersion": "1.0.0_rc10", "arch": "x86_64",
@@ -138,6 +141,10 @@ class AllInOnePackageTests(unittest.TestCase):
                     "performance-manager-rill-adapter": {
                         "status": "ok", "filename": adapter.name, "sha256": adapter_digest,
                         "pkgver": "1.0.0_rc10-r1", "arch": "x86_64",
+                    },
+                    "performance-manager-rill": {
+                        "status": "ok", "filename": integration.name, "sha256": integration_digest,
+                        "pkgver": "1.0.0_rc10-r1", "arch": "noarch",
                     },
                 },
             }
@@ -177,6 +184,10 @@ class AllInOnePackageTests(unittest.TestCase):
             (full / adapter_name).write_bytes(adapter_bytes)
             digest = hashlib.sha256(apk_bytes).hexdigest()
             adapter_digest = hashlib.sha256(adapter_bytes).hexdigest()
+            integration_name = "performance-manager-rill-1.0.0_rc10-r1.apk"
+            integration_bytes = b"same-verified-rill-glue-in-two-workflow-artifacts"
+            (full / integration_name).write_bytes(integration_bytes)
+            integration_digest = hashlib.sha256(integration_bytes).hexdigest()
             (dedicated / "all-in-one-release-manifest.json").write_text(json.dumps({
                 "pmCommitSha": commit, "package": "luci-app-performance-manager-all",
                 "apk": {"filename": apk_name, "sha256": digest},
@@ -185,15 +196,17 @@ class AllInOnePackageTests(unittest.TestCase):
             (full / "apk-verification.json").write_text(json.dumps({
                 "verdict": "PASS", "pmCommitSha": commit,
                 "packages": {
-                    "luci-app-performance-manager-all": {"status": "ok", "sha256": digest},
+                    "luci-app-performance-manager-all": {"status": "ok", "sha256": digest, "filename": apk_name, "arch": "noarch"},
+                    "performance-manager-rill": {"status": "ok", "sha256": integration_digest, "filename": integration_name, "arch": "noarch"},
                     "performance-manager-rill-adapter": {"status": "ok", "sha256": adapter_digest, "filename": adapter_name},
                 },
             }))
             (full / "build-metadata.json").write_text(json.dumps({
                 "verdict": "PASS", "repositoryCommitSha": commit,
                 "packages": {
-                    "luci-app-performance-manager-all": {"apkSha256": digest},
-                    "performance-manager-rill-adapter": {"apkSha256": adapter_digest, "apkFilename": adapter_name},
+                    "luci-app-performance-manager-all": {"status": "ok", "apkSha256": digest, "apkFilename": apk_name, "arch": "noarch"},
+                    "performance-manager-rill": {"status": "ok", "apkSha256": integration_digest, "apkFilename": integration_name, "arch": "noarch"},
+                    "performance-manager-rill-adapter": {"status": "ok", "apkSha256": adapter_digest, "apkFilename": adapter_name, "arch": "x86_64"},
                 },
             }))
             (full / "FINAL_AUDIT.json").write_text("{}")

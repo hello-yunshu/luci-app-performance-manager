@@ -17,7 +17,8 @@
   "upstreamPmAdapterRequired": false,
   "historicalFixture": "contracts/upstream/rill-pm-adapter-v1.5.1-contract.json",
   "publicInstallModel": {
-    "allInOne": ["luci-app-performance-manager-all", "performance-manager-rill-adapter"],
+    "allInOne": ["luci-app-performance-manager-all"],
+    "rillIntegration": ["performance-manager-rill", "performance-manager-rill-adapter"],
     "split": ["performance-manager", "luci-app-performance-manager", "performance-manager-rill", "performance-manager-rill-adapter"],
     "target": "OpenWrt 25.12.x x86_64"
   },

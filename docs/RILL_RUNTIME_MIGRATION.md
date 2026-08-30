@@ -12,8 +12,10 @@ branches.
 
 The all-in-one package contains Core, LuCI, ACL/menu and translations only.
 The optional `performance-manager-rill` package owns service glue and depends
-on `rill-runtime`; the bridge remains a separately target-specific package
-during the migration window.
+on `performance-manager` plus the target-specific
+`performance-manager-rill-adapter`. The independent `rill-runtime` package is
+not part of this bridge path and is provisioned from
+`hello-yunshu/rill-openwrt-packages` during the separate Runtime v3 cutover.
 
 The cutover gate is fail-closed: back up the old
 `/etc/performance-manager/rill/adapter-state.json`, record a deterministic

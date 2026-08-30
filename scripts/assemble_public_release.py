@@ -11,6 +11,7 @@ from artifact_identity import ArtifactIdentityError, resolve_artifact, sha256
 
 
 PACKAGE = "luci-app-performance-manager-all"
+INTEGRATION_PACKAGE = "performance-manager-rill"
 ADAPTER_PACKAGE = "performance-manager-rill-adapter"
 
 
@@ -52,6 +53,50 @@ def read_matrix_reports(root: Path) -> list[tuple[Path, dict, Path, dict]]:
     return pairs
 
 
+def resolve_package_identity(
+    *, input_root: Path, pairs: list[tuple[Path, dict, Path, dict]], package: str,
+    expected_arch: str | None = None,
+) -> tuple[dict, list[dict]]:
+    """Resolve one package identity across all target build copies.
+
+    Architecture-independent packages are built in every SDK only as a
+    verification convenience.  The public inventory owns one canonical copy;
+    every target copy must have the same package filename, metadata identity,
+    and SHA-256 before one can be selected.
+    """
+    records = []
+    for _, build, _, report in pairs:
+        verified = (report.get("packages") or {}).get(package) or {}
+        built = (build.get("packages") or {}).get(package) or {}
+        if verified.get("status") != "ok" or built.get("status") != "ok":
+            raise ArtifactIdentityError(f"{package} is not verified for {build.get('architecture')}")
+        filename = built.get("apkFilename") or verified.get("filename")
+        digest = built.get("apkSha256") or verified.get("sha256")
+        package_arch = verified.get("arch")
+        if not filename or not digest or package_arch not in ("all", "noarch"):
+            raise ArtifactIdentityError(f"{package} lacks an exact architecture-independent identity")
+        if expected_arch and package_arch not in (expected_arch, "noarch"):
+            raise ArtifactIdentityError(f"{package} metadata arch {package_arch!r} != {expected_arch!r}")
+        if verified.get("sha256") != built.get("apkSha256"):
+            raise ArtifactIdentityError(f"{package} SHA mismatch for {build.get('architecture')}")
+        records.append({
+            "packageArch": package_arch,
+            "filename": filename,
+            "sha256": digest,
+            "target": build.get("target"),
+            "openwrtVersion": build.get("openwrtVersion"),
+        })
+    filenames = {record["filename"] for record in records}
+    digests = {record["sha256"] for record in records}
+    if len(filenames) != 1 or len(digests) != 1:
+        raise ArtifactIdentityError(
+            f"{package} copies disagree across targets: filenames={sorted(filenames)}, "
+            f"sha256={sorted(digests)}"
+        )
+    identity = resolve_artifact(package, next(iter(digests)), [input_root], next(iter(filenames)))
+    return identity, records
+
+
 def assemble_public_apk(
     *,
     input_root: Path,
@@ -65,30 +110,31 @@ def assemble_public_apk(
         raise ArtifactIdentityError("matrix build evidence is not for the expected commit")
     manifest_paths = _files(input_root, "all-in-one-release-manifest.json")
     manifests = [json.loads(path.read_text()) for path in manifest_paths]
+    if not manifests:
+        raise ArtifactIdentityError("missing all-in-one release manifests")
     if any(manifest.get("pmCommitSha") != expected_commit or manifest.get("package") != PACKAGE
            for manifest in manifests):
         raise ArtifactIdentityError("all-in-one release manifest identity mismatch")
-    verified_records = [(build, report, (report.get("packages") or {}).get(PACKAGE) or {})
-                        for _, build, _, report in pairs]
-    apk_sha_values = {record.get("sha256") for _, _, record in verified_records}
-    apk_sha_values.update((build.get("packages") or {}).get(PACKAGE, {}).get("apkSha256")
-                          for build, _, _ in verified_records)
-    apk_sha_values.discard(None)
-    if len(apk_sha_values) != 1:
-        raise ArtifactIdentityError(f"all-in-one SHA identities disagree: {sorted(apk_sha_values)}")
-    filename_values = {record.get("filename") for _, _, record in verified_records}
-    filename_values.update((manifest.get("apk") or {}).get("filename") for manifest in manifests)
-    filename_values.discard(None)
-    filename = expected_filename or (next(iter(filename_values)) if len(filename_values) == 1 else None)
-    if not filename:
-        raise ArtifactIdentityError("all-in-one filename is missing or differs across targets")
-
-    apk_sha = next(iter(apk_sha_values))
-    identity = resolve_artifact(PACKAGE, apk_sha, [input_root], filename)
-    source = Path(identity["canonicalPath"])
+    primary_identity, primary_records = resolve_package_identity(
+        input_root=input_root, pairs=pairs, package=PACKAGE, expected_arch="all"
+    )
+    integration_identity, integration_records = resolve_package_identity(
+        input_root=input_root, pairs=pairs, package=INTEGRATION_PACKAGE, expected_arch="all"
+    )
+    for manifest in manifests:
+        apk = manifest.get("apk") or {}
+        if apk.get("filename") != primary_records[0]["filename"] or apk.get("sha256") != primary_records[0]["sha256"]:
+            raise ArtifactIdentityError("all-in-one manifest disagrees with verified package identity")
+    filename = expected_filename or primary_records[0]["filename"]
+    if filename != primary_records[0]["filename"]:
+        raise ArtifactIdentityError("requested all-in-one filename differs from verified identity")
+    source = Path(primary_identity["canonicalPath"])
     output_root.mkdir(parents=True, exist_ok=True)
     target = output_root / source.name
     shutil.copy2(source, target)
+    integration_source = Path(integration_identity["canonicalPath"])
+    integration_target = output_root / integration_source.name
+    shutil.copy2(integration_source, integration_target)
     adapter_identities = []
     for _, build, _, report in pairs:
         adapter_verified = (report.get("packages") or {}).get(ADAPTER_PACKAGE) or {}
@@ -110,8 +156,11 @@ def assemble_public_apk(
             "filename": adapter_target.name,
             "sha256": sha256(adapter_target),
             "packageArch": build.get("architecture"),
+            "rustTarget": build.get("rustTarget"),
             "target": build.get("target"),
             "openwrtVersion": build.get("openwrtVersion"),
+            "sdkIdentity": build.get("sdkIdentity"),
+            "sdkArchiveSha256": build.get("sdkArchiveSha256"),
         })
     # Keep one deterministic all-in-one manifest/checksum as a human-readable
     # convenience; matrix evidence remains target-specific in the input.
@@ -120,7 +169,8 @@ def assemble_public_apk(
         (output_root / "all-in-one-release-manifest.json").write_text(
             json.dumps(dedicated_manifest, ensure_ascii=False, indent=2) + "\n"
         )
-    checksum_lines = [f"{sha256(target)}  {target.name}\n"]
+    checksum_lines = [f"{sha256(target)}  {target.name}\n",
+                      f"{sha256(integration_target)}  {integration_target.name}\n"]
     checksum_lines.extend(f"{item['sha256']}  {item['filename']}\n" for item in adapter_identities)
     (output_root / "all-in-one-checksums.txt").write_text("".join(checksum_lines))
     # Release consumers need one aggregate identity, not an arbitrary target's
@@ -133,9 +183,11 @@ def assemble_public_apk(
         for _, build, _, report in pairs:
             verified = (report.get("packages") or {}).get(name) or {}
             built = (build.get("packages") or {}).get(name) or {}
-            target_records.append({"packageArch": build.get("architecture"), "target": build.get("target"),
+            target_records.append({"packageArch": verified.get("arch") or built.get("arch") or build.get("architecture"), "rustTarget": build.get("rustTarget"), "target": build.get("target"),
                                    "openwrtVersion": build.get("openwrtVersion"),
                                    "packageManagerFormat": build.get("packageManagerFormat"),
+                                   "sdkIdentity": build.get("sdkIdentity"),
+                                   "sdkArchiveSha256": build.get("sdkArchiveSha256"),
                                    "apkFilename": built.get("apkFilename") or verified.get("filename"),
                                    "releaseFilename": built.get("releaseFilename") or verified.get("releaseFilename"),
                                    "apkSha256": built.get("apkSha256") or verified.get("sha256"),
@@ -144,8 +196,10 @@ def assemble_public_apk(
     aggregate_metadata = {"schemaVersion": 2, "repositoryCommitSha": expected_commit,
                           "openwrtVersion": "multi-target", "architecture": "multi-target",
                           "target": "multi-target", "packageManagerFormat": "multi-format",
+                          "externalRuntime": pairs[0][1].get("externalRuntime") or {},
                           "targets": [{"openwrtVersion": build.get("openwrtVersion"), "target": build.get("target"),
                                        "packageArch": build.get("architecture"),
+                                       "rustTarget": build.get("rustTarget"),
                                        "packageManagerFormat": build.get("packageManagerFormat"),
                                        "sdkIdentity": build.get("sdkIdentity"),
                                        "sdkArchiveSha256": build.get("sdkArchiveSha256")}
@@ -174,10 +228,17 @@ def assemble_public_apk(
             json.dumps(consumed, ensure_ascii=False, indent=2) + "\n"
         )
     result = {
-        **identity,
+        **primary_identity,
         "canonicalPath": str(target),
         "filename": target.name,
         "sha256": sha256(target),
+        "architectureIndependentPackages": [
+            {"package": PACKAGE, "filename": target.name, "sha256": sha256(target),
+             "arch": primary_records[0]["packageArch"], "copyCount": primary_identity["copyCount"]},
+            {"package": INTEGRATION_PACKAGE, "filename": integration_target.name,
+             "sha256": sha256(integration_target), "arch": integration_records[0]["packageArch"],
+             "copyCount": integration_identity["copyCount"]},
+        ],
         "adapters": adapter_identities,
         "adapter": adapter_identities[0],
     }
