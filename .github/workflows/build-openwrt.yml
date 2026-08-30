@@ -56,7 +56,7 @@ jobs:
       - uses: actions/checkout@v7
         with:
           repository: hello-yunshu/rill-openwrt-packages
-          ref: 7099d9d5a0d58858dd27dbd4c6858e79fbb6fe86
+          ref: 3742cdfbbf029b91051fbd157cc1522cd91c39aa
           path: rill-openwrt-packages
       - name: Cache PM Cargo registry
         uses: actions/cache@v6
@@ -196,6 +196,7 @@ jobs:
         run: |
           set -euo pipefail
           package_commit="$(git -C "$GITHUB_WORKSPACE/rill-openwrt-packages" rev-parse HEAD)"
+          rill_runtime_version="$(sed -n 's/^PKG_VERSION:=//p' "$GITHUB_WORKSPACE/rill-openwrt-packages/package/rill-runtime/Makefile")"
           echo "RILL_OPENWRT_PACKAGE_COMMIT=$package_commit" >> "$GITHUB_ENV"
           qualification_run="$(gh api "repos/hello-yunshu/rill-openwrt-packages/actions/workflows/qualify.yml/runs?head_sha=${package_commit}&status=completed&per_page=100" --jq '.workflow_runs[] | select(.conclusion=="success") | .id' | head -n1)"
           test -n "$qualification_run"
@@ -205,10 +206,17 @@ jobs:
           gh run download "$qualification_run" --repo hello-yunshu/rill-openwrt-packages --name qualification-evidence --dir "$qualification_dir"
           qualification_file=$(find "$qualification_dir" -type f -name qualification.json -print -quit)
           test -n "$qualification_file"
-          jq -e --arg arch "$PACKAGE_ARCH" --arg commit "$package_commit" \
-            '.schemaVersion==2 and .packageCommit==$commit and .releaseEligible==true
-             and (.targets|type)=="array" and any(.targets[]; .packageArch==$arch and .qualificationState=="PASS")' \
-            "$qualification_file" >/dev/null
+          python3 "$GITHUB_WORKSPACE/rill-openwrt-packages/scripts/verify_qualification.py" "$qualification_file" \
+            --package-commit "$package_commit" \
+            --version "$rill_runtime_version" \
+            --release "$(sed -n 's/^PKG_RELEASE:=//p' "$GITHUB_WORKSPACE/rill-openwrt-packages/package/rill-runtime/Makefile")" \
+            --upstream-repository hello-yunshu/rill-ml \
+            --upstream-tag "v${rill_runtime_version}" \
+            --upstream-commit "$(jq -r '.upstream.commit' "$GITHUB_WORKSPACE/rill-openwrt-packages/metadata/rill-runtime.json")" \
+            --upstream-archive-sha256 "$(jq -r '.upstream.archiveSha256' "$GITHUB_WORKSPACE/rill-openwrt-packages/metadata/rill-runtime.json")" \
+            --openwrt-version "$OPENWRT_VERSION" \
+            --package-arch "$PACKAGE_ARCH" \
+            --pkgtype apk
           cd "$SDKDIR"
           unset CI
           bash "$GITHUB_WORKSPACE/scripts/openwrt-build-diagnostic.sh" package/rill-runtime/compile
