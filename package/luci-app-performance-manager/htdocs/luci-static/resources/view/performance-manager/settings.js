@@ -1,6 +1,7 @@
 'use strict';
 'require view';
 'require form';
+'require performance-manager.ui as pu';
 
 return view.extend({
 	render: function() {
@@ -32,6 +33,10 @@ return view.extend({
 		let r = m.section(form.NamedSection, 'shadow', 'rill', _('Rill Shadow'));
 		o = r.option(form.Flag, 'enabled', _('Enable Shadow')); o.default=o.enabled;
 		o = r.option(form.Value, 'socket', _('Unix socket')); o.default='/run/performance-manager/rill.sock'; o.readonly=true;
-		return m.render();
+		const rendered = m.render();
+		if (rendered && typeof rendered.then === 'function') return rendered.then(function(form) {
+			return pu.page(_('Settings'), _('Keep conservative automation as the safe default; assisted actions remain explicitly opt-in.'), [ form ]);
+		});
+		return pu.page(_('Settings'), _('Keep conservative automation as the safe default; assisted actions remain explicitly opt-in.'), [ rendered ]);
 	}
 });

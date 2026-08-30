@@ -8,7 +8,7 @@ return view.extend({
 	load: function() { return Promise.all([ pm.transactions(), pm.locks(), pm.history(100) ]); },
 	render: function(data) {
 		const txs = (data[0] && data[0].transactions) || [], locks = (data[1] && data[1].locks) || [], history = (data[2] && data[2].history) || [], runtimeHistory = (data[2] && data[2].runtimeHistory) || [];
-		const nodes = [ E('h2', {}, [ _('History & Rollback') ]) ];
+		const nodes = [];
 		txs.forEach(function(tx) {
 			const controls = [];
 			if (tx.state === 'awaiting_confirm') {
@@ -17,15 +17,20 @@ return view.extend({
 				controls.push(c);
 			}
 			if (!['rolled_back','failed'].includes(tx.state)) {
-				const b = E('button', { 'class': 'btn cbi-button cbi-button-negative', 'type': 'button', 'style':'margin-left:.4rem' }, [ _('Rollback') ]);
+				const b = E('button', { 'class': 'btn cbi-button cbi-button-negative', 'type': 'button' }, [ _('Rollback') ]);
 				b.addEventListener('click', function() { pm.rollback(tx.transactionId).then(function(r){ ui.addNotification(null, E('p', {}, [ r && r.ok ? _('Rollback completed and read-back verified.') : _('Rollback could not be completed; inspect the transaction.') ])); }); });
 				controls.push(b);
 			}
-			nodes.push(pu.card(tx.transactionId, E('div', {}, [ pu.kv([ [_('Action'), tx.actionId], [_('State'), tx.state], [_('Target'), tx.applyTarget], [_('Boot identity'), tx.bootId] ]), E('div', { 'style':'margin-top:.6rem' }, controls), pu.jsonBox(tx, _('Transaction JSON')) ])));
+			nodes.push(pu.card(tx.transactionId, E('div', {}, [ pu.kv([ [_('Action'), tx.actionId], [_('State'), tx.state], [_('Target'), tx.applyTarget], [_('Boot identity'), tx.bootId] ]), controls.length ? E('div', { 'class': 'pm-toolbar' }, controls) : null, pu.jsonBox(tx, _('Transaction JSON')) ])));
 		});
-		nodes.push(pu.card(_('Resource locks'), pu.jsonBox(locks, _('Locks JSON'))));
-		nodes.push(pu.card(_('Persistent action history'), pu.jsonBox(history, _('History JSON'))));
-		nodes.push(pu.card(_('Runtime event history'), pu.jsonBox(runtimeHistory, _('Runtime History JSON'))));
-		return E([], nodes);
+		if (!txs.length) nodes.push(pu.note(_('No transactions are currently recorded.'), 'success'));
+		return pu.page(_('History & Rollback'), _('Review pending confirmations, verified rollbacks, and the runtime record without losing the safety context.'), [
+			pu.grid(nodes),
+			pu.grid([
+				pu.card(_('Resource locks'), pu.jsonBox(locks, _('Locks JSON'))),
+				pu.card(_('Persistent action history'), pu.jsonBox(history, _('History JSON'))),
+				pu.card(_('Runtime event history'), pu.jsonBox(runtimeHistory, _('Runtime History JSON')))
+			])
+		]);
 	}
 });
