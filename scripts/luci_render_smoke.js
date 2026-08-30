@@ -64,6 +64,17 @@ function byAria(root, label) {
   return null;
 }
 
+function byClass(root, className) {
+  if (!root) return null;
+  if (root.attrs && String(root.attrs.class || '').split(/\s+/).includes(className)) return root;
+  for (const c of root.children || []) {
+    if (typeof c === 'string') continue;
+    const hit = byClass(c, className);
+    if (hit) return hit;
+  }
+  return null;
+}
+
 /* ---------- LuCI module shims ---------- */
 function stripRequires(body) {
   return body.split('\n').filter((l) => !/^\s*'require\s/.test(l) && !/^\s*'use strict';?/.test(l)).join('\n');
@@ -129,7 +140,8 @@ for (const f of viewFiles) {
     const module = loadModule(path.join(VIEW_DIR, f), baseGlobals);
     if (!module || typeof module.render !== 'function') throw new Error('view does not expose render()');
     const payload = name === 'benchmark' ? mockRec : name === 'overview' ? mockStatus : mockTopology;
-    module.render(payload);
+    const rendered = module.render(payload);
+    if (!byClass(rendered, 'ys-tool-footer')) throw new Error('shared footer missing');
   });
 }
 

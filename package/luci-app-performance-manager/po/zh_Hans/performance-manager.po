@@ -292,6 +292,9 @@ msgstr "持久化操作历史"
 msgid "Platform"
 msgstr "平台"
 
+msgid "Project"
+msgstr "项目"
+
 msgid "Policy"
 msgstr "策略"
 
@@ -495,3 +498,30 @@ msgstr "建议未被应用；其精确决策绑定被拒绝，或未通过安全
 
 msgid "This advisory is benchmark-only. Open Performance Test and complete both Companion evidence legs; it can never enter direct Apply."
 msgstr "此建议仅限基准测试。请打开性能测试并完成两段 Companion 证据；它绝不会进入直接应用路径。"
+
+msgid "Inspect the read-only contracts and resource state that explain the decisions shown in the supported views."
+msgstr "检查解释受支持视图决策的只读契约和资源状态。"
+
+msgid "Keep conservative automation as the safe default; assisted actions remain explicitly opt-in."
+msgstr "保持保守自动化为安全默认值；辅助操作仍需明确选择启用。"
+
+msgid "No capabilities were reported by the current provider."
+msgstr "当前提供者未报告任何能力。"
+
+msgid "No transactions are currently recorded."
+msgstr "当前没有已记录的事务。"
+
+msgid "Raw Rill contract"
+msgstr "原始 Rill 契约"
+
+msgid "Raw capability contract"
+msgstr "原始能力契约"
+
+msgid "Review pending confirmations, verified rollbacks, and the runtime record without losing the safety context."
+msgstr "在保留安全上下文的同时，检查待确认事务、已验证回滚和运行时记录。"
+
+msgid "Rill provides observation and recommendations while Core keeps the final execution authority."
+msgstr "Rill 负责观察和建议，最终执行权由 Core 保留。"
+
+msgid "Status and topology JSON"
+msgstr "状态与拓扑 JSON"

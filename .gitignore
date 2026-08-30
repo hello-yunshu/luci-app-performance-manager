@@ -15,6 +15,7 @@ docs/rill-pm-adapter-*
 # One-off development tooling / staging (never shipped, never committed)
 .rill-adapter-staging/
 .blockb-staging/
+scripts/luci_aurora_preview.html
 
 # Docker build artifacts
 tools/docker-validate/build/

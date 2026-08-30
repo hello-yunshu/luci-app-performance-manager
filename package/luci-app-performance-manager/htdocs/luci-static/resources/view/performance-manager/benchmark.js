@@ -10,7 +10,7 @@ function parseEvidence(text) {
 }
 
 function stageRow(stage, active) {
-	return pu.badge(stage, active ? 'success' : '');
+	return E('li', { 'class': 'pm-stage' + (active ? ' pm-stage--active' : '') }, [ stage ]);
 }
 
 return view.extend({
@@ -21,7 +21,7 @@ return view.extend({
 		const root = E('div');
 		const action = E('select', { 'class': 'cbi-input-select', 'aria-label': _('Benchmark action') });
 		actions.forEach(function(a) { action.appendChild(E('option', { value: a.id }, [ a.id + ' · ' + a.evaluationSemantics ])); });
-		const pathSelect = E('select', { 'class': 'cbi-input-select', 'style': 'margin-left:.5rem', 'aria-label': _('Evaluation path') });
+		const pathSelect = E('select', { 'class': 'cbi-input-select', 'aria-label': _('Evaluation path') });
 		function refreshPaths() {
 			pathSelect.replaceChildren();
 			const selected = actions.find(function(a){ return a.id === action.value; });
@@ -29,19 +29,19 @@ return view.extend({
 		}
 		action.addEventListener('change', refreshPaths);
 		refreshPaths();
-		const measurement = E('select', { 'class': 'cbi-input-select', 'style': 'margin-left:.5rem', 'aria-label': _('Measurement class') }, [
+		const measurement = E('select', { 'class': 'cbi-input-select', 'aria-label': _('Measurement class') }, [
 			E('option', { value: 'controlled_ab' }, [ _('Controlled A/B') ]),
 			E('option', { value: 'passive_before_after' }, [ _('Passive before/after') ]),
 			E('option', { value: 'health_only' }, [ _('Health only') ])
 		]);
-		const start = E('button', { 'class': 'btn cbi-button cbi-button-action', type: 'button', style: 'margin-left:.5rem' }, [ _('Start explicit test') ]);
+		const start = E('button', { 'class': 'btn cbi-button cbi-button-action', type: 'button' }, [ _('Start explicit test') ]);
 		const output = E('div');
 
 		function renderSession(res) {
 			output.replaceChildren();
 			if (!res || !res.ok) { output.appendChild(pu.jsonBox(res || {}, _('Blocked result'))); return; }
 			const s = res.session || {};
-			const stages = E('div', { style: 'margin:.7rem 0' }, [
+			const stages = E('ol', { 'class': 'pm-stage-list' }, [
 				stageRow(_('Environment'), true), stageRow(_('Path'), true), stageRow(_('Compatibility'), true), stageRow(_('Locks / Failsafe'), s.state !== 'awaiting_control'),
 				stageRow(_('Baseline'), !!s.controlEvidence), stageRow(_('Candidate'), s.state === 'candidate_applied' || s.state === 'completed'),
 				stageRow(_('Commit-confirm'), s.state === 'candidate_applied'), stageRow(_('Result'), s.state === 'completed')
@@ -53,8 +53,8 @@ return view.extend({
 				const command = 'python3 pm_companion_agent.py client --host <WAN_SERVER> --role ' + ((s.companion && s.companion.requiredRole) || 'lan-client') +
 					' --session-id ' + s.sessionId + ' --phase ' + phase + ' --action-id ' + s.actionId + ' --path-id ' + s.evaluationPath +
 					' --topology-generation ' + meta.topologyGeneration + ' --route-identity ' + meta.routeIdentity + ' --capability-hash ' + meta.capabilityHash;
-				const evidenceBox = E('textarea', { class: 'cbi-input-textarea', rows: 9, style: 'width:100%', placeholder: _('Paste Companion JSON evidence') });
-				const submitEvidence = E('button', { class: 'btn cbi-button cbi-button-positive', type: 'button', style: 'margin-top:.5rem' }, [ phase === 'control' ? _('Apply candidate after validating baseline') : _('Validate candidate and restore original state') ]);
+				const evidenceBox = E('textarea', { class: 'cbi-input-textarea', rows: 9, placeholder: _('Paste Companion JSON evidence') });
+				const submitEvidence = E('button', { class: 'btn cbi-button cbi-button-positive', type: 'button' }, [ phase === 'control' ? _('Apply candidate after validating baseline') : _('Validate candidate and restore original state') ]);
 				submitEvidence.addEventListener('click', function() {
 					let evidence;
 					try { evidence = parseEvidence(evidenceBox.value); } catch (e) { ui.addNotification(null, E('p', {}, [ e.message ])); return; }
@@ -63,7 +63,7 @@ return view.extend({
 				});
 				output.appendChild(pu.card(phase === 'control' ? _('Baseline evidence') : _('Candidate evidence'), E('div', {}, [
 					E('p', {}, [ phase === 'control' ? _('Run the Companion before any candidate is applied, then paste its JSON result.') : _('The candidate is temporarily active and protected by commit-confirm. Run the same endpoint test now; Core will restore the original value before validating the result.') ]),
-					E('pre', { style: 'white-space:pre-wrap;overflow:auto' }, [ command ]), evidenceBox, submitEvidence
+					E('pre', {}, [ command ]), evidenceBox, E('div', { 'class': 'pm-toolbar' }, [ submitEvidence ])
 				])));
 			}
 			output.appendChild(pu.jsonBox(s, _('Benchmark session JSON')));
@@ -80,13 +80,11 @@ return view.extend({
 				.then(renderSession).finally(function(){ start.disabled=false; });
 		});
 
-		root.appendChild(E('div', {}, [ action, pathSelect, measurement, start ]));
+		root.appendChild(pu.toolbar([ action, pathSelect, measurement, start ]));
 		root.appendChild(output);
-		return E([], [
-			E('h2', {}, [ _('Performance Test') ]),
-			E('p', {}, [ _('Active tests are explicit, one-variable-at-a-time transactions. A controlled A/B result is validated only after context stability, health checks and verified rollback.') ]),
+		return pu.page(_('Performance Test'), _('Active tests are explicit, one-variable-at-a-time transactions. A controlled A/B result is validated only after context stability, health checks and verified rollback.'), [
 			pu.card(_('Environment → Path → Compatibility → Locks/Failsafe → Baseline → Candidate → Commit-confirm → Result'), root),
-			pu.card(_('Blocked providers'), pu.jsonBox(((rec && rec.benchmarkActions) || []).filter(function(a){ return a.status === 'blocked'; }), _('Why some benchmark actions are unavailable')))
+			pu.card(_('Blocked providers'), pu.jsonBox(((rec && rec.benchmarkActions) || []).filter(function(a){ return a.status === 'blocked'; }), _('Why some benchmark actions are unavailable')), 'muted')
 		]);
 	}
 });
