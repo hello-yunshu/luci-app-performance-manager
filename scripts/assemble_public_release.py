@@ -108,6 +108,22 @@ def resolve_package_identity(
     return identity, records
 
 
+def resolve_target_copy(*, input_root: Path, package: str, expected_sha: str, filename: str) -> dict:
+    """Resolve one target's copy when other targets share its filename.
+
+    Native adapters intentionally have the same package filename in each SDK
+    artifact, while their contents and SHA-256 differ by target.  First select
+    the physical copy by its authoritative SHA, then use the common resolver on
+    that single path so unrelated target copies cannot look like a conflict.
+    """
+    candidates = [path for path in _files(input_root, filename) if sha256(path) == expected_sha]
+    if len(candidates) != 1:
+        raise ArtifactIdentityError(
+            f"{package}: expected one target copy for {filename} and {expected_sha}, found {len(candidates)}"
+        )
+    return resolve_artifact(package, expected_sha, [candidates[0]], filename)
+
+
 def assemble_public_apk(
     *,
     input_root: Path,
@@ -154,7 +170,10 @@ def assemble_public_apk(
         adapter_sha = adapter_verified.get("sha256") or adapter_built.get("apkSha256")
         if adapter_verified.get("status") != "ok" or not adapter_filename or not adapter_sha:
             raise ArtifactIdentityError("target-specific adapter APK identity is incomplete")
-        adapter_identity = resolve_artifact(ADAPTER_PACKAGE, adapter_sha, [input_root], adapter_filename)
+        adapter_identity = resolve_target_copy(
+            input_root=input_root, package=ADAPTER_PACKAGE,
+            expected_sha=adapter_sha, filename=adapter_filename
+        )
         adapter_source = Path(adapter_identity["canonicalPath"])
         adapter_release_name = adapter_built.get("releaseFilename") or adapter_verified.get("releaseFilename")
         adapter_target = output_root / (adapter_release_name or adapter_source.name)
