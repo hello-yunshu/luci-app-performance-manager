@@ -37,14 +37,25 @@ def read_matrix_reports(root: Path) -> list[tuple[Path, dict, Path, dict]]:
     verification = _files(root, "apk-verification.json")
     if not metadata or len(metadata) != len(verification):
         raise ArtifactIdentityError("matrix build metadata and APK verification counts disagree")
+    verification_values = [(path, json.loads(path.read_text())) for path in verification]
     pairs = []
     for metadata_path in metadata:
-        candidates = [path for path in verification if path.parent == metadata_path.parent]
+        build = json.loads(metadata_path.read_text())
+        expected_commit = build.get("repositoryCommitSha")
+        expected_arch = build.get("architecture")
+        candidates = [
+            (path, report) for path, report in verification_values
+            if report.get("pmCommitSha") == expected_commit and report.get("arch") == expected_arch
+        ]
+        # Older/local fixtures may colocate the two reports without arch fields;
+        # retain that strict fallback while production artifacts are paired by
+        # their explicit same-commit target identity.
+        if not candidates:
+            candidates = [(path, report) for path, report in verification_values
+                          if path.parent == metadata_path.parent]
         if len(candidates) != 1:
             raise ArtifactIdentityError(f"cannot pair target evidence under {metadata_path.parent}")
-        verification_path = candidates[0]
-        build = json.loads(metadata_path.read_text())
-        report = json.loads(verification_path.read_text())
+        verification_path, report = candidates[0]
         if build.get("verdict") != "PASS" or report.get("verdict") != "PASS":
             raise ArtifactIdentityError(f"target evidence is not PASS under {metadata_path.parent}")
         if build.get("repositoryCommitSha") != report.get("pmCommitSha"):
