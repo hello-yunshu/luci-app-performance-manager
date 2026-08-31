@@ -194,20 +194,17 @@ def main(argv=None) -> int:
     # ------------------------------------------------------------------
     prov_v = prov_reason = OUT_OF_SCOPE
     if in_rill:
-        prov_v, prov_reason = file_verdict("rill-provenance.json", "provenanceVerdict")
-        if prov_v in ("PASS", "FAIL", "BLOCKED"):
-            provenance = files.get("rill-provenance.json") or {}
-            if provenance.get("contract") == "pm-owned-rill-provenance":
-                if not provenance.get("runtimeSha256") or not provenance.get("runtimeOwner"):
-                    prov_v = "BLOCKED"
-                    prov_reason = "generic Runtime provenance is missing owner or binary SHA-256"
-            else:
-                tag, _ = file_verdict("rill-provenance.json", "tagIdentityVerdict")
-                idx, _ = file_verdict("rill-provenance.json", "indexSignatureVerdict")
-                art, _ = file_verdict("rill-provenance.json", "artifact", "artifactIntegrityVerdict")
-                prov_v = combine_required([tag, idx, art])
-                if prov_v != "PASS":
-                    prov_reason = f"provenance sub-verdicts: tag={tag} index={idx} artifact={art}"
+        provenance = files.get("rill-provenance.json") or {}
+        if provenance.get("contract") != "rill-runtime-provenance":
+            prov_v = "FAIL"
+            prov_reason = "rill-provenance.json does not use the canonical generic Runtime provenance contract"
+        else:
+            prov_v, prov_reason = file_verdict("rill-provenance.json", "provenanceVerdict")
+            if prov_v in ("PASS", "FAIL", "BLOCKED") and (
+                not provenance.get("runtimeSha256") or not provenance.get("runtimeOwner")
+            ):
+                prov_v = "BLOCKED"
+                prov_reason = "generic Runtime provenance is missing owner or binary SHA-256"
 
     # Runtime compatibility: executable/version/startup/status from the real
     # adapter runtime job.  Functional: observe/outcome/failClosed + the real

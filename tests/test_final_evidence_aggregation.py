@@ -32,11 +32,12 @@ COMMIT = "9ba659a"  # any stable-ish sentinel; only internal consistency matters
 def _prov(commit=COMMIT, tag="PASS", index="PASS", artifact="PASS"):
     return {
         "schemaVersion": 1,
-        "contract": "pm<->rill-release-provenance",
+        "contract": "rill-runtime-provenance",
         "pmCommitSha": commit,
-        "tagIdentityVerdict": tag,
-        "indexSignatureVerdict": index,
-        "artifact": {"artifactIntegrityVerdict": artifact},
+        "runtimeSha256": "a" * 64,
+        "runtimeOwner": "hello-yunshu/rill-ml",
+        "upstreamCommit": "b" * 40,
+        "runtimeVersion": "1.5.6",
         "provenanceVerdict": "PASS" if tag == index == artifact == "PASS" else "FAIL",
     }
 
@@ -200,9 +201,9 @@ class EvidenceAggregationTest(unittest.TestCase):
         self.assertEqual(r["verdicts"]["rillFunctionalIntegrationVerdict"], "FAIL")
         self.assertIn("contradicts", r["reasons"]["functionalIntegration"] or "")
 
-    def test_provenance_subgate_fail_fails_release(self):
+    def test_canonical_provenance_fail_fails_release(self):
         files = {
-            "rill-provenance.json": _prov(index="FAIL"),
+            "rill-provenance.json": _prov(tag="FAIL"),
             "rill-runtime.json": _runtime(),
             "rill-core-integration.json": _core(),
         }

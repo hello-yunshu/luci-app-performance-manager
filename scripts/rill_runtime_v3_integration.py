@@ -15,7 +15,8 @@ def envelope(request_id: str, request: dict, *, partition: str | None, capabilit
     return {
         "requestId": request_id,
         "apiVersion": 3,
-        "clientIdentity": {"name": partition or "performance-manager", "version": "1"},
+        "clientIdentity": {"name": "performance-manager", "version": "1"},
+        "partitionKey": partition or "default",
         **({"capability": capability} if capability else {}),
         **({"featureSchemaHash": schema_hash} if capability else {}),
         "modelGeneration": generation,
@@ -65,7 +66,7 @@ def main() -> int:
         decide = call(binary, state, "decide", {"method": "decide", "context": {"actions": [
             {"id": "safe-a", "features": [1.0, 0.0]},
             {"id": "safe-b", "features": [0.0, 1.0]},
-        ]}}, partition="pm-default", capability="org.rill.preview.decide", schema_hash=schema_hash, state_generation=0)
+        ]}}, partition="default", capability="org.rill.preview.decide", schema_hash=schema_hash, state_generation=0)
         output = decide["response"]["output"]
         decision_id = decide["response"]["decisionId"]
         selected = output["selectedActionId"]
@@ -75,14 +76,14 @@ def main() -> int:
         feedback = call(binary, state, "feedback", {"method": "feedback", "decisionId": decision_id,
                                         "selectedActionId": selected, "reward": 0.25,
                                         "outcomeTimeMs": 100, "generation": 1},
-                        partition="pm-default", capability="org.rill.preview.feedback", schema_hash=schema_hash, state_generation=1)
+                        partition="default", capability="org.rill.preview.feedback", schema_hash=schema_hash, state_generation=1)
         if feedback["response"].get("output", {}).get("accepted") is not True or feedback["stateGeneration"] != 2:
             raise RuntimeError(f"feedback lifecycle failed: {feedback}")
 
         duplicate = call(binary, state, "duplicate-feedback", {"method": "feedback", "decisionId": decision_id,
                                          "selectedActionId": selected, "reward": 0.25,
                                          "outcomeTimeMs": 101, "generation": 1},
-                         partition="pm-default", capability="org.rill.preview.feedback", schema_hash=schema_hash, state_generation=2)
+                         partition="default", capability="org.rill.preview.feedback", schema_hash=schema_hash, state_generation=2)
         if duplicate["response"].get("kind") != "error" or duplicate["response"]["error"]["code"] != "duplicateFeedback":
             raise RuntimeError(f"duplicate feedback was not rejected: {duplicate}")
 
