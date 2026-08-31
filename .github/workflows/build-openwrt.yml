@@ -156,7 +156,9 @@ jobs:
           (
             cd "$GITHUB_WORKSPACE/rill-openwrt-packages"
             GITHUB_WORKSPACE="$GITHUB_WORKSPACE/rill-openwrt-packages" \
-              RUST_TOOLCHAIN=1.94.0 RUST_TARGET="$RUST_TARGET" RUST_STAGING_DIR="$SDKDIR/staging_dir/host" \
+              RUST_TOOLCHAIN=1.94.0 RUST_TARGET="$RUST_TARGET" \
+              RUSTUP_HOME="$RUNNER_TEMP/rustup" CARGO_HOME="$RUNNER_TEMP/cargo" \
+              RUST_STAGING_DIR="$SDKDIR/staging_dir/host" \
               ./scripts/prepare_rust_toolchain.sh
           )
           "$SDKDIR/staging_dir/host/bin/rustc" --version | grep -F 'rustc 1.94.0'
