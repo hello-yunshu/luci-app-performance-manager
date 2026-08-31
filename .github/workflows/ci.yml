@@ -76,13 +76,13 @@ jobs:
           jq --arg commit "$GITHUB_SHA" --arg version "$(jq -r '.version' contracts/rill-runtime.json)" \
             '. + {pmCommitSha:$commit, overallVerdict:"BLOCKED", runtimeCompatibilityVerdict:"PASS", functionalIntegrationVerdict:"BLOCKED", runtimeVersion:$version, functionalIntegrationReason:"PM Core-to-Runtime production roundtrip is not exercised by this host subprocess job"}' \
             rill-evidence/runtime-v3.json > rill-evidence/rill-runtime.json
-          jq --arg commit "$GITHUB_SHA" --arg owner "hello-yunshu/rill-ml" \
+          jq -n --arg commit "$GITHUB_SHA" --arg owner "hello-yunshu/rill-ml" \
             --arg upstreamCommit "$(jq -r '.preview.commit // .resolved.upstreamCommit' contracts/rill-runtime.json)" \
             --arg version "$(jq -r '.resolved.version' contracts/rill-runtime.json)" \
             --arg sha "$runtime_sha" \
             '{schemaVersion:1, contract:"rill-runtime-provenance", pmCommitSha:$commit, provenanceVerdict:"PASS", runtimeSha256:$sha, runtimeOwner:$owner, upstreamCommit:$upstreamCommit, runtimeVersion:$version}' \
             > rill-evidence/rill-provenance.json
-          jq --arg commit "$GITHUB_SHA" --arg sha "$runtime_sha" \
+          jq -n --arg commit "$GITHUB_SHA" --arg sha "$runtime_sha" \
             '{schemaVersion:1, contract:"pm-core-rill-integration", pmCommitSha:$commit, verdict:"NOT_EVALUATED", runtimeSha256:$sha, reason:"production OpenWrt Core-to-Runtime evidence is owned by the remote SDK/target gates"}' \
             > rill-evidence/rill-core-integration.json
           python3 scripts/aggregate_final_evidence.py --evidence-dir rill-evidence --scope rill \
