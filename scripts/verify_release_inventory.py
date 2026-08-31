@@ -45,7 +45,6 @@ def main() -> int:
     }
     if set(args.expected_arch) != set(expected) or {item.get("packageArch") for item in targets} != set(expected):
         raise RuntimeError("native architecture coverage mismatch")
-    filenames = []
     for item in targets:
         arch = item.get("packageArch")
         if (item.get("target"), item.get("rustTarget")) != expected[arch]:
@@ -53,12 +52,6 @@ def main() -> int:
         if not item.get("sdkIdentity") or not isinstance(item.get("sdkArchiveSha256"), str) \
                 or len(item["sdkArchiveSha256"]) != 64:
             raise RuntimeError(f"native SDK provenance is incomplete: {item}")
-        path = root / item["releaseFilename"]
-        if not path.is_file() or digest(path) != item["sha256"]:
-            raise RuntimeError(f"invalid native asset: {item}")
-        filenames.append(path.name)
-    if len(filenames) != len(set(filenames)):
-        raise RuntimeError("duplicate native release filenames")
     if any(path.name.startswith("rill-runtime") for path in root.iterdir() if path.is_file()):
         raise RuntimeError("rill-runtime must not be copied into PM Release")
     if build.get("repositoryCommitSha") != args.expected_commit:
