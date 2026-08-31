@@ -65,12 +65,11 @@ class Phase712Tests(unittest.TestCase):
         # Rill is an external runtime: the Core never compiles/bundles it and
         # only drives it through a bounded capability/protocol gate.  A missing
         # runtime or contract/protocol mismatch is fail-closed, never assumed OK.
-        self.assertIn("const RILL_CONTRACT = 'pm-rill-shadow'",CORE)
-        self.assertIn('const RILL_PROTOCOL_VERSION = 1',CORE)
-        self.assertIn('const RILL_REQUIRED_OPS',CORE)
+        self.assertIn("const RILL_RUNTIME_API_VERSION = 3",CORE)
+        self.assertIn('RILL_RUNTIME_CAPABILITIES',CORE)
+        self.assertIn('preview-serve',CORE)
         self.assertIn('external-runtime-not-provisioned',CORE)
-        self.assertIn('contract-mismatch',CORE)
-        self.assertIn('protocol-version-mismatch',CORE)
+        self.assertIn('runtime-version-mismatch',CORE)
         self.assertIn("state: RILL_STATES.incompatible",CORE)
         self.assertNotIn('cargo',(ROOT/'package/performance-manager-rill/Makefile').read_text())
         self.assertNotIn('rust',(ROOT/'package/performance-manager-rill/Makefile').read_text())

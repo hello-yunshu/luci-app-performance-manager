@@ -90,7 +90,7 @@ local_pass = (
 
 packages = {}
 for name in ("performance-manager", "luci-app-performance-manager", "performance-manager-rill",
-             "performance-manager-rill-adapter", "luci-app-performance-manager-all"):
+             "luci-app-performance-manager-all"):
     root = ROOT / "package" / name
     files = [path for path in root.rglob("*") if path.is_file() and "__pycache__" not in path.parts]
     packages[name] = {
@@ -102,7 +102,7 @@ for name in ("performance-manager", "luci-app-performance-manager", "performance
 external = [
     {"gate": "same-commit official OpenWrt SDK/APK build", "status": "NOT_EVALUATED"},
     {"gate": "exact Rill release provenance and binary runtime", "status": "NOT_EVALUATED"},
-    {"gate": "production Core to exact adapter Observe/Outcome lifecycle", "status": "NOT_EVALUATED"},
+    {"gate": "production Core to exact generic Runtime Observe/Outcome lifecycle", "status": "NOT_EVALUATED"},
     {"gate": "booted OpenWrt Core-only, full, and mutation target gates", "status": "NOT_EVALUATED"},
     {"gate": "Hyper-V and KVM TargetRef/hotplug/replay/rollback", "status": "NOT_EVALUATED"},
     {"gate": "LAN-WAN and router-local controlled A/B", "status": "NOT_EVALUATED"},

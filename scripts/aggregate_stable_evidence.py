@@ -2,7 +2,7 @@
 """Fail-closed Stable evidence aggregator.
 
 Every required input must be attributable to one exact PM commit. Evidence
-that executed with Rill must also name the exact pinned adapter SHA-256.
+that executed with Rill must also name the exact generic Runtime SHA-256.
 Missing or non-final evidence is BLOCKED; identity contradictions are FAIL.
 """
 from __future__ import annotations
@@ -17,8 +17,7 @@ from pathlib import Path
 from validate_external_evidence import validate_evidence
 
 ROOT = Path(__file__).resolve().parents[1]
-DEPENDENCY = json.loads((ROOT / "contracts/rill-dependency.json").read_text())
-PINNED_ADAPTER_SHA = "a" * 64  # Legacy fixture token; release evidence supplies the real same-commit binary SHA.
+RUNTIME_CONTRACT = json.loads((ROOT / "contracts/rill-runtime.json").read_text())
 
 REQUIRED = {
     "source": "source-audit.json",
@@ -105,15 +104,15 @@ def commit_of(name, data):
     return data.get("pmCommitSha") or data.get("commit")
 
 
-def adapter_sha_of(data):
+def runtime_sha_of(data):
     return (
-        data.get("adapterSha256")
-        or nested(data, ("adapter", "sha256"))
+        data.get("runtimeSha256")
+        or nested(data, ("runtime", "sha256"))
         or nested(data, ("artifact", "sha256"))
         or nested(data, ("artifact", "actualSha256"))
         or nested(data, ("artifact", "signedIndexSha256"))
-        or nested(data, ("rill", "artifactSha256"))
-        or nested(data, ("identity", "adapterSha256"))
+        or nested(data, ("rill", "runtimeSha256"))
+        or nested(data, ("identity", "runtimeSha256"))
     )
 
 
@@ -148,7 +147,7 @@ def main(argv=None):
     build_metadata = load_optional(required["openwrtSdk"])
     apk_report = load_optional(required["apkVerification"])
     provenance_data = load_optional(required["rillProvenance"])
-    expected_adapter_sha = adapter_sha_of(provenance_data) or PINNED_ADAPTER_SHA
+    expected_runtime_sha = runtime_sha_of(provenance_data)
     gates = {}
     identities = {}
     for name, filename in required.items():
@@ -163,12 +162,12 @@ def main(argv=None):
             continue
         status, reason = verdict(name, data)
         commit = commit_of(name, data)
-        adapter_sha = adapter_sha_of(data)
+        runtime_sha = runtime_sha_of(data)
         identity_errors = []
         if commit != args.expected_commit:
             identity_errors.append(f"pmCommitSha={commit!r}, expected {args.expected_commit}")
-        if name in rill_present and adapter_sha != expected_adapter_sha:
-            identity_errors.append(f"adapterSha256={adapter_sha!r}, expected {expected_adapter_sha}")
+        if name in rill_present and runtime_sha != expected_runtime_sha:
+            identity_errors.append(f"runtimeSha256={runtime_sha!r}, expected {expected_runtime_sha}")
         if identity_errors:
             status = "FAIL"
             reason = "; ".join(identity_errors)
@@ -187,9 +186,9 @@ def main(argv=None):
             "reason": reason,
             "file": filename,
             "pmCommitSha": commit,
-            "adapterSha256": adapter_sha if name in rill_present else None,
+            "runtimeSha256": runtime_sha if name in rill_present else None,
         }
-        identities[name] = {"pmCommitSha": commit, "adapterSha256": adapter_sha}
+        identities[name] = {"pmCommitSha": commit, "runtimeSha256": runtime_sha}
 
     overall = combine([gate["status"] for gate in gates.values()])
     result = {
@@ -198,7 +197,8 @@ def main(argv=None):
         "releaseProfile": args.profile,
         "generatedAt": datetime.now(timezone.utc).isoformat(),
         "pmCommitSha": args.expected_commit,
-        "adapterSha256": expected_adapter_sha,
+        "runtimeVersion": RUNTIME_CONTRACT["resolved"]["version"],
+        "runtimeSha256": expected_runtime_sha,
         "aggregationRule": "ANY FAIL -> FAIL; otherwise any BLOCKED/PENDING/NOT_EVALUATED -> BLOCKED; otherwise PASS",
         "requiredGates": gates,
         "evidenceIdentity": identities,
@@ -212,7 +212,7 @@ def main(argv=None):
     print(json.dumps({
         "overallVerdict": overall,
         "pmCommitSha": args.expected_commit,
-        "adapterSha256": expected_adapter_sha,
+        "runtimeSha256": expected_runtime_sha,
         "blocked": [name for name, gate in gates.items() if gate["status"] == "BLOCKED"],
         "failed": [name for name, gate in gates.items() if gate["status"] == "FAIL"],
         "output": str(out),

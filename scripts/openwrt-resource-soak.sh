@@ -1,5 +1,7 @@
 #!/bin/sh
-# Stable resource/write evidence for a booted OpenWrt target with exact Rill.
+# Stable resource/write evidence for a booted OpenWrt target with the exact
+# generic Runtime. Runtime calls are subprocess-scoped; unavailable process
+# metrics remain unavailable and therefore cannot be promoted to PASS.
 # Missing measurements are BLOCKED; they are never rewritten as numeric zero.
 set -eu
 
@@ -30,7 +32,6 @@ jget() { printf '%s\n' "$1" | jsonfilter -e "$2" 2>/dev/null || true; }
 is_uint() { case "$1" in ''|*[!0-9]*) return 1;; *) return 0;; esac; }
 ticks() { awk '{print $14+$15}' "/proc/$1/stat" 2>/dev/null || true; }
 rss() { awk '/^VmRSS:/ {print $2}' "/proc/$1/status" 2>/dev/null || true; }
-rill_pid() { pidof performance-manager-rill-adapter 2>/dev/null | awk '{print $1}'; }
 state_max() {
   max=0
   for file in "$RILL_STATE_DIR"/*; do
@@ -62,20 +63,16 @@ EOF_JSON
 D0=$(ubus call performance-manager diagnostics '{}' 2>/dev/null || true)
 [ -n "$D0" ] || blocked core-diagnostics-unavailable
 core_pid=$(jget "$D0" '@.resources.corePid')
-rill_pid_now=$(rill_pid)
 is_uint "$core_pid" || blocked core-pid-unavailable
-is_uint "$rill_pid_now" || blocked rill-pid-unavailable
 [ -r "/proc/$core_pid/stat" ] || blocked core-process-unavailable
-[ -r "/proc/$rill_pid_now/stat" ] || blocked rill-process-unavailable
-rill_exe=$(readlink -f "/proc/$rill_pid_now/exe" 2>/dev/null || true)
-[ -n "$rill_exe" ] && [ -r "$rill_exe" ] || blocked rill-executable-unavailable
-adapter_sha=$(sha256sum "$rill_exe" 2>/dev/null | awk '{print $1}')
-[ -n "$adapter_sha" ] || blocked rill-adapter-sha-unavailable
+[ -x /usr/bin/rill-runtime ] || blocked rill-runtime-not-provisioned
+runtime_sha=$(sha256sum /usr/bin/rill-runtime 2>/dev/null | awk '{print $1}')
+[ -n "$runtime_sha" ] || blocked rill-runtime-sha-unavailable
 
 core_w0=$(jget "$D0" '@.resources.corePersistentWritesSinceStart')
 obs0=$(jget "$D0" '@.resources.rillCounters.rillObserveAccepted')
 out0=$(jget "$D0" '@.resources.rillCounters.rillOutcomeAccepted')
-persist0=$(jget "$D0" '@.resources.rillCounters.expectedAdapterPersistenceEvents')
+persist0=$(jget "$D0" '@.resources.rillCounters.expectedRuntimePersistenceEvents')
 binding0=$(jget "$D0" '@.resources.rillCounters.rillBindingHighWater')
 history0=$(jget "$D0" '@.resources.persistentHistoryBytes')
 journal_files0=$(jget "$D0" '@.resources.rillExecutionHealth.journalFileCount')
@@ -85,7 +82,7 @@ intervention0=$(jget "$D0" '@.resources.rillExecutionHealth.interventionRequired
 active0=$(jget "$D0" '@.resources.rillExecutionHealth.active')
 executing0=$(jget "$D0" '@.resources.rillExecutionHealth.executing')
 for pair in "core-writes:$core_w0" "observe:$obs0" "outcome:$out0" \
-            "adapter-persistence:$persist0" "binding-high-water:$binding0" "history:$history0" \
+            "runtime-persistence:$persist0" "binding-high-water:$binding0" "history:$history0" \
             "journal-files:$journal_files0" "journal-bytes:$journal_bytes0" "retired:$retired0" \
             "intervention:$intervention0" "active:$active0" "executing:$executing0"; do
   name=${pair%%:*}; value=${pair#*:}; is_uint "$value" || blocked "$name-measurement-unavailable"
@@ -94,30 +91,23 @@ done
 start_epoch=$(date +%s)
 clk=$(getconf CLK_TCK 2>/dev/null || echo 100)
 is_uint "$clk" || blocked clock-tick-measurement-unavailable
-core_last_ticks=$(ticks "$core_pid"); rill_last_ticks=$(ticks "$rill_pid_now")
+core_last_ticks=$(ticks "$core_pid")
 is_uint "$core_last_ticks" || blocked core-cpu-measurement-unavailable
-is_uint "$rill_last_ticks" || blocked rill-cpu-measurement-unavailable
-core_ticks_total=0; rill_ticks_total=0
-core_max_rss=0; rill_max_rss=0; rill_state_max=0
-core_restarts=0; rill_restarts=0; samples=0
+core_ticks_total=0; core_max_rss=0; rill_state_max=0
+core_restarts=0; samples=0
 
 while :; do
   now=$(date +%s); elapsed=$((now-start_epoch)); [ "$elapsed" -ge "$DURATION" ] && break
   current_core=$(jget "$(ubus call performance-manager diagnostics '{}' 2>/dev/null || true)" '@.resources.corePid')
-  current_rill=$(rill_pid)
   is_uint "$current_core" || blocked core-process-exited-during-soak
-  is_uint "$current_rill" || blocked rill-process-exited-during-soak
   [ -r "/proc/$current_core/stat" ] || blocked core-process-exited-during-soak
-  [ -r "/proc/$current_rill/stat" ] || blocked rill-process-exited-during-soak
-
-  ct=$(ticks "$current_core"); rt=$(ticks "$current_rill")
-  cr=$(rss "$current_core"); rr=$(rss "$current_rill")
-  is_uint "$ct" && is_uint "$rt" && is_uint "$cr" && is_uint "$rr" || blocked process-metric-unavailable
+  ubus call performance-manager rill_status '{}' >/dev/null 2>&1 || blocked rill-runtime-call-failed
+  ct=$(ticks "$current_core")
+  cr=$(rss "$current_core")
+  is_uint "$ct" && is_uint "$cr" || blocked core-process-metric-unavailable
   if [ "$current_core" = "$core_pid" ]; then core_ticks_total=$((core_ticks_total+ct-core_last_ticks)); else core_restarts=$((core_restarts+1)); core_pid="$current_core"; fi
-  if [ "$current_rill" = "$rill_pid_now" ]; then rill_ticks_total=$((rill_ticks_total+rt-rill_last_ticks)); else rill_restarts=$((rill_restarts+1)); rill_pid_now="$current_rill"; fi
-  core_last_ticks="$ct"; rill_last_ticks="$rt"
+  core_last_ticks="$ct"
   [ "$cr" -gt "$core_max_rss" ] && core_max_rss="$cr"
-  [ "$rr" -gt "$rill_max_rss" ] && rill_max_rss="$rr"
   sm=$(state_max); [ "$sm" -gt "$rill_state_max" ] && rill_state_max="$sm"
   samples=$((samples+1))
   sleep "$INTERVAL"
@@ -129,7 +119,7 @@ D1=$(ubus call performance-manager diagnostics '{}' 2>/dev/null || true)
 core_w1=$(jget "$D1" '@.resources.corePersistentWritesSinceStart')
 obs1=$(jget "$D1" '@.resources.rillCounters.rillObserveAccepted')
 out1=$(jget "$D1" '@.resources.rillCounters.rillOutcomeAccepted')
-persist1=$(jget "$D1" '@.resources.rillCounters.expectedAdapterPersistenceEvents')
+persist1=$(jget "$D1" '@.resources.rillCounters.expectedRuntimePersistenceEvents')
 binding1=$(jget "$D1" '@.resources.rillCounters.rillBindingHighWater')
 history1=$(jget "$D1" '@.resources.persistentHistoryBytes')
 journal_files1=$(jget "$D1" '@.resources.rillExecutionHealth.journalFileCount')
@@ -139,7 +129,7 @@ intervention1=$(jget "$D1" '@.resources.rillExecutionHealth.interventionRequired
 active1=$(jget "$D1" '@.resources.rillExecutionHealth.active')
 executing1=$(jget "$D1" '@.resources.rillExecutionHealth.executing')
 for pair in "core-writes:$core_w1" "observe:$obs1" "outcome:$out1" \
-            "adapter-persistence:$persist1" "binding-high-water:$binding1" "history:$history1" \
+            "runtime-persistence:$persist1" "binding-high-water:$binding1" "history:$history1" \
             "journal-files:$journal_files1" "journal-bytes:$journal_bytes1" "retired:$retired1" \
             "intervention:$intervention1" "active:$active1" "executing:$executing1"; do
   name=${pair%%:*}; value=${pair#*:}; is_uint "$value" || blocked "final-$name-measurement-unavailable"
@@ -153,17 +143,13 @@ persist_delta=$((persist1-persist0)); history_growth=$((history1-history0))
 [ "$journal_files1" -ge 0 ] && [ "$journal_bytes1" -ge 0 ] && [ "$retired1" -ge 0 ] || blocked journal-measurement-invalid
 [ "$intervention1" -ge 0 ] && [ "$active1" -ge 0 ] && [ "$executing1" -ge 0 ] || blocked execution-health-measurement-invalid
 cpu_core=$(awk -v t="$core_ticks_total" -v hz="$clk" -v s="$elapsed" 'BEGIN { if (s<=0||hz<=0) print "0.000"; else printf "%.3f", (t/hz)/s*100 }')
-cpu_rill=$(awk -v t="$rill_ticks_total" -v hz="$clk" -v s="$elapsed" 'BEGIN { if (s<=0||hz<=0) print "0.000"; else printf "%.3f", (t/hz)/s*100 }')
 writes_day=$(awk -v w="$core_delta" -v s="$elapsed" 'BEGIN { if (s<=0) print "0.0"; else printf "%.1f", w*86400/s }')
 stable=$([ "$elapsed" -ge 86400 ] && printf true || printf false)
 
 within=true
 [ "$core_max_rss" -le "$B_CORE_RSS" ] || within=false
-[ "$rill_max_rss" -le "$B_RILL_RSS" ] || within=false
 awk -v x="$cpu_core" -v b="$B_CORE_CPU" 'BEGIN { exit !(x<=b) }' || within=false
-awk -v x="$cpu_rill" -v b="$B_RILL_CPU" 'BEGIN { exit !(x<=b) }' || within=false
 [ "$core_restarts" -le "$B_CORE_RESTARTS" ] || within=false
-[ "$rill_restarts" -le "$B_RILL_RESTARTS" ] || within=false
 awk -v x="$writes_day" -v b="$B_PM_WRITES_DAY" 'BEGIN { exit !(x<=b) }' || within=false
 [ "$obs_delta" -le "$B_IDLE_OBSERVES" ] || within=false
 [ "$persist_delta" -le "$B_IDLE_PERSISTENCE" ] || within=false
@@ -175,28 +161,31 @@ awk -v x="$writes_day" -v b="$B_PM_WRITES_DAY" 'BEGIN { exit !(x<=b) }' || withi
 [ "$retired1" -le 64 ] || within=false
 [ "$intervention1" = 0 ] || within=false
 [ "$stable" = true ] || within=false
+# The generic Runtime is invoked per request, not as a PM-owned daemon. This
+# script deliberately does not invent RSS/CPU/restart values for it.
+within=false
 
 cat >"$OUT" <<EOF_JSON
 {
   "schemaVersion": 2,
   "gate": "resource-soak",
   "pmCommitSha": "$PM_COMMIT_SHA",
-  "adapterSha256": "$adapter_sha",
+  "runtimeSha256": "$runtime_sha",
   "verdict": "$([ "$within" = true ] && printf PASS || printf FAIL)",
   "durationSeconds": $elapsed,
   "sampleCount": $samples,
   "rillPresentAndRunning": true,
   "coreMaxRssKiB": $core_max_rss,
   "coreMeanCpuPercentApprox": $cpu_core,
-  "rillMaxRssKiB": $rill_max_rss,
-  "rillMeanCpuPercentApprox": $cpu_rill,
+  "rillMaxRssKiB": null,
+  "rillMeanCpuPercentApprox": null,
   "coreRestartCount": $core_restarts,
-  "rillRestartCount": $rill_restarts,
+  "rillRestartCount": null,
   "pmPersistentWrites": $core_delta,
   "pmPersistentWritesPerDayApprox": $writes_day,
   "rillObserveAcceptedDelta": $obs_delta,
   "rillOutcomeAcceptedDelta": $out_delta,
-  "expectedAdapterPersistenceEventsDelta": $persist_delta,
+  "expectedRuntimePersistenceEventsDelta": $persist_delta,
   "persistenceAccounting": "logical/inferred-from-pinned-rill-contract",
   "rillStateMaxFileBytes": $rill_state_max,
   "bindingHighWater": $binding_high,
@@ -208,7 +197,7 @@ cat >"$OUT" <<EOF_JSON
   "activeExecutionCount": $active1,
   "executingExecutionCount": $executing1,
   "stableDurationSatisfied": $stable,
-  "measurementUnavailable": null,
+  "measurementUnavailable": "generic-runtime-process-metrics-unavailable",
   "budgets": {
     "coreMaxRssKiB": $B_CORE_RSS,
     "rillMaxRssKiB": $B_RILL_RSS,
@@ -218,7 +207,7 @@ cat >"$OUT" <<EOF_JSON
     "rillRestartCount": $B_RILL_RESTARTS,
     "pmPersistentWritesPerDay": $B_PM_WRITES_DAY,
     "idleRillObserveAcceptedDelta": $B_IDLE_OBSERVES,
-    "idleExpectedAdapterPersistenceEventsDelta": $B_IDLE_PERSISTENCE,
+  "idleExpectedRuntimePersistenceEventsDelta": $B_IDLE_PERSISTENCE,
     "rillStateFileMaxBytes": $B_RILL_STATE_BYTES,
     "bindingHighWater": $B_BINDINGS,
     "persistentHistoryGrowthBytes": $B_HISTORY_GROWTH

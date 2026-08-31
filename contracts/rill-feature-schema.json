@@ -1,0 +1,11 @@
+{
+  "schemaVersion": 1,
+  "contract": "performance-manager-rill-feature-schema",
+  "features": [
+    "action-position",
+    "execution-authority",
+    "risk-class",
+    "action-available"
+  ],
+  "notes": "Feature names and values are opaque to the generic Runtime; PM owns this mapping."
+}

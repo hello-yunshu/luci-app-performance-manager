@@ -12,7 +12,7 @@ PM_COMMIT_SHA="${PM_COMMIT_SHA:-unknown}"
 TARGET_PROFILE="${PM_TARGET_PROFILE:-generic}"
 failures=""
 passes=""
-adapter_sha=""
+runtime_sha=""
 
 pass() { passes="${passes}${passes:+,}$1"; printf 'PASS: %s\n' "$1"; }
 fail() { failures="${failures}${failures:+,}$1"; printf 'FAIL: %s\n' "$1" >&2; }
@@ -35,7 +35,7 @@ have jsonfilter || fail jsonfilter-missing
 luci_present=false
 [ -r /usr/share/luci/menu.d/luci-app-performance-manager.json ] && luci_present=true
 rill_present=false
-[ -x /etc/init.d/performance-manager-rill ] && rill_present=true
+[ -x /usr/bin/rill-runtime ] && rill_present=true
 if [ "$luci_present" = false ]; then pass core-with-luci-absent; elif [ "$REQUIRE_CORE_ONLY" = 1 ]; then fail core-with-luci-absent; fi
 if [ "$rill_present" = false ]; then pass core-with-rill-absent; elif [ "$REQUIRE_CORE_ONLY" = 1 ]; then fail core-with-rill-absent; fi
 
@@ -65,40 +65,20 @@ printf '%s\n' "$CAP" | grep -q 'network.packet_steering.native' && pass native-p
 rill_tested=false
 if [ "$rill_present" = true ]; then
   rill_tested=true
-  /etc/init.d/performance-manager-rill stop >/dev/null 2>&1 || true
-  ubus call performance-manager status '{}' >/dev/null 2>&1 && pass core-with-rill-stopped || fail core-with-rill-stopped
-  /etc/init.d/performance-manager-rill start >/dev/null 2>&1 || fail rill-start
-  sleep 1
-  [ -S /run/performance-manager/rill.sock ] && pass rill-socket || fail rill-socket
-  dir_mode=$(stat -c '%a' /run/performance-manager 2>/dev/null || busybox stat -c '%a' /run/performance-manager 2>/dev/null || true)
-  dir_owner=$(stat -c '%U:%G' /run/performance-manager 2>/dev/null || busybox stat -c '%U:%G' /run/performance-manager 2>/dev/null || true)
-  sock_owner=$(stat -c '%U:%G' /run/performance-manager/rill.sock 2>/dev/null || busybox stat -c '%U:%G' /run/performance-manager/rill.sock 2>/dev/null || true)
-  [ "$dir_mode" = "750" ] && pass rill-socket-directory-mode-0750 || fail rill-socket-directory-mode-0750
-  [ "$dir_owner" = "performance-manager-rill:performance-manager-rill" ] && pass rill-socket-directory-owner || fail rill-socket-directory-owner
-  [ "$sock_owner" = "performance-manager-rill:performance-manager-rill" ] && pass rill-socket-service-owner || fail rill-socket-service-owner
-  rpid=$(pidof performance-manager-rill-adapter 2>/dev/null | awk '{print $1}')
-  service_uid=$(id -u performance-manager-rill 2>/dev/null || true)
-  process_uid=$([ -n "$rpid" ] && awk '/^Uid:/ {print $2}' "/proc/$rpid/status" 2>/dev/null || true)
-  [ -n "$service_uid" ] && [ "$process_uid" = "$service_uid" ] && pass rill-listens-as-dedicated-service-user || fail rill-listens-as-dedicated-service-user
-  if id nobody >/dev/null 2>&1; then
-    if su nobody -s /bin/sh -c 'test -x /run/performance-manager' >/dev/null 2>&1; then
-      fail rill-socket-unauthorized-no-traverse
-    else
-      pass rill-socket-unauthorized-no-traverse
-    fi
-  else
-    fail rill-socket-unauthorized-user-unavailable
-  fi
+  # The generic Runtime is an on-demand subprocess. There is no PM-owned
+  # socket daemon or service user to stop/start; Core status is the integration
+  # probe and the installed executable is the package identity anchor.
+  ubus call performance-manager status '{}' >/dev/null 2>&1 && pass core-with-runtime-present || fail core-with-runtime-present
   RS=$(ubus call performance-manager rill_status '{}' 2>/dev/null || printf '{}')
   rstate=$(jget "$RS" '@.state')
   case "$rstate" in available|learning) pass rill-root-core-connect;; *) fail rill-root-core-connect;; esac
   [ "$(jget "$RS" '@.mode')" = "shadow" ] && pass rill-shadow || fail rill-shadow
   effective_binary=$(jget "$RS" '@.binary.effective')
   if [ -n "$effective_binary" ] && [ -r "$effective_binary" ]; then
-    adapter_sha=$(sha256sum "$effective_binary" | awk '{print $1}')
-    [ -n "$adapter_sha" ] && pass rill-adapter-sha-captured || fail rill-adapter-sha-captured
+    runtime_sha=$(sha256sum "$effective_binary" | awk '{print $1}')
+    [ -n "$runtime_sha" ] && pass rill-runtime-sha-captured || fail rill-runtime-sha-captured
   else
-    fail rill-adapter-sha-captured
+    fail rill-runtime-sha-captured
   fi
 fi
 
@@ -140,15 +120,15 @@ lock_count=$(printf '%s\n' "$LOCKS" | jsonfilter -e '@.locks[*].resource' 2>/dev
 pass_json=$(json_array "$passes")
 fail_json=$(json_array "$failures")
 release="${DISTRIB_RELEASE:-unknown}"
-adapter_json=null
-[ -n "$adapter_sha" ] && adapter_json="\"$adapter_sha\""
+runtime_json=null
+[ -n "$runtime_sha" ] && runtime_json="\"$runtime_sha\""
 cat >"$OUT" <<EOF_JSON
 {
   "schemaVersion": 2,
   "gate": "openwrt-target-runtime",
   "profile": "$TARGET_PROFILE",
   "pmCommitSha": "$PM_COMMIT_SHA",
-  "adapterSha256": $adapter_json,
+  "runtimeSha256": $runtime_json,
   "openwrtRelease": "$release",
   "architecture": "$(uname -m)",
   "coreStartMilliseconds": $boot_ms,

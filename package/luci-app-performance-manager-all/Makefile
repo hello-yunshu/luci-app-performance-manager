@@ -22,11 +22,11 @@ endef
 define Package/luci-app-performance-manager-all/description
  一个可直接安装的 APK，物理包含 Performance Manager Core 后端、LuCI、
  rpcd ACL/menu 与简体中文翻译。Rill integration 是独立可选包，安装
- performance-manager-rill 时由依赖解析通用 rill-runtime 与临时兼容桥。
+ performance-manager-rill 时由依赖解析通用 rill-runtime。
  / Core, LuCI, ACL/menu and translations only. Rill integration is optional
  / and is provided by performance-manager-rill plus the generic rill-runtime.
  / This arch-independent APK intentionally contains no Rill service glue or
- / native compatibility bridge; install the optional integration packages.
+ / native Runtime; install the optional integration package when needed.
 endef
 
 define Package/luci-app-performance-manager-all/conffiles

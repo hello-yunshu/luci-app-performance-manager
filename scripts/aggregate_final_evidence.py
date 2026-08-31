@@ -18,8 +18,8 @@ Per-job files consumed (each produced by exactly one CI job, see ci.yml and
 build-openwrt.yml):
 
     rill-provenance.json       pm-rill-provenance      (tag/index/artifact)
-    rill-runtime.json          pm-rill-runtime         (real adapter runtime)
-    rill-core-integration.json pm-core-rill-roundtrip  (real Core<->adapter)
+    rill-runtime.json          pm-rill-runtime         (real generic Runtime)
+    rill-core-integration.json pm-core-rill-roundtrip  (real Core<->Runtime)
     rill-wire-harness.json     pm-rill-provenance      (mock wire harness)
     build-metadata.json        openwrt-sdk-build       (APK build gates)
     apk-verification.json      openwrt-sdk-build       (exact APK report)
@@ -59,7 +59,7 @@ REQUIRED_FILES = {
     "rill": ("rill-provenance.json", "rill-runtime.json", "rill-core-integration.json"),
     "build": ("build-metadata.json", "apk-verification.json"),
 }
-OPTIONAL_FILES = ("rill-wire-harness.json", "rill-consumed-manifest.json")
+OPTIONAL_FILES = ("rill-wire-harness.json", "rill-runtime-contract.json")
 OUT_OF_SCOPE = "OUT_OF_SCOPE"
 
 
@@ -91,8 +91,8 @@ def commit_of(name: str, data: dict):
         return None
     if name == "build-metadata.json":
         return data.get("repositoryCommitSha")
-    if name == "rill-consumed-manifest.json":
-        return (data.get("pm") or {}).get("commitSha")
+    if name == "rill-runtime-contract.json":
+        return data.get("pmCommitSha")
     return data.get("pmCommitSha")
 
 
@@ -198,9 +198,9 @@ def main(argv=None) -> int:
         if prov_v in ("PASS", "FAIL", "BLOCKED"):
             provenance = files.get("rill-provenance.json") or {}
             if provenance.get("contract") == "pm-owned-rill-provenance":
-                if not provenance.get("adapterSha256") or not provenance.get("adapterOwner"):
+                if not provenance.get("runtimeSha256") or not provenance.get("runtimeOwner"):
                     prov_v = "BLOCKED"
-                    prov_reason = "PM adapter provenance is missing owner or binary SHA-256"
+                    prov_reason = "generic Runtime provenance is missing owner or binary SHA-256"
             else:
                 tag, _ = file_verdict("rill-provenance.json", "tagIdentityVerdict")
                 idx, _ = file_verdict("rill-provenance.json", "indexSignatureVerdict")
@@ -276,7 +276,7 @@ def main(argv=None) -> int:
     rc_verdict = combine_required(rc_inputs)
     overall = combine_required([rc_verdict, chain_verdict])
 
-    manifest = files.get("rill-consumed-manifest.json") or {}
+    manifest = files.get("rill-runtime-contract.json") or {}
     result = {
         "schemaVersion": 1,
         "contract": "pm-release-final-evidence",
@@ -295,7 +295,7 @@ def main(argv=None) -> int:
             "releaseCommitSha": manifest.get("releaseCommitSha") or manifest.get("historicalReleaseCommitSha"),
             "protocolContract": manifest.get("protocolContract"),
             "protocolVersion": manifest.get("protocolVersion"),
-            "artifactSha256": manifest.get("artifactSha256") or manifest.get("adapterSha256"),
+            "artifactSha256": manifest.get("runtimeSha256") or manifest.get("artifactSha256"),
         },
         "verdicts": release_verdicts,
         "rcVerdict": rc_verdict,

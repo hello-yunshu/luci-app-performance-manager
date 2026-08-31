@@ -21,8 +21,9 @@ class ResourceBudgetTests(unittest.TestCase):
 
     def test_ci_aggregator_resolves_unique_artifact_layouts(self):
         workflow = (ROOT / ".github/workflows/ci.yml").read_text()
-        self.assertIn("copy_unique_evidence rill-runtime.json required", workflow)
-        self.assertIn('mapfile -t matches < <(find evidence -type f -name "$name" -print)', workflow)
+        self.assertIn("rill-runtime-v3:", workflow)
+        self.assertIn("rill_runtime_v3_integration.py", workflow)
+        self.assertIn("check_rill_dependency.py --package-dir", workflow)
 
     def test_resource_budget_requires_target_and_soak_evidence(self):
         script = (ROOT / "scripts/resource_budget.py").read_text()
@@ -40,8 +41,8 @@ class ResourceBudgetTests(unittest.TestCase):
     def test_resource_soak_never_zero_fills_missing_rill_measurements(self):
         script = (ROOT / "scripts/openwrt-resource-soak.sh").read_text()
         self.assertNotIn("detail.persistentWrites", script)
-        self.assertIn("blocked rill-pid-unavailable", script)
-        self.assertIn("blocked rill-adapter-sha-unavailable", script)
+        self.assertIn("blocked core-pid-unavailable", script)
+        self.assertIn("blocked rill-runtime-sha-unavailable", script)
 
     def test_precommitted_resource_budgets_match_target_gate(self):
         budget = json.loads((ROOT / "docs/RESOURCE_BUDGET.json").read_text())["precommittedStableBudgets"]
@@ -84,9 +85,9 @@ class ContractTests(unittest.TestCase):
         ci = (ROOT / ".github/workflows/ci.yml").read_text()
         build = (ROOT / ".github/workflows/build-openwrt.yml").read_text()
 
-        self.assertEqual(ci.count(cache_action), 3)
-        self.assertEqual(ci.count("openwrt-rootfs-${{ runner.os }}-${{ runner.arch }}"), 3)
-        self.assertEqual(ci.count("$OPENWRT_ROOTFS_SHA256\" \"$archive\" | sha256sum -c -"), 3)
+        self.assertEqual(ci.count(cache_action), 0)
+        self.assertIn("git -C rill-ml fetch --depth=1 origin \"$commit\"", ci)
+        self.assertIn("cargo build --locked --release --manifest-path rill-ml/Cargo.toml -p rill-runtime", ci)
         self.assertIn("openwrt-sdk-${{ runner.os }}-${{ runner.arch }}", build)
         self.assertIn("openwrt-feeds-${{ runner.os }}-${{ runner.arch }}", build)
         self.assertIn("$SDK_ARCHIVE_SHA256\" \"$archive\" | sha256sum -c -", build)

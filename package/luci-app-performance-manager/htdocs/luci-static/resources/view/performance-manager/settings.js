@@ -32,7 +32,7 @@ return view.extend({
 		o = s.option(form.Value, 'deep_interval', _('Deep telemetry interval (seconds)')); o.datatype='uinteger'; o.default='600';
 		let r = m.section(form.NamedSection, 'shadow', 'rill', _('Rill Shadow'));
 		o = r.option(form.Flag, 'enabled', _('Enable Shadow')); o.default=o.enabled;
-		o = r.option(form.Value, 'socket', _('Unix socket')); o.default='/run/performance-manager/rill.sock'; o.readonly=true;
+		o = r.option(form.Value, 'runtime_binary', _('Generic Runtime binary')); o.default='/usr/bin/rill-runtime'; o.readonly=true;
 		const rendered = m.render();
 		if (rendered && typeof rendered.then === 'function') return rendered.then(function(form) {
 			return pu.page(_('Settings'), _('Keep conservative automation as the safe default; assisted actions remain explicitly opt-in.'), [ form ]);
