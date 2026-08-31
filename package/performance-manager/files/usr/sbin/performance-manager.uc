@@ -1746,7 +1746,6 @@ function rill_send(payload, outcome_attempt, mark_sent_unknown) {
 	let request = {
 		requestId: request_id, apiVersion: RILL_RUNTIME_API_VERSION,
 		clientIdentity: { name: 'performance-manager', version: VERSION },
-		partitionKey: 'performance-manager',
 		featureSchemaHash: RILL_FEATURE_SCHEMA_HASH, modelGeneration: RILL_MODEL_GENERATION,
 		stateGeneration: state_generation, payloadLimit: 262144
 	};

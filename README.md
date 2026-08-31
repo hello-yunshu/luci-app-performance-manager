@@ -208,7 +208,7 @@ package/luci-app-performance-manager-all/Makefile  # 将上述自有运行内容
                           └────────────────────────┘
 ```
 
-> **所有权边界。** `/usr/bin/rill-runtime` 由 Rill 的 OpenWrt 包拥有；PM 只拥有消费者 glue。当前 Runtime v3 仍是 Preview，状态文件使用按消费者隔离的 `partitionKey`，旧状态无法安全恢复时必须显式迁移或重置，不能被发布说明写成 Stable Runtime。
+> **所有权边界。** `/usr/bin/rill-runtime` 由 Rill 的 OpenWrt 包拥有；PM 只拥有消费者 glue。当前 Runtime v3 仍是 Preview，状态文件按消费者分区持久化，旧状态无法安全恢复时必须显式迁移或重置，不能被发布说明写成 Stable Runtime。
 
 **数据流**：
 
