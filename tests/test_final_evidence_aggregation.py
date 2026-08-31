@@ -9,9 +9,9 @@ fail closed on ANY uncertainty:
     be attributed to this release.
   - combine_required: ANY FAIL -> FAIL; ALL PASS -> PASS; otherwise BLOCKED.
     A PASS + BLOCKED mix is BLOCKED, never silently upgraded to PASS.
-  - scope isolation: ci.yml gates only the Rill chain (--scope rill) and
-    build-openwrt.yml only the SDK/APK chain (--scope build), so neither
-    workflow can falsely PASS what the other workflow alone can prove.
+  - scope isolation: ordinary ci.yml gates only generic Runtime/provenance
+    (--scope rill-runtime), while build-openwrt.yml gates the SDK/APK chain
+    (--scope build), so neither workflow can falsely PASS what the other can prove.
 """
 from __future__ import annotations
 
@@ -123,6 +123,22 @@ class EvidenceAggregationTest(unittest.TestCase):
         self.assertEqual(r["overallVerdict"], "PASS")
         self.assertEqual(r["verdicts"]["apkPackagesBuildVerdict"], agg.OUT_OF_SCOPE)
         self.assertEqual(r["verdicts"]["apkExactVerificationVerdict"], agg.OUT_OF_SCOPE)
+
+    def test_rill_runtime_scope_excludes_unowned_core_roundtrip(self):
+        """Ordinary CI must not require Core evidence owned by the
+        OpenWrt SDK/target workflow."""
+        files = {
+            "rill-provenance.json": _prov(),
+            "rill-runtime.json": _runtime(),
+            "rill-core-integration.json": {
+                "pmCommitSha": COMMIT, "verdict": "NOT_EVALUATED",
+            },
+        }
+        code, r = self.run_agg("rill-runtime", files, expected_commit=COMMIT)
+        self.assertEqual(code, 0)
+        self.assertEqual(r["overallVerdict"], "PASS")
+        self.assertEqual(r["verdicts"]["rillFunctionalIntegrationVerdict"], "PASS")
+        self.assertEqual(r["verdicts"]["apkPackagesBuildVerdict"], agg.OUT_OF_SCOPE)
 
     def test_build_scope_isolates_rill_gates(self):
         """--scope build must NOT require the Rill runtime jobs' evidence."""

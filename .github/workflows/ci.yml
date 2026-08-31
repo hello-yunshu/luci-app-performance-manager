@@ -82,10 +82,7 @@ jobs:
             --arg sha "$runtime_sha" \
             '{schemaVersion:1, contract:"rill-runtime-provenance", pmCommitSha:$commit, provenanceVerdict:"PASS", runtimeSha256:$sha, runtimeOwner:$owner, upstreamCommit:$upstreamCommit, runtimeVersion:$version}' \
             > rill-evidence/rill-provenance.json
-          jq -n --arg commit "$GITHUB_SHA" --arg sha "$runtime_sha" \
-            '{schemaVersion:1, contract:"pm-core-rill-integration", pmCommitSha:$commit, verdict:"NOT_EVALUATED", runtimeSha256:$sha, reason:"production OpenWrt Core-to-Runtime evidence is owned by the remote SDK/target gates"}' \
-            > rill-evidence/rill-core-integration.json
-          python3 scripts/aggregate_final_evidence.py --evidence-dir rill-evidence --scope rill \
+          python3 scripts/aggregate_final_evidence.py --evidence-dir rill-evidence --scope rill-runtime \
             --expected-commit "$GITHUB_SHA" --out rill-evidence/final-release-evidence.json
       - name: Verify package contract against exact package commit
         shell: bash
