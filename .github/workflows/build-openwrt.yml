@@ -110,6 +110,7 @@ jobs:
           tar --zstd -xf "$archive"
           sdkdir=$(find . -maxdepth 1 -type d -name "openwrt-sdk-${OPENWRT_VERSION}-${SDK_PREFIX}_*" | head -n1)
           test -n "$sdkdir"
+          sdkdir=$(cd "$sdkdir" && pwd)
           echo "SDKDIR=$sdkdir" >> "$GITHUB_ENV"
       - name: Resolve official feed identity
         id: openwrt-feeds
@@ -158,7 +159,7 @@ jobs:
             GITHUB_WORKSPACE="$GITHUB_WORKSPACE/rill-openwrt-packages" \
               RUST_TOOLCHAIN=1.94.0 RUST_TARGET="$RUST_TARGET" \
               RUSTUP_HOME="$RUNNER_TEMP/rustup" CARGO_HOME="$RUNNER_TEMP/cargo" \
-              RUST_STAGING_DIR="$GITHUB_WORKSPACE/$SDKDIR/staging_dir/host" \
+              RUST_STAGING_DIR="$SDKDIR/staging_dir/host" \
               ./scripts/prepare_rust_toolchain.sh
           )
           "$SDKDIR/staging_dir/host/bin/rustc" --version | grep -F 'rustc 1.94.0'
