@@ -74,7 +74,7 @@ jobs:
             --out rill-evidence/runtime-v3.json
           runtime_sha=$(jq -r '.runtimeSha256' rill-evidence/runtime-v3.json)
           jq --arg commit "$GITHUB_SHA" --arg version "$(jq -r '.version' contracts/rill-runtime.json)" \
-            '. + {pmCommitSha:$commit, overallVerdict:"PASS", runtimeCompatibilityVerdict:"PASS", functionalIntegrationVerdict:"PASS", runtimeVersion:$version}' \
+            '. + {pmCommitSha:$commit, overallVerdict:"BLOCKED", runtimeCompatibilityVerdict:"PASS", functionalIntegrationVerdict:"BLOCKED", runtimeVersion:$version, functionalIntegrationReason:"PM Core-to-Runtime production roundtrip is not exercised by this host subprocess job"}' \
             rill-evidence/runtime-v3.json > rill-evidence/rill-runtime.json
           jq --arg commit "$GITHUB_SHA" --arg owner "hello-yunshu/rill-ml" \
             --arg upstreamCommit "$(jq -r '.resolved.upstreamCommit' contracts/rill-runtime.json)" \
@@ -85,12 +85,8 @@ jobs:
           jq --arg commit "$GITHUB_SHA" --arg sha "$runtime_sha" \
             '{schemaVersion:1, contract:"pm-core-rill-integration", pmCommitSha:$commit, verdict:"NOT_EVALUATED", runtimeSha256:$sha, reason:"production OpenWrt Core-to-Runtime evidence is owned by the remote SDK/target gates"}' \
             > rill-evidence/rill-core-integration.json
-          if python3 scripts/aggregate_final_evidence.py --evidence-dir rill-evidence --scope rill \
-              --expected-commit "$GITHUB_SHA" --out rill-evidence/final-release-evidence.json; then
-            :
-          else
-            echo 'Rill evidence is structurally collected; unresolved production Core evidence remains fail-closed.'
-          fi
+          python3 scripts/aggregate_final_evidence.py --evidence-dir rill-evidence --scope rill \
+            --expected-commit "$GITHUB_SHA" --out rill-evidence/final-release-evidence.json
       - name: Verify package contract against exact package commit
         shell: bash
         run: |
