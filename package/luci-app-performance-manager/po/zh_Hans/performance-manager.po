@@ -525,3 +525,6 @@ msgstr "Rill 负责观察和建议，最终执行权由 Core 保留。"
 
 msgid "Status and topology JSON"
 msgstr "状态与拓扑 JSON"
+
+msgid "Generic Runtime binary"
+msgstr "通用 Runtime 二进制文件"

@@ -25,13 +25,12 @@ config core 'main'
 config rill 'shadow'
 	option enabled '1'
 	option mode 'shadow'
-	# Path to the PM-owned temporary compatibility bridge. Empty resolves the
-	# default adapter paths; a missing or invalid bridge is fail-closed/blocked.
+	# Empty uses the package-owned generic Runtime at /usr/bin/rill-runtime;
+	# an explicit absolute executable is an opt-in override and never falls back.
 	option binary ''
-	option socket '/run/performance-manager/rill.sock'
 	option max_message '65536'
 	option timeout_ms '1000'
-	option state_dir '/etc/performance-manager/rill'
+	option state_file '/etc/performance-manager/rill/runtime-state.json'
 
 config benchmark 'benchmark'
 	option require_explicit_start '1'

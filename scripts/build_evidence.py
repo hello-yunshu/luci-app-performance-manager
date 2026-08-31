@@ -79,13 +79,13 @@ def main(argv):
     arch = env('PACKAGE_ARCH', 'x86_64')
     pkg_manager = env('PACKAGE_MANAGER', 'apk')
 
-    dep_file = ROOT / 'contracts' / 'rill-dependency.json'
+    dep_file = ROOT / 'contracts' / 'rill-runtime.json'
     dep = json.loads(dep_file.read_text()) if dep_file.exists() else {}
-    rill_contract = dep.get('rillMl') or {}
-    rill_repo = rill_contract.get('registry') or None
+    rill_contract = dep.get('resolved') or {}
+    rill_repo = 'hello-yunshu/rill-ml'
     rill_version = rill_contract.get('version') or None
     rill_checksum = None
-    rill_status = 'pm-owned'
+    rill_status = 'external-qualified'
 
     # Evidence is consumed from the per-job evidence files (prompt section 27),
     # so a job can never read a JSON another parallel job overwrote.  Each job
@@ -173,7 +173,6 @@ def main(argv):
         'performance-manager',
         'luci-app-performance-manager',
         'performance-manager-rill',
-        'performance-manager-rill-adapter',
         'rill-runtime',
         'luci-app-performance-manager-all',
     ]
@@ -206,12 +205,12 @@ def main(argv):
     pm_build_verdict = 'PASS' if (apk_report is not None and all(produced[n] for n in packages)) else 'FAIL'
     apk_exact_verdict = 'PASS' if (apk_report or {}).get('verdict') == 'PASS' else 'FAIL'
 
-    # Current provenance is the PM-owned same-commit binary; the immutable
-    # upstream v1.5.1 fixture is verified by a separate historical gate.
+    # The generic Runtime package is qualified in its canonical feed; PM does
+    # not publish a duplicate executable.
     if _prov_job:
-        rill_checksum = _prov_job.get('adapterSha256')
+        rill_checksum = _prov_job.get('runtimeSha256')
     rill_provenance = combine_required(_prov_verdicts())
-    rill_provenance_reason = None if rill_provenance == 'PASS' else 'same-commit PM adapter provenance not resolved'
+    rill_provenance_reason = None if rill_provenance == 'PASS' else 'same-commit generic Runtime provenance not resolved'
 
     # Rill Gates 2 (Runtime Compatibility) and 3 (Functional Integration) require
     # executing the real adapter and are recorded by the gate jobs. The verdicts

@@ -36,7 +36,6 @@ EXPECTED = [
     'performance-manager',
     'luci-app-performance-manager',
     'performance-manager-rill',
-    'performance-manager-rill-adapter',
     'rill-runtime',
     'luci-app-performance-manager-all',
 ]
@@ -55,8 +54,7 @@ REQUIRED_DEPENDS = {
     'luci-app-performance-manager': {
         'luci-base', 'rpcd', 'performance-manager', 'luci-i18n-base-zh-cn',
     },
-    'performance-manager-rill': {'performance-manager', 'performance-manager-rill-adapter'},
-    'performance-manager-rill-adapter': {'libc'},
+    'performance-manager-rill': {'performance-manager', 'rill-runtime'},
     'rill-runtime': {'libc'},
     ALL_IN_ONE: {
         'luci-base', 'rpcd', 'luci-i18n-base-zh-cn', 'ubus', 'uci', 'ucode',
@@ -511,10 +509,6 @@ def main(argv):
             'requiredDepends': sorted(REQUIRED_DEPENDS[name]),
             'missingDepends': missing_deps,
         }
-        if name == 'performance-manager-rill-adapter':
-            report['packages'][name]['releaseFilename'] = (
-                f'{apk.stem}_{arch}{apk.suffix}'
-            )
         # Core, and every repository-owned file in the all-in-one APK, must be
         # byte-for-byte identical to the source exercised by local gates.
         if name in ('performance-manager', ALL_IN_ONE):

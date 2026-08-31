@@ -11,8 +11,8 @@ permissions:
 jobs:
   # Official OpenWrt SDK build for the packages this repository OWNS:
   # performance-manager (Core), luci-app-performance-manager (UI), the
-  # performance-manager-rill integration package and temporary compatibility
-  # bridge, plus the physical all-in-one APK. The generic rill-runtime package
+  # performance-manager-rill integration package, plus the physical all-in-one
+  # APK. The generic rill-runtime package
   # is staged from the independent pinned OpenWrt feed and owns
   # /usr/bin/rill-runtime.
   # Real build evidence comes from this remote Action — never a local mock.
@@ -28,50 +28,34 @@ jobs:
             openwrt_subtarget: "64"
             sdk_prefix: "x86-64"
             package_arch: "x86_64"
-            rust_target: "x86_64-unknown-linux-musl"
-            elf_machine: "Advanced Micro Devices X86-64"
           - openwrt_version: "25.12.5"
             openwrt_target: "armsr"
             openwrt_subtarget: "armv8"
             sdk_prefix: "armsr-armv8"
             package_arch: "aarch64_generic"
-            rust_target: "aarch64-unknown-linux-musl"
-            elf_machine: "AArch64"
           - openwrt_version: "25.12.5"
             openwrt_target: "mediatek"
             openwrt_subtarget: "filogic"
             sdk_prefix: "mediatek-filogic"
             package_arch: "aarch64_cortex-a53"
-            rust_target: "aarch64-unknown-linux-musl"
-            elf_machine: "AArch64"
     env:
       OPENWRT_VERSION: ${{ matrix.openwrt_version }}
       OPENWRT_TARGET: ${{ matrix.openwrt_target }}
       OPENWRT_SUBTARGET: ${{ matrix.openwrt_subtarget }}
       SDK_PREFIX: ${{ matrix.sdk_prefix }}
       PACKAGE_ARCH: ${{ matrix.package_arch }}
-      RUST_TARGET: ${{ matrix.rust_target }}
     steps:
       - uses: actions/checkout@v7
-      - uses: actions/checkout@v7
-        with:
-          repository: hello-yunshu/rill-openwrt-packages
-          ref: 3742cdfbbf029b91051fbd157cc1522cd91c39aa
-          path: rill-openwrt-packages
-      - name: Cache PM Cargo registry
-        uses: actions/cache@v6
-        with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-          key: pm-openwrt-cargo-${{ runner.os }}-${{ hashFiles('Cargo.lock', 'integrations/performance-manager-rill-adapter/Cargo.lock') }}
-          restore-keys: |
-            pm-openwrt-cargo-${{ runner.os }}-
-      - uses: dtolnay/rust-toolchain@stable
-        with:
-          toolchain: 1.94.0
-          targets: ${{ matrix.rust_target }}
-          components: rustfmt, clippy
+      - name: Checkout canonical Runtime package at immutable contract commit
+        shell: bash
+        run: |
+          set -euo pipefail
+          package_commit=$(jq -r '.openwrtPackage.commit' contracts/rill-runtime.json)
+          [[ "$package_commit" =~ ^[0-9a-f]{40}$ ]]
+          git clone --filter=blob:none https://github.com/hello-yunshu/rill-openwrt-packages.git rill-openwrt-packages
+          git -C rill-openwrt-packages fetch --depth=1 origin "$package_commit"
+          git -C rill-openwrt-packages checkout --detach "$package_commit"
+          test "$(git -C rill-openwrt-packages rev-parse HEAD)" = "$package_commit"
       - name: Install SDK host dependencies
         shell: bash
         run: |
@@ -123,17 +107,6 @@ jobs:
           sdkdir=$(find . -maxdepth 1 -type d -name "openwrt-sdk-${OPENWRT_VERSION}-${SDK_PREFIX}_*" | head -n1)
           test -n "$sdkdir"
           echo "SDKDIR=$sdkdir" >> "$GITHUB_ENV"
-      - name: Build and stage PM-owned adapter
-        shell: bash
-        run: |
-          set -euo pipefail
-          if [ "$RUST_TARGET" = aarch64-unknown-linux-musl ]; then
-            linker=$(find "$SDKDIR/staging_dir/toolchain-"* -type f -name 'aarch64-openwrt-linux-musl-gcc' -print -quit)
-            test -x "$linker"
-            export CARGO_TARGET_AARCH64_UNKNOWN_LINUX_MUSL_LINKER="$linker"
-            echo "Using OpenWrt cross linker: $linker"
-          fi
-          python3 scripts/build_pm_adapter.py --target "$RUST_TARGET"
       - name: Resolve official feed identity
         id: openwrt-feeds
         shell: bash
@@ -219,8 +192,6 @@ jobs:
           cd "$SDKDIR"
           unset CI
           bash "$GITHUB_WORKSPACE/scripts/openwrt-build-diagnostic.sh" package/rill-runtime/compile
-      - name: Build PM-owned native adapter package
-        run: cd "$SDKDIR" && bash "$GITHUB_WORKSPACE/scripts/openwrt-build-diagnostic.sh" package/performance-manager-rill-adapter/compile
       - name: Build all-in-one APK (Core + LuCI + rpcd + zh-cn)
         run: cd "$SDKDIR" && bash "$GITHUB_WORKSPACE/scripts/openwrt-build-diagnostic.sh" package/luci-app-performance-manager-all/compile
       - name: Assert expected packages present (exact APK metadata match)
@@ -260,8 +231,6 @@ jobs:
           find bin -name '*.apk' -o -name '*.ipk' | sort | xargs -r sha256sum > "$GITHUB_WORKSPACE/checksums.txt"
           cd "$GITHUB_WORKSPACE"
           cat checksums.txt
-      - name: Generate Rill consumed manifest
-        run: python scripts/generate_rill_consumed_manifest.py --out rill-consumed-manifest.json
       - name: Stage exact all-in-one prerelease asset
         shell: bash
         run: |
@@ -288,7 +257,6 @@ jobs:
             ${{ env.SDKDIR }}/bin/targets/**/packages/*.ipk
             build-metadata.json
             checksums.txt
-            rill-consumed-manifest.json
             docs/FINAL_AUDIT.md
             docs/FINAL_AUDIT.json
             docs/source-audit.json

@@ -63,7 +63,7 @@ prepare)
   intended_image_sha="${PM_INTENDED_IMAGE_SHA256:-}"
   printf 'opm-sysupgrade-gate:%s\n' "$b" > "$CORE_SENTINEL"
   rill_required=0
-  if [ -x /etc/init.d/performance-manager-rill ]; then
+  if [ -x /usr/bin/rill-runtime ]; then
     rill_required=1
     mkdir -p "$RILL_DIR"
     printf 'opm-rill-sysupgrade-gate:%s\n' "$b" > "$RILL_SENTINEL"
@@ -116,7 +116,7 @@ verify)
   pending=$(find "$ROOT/pending" -type f 2>/dev/null | wc -l | tr -d ' '); pending=${pending:-0}
   [ "$pending" = 0 ] && pass no-stale-pending-marker || fail no-stale-pending-marker
   now_pkgsha="$(package_sha)"
-  adapter_sha="${PM_ADAPTER_SHA256:-unknown}"
+  runtime_sha="${PM_RUNTIME_SHA256:-unknown}"
   [ "$now_fw_identity" != "unknown" ] || fail firmware-identity-unavailable
   if [ "$now_fw_identity" != "$firmware_identity" ]; then pass firmware-identity-changed; else
     [ -n "${transaction_marker:-}" ] && [ -n "${intended_image_sha256:-}" ] && pass firmware-transaction-proof || fail firmware-upgrade-proof
@@ -129,7 +129,7 @@ verify)
       "transactionMarker": "$transaction_marker",
       "intendedImageSha256": "$intended_image_sha256",
       "before": {"bootId": "$boot_id", "packageSha256": "$package_sha256", "configSha256": "$config_sha256", "policySha256": "$policy_sha256", "firmware": {"identity": "$firmware_identity", "release": "$firmware_release", "revision": "$firmware_revision", "board": "$firmware_board", "kernel": "$firmware_kernel"}},
-      "after": {"bootId": "$now_boot", "packageSha256": "$now_pkgsha", "configSha256": "$(sha_file /etc/config/performance-manager)", "policySha256": "$now_psha", "adapterSha256": "$adapter_sha", "pendingMutationCount": $pending, "coreStarted": $([ -z "$failures" ] && printf true || printf false), "staleLocks": $locks, "firmware": {"identity": "$now_fw_identity", "release": "$now_fw_release", "revision": "$now_fw_revision", "board": "$now_fw_board", "kernel": "$now_fw_kernel", "imageSha256": "$intended_image_sha256"}}
+      "after": {"bootId": "$now_boot", "packageSha256": "$now_pkgsha", "configSha256": "$(sha_file /etc/config/performance-manager)", "policySha256": "$now_psha", "runtimeSha256": "$runtime_sha", "pendingMutationCount": $pending, "coreStarted": $([ -z "$failures" ] && printf true || printf false), "staleLocks": $locks, "firmware": {"identity": "$now_fw_identity", "release": "$now_fw_release", "revision": "$now_fw_revision", "board": "$now_fw_board", "kernel": "$now_fw_kernel", "imageSha256": "$intended_image_sha256"}}
     }
   }
 }

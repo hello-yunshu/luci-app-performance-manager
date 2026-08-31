@@ -58,7 +58,7 @@ def main(argv=None):
 
 - Version: `{report['version']}`
 - PM commit: `{args.expected_commit}`
-- Exact Rill adapter SHA-256: `{evidence.get('adapterSha256')}`
+- Exact generic Runtime SHA-256: `{evidence.get('runtimeSha256')}`
 
 ## Required evidence
 

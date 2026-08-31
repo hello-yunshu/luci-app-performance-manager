@@ -11,7 +11,6 @@ from pathlib import Path
 from typing import Any
 
 ROOT = Path(__file__).resolve().parents[1]
-PIN = "a" * 64  # Legacy fixture token; active PM evidence binds the real binary SHA to the same commit.
 SHA256 = re.compile(r"[0-9a-f]{64}")
 
 GATE_CHECKS = {
@@ -19,7 +18,7 @@ GATE_CHECKS = {
                          "analyzeValid", "topologyValid", "capabilitiesValid", "noStaleLocks",
                          "exactPackagesInstalled"],
     "target-full": ["exactPackagesInstalled", "serviceUserRestricted", "stateDirectoryRestricted",
-                    "coreConnectedExactAdapter", "rillStatusReady", "advisoryOnlyAuthority"],
+                    "coreConnectedExactRuntime", "rillStatusReady", "advisoryOnlyAuthority"],
     "target-mutation": ["exactPackagesInstalled", "legalCandidate", "beforeSnapshotExact", "applyExecuted", "readbackExact",
                         "manualRollback", "restorationExact", "secondApply", "cleanupComplete",
                         "ownershipClean", "packetSteeringNotSeized", "noStaleState"],
@@ -33,20 +32,20 @@ GATE_CHECKS = {
     "router-local-ab": ["exactPackagesInstalled", "routerLocalClient", "localEndpointPath", "sameMethodology", "oneVariable",
                         "mutationVerified", "rollbackExact", "validatedReward", "rillOutcomeFinal"],
     "sysupgrade": ["exactPackagesInstalled", "preIdentityRecorded", "postIdentityRecorded", "bootIdChanged", "configPreserved",
-                   "policyPreserved", "firmwareUpgradeProven", "exactAdapterAfterUpgrade", "noUnsafePendingMutation", "coreStartedClean"],
+                   "policyPreserved", "firmwareUpgradeProven", "exactRuntimeAfterUpgrade", "noUnsafePendingMutation", "coreStartedClean"],
     "lifecycle": ["install", "serviceStart", "restart", "upgradeReinstall", "configPreserved",
                   "rillOptional", "uninstallCleanup", "reinstall", "noStaleState"],
     "resource-soak": ["exactPackagesInstalled", "rillPresent", "sampledResources", "noCoreRestart", "noRillRestart",
-                      "idleObserveZero", "idleAdapterPersistenceZero", "idleJournalWritesZero",
+                      "idleObserveZero", "idleRuntimePersistenceZero", "idleJournalWritesZero",
                       "journalMeasured", "stateBoundsPass", "historyBoundsPass"],
 }
 RILL_GATES = set(GATE_CHECKS) - {"target-core-only"}
 PRIMARY_PACKAGE = "luci-app-performance-manager-all"
-ADAPTER_PACKAGE = "performance-manager-rill-adapter"
-PACKAGE_NAMES = ("performance-manager", "luci-app-performance-manager", "performance-manager-rill", ADAPTER_PACKAGE, PRIMARY_PACKAGE)
+RUNTIME_PACKAGE = "rill-runtime"
+PACKAGE_NAMES = ("performance-manager", "luci-app-performance-manager", "performance-manager-rill", RUNTIME_PACKAGE, PRIMARY_PACKAGE)
 CORE_PAYLOAD = ("/usr/sbin/performance-manager.uc", "/usr/share/performance-manager/contracts.uc")
 ALL_IN_ONE_PAYLOAD = CORE_PAYLOAD + (
-    "/etc/init.d/performance-manager", "/etc/init.d/performance-manager-rill",
+    "/etc/init.d/performance-manager",
     "/usr/share/rpcd/acl.d/luci-app-performance-manager.json",
     "/usr/share/luci/menu.d/luci-app-performance-manager.json",
     "/www/luci-static/resources/view/performance-manager/overview.js",
@@ -158,7 +157,7 @@ def _package_layout_ok(packages: dict[str, Any], gate: str) -> bool:
         return present == {"performance-manager"}
     if gate == "lifecycle":
         return True
-    return present == {PRIMARY_PACKAGE, ADAPTER_PACKAGE}
+    return present == {PRIMARY_PACKAGE, RUNTIME_PACKAGE}
 
 
 def evaluate_raw_facts(raw: dict[str, Any], gate: str) -> dict[str, bool]:
@@ -194,7 +193,7 @@ def evaluate_raw_facts(raw: dict[str, Any], gate: str) -> dict[str, bool]:
             "exactPackagesInstalled": package_layout,
             "serviceUserRestricted": permissions.get("serviceUid") == 5666 and permissions.get("serviceUserDedicated") is True,
             "stateDirectoryRestricted": permissions.get("stateDirectoryMode") == "0750" and permissions.get("stateDirectoryOwner") == "performance-manager-rill:performance-manager-rill",
-            "coreConnectedExactAdapter": rill.get("adapterSha256") == PIN and rill.get("connectedToCore") is True,
+            "coreConnectedExactRuntime": _sha(rill.get("runtimeSha256")) and rill.get("connectedToCore") is True,
             "rillStatusReady": _dict(rill.get("statusResponse")).get("ready") is True,
             "advisoryOnlyAuthority": facts.get("rillDirectMutationCount") == 0 and facts.get("mutationAuthority") == "pm-core",
         }
@@ -255,7 +254,7 @@ def evaluate_raw_facts(raw: dict[str, Any], gate: str) -> dict[str, bool]:
                 and before.get("configSha256") == after.get("configSha256"),
             "policyPreserved": _sha(before.get("policySha256")) and _sha(after.get("policySha256"))
                 and before.get("policySha256") == after.get("policySha256"),
-            "exactAdapterAfterUpgrade": after.get("adapterSha256") == PIN,
+            "exactRuntimeAfterUpgrade": _sha(after.get("runtimeSha256")),
             "firmwareUpgradeProven": firmware_changed or (_nonempty_string(upgrade.get("transactionMarker"))
                 and _sha(upgrade.get("intendedImageSha256")) and firmware_after.get("imageSha256") == upgrade.get("intendedImageSha256")),
             "noUnsafePendingMutation": after.get("pendingMutationCount") == 0,
@@ -271,16 +270,16 @@ def evaluate_raw_facts(raw: dict[str, Any], gate: str) -> dict[str, bool]:
         split_names = {name for name, value in split_pkgs.items() if isinstance(value, dict)}
         bundle_names = {name for name, value in bundle_pkgs.items() if isinstance(value, dict)}
         checks = {
-            "install": _exit_ok(split.get("exitCode")) and split_names == {"performance-manager", "luci-app-performance-manager", "performance-manager-rill", ADAPTER_PACKAGE},
+            "install": _exit_ok(split.get("exitCode")) and split_names == {"performance-manager", "luci-app-performance-manager", "performance-manager-rill", RUNTIME_PACKAGE},
             "serviceStart": _nonempty_string(split_runtime.get("corePid")) or (isinstance(split_runtime.get("corePid"), int) and split_runtime.get("corePid") > 0),
             "restart": _nonempty_string(bundle_runtime.get("corePid")) or (isinstance(bundle_runtime.get("corePid"), int) and bundle_runtime.get("corePid") > 0),
             "upgradeReinstall": _exit_ok(migration.get("removeExitCode")) and _exit_ok(migration.get("installBundleExitCode"))
-                and bundle_names == {PRIMARY_PACKAGE, ADAPTER_PACKAGE},
+                and bundle_names == {PRIMARY_PACKAGE, RUNTIME_PACKAGE},
             "configPreserved": _sha(split.get("configSha256")) and _sha(bundle_runtime.get("configSha256"))
                 and split.get("configSha256") == bundle_runtime.get("configSha256"),
             "rillOptional": split_runtime.get("ubusReady") is True and bundle_runtime.get("ubusReady") is True,
             "uninstallCleanup": _exit_ok(uninstall.get("exitCode")) and uninstall.get("remainingOwnedPaths") == [],
-            "reinstall": _exit_ok(reinstall.get("exitCode")) and _dict(reinstall.get("installedPackages")).keys() == {PRIMARY_PACKAGE, ADAPTER_PACKAGE}
+            "reinstall": _exit_ok(reinstall.get("exitCode")) and _dict(reinstall.get("installedPackages")).keys() == {PRIMARY_PACKAGE, RUNTIME_PACKAGE}
                 and reinstall.get("ubusReady") is True,
             "noStaleState": uninstall.get("staleLocks") == 0 and uninstall.get("stalePending") == 0
                 and uninstall.get("staleSockets") == 0,
@@ -291,11 +290,11 @@ def evaluate_raw_facts(raw: dict[str, Any], gate: str) -> dict[str, bool]:
         checks = {
             "exactPackagesInstalled": package_layout,
             "rillPresent": soak.get("rillPresent") is True,
-            "sampledResources": soak.get("sampleCount", 0) > 0 and isinstance(resources, dict),
+            "sampledResources": soak.get("sampleCount", 0) > 0 and metrics_valid,
             "noCoreRestart": soak.get("coreRestartCount") == 0,
             "noRillRestart": soak.get("rillRestartCount") == 0,
             "idleObserveZero": soak.get("idleRillObserveAcceptedDelta") == 0,
-            "idleAdapterPersistenceZero": soak.get("idleExpectedAdapterPersistenceEventsDelta") == 0,
+            "idleRuntimePersistenceZero": soak.get("idleExpectedRuntimePersistenceEventsDelta") == 0,
             "idleJournalWritesZero": soak.get("idlePendingOutcomeJournalWrites") == 0 and soak.get("executingJournalDelta") == 0,
             "journalMeasured": metrics_valid and resources["executionJournalFileCount"] <= 128
                 and resources["executionJournalBytes"] <= 2097152 and resources["retiredExecutionCount"] <= 64,
@@ -373,7 +372,7 @@ def _schema_errors(value: Any, schema: dict[str, Any], schema_dir: Path,
             allowed_from_allof.update({
                 "schemaVersion", "gate", "pmCommitSha", "buildRunId", "verdict", "passed",
                 "controller", "buildArtifacts", "installedArtifacts", "subchecks", "rawFacts",
-                "primaryPackage", "primaryPackageSha256", "adapterSha256", "durationSeconds",
+                "primaryPackage", "primaryPackageSha256", "runtimeSha256", "durationSeconds",
                 "validationErrors",
             })
         allowed_from_allof.update(schema.get("required", []))
@@ -430,10 +429,10 @@ def _artifact_errors(data: dict[str, Any], gate: str, build: dict[str, Any] | No
             if gate == "target-core-only" and name != "performance-manager":
                 if rec not in (None, "not-installed"):
                     errors.append(f"installedArtifacts.{name} must be absent")
-            elif gate != "lifecycle" and name not in {PRIMARY_PACKAGE, ADAPTER_PACKAGE}:
+            elif gate != "lifecycle" and name not in {PRIMARY_PACKAGE, RUNTIME_PACKAGE}:
                 if rec not in (None, "not-installed"):
                     errors.append(f"installedArtifacts.{name} must be absent")
-            elif gate != "lifecycle" and name == ADAPTER_PACKAGE:
+            elif gate != "lifecycle" and name == RUNTIME_PACKAGE:
                 errors.append(f"installedArtifacts.{name} missing")
             elif gate != "lifecycle":
                 errors.append(f"installedArtifacts.{name} missing")
@@ -529,8 +528,8 @@ def validate_evidence(data: Any, gate: str, expected_commit: str, *, require_ril
             for name in GATE_CHECKS[gate]:
                 if checks.get(name) is not derived.get(name):
                     errors.append(f"subcheck {name} does not match repository evaluator")
-    if (require_rill or gate in RILL_GATES) and data.get("adapterSha256") != PIN:
-        errors.append(f"adapterSha256={data.get('adapterSha256')!r}")
+    if (require_rill or gate in RILL_GATES) and not _sha(data.get("runtimeSha256")):
+        errors.append(f"runtimeSha256={data.get('runtimeSha256')!r}")
     try:
         if int(data.get("durationSeconds", 0)) < minimum_duration:
             errors.append(f"durationSeconds={data.get('durationSeconds')!r}")
@@ -569,7 +568,7 @@ def validate_evidence(data: Any, gate: str, expected_commit: str, *, require_ril
         soak = _dict(_dict(data.get("rawFacts")).get("soak"))
         if int(data.get("durationSeconds", 0)) < 86400 or int(soak.get("sampleCount", 0)) <= 0:
             errors.append("24h soak duration/sample evidence invalid")
-        for key in ("idleRillObserveAcceptedDelta", "idleExpectedAdapterPersistenceEventsDelta", "idlePendingOutcomeJournalWrites"):
+        for key in ("idleRillObserveAcceptedDelta", "idleExpectedRuntimePersistenceEventsDelta", "idlePendingOutcomeJournalWrites"):
             if soak.get(key) != 0:
                 errors.append(f"soak {key} must be zero")
     return errors
@@ -593,7 +592,7 @@ def main(argv=None):
     if errors:
         print("FAIL: " + "; ".join(errors), file=sys.stderr)
         return 1
-    print(f"PASS: {args.gate} commit={args.expected_commit} adapter={data.get('adapterSha256')}")
+    print(f"PASS: {args.gate} commit={args.expected_commit} runtime={data.get('runtimeSha256')}")
     return 0
 
 

@@ -62,7 +62,7 @@ jobs:
         run: |
           set -euo pipefail
           if python3 -m unittest discover -s tests -p 'test_*.py' > stable-output/unit-tests.log 2>&1; then
-            python3 -c 'import json; json.dump({"verdict":"PASS","testCount":186,"command":"python3 -m unittest discover -s tests -p test_*.py"}, open("stable-output/test-report.json", "w"), indent=2)'
+            python3 -c 'import json, re; log=open("stable-output/unit-tests.log").read(); count=int(re.search(r"Ran (\\d+) tests?", log).group(1)); json.dump({"verdict":"PASS","testCount":count,"command":"python3 -m unittest discover -s tests -p test_*.py"}, open("stable-output/test-report.json", "w"), indent=2)'
           else
             python3 -c 'import json; json.dump({"verdict":"FAIL","command":"python3 -m unittest discover -s tests -p test_*.py"}, open("stable-output/test-report.json", "w"), indent=2)'
             exit 1

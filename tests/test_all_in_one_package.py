@@ -66,13 +66,13 @@ class AllInOnePackageTests(unittest.TestCase):
         for text in (workflow, verifier, evidence):
             self.assertIn("luci-app-performance-manager-all", text)
 
-    def test_stable_public_release_publishes_all_in_one_and_adapter_apks(self):
+    def test_stable_public_release_publishes_all_in_one_and_external_runtime_is_separate(self):
         workflow = (ROOT / ".github/workflows/stable-release.yml").read_text()
         self.assertIn("assemble_public_release.py", workflow)
         self.assertIn("scripts/assemble_public_release.py", workflow)
         self.assertNotIn("wc -l", workflow)
         self.assertIn("scripts/build_release_manifest.py", workflow)
-        self.assertIn("performance-manager-rill-adapter", (ROOT / "scripts/assemble_public_release.py").read_text())
+        self.assertIn('"publicReleaseIncluded": False', (ROOT / "scripts/build_release_manifest.py").read_text())
 
     def test_portable_release_matrix_is_hosted_and_discloses_hardware_scope(self):
         matrix = (ROOT / ".github/workflows/stable-target-matrix.yml").read_text()
@@ -118,9 +118,6 @@ class AllInOnePackageTests(unittest.TestCase):
             apk = sdk / "luci-app-performance-manager-all-1.0.0_rc10-r1.apk"
             apk.write_bytes(b"exact-all-in-one-apk")
             digest = hashlib.sha256(apk.read_bytes()).hexdigest()
-            adapter = sdk / "performance-manager-rill-adapter-1.0.0_rc10-r1.apk"
-            adapter.write_bytes(b"exact-adapter-apk")
-            adapter_digest = hashlib.sha256(adapter.read_bytes()).hexdigest()
             integration = sdk / "performance-manager-rill-1.0.0_rc10-r1.apk"
             integration.write_bytes(b"exact-rill-glue-apk")
             integration_digest = hashlib.sha256(integration.read_bytes()).hexdigest()
@@ -137,10 +134,6 @@ class AllInOnePackageTests(unittest.TestCase):
                             "status": "compiled", "apkSha256": "b" * 64,
                         },
                     },
-                    },
-                    "performance-manager-rill-adapter": {
-                        "status": "ok", "filename": adapter.name, "sha256": adapter_digest,
-                        "pkgver": "1.0.0_rc10-r1", "arch": "x86_64",
                     },
                     "performance-manager-rill": {
                         "status": "ok", "filename": integration.name, "sha256": integration_digest,
@@ -161,7 +154,7 @@ class AllInOnePackageTests(unittest.TestCase):
             manifest = json.loads((out / "all-in-one-release-manifest.json").read_text())
             self.assertEqual(manifest["apk"]["sha256"], digest)
             self.assertEqual(manifest["payloadVerification"]["fileCount"], 2)
-            self.assertEqual((out / adapter.name).read_bytes(), adapter.read_bytes())
+            self.assertFalse(any("adapter" in path.name for path in out.iterdir()))
 
     def test_release_assembler_accepts_same_apk_copy_in_full_and_dedicated_artifacts(self):
         with tempfile.TemporaryDirectory() as temp:
@@ -169,7 +162,6 @@ class AllInOnePackageTests(unittest.TestCase):
             commit = "c" * 40
             version = "1.0.0-rc.10"
             apk_name = "luci-app-performance-manager-all-1.0.0_rc10-r1.apk"
-            adapter_name = "performance-manager-rill-adapter-1.0.0_rc10-r1.apk"
             dedicated = temp / "input/openwrt-25.12.5-x86-64-all-in-one-apk"
             full = temp / "input/openwrt-25.12.5-x86-64-packages-and-evidence/sdk/bin"
             final = temp / "input/final-release-evidence-build"
@@ -179,11 +171,7 @@ class AllInOnePackageTests(unittest.TestCase):
             apk_bytes = b"same-verified-apk-in-two-workflow-artifacts"
             (dedicated / apk_name).write_bytes(apk_bytes)
             (full / apk_name).write_bytes(apk_bytes)
-            adapter_bytes = b"same-verified-adapter-in-two-workflow-artifacts"
-            (dedicated / adapter_name).write_bytes(adapter_bytes)
-            (full / adapter_name).write_bytes(adapter_bytes)
             digest = hashlib.sha256(apk_bytes).hexdigest()
-            adapter_digest = hashlib.sha256(adapter_bytes).hexdigest()
             integration_name = "performance-manager-rill-1.0.0_rc10-r1.apk"
             integration_bytes = b"same-verified-rill-glue-in-two-workflow-artifacts"
             (full / integration_name).write_bytes(integration_bytes)
@@ -198,7 +186,6 @@ class AllInOnePackageTests(unittest.TestCase):
                 "packages": {
                     "luci-app-performance-manager-all": {"status": "ok", "sha256": digest, "filename": apk_name, "arch": "noarch"},
                     "performance-manager-rill": {"status": "ok", "sha256": integration_digest, "filename": integration_name, "arch": "noarch"},
-                    "performance-manager-rill-adapter": {"status": "ok", "sha256": adapter_digest, "filename": adapter_name},
                 },
             }))
             (full / "build-metadata.json").write_text(json.dumps({
@@ -206,7 +193,6 @@ class AllInOnePackageTests(unittest.TestCase):
                 "packages": {
                     "luci-app-performance-manager-all": {"status": "ok", "apkSha256": digest, "apkFilename": apk_name, "arch": "noarch"},
                     "performance-manager-rill": {"status": "ok", "apkSha256": integration_digest, "apkFilename": integration_name, "arch": "noarch"},
-                    "performance-manager-rill-adapter": {"status": "ok", "apkSha256": adapter_digest, "apkFilename": adapter_name, "arch": "x86_64"},
                 },
             }))
             (full / "FINAL_AUDIT.json").write_text("{}")
@@ -224,7 +210,7 @@ class AllInOnePackageTests(unittest.TestCase):
             ], capture_output=True, text=True)
             self.assertEqual(completed.returncode, 0, completed.stderr)
             self.assertEqual((out / apk_name).read_bytes(), apk_bytes)
-            self.assertEqual((out / adapter_name).read_bytes(), adapter_bytes)
+            self.assertFalse(any("adapter" in path.name for path in out.iterdir()))
             self.assertTrue((out / "release-checksums.txt").is_file())
             stable_out = temp / "stable-out"
             completed = subprocess.run([
@@ -234,7 +220,7 @@ class AllInOnePackageTests(unittest.TestCase):
             ], capture_output=True, text=True)
             self.assertEqual(completed.returncode, 0, completed.stderr)
             self.assertEqual((stable_out / apk_name).read_bytes(), apk_bytes)
-            self.assertEqual((stable_out / adapter_name).read_bytes(), adapter_bytes)
+            self.assertFalse(any("adapter" in path.name for path in stable_out.iterdir()))
 
 
 if __name__ == "__main__":

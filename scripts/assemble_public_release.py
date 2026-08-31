@@ -12,7 +12,6 @@ from artifact_identity import ArtifactIdentityError, resolve_artifact, sha256
 
 PACKAGE = "luci-app-performance-manager-all"
 INTEGRATION_PACKAGE = "performance-manager-rill"
-ADAPTER_PACKAGE = "performance-manager-rill-adapter"
 
 
 def _files(root: Path, name: str) -> list[Path]:
@@ -162,36 +161,6 @@ def assemble_public_apk(
     integration_source = Path(integration_identity["canonicalPath"])
     integration_target = output_root / integration_source.name
     shutil.copy2(integration_source, integration_target)
-    adapter_identities = []
-    for _, build, _, report in pairs:
-        adapter_verified = (report.get("packages") or {}).get(ADAPTER_PACKAGE) or {}
-        adapter_built = (build.get("packages") or {}).get(ADAPTER_PACKAGE) or {}
-        adapter_filename = adapter_verified.get("filename") or adapter_built.get("apkFilename")
-        adapter_sha = adapter_verified.get("sha256") or adapter_built.get("apkSha256")
-        if adapter_verified.get("status") != "ok" or not adapter_filename or not adapter_sha:
-            raise ArtifactIdentityError("target-specific adapter APK identity is incomplete")
-        adapter_identity = resolve_target_copy(
-            input_root=input_root, package=ADAPTER_PACKAGE,
-            expected_sha=adapter_sha, filename=adapter_filename
-        )
-        adapter_source = Path(adapter_identity["canonicalPath"])
-        adapter_release_name = adapter_built.get("releaseFilename") or adapter_verified.get("releaseFilename")
-        adapter_target = output_root / (adapter_release_name or adapter_source.name)
-        if adapter_target.exists():
-            raise ArtifactIdentityError(f"duplicate target adapter release name: {adapter_target.name}")
-        shutil.copy2(adapter_source, adapter_target)
-        adapter_identities.append({
-            **adapter_identity,
-            "canonicalPath": str(adapter_target),
-            "filename": adapter_target.name,
-            "sha256": sha256(adapter_target),
-            "packageArch": build.get("architecture"),
-            "rustTarget": build.get("rustTarget"),
-            "target": build.get("target"),
-            "openwrtVersion": build.get("openwrtVersion"),
-            "sdkIdentity": build.get("sdkIdentity"),
-            "sdkArchiveSha256": build.get("sdkArchiveSha256"),
-        })
     # Keep one deterministic all-in-one manifest/checksum as a human-readable
     # convenience; matrix evidence remains target-specific in the input.
     dedicated_manifest = manifests[0] if manifests else None
@@ -201,7 +170,6 @@ def assemble_public_apk(
         )
     checksum_lines = [f"{sha256(target)}  {target.name}\n",
                       f"{sha256(integration_target)}  {integration_target.name}\n"]
-    checksum_lines.extend(f"{item['sha256']}  {item['filename']}\n" for item in adapter_identities)
     (output_root / "all-in-one-checksums.txt").write_text("".join(checksum_lines))
     # Release consumers need one aggregate identity, not an arbitrary target's
     # report.  The per-target records retain the exact SDK/arch provenance.
@@ -269,8 +237,11 @@ def assemble_public_apk(
              "sha256": sha256(integration_target), "arch": integration_records[0]["packageArch"],
              "copyCount": integration_identity["copyCount"]},
         ],
-        "adapters": adapter_identities,
-        "adapter": adapter_identities[0],
+        "externalRuntime": {
+            "package": "rill-runtime",
+            "binary": "/usr/bin/rill-runtime",
+            "releaseIncluded": False,
+        },
     }
     return result
 

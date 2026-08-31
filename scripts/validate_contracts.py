@@ -129,20 +129,24 @@ if bench.index("rollback_transaction(session.transactionId,'benchmark-complete')
 for unsafe_refusal in ['exact-qdisc-restore-not-proven','no-generic-third-party-sfe-contract']:
     if unsafe_refusal not in core: fail(f'explicit unsafe-provider refusal missing: {unsafe_refusal}')
 
-# Rill boundary, persistence and bounded storage.
-# Rill is an EXTERNAL runtime: this repository never compiles or natively tests
-# it, so there is deliberately no bundled Rust source and no Rust build path.
-rill_mk=(ROOT/'package/performance-manager-rill/Makefile').read_text(); rill_init=(ROOT/'package/performance-manager-rill/files/etc/init.d/performance-manager-rill').read_text()
+# Rill boundary, persistence and bounded storage. Rill is an EXTERNAL runtime:
+# this repository has no bundled Rust source, daemon, or private executable.
+rill_mk=(ROOT/'package/performance-manager-rill/Makefile').read_text()
 if (ROOT/'package/performance-manager-rill/src').exists(): fail('bundled Rill source must not exist (external runtime)')
 for token in ['rust/host','rust-package.mk','RUST_PKG_LOCKED:=1','cargo']:
     if token in rill_mk: fail(f'Rill build invariant must NOT be present (external runtime): {token}')
-# The integration package still guards the external runtime and stays fail-closed.
-for token in ['Build/Compile','PKG_BUILD_DEPENDS:=']:
-    if token not in rill_mk: fail(f'integration Makefile mechanism missing: {token}')
-for token in ['resolve_binary','BINARY_STATE=','binary-invalid','external Rill runtime not provisioned','--state-dir "$state_dir"','procd_set_param user "$SERVICE_USER"','chmod 0750']:
-    if token not in rill_init: fail(f'Rill integration-guard invariant missing: {token}')
-for token in ["const RILL_REQUIRED_OPS = [ 'status', 'observe', 'outcome' ]","const RILL_CONTRACT = 'pm-rill-shadow'","const RILL_PROTOCOL_VERSION = 1","contract-mismatch","protocol-version-mismatch","binary-invalid","external-runtime-not-provisioned","state: RILL_STATES.incompatible"]:
-    if token not in core: fail(f'Core Rill capability/protocol gate mechanism missing: {token}')
+for token in ['Build/Compile','+rill-runtime','/usr/bin/rill-runtime']:
+    if token not in rill_mk: fail(f'external Runtime package dependency mechanism missing: {token}')
+for token in ['const RILL_RUNTIME_API_VERSION = 3','RILL_RUNTIME_CAPABILITIES','preview-serve','binary-invalid','external-runtime-not-provisioned','RILL_RESOLVED_VERSION']:
+    if token not in core: fail(f'Core generic Runtime v3 gate mechanism missing: {token}')
+runtime_contract=ROOT/'contracts/rill-runtime.json'
+if not runtime_contract.exists(): fail('contracts/rill-runtime.json missing')
+else:
+    try:
+        rill=json.loads(runtime_contract.read_text())
+        if rill.get('openwrtPackage',{}).get('binary') != '/usr/bin/rill-runtime': fail('Rill contract binary identity mismatch')
+        if rill.get('qualification',{}).get('verdict') != 'PASS': fail('Rill contract qualification is not PASS')
+    except Exception as e: fail(f'invalid Rill Runtime contract: {e}')
 
 companion=(ROOT/'companion/pm_companion_agent.py').read_text()
 for token in ['pm-companion/v2','shell=False','routerMutation','sessionId','capabilityHash','routeIdentity']:

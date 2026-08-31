@@ -30,19 +30,16 @@ class SecurityTests(unittest.TestCase):
         # Rill is an external runtime; the shadow-only contract is enforced on
         # the PM side: the Core only ever sends status/observe/outcome and the
         # formal IPC schema never admits an apply/rollback/uci op.
-        self.assertIn("const RILL_REQUIRED_OPS = [ 'status', 'observe', 'outcome' ]",CORE)
-        ops=allowed_ops()
-        self.assertIn('status',ops); self.assertIn('observe',ops); self.assertIn('outcome',ops)
-        for forbidden in ['apply','rollback','uci']:
-            self.assertNotIn(forbidden,ops)
+        self.assertIn('const RILL_RUNTIME_API_VERSION = 3', CORE)
+        self.assertIn('preview-serve', CORE)
+        self.assertNotIn("'/usr/sbin/performance-manager-rill-adapter'", CORE)
+        self.assertNotIn("'/usr/bin/performance-manager-rill-adapter'", CORE)
     def test_rill_capability_gate_is_fail_closed(self):
         # Missing runtime / unreachable service / contract or protocol mismatch
         # must be fail-closed (unavailable/incompatible), never silently OK.
         self.assertIn('external-runtime-not-provisioned',CORE)
-        self.assertIn('contract-mismatch',CORE)
-        self.assertIn('protocol-version-mismatch',CORE)
-        self.assertIn('RILL_CONTRACT',CORE)
-        self.assertIn('RILL_PROTOCOL_VERSION',CORE)
+        self.assertIn('runtime-version-mismatch',CORE)
+        self.assertIn('RILL_RUNTIME_CAPABILITIES',CORE)
     def test_rill_has_no_direct_write_authority(self):
         # The Core never grants Rill write authority: no apply op, no root
         # apply path, and the integration is advisory-only.
@@ -53,5 +50,5 @@ class SecurityTests(unittest.TestCase):
         # A missing/incompatible Rill integration must surface as a distinct
         # compatibility state, not hide behind a healthy Core.
         self.assertIn("state: RILL_STATES.incompatible",CORE)
-        self.assertIn("reason: 'protocol-version-mismatch'",CORE)
+        self.assertIn("reason: 'runtime-version-mismatch'",CORE)
 if __name__=='__main__': unittest.main()

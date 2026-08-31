@@ -4,7 +4,6 @@
 import * as fs from 'fs';
 import * as ubusmod from 'ubus';
 import * as uloop from 'uloop';
-import * as socket from 'socket';
 import * as rtnl from 'rtnl';
 const basename = fs.basename;
 import { VERSION, SCHEMA_VERSION, WORKLOAD_CLASSES, SAFE_ACTIONS, BENCHMARK_ACTIONS } from '/usr/share/performance-manager/contracts.uc';
@@ -14,14 +13,12 @@ const DEFAULT_STATE_DIR = '/tmp/performance-manager';
 const DEFAULT_PERSIST_DIR = '/etc/performance-manager';
 const PROFILE_DIR = '/usr/share/performance-manager/profiles';
 const MAX_HISTORY_LINES = 512;
-/* PM<->Rill integration contract.  Rill is an external runtime: the Core only
- * negotiates capability via the bounded Unix-socket protocol and never
- * compiles or bundles Rill.  A missing runtime, unreachable service or protocol
- * major mismatch is fail-closed (integration unavailable/incompatible). */
-const RILL_CONTRACT = 'pm-rill-shadow';
-const RILL_PROTOCOL_VERSION = 1;
-const RILL_REQUIRED_CAPABILITIES = [ 'context-partitioned-model', 'goal-partition', 'validated-outcome', 'decision-ledger', 'model-health' ];
-const RILL_REQUIRED_OPS = [ 'status', 'observe', 'outcome' ];
+/* Generic Rill Runtime integration. The Core invokes the package-owned
+ * /usr/bin/rill-runtime Preview v3 subprocess and never compiles or bundles
+ * a consumer-owned Runtime. Any missing, invalid, stale, or incompatible
+ * result is fail-closed. */
+const RILL_RUNTIME_API_VERSION = 3;
+const RILL_RUNTIME_CAPABILITIES = [ 'org.rill.preview.decide', 'org.rill.preview.feedback' ];
 const RILL_STATES = { disabled: 'disabled', notProvisioned: 'not-provisioned', binaryInvalid: 'binary-invalid', starting: 'starting', available: 'available', learning: 'learning', incompatible: 'incompatible', unhealthy: 'unhealthy', unavailable: 'unavailable' };
 const RILL_BINDINGS_SCHEMA_VERSION = 2;
 const RILL_EXECUTION_SCHEMA_VERSION = 1;
@@ -34,8 +31,8 @@ const RILL_BINDINGS_TTL_MS = 3600000;
 const RILL_ADVISORY_TTL_MS = 3600000;
 const RILL_MODEL_GENERATION = 1;
 const RILL_OBSERVE_MIN_INTERVAL_MS = 30000;
-const RILL_LINKED_RILL_ML_VERSION = '1.5.3';
-const RILL_PINNED_ADAPTER_VERSION = '1.0.3';
+const RILL_RESOLVED_VERSION = '1.5.6';
+const RILL_FEATURE_SCHEMA_HASH = '1a131fcbc7cadf0b251c241ace8d6d293bd1027bf8e43db81e0b4a771d8924a4';
 const GOALS = [ 'balanced', 'throughput', 'latency', 'cpu_efficiency' ];
 /* Only throughput A/B is measurable with the current iperf3 methodology.
  * Other goals fail-closed rather than silently degrading to throughput. */
@@ -1707,71 +1704,108 @@ function benchmark_stop(session_id) {
 	history('benchmark.stopped',session); return {ok:true,session:session};
 }
 
-function rill_socket_path() {
-	return cfg('shadow.socket', '/run/performance-manager/rill.sock');
+function rill_state_path() {
+	return cfg('shadow.state_file', '/etc/performance-manager/rill/runtime-state.json');
 }
 
-function rill_recv_frame(s, maxMsg, timeout) {
-	/* Read ONE newline-delimited JSON frame from the Rill socket, bounded and
-	 * fail-closed.  Handles partial reads, oversized replies, empty replies,
-	 * a peer that closes early, and a read timeout — none of which may be
-	 * parsed as a truncated/garbage JSON.  Returns the raw frame body (without
-	 * the trailing newline) on success, or an error object { state } on
-	 * failure.  The protocol is strictly framed by a single trailing newline;
-	 * trailing bytes after the first frame are ignored for this request. */
-	let buf = '';
-	let deadline = monotonic_ms() + max(1, timeout);
-	let closed = false, timed_out = false;
-	while (length(buf) < maxMsg) {
-		let remaining = max(1, deadline - monotonic_ms());
-		let events = socket.poll(remaining, s);
-		if (!events || !length(events) || !((events[0][1] ?? 0) & socket.POLLIN)) {
-			timed_out = true;
-			break;
-		}
-		let chunk = s.recv(max(1, maxMsg - length(buf)));
-		if (chunk == null || chunk == '') { closed = true; break; }
-		buf += chunk;
-		if (index(buf, '\n') >= 0) break;
-	}
-	if (closed) return { state: 'peer-closed' };
-	if (timed_out) return { state: 'timeout-or-peer-error' };
-	/* Frame never terminated within the per-message bound. */
-	if (index(buf, '\n') < 0) return { state: length(buf) >= maxMsg ? 'oversized-response' : 'truncated-frame' };
-	/* ucode's global slice() is array-only and returns null for strings.  Use
-	 * substr() so a valid adapter JSON line is not misclassified as empty. */
-	let body = trimstr(substr(buf, 0, index(buf, '\n')));
-	if (!length(body)) return { state: 'empty-response' };
-	return { body: body };
+function rill_state_generation() {
+	let snapshot = json_read(rill_state_path(), null);
+	return +(snapshot?.handlerSnapshot?.stateGeneration ?? 0);
+}
+
+function rill_runtime_call(request, binary) {
+	/* The generic Runtime is a bounded stdin/stdout subprocess.  A fresh
+	 * process per request keeps the package-owned state file as the single
+	 * durable ledger and avoids a PM-owned socket daemon or protocol shim. */
+	let state = rill_state_path(), parent = join('/', slice(split(state, '/'), 0, -1));
+	ensure_dir(parent);
+	let wire = sprintf('%J\n', request);
+	let max_msg = min(262144, max(4096, int_cfg('shadow.max_message', 65536)));
+	if (length(wire) > max_msg)
+		return { ok: false, state: 'oversized-local-context', connected: false, fullySent: false, responseReceived: false };
+	let timeout = min(5000, max(100, int_cfg('shadow.timeout_ms', 1000)));
+	let command = sprintf("printf '%%s\\n' %s | timeout %ds %s preview-serve --state %s --feature-schema-hash %s --model-generation %d",
+		shell_quote(trimstr(wire)), max(1, int((timeout + 999) / 1000)), shell_quote(binary), shell_quote(state), shell_quote(RILL_FEATURE_SCHEMA_HASH), RILL_MODEL_GENERATION);
+	let p = fs.popen(command, 'r');
+	if (!p) return { ok: false, state: 'runtime-spawn-failed', connected: false, fullySent: false, responseReceived: false };
+	let output = p.read('all') ?? '', rc = p.close() ?? 127;
+	if (rc != 0) return { ok: false, state: `runtime-exit-${rc}`, connected: true, fullySent: true, responseReceived: false };
+	let line = trimstr(split(output, '\n')[0] ?? '');
+	if (!length(line)) return { ok: false, state: 'empty-response', connected: true, fullySent: true, responseReceived: false };
+	let response = null;
+	try { response = json(line); } catch (e) { return { ok: false, state: 'bad-response', connected: true, fullySent: true, responseReceived: true }; }
+	if (response == null) return { ok: false, state: 'bad-response', connected: true, fullySent: true, responseReceived: true };
+	return { ok: true, response: response, connected: true, fullySent: true, responseReceived: true };
 }
 
 function rill_send(payload, outcome_attempt, mark_sent_unknown) {
 	if (!bool_cfg('shadow.enabled', true)) return { ok: false, state: 'disabled', connected: false, fullySent: false, responseReceived: false };
-	let maxMsg = min(262144, max(4096, int_cfg('shadow.max_message', 65536)));
-	let timeout = min(5000, max(100, int_cfg('shadow.timeout_ms', 1000)));
-	/* The adapter protocol is newline-delimited JSON. ucode %.J pretty-prints
-	 * internal newlines, so use compact %J and add exactly one frame newline. */
-	let wire = sprintf('%J\n', payload);
-	if (length(wire) > maxMsg) return { ok: false, state: 'oversized-local-context', connected: false, fullySent: false, responseReceived: false };
-	let s = socket.connect({ path: rill_socket_path() }, null, null, timeout);
-	if (!s) return { ok: false, state: 'connect-failed', connected: false, fullySent: false, responseReceived: false };
-	let sent = s.send(wire);
-	if (sent == null || sent != length(wire)) { s.close(); return { ok: false, state: 'send-failed', connected: true, fullySent: false, responseReceived: false }; }
-	/* Once the complete request has entered the socket, persist uncertainty
-	 * BEFORE waiting for the peer response. A crash in recv() can therefore be
-	 * reconciled only for this exact durable outcome fingerprint. */
-	if (outcome_attempt && (!mark_sent_unknown || !mark_sent_unknown(outcome_attempt))) {
-		s.close();
-		return { ok: false, state: 'sent-unknown-journal-failed', connected: true, fullySent: true, responseReceived: false };
+	let binary = rill_binary_path();
+	if (!binary.ok) return { ok: false, state: binary.reason, connected: false, fullySent: false, responseReceived: false };
+	let op = payload.op, request_id = payload.requestId, state_generation = rill_state_generation();
+	let request = {
+		requestId: request_id, apiVersion: RILL_RUNTIME_API_VERSION,
+		clientIdentity: { name: 'performance-manager', version: VERSION },
+		featureSchemaHash: RILL_FEATURE_SCHEMA_HASH, modelGeneration: RILL_MODEL_GENERATION,
+		stateGeneration: state_generation, payloadLimit: 262144
+	};
+	if (op == 'status') {
+		request.request = { method: 'handshake' };
+		let handshake = rill_runtime_call(request, binary.effective);
+		if (!handshake.ok) return handshake;
+		let body = handshake.response?.response ?? {};
+		if (body.kind != 'handshake' || handshake.response.apiVersion != RILL_RUNTIME_API_VERSION)
+			return { ok: true, response: { ok: false, error: { code: 'incompatibleRuntime', retryable: false } } };
+		request.requestId = `${request_id}-health`; request.stateGeneration = handshake.response.stateGeneration ?? state_generation;
+		request.request = { method: 'health' };
+		let health = rill_runtime_call(request, binary.effective);
+		if (!health.ok) return health;
+		let health_body = health.response?.response ?? {};
+		return { ok: true, response: { ok: health_body.kind == 'health' && health_body.healthy === true,
+			capabilities: body.capabilities ?? [], modelHealth: { overall: health_body.healthy === true ? 'healthy' : 'failed_closed' },
+			rillVersion: handshake.response.runtimeIdentity?.version ?? '', protocolVersion: RILL_RUNTIME_API_VERSION,
+			requestId: request_id, runtimeIdentity: handshake.response.runtimeIdentity ?? null,
+			error: health_body.kind == 'error' ? health_body.error : null } };
 	}
-	let frame = rill_recv_frame(s, maxMsg, timeout);
-	s.close();
-	if (frame.state) return { ok: false, state: `${frame.state}-after-send`, connected: true, fullySent: true, responseReceived: false };
-	/* Strict single-frame JSON parse; any malformed body fails closed. */
-	let parsed = null;
-	try { parsed = json(frame.body); } catch (e) { return { ok: false, state: 'bad-response-after-send', connected: true, fullySent: true, responseReceived: true }; }
-	if (parsed == null) return { ok: false, state: 'bad-response-after-send', connected: true, fullySent: true, responseReceived: true };
-	return { ok: true, response: parsed, connected: true, fullySent: true, responseReceived: true };
+	if (op == 'observe') {
+		let actions = map(payload.availableActions ?? [], function(action, index) {
+			/* Stable, bounded product features; Runtime treats IDs as opaque. */
+			return { id: action.id, features: [ (index + 1) / max(1, length(payload.availableActions)), action.executionAuthority == 'benchmark' ? 1 : 0, action.risk == 'benchmark' ? 1 : 0, 1 ] };
+		});
+		request.capability = 'org.rill.preview.decide';
+		request.request = { method: 'decide', context: { actions: actions, contextKey: payload.contextKey, goal: payload.goal, telemetry: payload.context } };
+		let result = rill_runtime_call(request, binary.effective);
+		if (!result.ok) return result;
+		let body = result.response?.response ?? {}, output = body.output ?? {};
+		if (body.kind != 'result' || output.accepted !== true)
+			return { ok: true, response: { ok: false, error: body.error ?? { code: 'runtimeRejected', retryable: false } } };
+		let selected = output.selectedActionId ?? '', score_rows = output.scores ?? [];
+		let confidence = 0.5;
+		if (length(score_rows) > 1) {
+			let values = map(score_rows, function(row) { return +row.score; });
+			let low = values[0], high = values[0];
+			for (let value in values) { low = min(low, value); high = max(high, value); }
+			confidence = min(1, max(0, 0.5 + (high - low) / (1 + abs(high) + abs(low))));
+		}
+		return { ok: true, response: { ok: true, requestId: request_id, decisionId: result.response.response?.decisionId ?? request_id,
+			recommendation: { actionId: selected, confidence: confidence, advisory: true },
+			stateGeneration: result.response.stateGeneration ?? state_generation, runtimeVersion: result.response.runtimeIdentity?.version ?? '' } };
+	}
+	if (op == 'outcome') {
+		request.capability = 'org.rill.preview.feedback';
+		request.request = { method: 'feedback', decisionId: payload.decisionId, selectedActionId: payload.actionId,
+			reward: payload.reward, outcomeTimeMs: monotonic_ms(), generation: payload.decisionGeneration ?? payload.modelGeneration };
+		/* Preserve the durable sent-unknown journal before waiting for the reply. */
+		if (outcome_attempt && (!mark_sent_unknown || !mark_sent_unknown(outcome_attempt)))
+			return { ok: false, state: 'sent-unknown-journal-failed', connected: true, fullySent: true, responseReceived: false };
+		let result = rill_runtime_call(request, binary.effective);
+		if (!result.ok) return result;
+		let body = result.response?.response ?? {};
+		if (body.kind == 'result' && body.output?.accepted === true)
+			return { ok: true, response: { ok: true, requestId: request_id, accepted: true } };
+		return { ok: true, response: { ok: false, requestId: request_id, error: body.error ?? { code: 'runtimeRejected', retryable: false } } };
+	}
+	return { ok: false, state: 'unsupported-operation', connected: false, fullySent: false, responseReceived: false };
 }
 
 function rill_context_key_build(profile, capability_hash, topo_gen, path_id, route_identity, workload_class, integ_fingerprint, goal_id) {
@@ -1789,24 +1823,18 @@ function rill_context_key_build(profile, capability_hash, topo_gen, path_id, rou
 }
 
 function rill_binary_path() {
-	/* UNIQUE PM<->init binary resolution contract.  Kept in sync with
-	 * resolve_binary() in the performance-manager-rill init guard.  An
-	 * explicit shadow.binary wins EXCLUSIVELY (must be absolute and
-	 * executable, otherwise reason 'binary-invalid', never a silent
-	 * fallback); an empty shadow.binary resolves the default install
-	 * path (/usr/bin then /usr/sbin); none found -> reason
-	 * 'not-provisioned'.  Returns { ok, binary, effective, source,
-	 * reason }. */
+	/* Explicit paths are opt-in overrides. The only default identity is the
+	 * package-owned generic Runtime path; old adapter and legacy executable
+	 * names are intentionally not searched. */
 	let configured = str_cfg('shadow.binary', '');
 	if (configured != '') {
 		if (substr(configured, 0, 1) != '/' || !file_executable(configured))
 			return { ok: false, binary: configured, effective: null, source: 'explicit', reason: 'binary-invalid' };
 		return { ok: true, binary: configured, effective: configured, source: 'explicit', reason: 'ok' };
 	}
-	for (let path in [ '/usr/sbin/performance-manager-rill-adapter', '/usr/bin/performance-manager-rill-adapter', '/usr/bin/rill-pm-adapter', '/usr/sbin/rill-pm-adapter' ])
-		if (file_executable(path))
-			return { ok: true, binary: path, effective: path, source: 'default', reason: 'ok' };
-	return { ok: false, binary: '', effective: null, source: 'default', reason: 'not-provisioned' };
+	if (file_executable('/usr/bin/rill-runtime'))
+		return { ok: true, binary: '/usr/bin/rill-runtime', effective: '/usr/bin/rill-runtime', source: 'default', reason: 'ok' };
+	return { ok: false, binary: '/usr/bin/rill-runtime', effective: null, source: 'default', reason: 'not-provisioned' };
 }
 
 /* ucode resolves function names when the caller is defined, so protocol
@@ -1815,9 +1843,6 @@ function rill_binary_path() {
  * without a semantic source transformation. */
 function rill_validate_response_envelope(request, response) {
 	if (type(response) != 'object') return { ok: false, error: 'response-not-object' };
-	if (response.contract != RILL_CONTRACT) return { ok: false, error: 'wrong-contract' };
-	if (response.protocolVersion != RILL_PROTOCOL_VERSION) return { ok: false, error: 'wrong-protocol' };
-	if ((response.requestId ?? '') != (request?.requestId ?? '')) return { ok: false, error: 'request-id-mismatch' };
 	if (type(response.ok) != 'bool') return { ok: false, error: 'ok-not-boolean' };
 	return { ok: true };
 }
@@ -1827,20 +1852,16 @@ function rill_validate_status_response(request, response) {
 	if (!envelope.ok) return envelope;
 	if (response.ok !== true) return { ok: false, error: response.error?.code ?? 'status-rejected' };
 	if (type(response.capabilities) != 'array' || type(response.modelHealth) != 'object') return { ok: false, error: 'status-fields-invalid' };
-	if (!length(response.adapterVersion ?? '') || !length(response.rillVersion ?? '')) return { ok: false, error: 'status-version-missing' };
-	if (response.adapterVersion != RILL_PINNED_ADAPTER_VERSION) return { ok: false, error: 'adapter-version-mismatch' };
-	/* The protocol/contract and capability checks above are the ABI gate. The
-	 * RillML patch version is retained as provenance, not as a second exact
-	 * compatibility gate, so a compatible Stable runtime can be qualified and
-	 * reported without a needless patch-version lock. */
-	return { ok: true, rillVersion: response.rillVersion, rillVersionPinned: response.rillVersion == RILL_LINKED_RILL_ML_VERSION };
+	if (!length(response.rillVersion ?? '')) return { ok: false, error: 'status-version-missing' };
+	if (response.rillVersion != RILL_RESOLVED_VERSION) return { ok: false, error: 'runtime-version-mismatch' };
+	return { ok: true, rillVersion: response.rillVersion, rillVersionPinned: true };
 }
 
 function rill_validate_observe_response(request, response) {
 	let envelope = rill_validate_response_envelope(request, response);
 	if (!envelope.ok) return envelope;
 	if (response.ok !== true) return { ok: false, error: response.error?.code ?? 'observe-rejected' };
-	if (!match(response.decisionId ?? '', /^[0-9a-f]{32}$/)) return { ok: false, error: 'decision-id-invalid' };
+	if (!match(response.decisionId ?? '', /^[A-Za-z0-9._:-]{1,128}$/)) return { ok: false, error: 'decision-id-invalid' };
 	let rec = response.recommendation;
 	if (type(rec) != 'object' || !length(rec.actionId ?? '') || rec.advisory !== true) return { ok: false, error: 'recommendation-invalid' };
 	let ct = type(rec.confidence);
@@ -1862,7 +1883,7 @@ function rill_validate_outcome_response(request, response) {
 
 function rill_status() {
 	let enabled = bool_cfg('shadow.enabled', true);
-	if (!enabled) return { enabled: false, mode: 'shadow', status: 'Shadow · Disabled', state: RILL_STATES.disabled, reason: 'disabled', compatibility: 'not-applicable', transport: 'unavailable', protocolVersion: RILL_PROTOCOL_VERSION, binary: { configured: str_cfg('shadow.binary', ''), effective: null, source: 'n/a' } };
+	if (!enabled) return { enabled: false, mode: 'shadow', status: 'Shadow · Disabled', state: RILL_STATES.disabled, reason: 'disabled', compatibility: 'not-applicable', transport: 'unavailable', protocolVersion: RILL_RUNTIME_API_VERSION, binary: { configured: str_cfg('shadow.binary', ''), effective: null, source: 'n/a' } };
 	/* External dependency check driven by the unique binary-resolution
 	 * contract.  Explicit binary wins exclusively and must be absolute and
 	 * present; an empty binary resolves the default install path; a missing
@@ -1871,34 +1892,32 @@ function rill_status() {
 	let bmeta = { configured: str_cfg('shadow.binary', ''), effective: bin.effective, source: bin.source };
 	if (!bin.ok) {
 		if (bin.reason == 'binary-invalid')
-			return { enabled: true, mode: 'shadow', status: 'Shadow · Binary invalid', state: RILL_STATES.binaryInvalid, reason: 'binary-invalid', compatibility: 'not-provisioned', transport: 'unavailable', protocolVersion: RILL_PROTOCOL_VERSION, binary: bmeta };
-		return { enabled: true, mode: 'shadow', status: 'Shadow · Not provisioned', state: RILL_STATES.notProvisioned, reason: 'external-runtime-not-provisioned', compatibility: 'not-provisioned', transport: 'unavailable', protocolVersion: RILL_PROTOCOL_VERSION, binary: bmeta };
+			return { enabled: true, mode: 'shadow', status: 'Shadow · Binary invalid', state: RILL_STATES.binaryInvalid, reason: 'binary-invalid', compatibility: 'not-provisioned', transport: 'unavailable', protocolVersion: RILL_RUNTIME_API_VERSION, binary: bmeta };
+		return { enabled: true, mode: 'shadow', status: 'Shadow · Not provisioned', state: RILL_STATES.notProvisioned, reason: 'external-runtime-not-provisioned', compatibility: 'not-provisioned', transport: 'unavailable', protocolVersion: RILL_RUNTIME_API_VERSION, binary: bmeta };
 	}
 	let requestId = sprintf('status-%d', monotonic_ms());
-	let request = { contract: RILL_CONTRACT, protocolVersion: RILL_PROTOCOL_VERSION, requestId: requestId, op: 'status' };
+	let request = { requestId: requestId, op: 'status' };
 	let r = rill_send(request);
-	if (!r.ok) return { enabled: true, mode: 'shadow', status: 'Shadow · Unavailable', state: RILL_STATES.unavailable, reason: r.state ?? 'unavailable', compatibility: 'unknown', transport: r.state ?? 'unavailable', protocolVersion: RILL_PROTOCOL_VERSION, binary: bmeta };
+	if (!r.ok) return { enabled: true, mode: 'shadow', status: 'Shadow · Unavailable', state: RILL_STATES.unavailable, reason: r.state ?? 'unavailable', compatibility: 'unknown', transport: r.state ?? 'unavailable', protocolVersion: RILL_RUNTIME_API_VERSION, binary: bmeta };
 	let resp = r.response ?? {};
 	let valid = rill_validate_status_response(request, resp);
-	if (!valid.ok && valid.error == 'wrong-contract')
-		return { enabled: true, mode: 'shadow', status: 'Shadow · Incompatible contract', state: RILL_STATES.incompatible, reason: 'contract-mismatch', compatibility: 'incompatible', transport: 'connected', requestedContract: RILL_CONTRACT, advertisedContract: resp.contract ?? null, protocolVersion: RILL_PROTOCOL_VERSION, binary: bmeta, detail: r.response };
-	if (!valid.ok && valid.error == 'wrong-protocol')
-		return { enabled: true, mode: 'shadow', status: 'Shadow · Incompatible protocol', state: RILL_STATES.incompatible, reason: 'protocol-version-mismatch', compatibility: 'incompatible', transport: 'connected', requestedProtocolVersion: RILL_PROTOCOL_VERSION, advertisedProtocolVersion: resp.protocolVersion ?? null, protocolVersion: RILL_PROTOCOL_VERSION, binary: bmeta, detail: r.response };
+	if (!valid.ok && valid.error == 'runtime-version-mismatch')
+		return { enabled: true, mode: 'shadow', status: 'Shadow · Runtime version mismatch', state: RILL_STATES.incompatible, reason: 'runtime-version-mismatch', compatibility: 'incompatible', transport: 'connected', requestedRuntimeVersion: RILL_RESOLVED_VERSION, advertisedRuntimeVersion: resp.rillVersion ?? null, protocolVersion: RILL_RUNTIME_API_VERSION, binary: bmeta, detail: r.response };
 	if (!valid.ok)
-		return { enabled: true, mode: 'shadow', status: 'Shadow · Adapter error', state: RILL_STATES.unhealthy, reason: valid.error, compatibility: 'incompatible', transport: 'connected', protocolVersion: RILL_PROTOCOL_VERSION, binary: bmeta, detail: r.response };
+		return { enabled: true, mode: 'shadow', status: 'Shadow · Runtime error', state: RILL_STATES.unhealthy, reason: valid.error, compatibility: 'incompatible', transport: 'connected', protocolVersion: RILL_RUNTIME_API_VERSION, binary: bmeta, detail: r.response };
 	/* Required capabilities: the adapter must declare every capability the
 	 * integration depends on; a missing one is fail-closed. */
 	let caps = resp.capabilities ?? [];
-	for (let need in RILL_REQUIRED_CAPABILITIES)
+	for (let need in RILL_RUNTIME_CAPABILITIES)
 		if (index(caps, need) < 0)
-			return { enabled: true, mode: 'shadow', status: 'Shadow · Missing capabilities', state: RILL_STATES.incompatible, reason: 'missing-required-capability', compatibility: 'incompatible', transport: 'connected', missingCapability: need, protocolVersion: RILL_PROTOCOL_VERSION, binary: bmeta, detail: r.response };
+			return { enabled: true, mode: 'shadow', status: 'Shadow · Missing capabilities', state: RILL_STATES.incompatible, reason: 'missing-required-capability', compatibility: 'incompatible', transport: 'connected', missingCapability: need, protocolVersion: RILL_RUNTIME_API_VERSION, binary: bmeta, detail: r.response };
 	/* Model health: advisory is only allowed when the adapter reports a
 	 * healthy model; a degraded adapter is fail-closed unhealthy. */
 	let health = resp.modelHealth ?? {};
 	if (health.overall != 'healthy')
-		return { enabled: true, mode: 'shadow', status: 'Shadow · Unhealthy', state: RILL_STATES.unhealthy, reason: 'model-unhealthy', compatibility: 'compatible', transport: 'connected', modelHealth: health, protocolVersion: RILL_PROTOCOL_VERSION, binary: bmeta, detail: r.response };
+			return { enabled: true, mode: 'shadow', status: 'Shadow · Unhealthy', state: RILL_STATES.unhealthy, reason: 'model-unhealthy', compatibility: 'compatible', transport: 'connected', modelHealth: health, protocolVersion: RILL_RUNTIME_API_VERSION, binary: bmeta, detail: r.response };
 	let learning = resp.state == 'learning';
-	return { enabled: true, mode: 'shadow', authority: 'advisory-only', status: learning ? 'Shadow · Learning' : 'Shadow · Available', state: learning ? RILL_STATES.learning : RILL_STATES.available, reason: null, compatibility: 'compatible', transport: 'connected', adapterVersion: resp.adapterVersion, rillVersion: resp.rillVersion, linkedRillMlVersion: RILL_LINKED_RILL_ML_VERSION, protocolVersion: resp.protocolVersion ?? RILL_PROTOCOL_VERSION, binary: bmeta, detail: r.response };
+	return { enabled: true, mode: 'shadow', authority: 'advisory-only', status: learning ? 'Shadow · Learning' : 'Shadow · Available', state: learning ? RILL_STATES.learning : RILL_STATES.available, reason: null, compatibility: 'compatible', transport: 'subprocess', rillVersion: resp.rillVersion, resolvedRillVersion: RILL_RESOLVED_VERSION, protocolVersion: RILL_RUNTIME_API_VERSION, binary: bmeta, detail: r.response };
 }
 
 function rill_integrations_payload() {
@@ -1919,7 +1938,7 @@ let rill_advisory = null;
 
 function rill_binding_valid(binding) {
 	if (type(binding) != 'object' || binding.schemaVersion != RILL_BINDINGS_SCHEMA_VERSION) return false;
-	if (!match(binding.decisionId ?? '', /^[0-9a-f]{32}$/) || !length(binding.actionId ?? '') || !length(binding.contextKey ?? '')) return false;
+	if (!match(binding.decisionId ?? '', /^[A-Za-z0-9._:-]{1,128}$/) || !length(binding.actionId ?? '') || !length(binding.contextKey ?? '')) return false;
 	if (!length(binding.goal ?? '') || binding.modelGeneration != RILL_MODEL_GENERATION || binding.bootId != boot_id()) return false;
 	if (binding.executionAuthority != 'safe-direct' && binding.executionAuthority != 'benchmark') return false;
 	if (binding.atMs == null || binding.atMs > monotonic_ms() || (monotonic_ms() - binding.atMs) > RILL_BINDINGS_TTL_MS) return false;
@@ -1950,6 +1969,7 @@ function rill_binding_register(payload, response) {
 		schemaVersion: RILL_BINDINGS_SCHEMA_VERSION,
 		decisionId: response.decisionId, contextKey: payload.contextKey,
 		actionId: rec.actionId, goal: payload.goal, modelGeneration: RILL_MODEL_GENERATION,
+		decisionGeneration: response.stateGeneration ?? 0, featureSchemaHash: RILL_FEATURE_SCHEMA_HASH,
 		advisory: true, confidence: rec.confidence, executionAuthority: advertised.executionAuthority,
 		bootId: boot_id(), atMs: monotonic_ms()
 	};
@@ -2277,17 +2297,18 @@ function rill_retry_pending_outcomes() {
 
 rill_report_outcome = function(binding, measurement, reward, session_id, ctx) {
 	ctx = ctx ?? {};
-	if (type(binding) != 'object' || !match(binding.decisionId ?? '', /^[0-9a-f]{32}$/)) {
+	if (type(binding) != 'object' || !match(binding.decisionId ?? '', /^[A-Za-z0-9._:-]{1,128}$/)) {
 		runtime_history('rill.outcome.skipped', { actionId: binding?.actionId ?? null, reason: 'no-exact-frozen-decision' });
 		return { ok: false, state: 'no-exact-frozen-decision' };
 	}
 	let attempt = rill_outcome_attempt(binding, measurement, session_id, reward);
 	if (!attempt.ok) return attempt;
 	let payload = {
-		contract: RILL_CONTRACT, protocolVersion: RILL_PROTOCOL_VERSION,
+		protocolVersion: RILL_RUNTIME_API_VERSION,
 		requestId: sprintf('outcome-%d', monotonic_ms()), op: 'outcome', validated: true,
 		decisionId: binding.decisionId, contextKey: binding.contextKey, actionId: binding.actionId,
-		sessionId: session_id, goal: binding.goal, modelGeneration: binding.modelGeneration, reward: reward
+		sessionId: session_id, goal: binding.goal, modelGeneration: binding.modelGeneration,
+		decisionGeneration: binding.decisionGeneration, reward: reward
 	};
 	rill_runtime_counters.rillOutcomeAttempts++;
 	let r = rill_send(payload, attempt, rill_outcome_mark_sent_unknown);
@@ -3279,7 +3300,7 @@ function rill_observe() {
 	let available_actions = rill_available_actions();
 	if (!length(available_actions)) return { ok: false, state: 'no-available-actions' };
 	let payload = {
-		contract: RILL_CONTRACT, protocolVersion: RILL_PROTOCOL_VERSION, requestId: sprintf('obs-%d', now), op: 'observe', deviceProfile: cfg('main.profile','recommended'),
+		protocolVersion: RILL_RUNTIME_API_VERSION, requestId: sprintf('obs-%d', now), op: 'observe', deviceProfile: cfg('main.profile','recommended'),
 		capabilityHash: capability_hash(caps), topologyGeneration: topology_generation,
 		pathId: path?.id ?? 'path:lan-to-wan', routeIdentity: path?.routeIdentity ?? 'unresolved', workloadClass: path?.workloadClass ?? ['plain_forwarding'],
 		measurementClass: 'passive_before_after', context: telemetry_snapshot(), integrations: rill_integrations_payload(), goal: g,
@@ -3588,7 +3609,7 @@ function resource_usage() {
 	counters.rillExecutionInterventionRequired = intervention;
 	counters.rillExecutionRetired = retired;
 	counters.pmPersistentWrites = persistent_write_count;
-	counters.expectedAdapterPersistenceEvents = rill_runtime_counters.rillObserveAccepted + rill_runtime_counters.rillOutcomeAccepted + rill_runtime_counters.rillOutcomeReconciled;
+	counters.expectedRuntimePersistenceEvents = rill_runtime_counters.rillObserveAccepted + rill_runtime_counters.rillOutcomeAccepted + rill_runtime_counters.rillOutcomeReconciled;
 	counters.persistenceAccounting = 'logical/inferred-from-pinned-rill-contract';
 	return {corePid:pid,coreVmRssKiB:vmrss,coreVmSizeKiB:vmsize,corePersistentWritesSinceStart:persistent_write_count,corePersistentWriteBytesSinceStart:persistent_write_bytes,persistentHistoryBytes:hs?.size ?? 0,rillOutcomeBytes:outcomes?.size ?? 0,rillLedgerBytes:ledger?.size ?? 0,historyLineLimit:MAX_HISTORY_LINES,rillCounters:counters,rillBounds:{adapterStateFileBytes:4194304,bindingCacheEntries:RILL_BINDINGS_MAX,executionJournalMaxFiles:RILL_EXECUTION_JOURNAL_MAX_FILES,executionJournalMaxBytes:RILL_EXECUTION_JOURNAL_MAX_BYTES,retiredExecutionRetentionMax:RETIRED_EXECUTION_RETENTION_MAX},rillExecutionHealth:{interventionRequired:intervention > 0,interventionRequiredCount:intervention,active:active,executing:executing,retired:retired,journalFileCount:journal_files,journalBytes:journal_bytes}};
 }

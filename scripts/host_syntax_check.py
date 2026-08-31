@@ -15,7 +15,6 @@ def run(name, cmd, *, input_text=None):
 for rel in [
     'package/performance-manager/files/etc/init.d/performance-manager',
     'package/performance-manager/files/etc/uci-defaults/90-performance-manager',
-    'package/performance-manager-rill/files/etc/init.d/performance-manager-rill',
     'scripts/openwrt-runtime-smoke.sh',
     'scripts/openwrt-target-gate.sh',
     'scripts/openwrt-resource-soak.sh',

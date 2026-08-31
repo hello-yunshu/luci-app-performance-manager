@@ -6,10 +6,8 @@ PKG_RELEASE:=1
 PKG_LICENSE:=GPL-3.0-only
 PKG_MAINTAINER:=OpenWrt Performance Manager contributors
 
-# The adapter is a temporary compatibility bridge while PM moves to the
-# generic package-owned Rill Runtime. It remains separate from the all-in-one
-# Core package and never owns the Runtime executable.
-PKG_BUILD_DEPENDS:=
+# This package is PM's integration glue. The generic Runtime is supplied by
+# the external rill-openwrt-packages feed.
 
 include $(INCLUDE_DIR)/package.mk
 
@@ -17,18 +15,18 @@ define Package/performance-manager-rill
   SECTION:=net
   CATEGORY:=Network
   SUBMENU:=Routing and Redirection
-  TITLE:=OpenWrt 性能管理器 PM-owned Rill 集成层 / PM-owned Rill integration glue
-  DEPENDS:=+performance-manager +performance-manager-rill-adapter
+  TITLE:=OpenWrt 性能管理器 Rill 集成层 / PM Rill integration glue
+  DEPENDS:=+performance-manager +rill-runtime
   PKGARCH:=all
   USERID:=performance-manager-rill=5666:performance-manager-rill=5666
 endef
 
 define Package/performance-manager-rill/description
- PM integration service glue and sysupgrade keep rule. The generic
- rill-runtime package owns /usr/bin/rill-runtime. The existing adapter is a
- temporary compatibility bridge and is not the Runtime implementation.
- / PM 集成服务 glue 与升级保留规则；/usr/bin/rill-runtime 由通用
- / rill-runtime 包拥有，现有 adapter 仅为临时兼容桥，不是 Runtime 实现。
+ PM integration glue and sysupgrade keep rule. The generic rill-runtime
+ package owns /usr/bin/rill-runtime and is consumed through package
+ dependency resolution. PM does not ship a private Runtime or daemon.
+ / PM 集成 glue 与升级保留规则；通用 rill-runtime 包拥有
+ /usr/bin/rill-runtime，PM 通过包依赖消费，不发布私有 Runtime 或 daemon。
 endef
 
 define Build/Compile
@@ -36,8 +34,7 @@ define Build/Compile
 endef
 
 define Package/performance-manager-rill/install
-	$(INSTALL_DIR) $(1)/etc/init.d $(1)/lib/upgrade/keep.d
-	$(INSTALL_BIN) ./files/etc/init.d/performance-manager-rill $(1)/etc/init.d/performance-manager-rill
+	$(INSTALL_DIR) $(1)/lib/upgrade/keep.d
 	$(INSTALL_DATA) ./files/lib/upgrade/keep.d/performance-manager-rill $(1)/lib/upgrade/keep.d/performance-manager-rill
 endef
 

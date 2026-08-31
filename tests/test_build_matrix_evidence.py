@@ -21,28 +21,26 @@ class BuildMatrixEvidenceTests(unittest.TestCase):
             for arch, target, fmt in (("x86_64", "x86/64", "apk"), ("aarch64_generic", "armsr/armv8", "apk")):
                 target_dir = root / f"openwrt-{arch}"
                 target_dir.mkdir()
-                adapter_sha = ("1" if arch == "x86_64" else "2") * 64
+                runtime_sha = ("1" if arch == "x86_64" else "2") * 64
                 common = {
-                    "status": "ok", "apkFilename": f"performance-manager-rill-adapter-{arch}.apk",
-                    "apkSha256": adapter_sha, "releaseFilename": f"performance-manager-rill-adapter-{arch}.apk",
+                    "status": "ok", "apkFilename": f"rill-runtime-{arch}.apk",
+                    "apkSha256": runtime_sha, "releaseFilename": f"rill-runtime-{arch}.apk",
                 }
                 build = {
                     "repository": "hello-yunshu/luci-app-performance-manager",
                     "repositoryCommitSha": commit, "openwrtVersion": "25.12.5",
                     "target": target, "architecture": arch, "packageManagerFormat": fmt,
                     "sdkIdentity": f"sdk-{arch}", "sdkArchiveSha256": "3" * 64,
-                    "expectedApkPackages": ["rill-runtime", "performance-manager-rill-adapter"],
+                    "expectedApkPackages": ["rill-runtime"],
                     "packages": {
-                        "rill-runtime": {"status": "ok", "apkFilename": "rill-runtime.apk", "apkSha256": "4" * 64},
-                        "performance-manager-rill-adapter": common,
+                        "rill-runtime": common,
                     }, "verdict": "PASS",
                 }
                 report = {
                     "schemaVersion": 1, "pmCommitSha": commit, "expectedVersion": "1.0.3",
                     "arch": arch, "packages": {
-                        "rill-runtime": {"status": "ok", "filename": "rill-runtime.apk", "sha256": "4" * 64},
-                        "performance-manager-rill-adapter": {
-                            "status": "ok", "filename": common["apkFilename"], "sha256": adapter_sha,
+                        "rill-runtime": {
+                            "status": "ok", "filename": common["apkFilename"], "sha256": runtime_sha,
                             "releaseFilename": common["releaseFilename"],
                         },
                     }, "verdict": "PASS",
@@ -57,7 +55,7 @@ class BuildMatrixEvidenceTests(unittest.TestCase):
             metadata = json.loads((out / "build-metadata.json").read_text())
             self.assertEqual(metadata["matrixCoverage"]["targetCount"], 2)
             self.assertEqual(
-                len(metadata["packages"]["performance-manager-rill-adapter"]["targets"]), 2
+                len(metadata["packages"]["rill-runtime"]["targets"]), 2
             )
             self.assertEqual(json.loads((out / "apk-verification.json").read_text())["verdict"], "PASS")
 

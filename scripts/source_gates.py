@@ -38,12 +38,8 @@ def forbidden_api_gates():
         repo_files = [ROOT / p for p in out.stdout.split('\0') if p]
     except Exception:
         repo_files = [p for p in ROOT.rglob('*') if p.is_file() and '__pycache__' not in p.parts and '.git' not in p.parts]
-    names = {p.name for p in repo_files}
-    adapter_root = ROOT / 'integrations/performance-manager-rill-adapter'
-    has_cargo_toml = any(p.name == 'Cargo.toml' for p in repo_files)
-    has_cargo_lock = any(p.name == 'Cargo.lock' for p in repo_files)
-    has_rust_src = any(p.suffix == '.rs' and adapter_root in p.parents for p in repo_files)
     rill_make = (ROOT/'package/performance-manager-rill/Makefile').read_text()
+    legacy = [p for p in repo_files if p.exists() and 'performance-manager-rill-adapter' in p.as_posix()]
     workflow_files = sorted((ROOT/'.github/workflows').glob('*.yml'))
     mutable_actions = []
     for workflow in workflow_files:
@@ -52,11 +48,9 @@ def forbidden_api_gates():
             if match and not match.group(1).startswith('./') and not re.search(r'@[A-Za-z0-9._/-]+$', match.group(1)):
                 mutable_actions.append(f'{workflow.name}:{line_no}:{match.group(1)}')
     return [
-      ('PM-owned Cargo.toml is present', has_cargo_toml and (adapter_root / 'Cargo.toml').exists()),
-      ('PM-owned Cargo.lock is committed', has_cargo_lock and (adapter_root / 'Cargo.lock').exists()),
-      ('Rust source is isolated to PM-owned adapter', has_rust_src),
-      ('integration Makefile Build/Compile stays thin', 'Build/Compile' in rill_make and 'cargo' not in rill_make and 'rust' not in rill_make.lower()),
-      ('PM adapter cargo invocation is explicit', 'cargo build' in (ROOT/'.github/workflows/ci.yml').read_text() and 'build_pm_adapter.py' in (ROOT/'.github/workflows/build-openwrt.yml').read_text()),
+      ('retired private adapter has no tracked files', not legacy),
+      ('integration Makefile consumes external Runtime', 'Build/Compile' in rill_make and '+rill-runtime' in rill_make and 'cargo' not in rill_make and 'rust' not in rill_make.lower()),
+      ('v3 Runtime contract gate is wired', 'check_rill_dependency.py' in ''.join(p.read_text() for p in workflow_files if p.is_file())),
       ('all third-party Actions use readable refs', not mutable_actions),
     ]
 
@@ -94,10 +88,9 @@ phases['7']=gate('Benchmark',[
  ('tuning-domain exclusivity wiring',all_tokens(CORE,["return 'benchmark:global'",'acquire_benchmark_lock(','benchmark-domain-lock-conflict'])),('lock acquired before session write',CORE.index('acquire_benchmark_lock(lock_domain, id)')<CORE.index('json_write(benchmark_path(id),session)')),('stale experiment lock recovery',all_tokens(CORE,['function clean_stale_benchmark_locks('])),('full context fingerprint wiring',all_tokens(CORE,['integration_fingerprint(masked_keys,','benchmark_masked_keys(action_id)','benchmark-context-drift'])),('candidate-mutated keys masked',all_tokens(CORE,['firewall.@defaults[0].flow_offloading'])),('strict evaluation path resolve',all_tokens(CORE,['function primary_path(','evaluation-path-not-found'])),('forwarding requires resolved route',all_tokens(CORE,["selected_path.routeResolved === true",'evaluation-route-unresolved'])),('controlled evidence state machine wiring',all_tokens(CORE,['awaiting_control','candidate_applied','companion_evidence_valid','benchmark_apply_candidate'])),('candidate rollback before reward',CORE.find("rollback_transaction(session.transactionId,'benchmark-complete')")>=0 and CORE.find("rollback_transaction(session.transactionId,'benchmark-complete')")<CORE.find('reward=(c1-c0)/c0')),('one variable',all_tokens(CORE,['variableCount:1','benchmark.one_variable'])),('all action IDs present',all(x in CORE for x in ['service.irqbalance','network.backlog','network.budget','network.buffers','network.busy_poll','netdev.tx_queue_len','nic.coalescing','tcp.cc','qdisc.replace','fastpath.software_flow_offload','fastpath.hardware_flow_offload','fastpath.third_party_sfe','cpu.governor'])),('unsafe generic providers explicitly blocked',all_tokens(CORE,['exact-qdisc-restore-not-proven','no-generic-third-party-sfe-contract']))])
 phases['7'].update({'evidence':'structural: state machine + fingerprint wiring present; methodology-mismatch and nft candidate-mask behavior are verified by the runtime harness [4]-[5]'})
 phases['8']=gate('Rill Intelligence (external runtime)',[
- ('PM-owned adapter source is outside OpenWrt service glue',(ROOT/'integrations/performance-manager-rill-adapter/Cargo.toml').exists() and not (ROOT/'package/performance-manager-rill/src').exists()),
- ('integration package never compiles Rill',all_tokens(RILL_MAKE,['Build/Compile','PKG_BUILD_DEPENDS:=']) and 'cargo' not in RILL_MAKE and 'rust' not in RILL_MAKE.lower()),
- ('shadow-only ops contract declared',all_tokens(CORE,["const RILL_REQUIRED_OPS = [ 'status', 'observe', 'outcome' ]"])),
- ('protocol gate wiring',all_tokens(CORE,['const RILL_CONTRACT = \'pm-rill-shadow\'','const RILL_PROTOCOL_VERSION = 1','contract-mismatch','protocol-version-mismatch'])),
+ ('no PM-owned adapter source',not any('performance-manager-rill-adapter' in p.as_posix() for p in ROOT.rglob('*') if p.is_file() and '.git' not in p.parts and 'target' not in p.parts)),
+ ('integration package consumes generic Runtime',all_tokens(RILL_MAKE,['Build/Compile','+rill-runtime','/usr/bin/rill-runtime']) and 'cargo' not in RILL_MAKE and 'rust' not in RILL_MAKE.lower()),
+ ('v3 protocol gate wiring',all_tokens(CORE,['const RILL_RUNTIME_API_VERSION = 3','RILL_RUNTIME_CAPABILITIES','preview-serve','runtime-version-mismatch'])),
  ('external runtime fail-closed wiring',all_tokens(CORE,['binary-invalid','rill_binary_path','external-runtime-not-provisioned'])),
  ('no apply/uci op in protocol',"'apply' not in RILL_SCHEMA and 'uci' not in RILL_SCHEMA"),
  ('bounded context-key partition wiring',all_tokens(CORE,['rill_context_key_build','ctx-v1:','goal=%s'])),
@@ -105,7 +98,7 @@ phases['8']=gate('Rill Intelligence (external runtime)',[
  ('per-op send/status/observe/outcome wiring',all_tokens(CORE,['rill_send','rill_status','rill_observe','rill_report_outcome'])),
  ('exact decision lifecycle wiring',all_tokens(CORE,['rill_binding_reserve','rill_execution_mark_mutation_started','rill_prepare_outcome','mayHaveReachedPeer','schedule_rill_outcome_retry'])),
  ('telemetry does not observe', 'rill_observe()' not in CORE[CORE.index('function schedule_telemetry('):CORE.index('function reply(')])])
-phases['8'].update({'evidence':'structural only: PM-side fail-closed contract and exact-decision lifecycle wiring are present. The static Rill report is non-promotable and reports functionalIntegrationVerdict=NOT_EVALUATED; real functional status belongs exclusively to same-commit runtime aggregation.'})
+phases['8'].update({'evidence':'structural only: PM consumes the exact external Runtime contract and fail-closed v3 client. Functional status belongs exclusively to the real Runtime integration job.'})
 phases['9']=gate('Recommend',[
  ('learned advisory wiring',all_tokens(CORE,['learnedAdvisory','rill_advisory_get']))])
 phases['9'].update({'evidence':'structural: advisory wiring present; generate-advice behavior is gated by Rill availability (fail-closed when external runtime blocked).'})
@@ -120,7 +113,7 @@ phases['12']=gate('Companion',[
 phases['12'].update({'evidence':'structural: companion envelope + ingest wiring present'})
 for n in phases:
     phases[n]['verificationLayer']='structural-source'
-report={'planningBaseline':'PM-owned adapter migration','scope':'structural-source-only','forbiddenApi':forbidden_api_gates(),'phases':phases,'allPassed':all(x['status']=='pass' for x in phases.values()) and all(ok for _,ok in forbidden_api_gates()),'note':'These gates are STRUCTURAL evidence only: file/schema/function-wiring presence plus ownership/tooling policy guards. They do NOT prove complex behavior is correct. Real behavior is verified by the PM adapter Cargo gates, real Core ucode runtime harness, LuCI render smoke, Remote OpenWrt SDK build, and exact APK metadata validation. Target build/runtime/virtualization/forwarding/soak gates are tracked separately.'}
+report={'planningBaseline':'external Rill Runtime v3 migration','scope':'structural-source-only','forbiddenApi':forbidden_api_gates(),'phases':phases,'allPassed':all(x['status']=='pass' for x in phases.values()) and all(ok for _,ok in forbidden_api_gates()),'note':'These gates are STRUCTURAL evidence only: file/schema/function-wiring presence plus ownership/tooling policy guards. They do NOT prove complex behavior is correct. Real behavior is verified by the generic Runtime v3 subprocess integration, LuCI render smoke, Remote OpenWrt SDK build, and exact APK metadata validation. Target build/runtime/virtualization/forwarding/soak gates are tracked separately.'}
 out=ROOT/'docs/SOURCE_GATES.json'; out.write_text(json.dumps(report,ensure_ascii=False,indent=2)+'\n')
 for n,g in phases.items(): print(f"Phase {n}: {g['status'].upper()} — {g['name']}" + (f"; failed: {', '.join(g['failed'])}" if g['failed'] else ''))
 print("Forbidden-API guards:", "PASS" if all(ok for _,ok in report['forbiddenApi']) else "FAIL", " — " + "; ".join(d for d,ok in report['forbiddenApi'] if not ok) or "no violations")

@@ -150,27 +150,23 @@ class BehavioralRegressions(unittest.TestCase):
 
     # 10. Rill capability handshake is contract/protocol driven and fail-closed.
     def test_rill_capability_handshake_is_fail_closed(self):
-        self.assertIn("const RILL_CONTRACT = 'pm-rill-shadow'", CORE)
-        self.assertIn('const RILL_PROTOCOL_VERSION = 1', CORE)
-        self.assertIn('contract-mismatch', CORE)
-        self.assertIn('protocol-version-mismatch', CORE)
+        self.assertIn("const RILL_RUNTIME_API_VERSION = 3", CORE)
+        self.assertIn('RILL_RUNTIME_CAPABILITIES', CORE)
+        self.assertIn('preview-serve', CORE)
+        self.assertIn('runtime-version-mismatch', CORE)
         self.assertIn('external-runtime-not-provisioned', CORE)
         self.assertIn('binary-invalid', CORE)
         self.assertIn("state: RILL_STATES.incompatible", CORE)
 
     # 11. PM-owned adapter dependency contract is exact and downstream-owned.
     def test_rill_dependency_contract_is_pm_owned(self):
-        dep = json.loads((ROOT / 'contracts/rill-dependency.json').read_text())
-        self.assertEqual(dep['protocol']['name'], 'pm-rill-shadow')
-        self.assertEqual(dep['protocol']['version'], 1)
-        self.assertEqual(set(dep['protocol']['requiredOps']), {'status', 'observe', 'outcome'})
-        self.assertEqual(dep['adapter']['owner'], 'hello-yunshu/luci-app-performance-manager')
-        self.assertEqual(dep['adapter']['version'], '1.0.3')
-        self.assertEqual(dep['rillMl'], {'package': 'rill-ml', 'registry': 'crates.io', 'version': '1.5.3', 'resolution': 'exact', 'features': ['serde']})
-        self.assertEqual(dep['rillRelease'], {'tag': 'v1.5.3', 'commit': '621ed42bf6a4ea29b19f45a5dfa75f50f68173a9', 'stableIndexSha256': '05b73e70ab4a58e2bf3f7e4b4ae1487b9e3a56cb9e2cea80a2730ca84ac52dde'})
-        # The integration package never compiles Rill.
+        dep = json.loads((ROOT / 'contracts/rill-runtime.json').read_text())
+        self.assertEqual(dep['resolved']['version'], '1.5.6')
+        self.assertEqual(dep['openwrtPackage']['package'], 'rill-runtime')
+        self.assertEqual(dep['openwrtPackage']['binary'], '/usr/bin/rill-runtime')
+        self.assertEqual(dep['qualification']['verdict'], 'PASS')
         makefile = (ROOT / 'package/performance-manager-rill/Makefile').read_text()
-        self.assertIn('performance-manager-rill-adapter', makefile)
+        self.assertIn('+rill-runtime', makefile)
 
     def test_rill_outcome_requires_context_binding(self):
         from contract_model import rill_outcome_context_binding
