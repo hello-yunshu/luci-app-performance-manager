@@ -11,11 +11,6 @@
       "output": ""
     },
     {
-      "name": "sh -n package/performance-manager-rill/files/etc/init.d/performance-manager-rill",
-      "status": "pass",
-      "output": ""
-    },
-    {
       "name": "sh -n scripts/openwrt-runtime-smoke.sh",
       "status": "pass",
       "output": ""
@@ -68,19 +63,15 @@
       "status": "pass"
     },
     {
-      "name": "py_compile scripts/build_pm_adapter.py",
-      "status": "pass"
-    },
-    {
-      "name": "py_compile scripts/build_pm_provenance.py",
-      "status": "pass"
-    },
-    {
       "name": "py_compile scripts/build_release_manifest.py",
       "status": "pass"
     },
     {
       "name": "py_compile scripts/check_action_refs.py",
+      "status": "pass"
+    },
+    {
+      "name": "py_compile scripts/check_rill_dependency.py",
       "status": "pass"
     },
     {
@@ -97,10 +88,6 @@
     },
     {
       "name": "py_compile scripts/final_release_audit.py",
-      "status": "pass"
-    },
-    {
-      "name": "py_compile scripts/generate_rill_consumed_manifest.py",
       "status": "pass"
     },
     {
@@ -124,19 +111,15 @@
       "status": "pass"
     },
     {
-      "name": "py_compile scripts/rill_adapter_runtime.py",
-      "status": "pass"
-    },
-    {
       "name": "py_compile scripts/rill_contract_check.py",
       "status": "pass"
     },
     {
-      "name": "py_compile scripts/rill_core_roundtrip.py",
+      "name": "py_compile scripts/rill_runtime_v3_integration.py",
       "status": "pass"
     },
     {
-      "name": "py_compile scripts/rill_runtime_harness.py",
+      "name": "py_compile scripts/smart_decision_model.py",
       "status": "pass"
     },
     {
@@ -168,7 +151,7 @@
       "status": "pass"
     },
     {
-      "name": "py_compile scripts/verify_rill_release.py",
+      "name": "py_compile scripts/verify_release_inventory.py",
       "status": "pass"
     },
     {
@@ -197,6 +180,10 @@
     },
     {
       "name": "YAML parse stable-target-matrix.yml",
+      "status": "pass"
+    },
+    {
+      "name": "YAML parse sync-rill.yml",
       "status": "pass"
     },
     {

@@ -326,6 +326,7 @@ function smart_record_validated_outcome(context_key, goal_id, action_id, reward,
 	ctx.rewardMean = old_mean + delta / n;
 	ctx.rewardM2 = smart_num(ctx.rewardM2, 0) + delta * (value - ctx.rewardMean);
 	ctx.goal = goal_id; ctx.lastReward = value; ctx.lastRewardComponents = components ?? {};
+	ctx.lastOutcome = { actionId: action_id, reward: value, components: components ?? {}, measurementQuality: measurement_quality, validated: true };
 	ctx.ewmaReward = n == 1 ? value : 0.25 * value + 0.75 * smart_num(ctx.ewmaReward, 0);
 	push(ctx.recentRewards, value);
 	while (length(ctx.recentRewards) > 8) shift(ctx.recentRewards);
@@ -2347,7 +2348,7 @@ function rill_advisory_update(resp, payload) {
 		applyTarget: advertised.applyTarget ?? null, evaluationPaths: advertised.evaluationPaths ?? [],
 		actionFamily: advertised.actionFamily ?? smart_action_family(rec.actionId),
 		ranking: rec.ranking ?? rec.scores ?? [], scores: rec.scores ?? rec.ranking ?? [],
-		contextKey: payload.contextKey, goal: payload.goal,
+		contextKey: payload.contextKey, goal: payload.goal, selectorMode: payload.selectorMode ?? 'conservative',
 		topologyGeneration: payload.topologyGeneration,
 		routeIdentity: payload.routeIdentity,
 		integrationFingerprint: payload.integrationFingerprint,
@@ -2526,7 +2527,7 @@ rill_report_outcome = function(binding, measurement, reward, session_id, ctx) {
 		fs.unlink(attempt.path);
 		rill_binding_consume(binding);
 		rill_runtime_counters.rillOutcomeAccepted++;
-		runtime_history('rill.outcome.accepted', { actionId: binding.actionId, decisionId: binding.decisionId, accepted: true, measurementClass: measurement });
+		runtime_history('rill.outcome.accepted', { actionId: binding.actionId, decisionId: binding.decisionId, goal: binding.goal, reward: reward, accepted: true, measurementQuality: measurement, measurementClass: measurement });
 		return { ok: true, accepted: true, decisionId: binding.decisionId, response: r.response };
 	}
 	let code = r.response?.error?.code ?? validated.error;
@@ -2534,7 +2535,7 @@ rill_report_outcome = function(binding, measurement, reward, session_id, ctx) {
 		fs.unlink(attempt.path);
 		rill_binding_consume(binding);
 		rill_runtime_counters.rillOutcomeReconciled++;
-		runtime_history('rill.outcome.reconciled', { actionId: binding.actionId, decisionId: binding.decisionId, measurementClass: measurement, reason: 'same-attempt-already-applied' });
+		runtime_history('rill.outcome.reconciled', { actionId: binding.actionId, decisionId: binding.decisionId, goal: binding.goal, reward: reward, measurementQuality: measurement, measurementClass: measurement, reason: 'same-attempt-already-applied' });
 		return { ok: true, accepted: true, reconciled: true, decisionId: binding.decisionId, response: r.response };
 	}
 	if (r.response?.error?.retryable === true) {
@@ -3103,11 +3104,14 @@ function rill_action_descriptor(action_id) {
 	return null;
 }
 
-function rill_available_actions() {
+function rill_available_actions(mode) {
 	let out = [ { id: 'pm.noop', applyScope: 'none', applyTarget: null, evaluationPaths: [], risk: 'none', authority: 'advisory-only', executionAuthority: 'none', executionPath: 'none', mutation: false, actionFamily: 'noop', available: true } ];
 	for (let a in candidate_actions()) {
 		push(out, { id: a.id, applyScope: a.applyScope, applyTarget: a.applyTarget, evaluationPaths: a.evaluationPaths, risk: a.risk, authority: 'advisory-only', executionAuthority: 'safe-direct', executionPath: 'apply', mutation: true, actionFamily: smart_action_family(a.id), available: true });
 	}
+	/* Conservative ranking is deliberately scoped before the Runtime call:
+	 * benchmark-only actions cannot win a conservative decision by accident. */
+	if (mode == 'conservative') return out;
 	for (let b in benchmark_catalog()) {
 		if (b.status == 'blocked') continue;
 		push(out, { id: b.id, applyScope: b.applyScope ?? 'system', applyTarget: null, evaluationPaths: b.evaluationPaths ?? ['path:lan-to-wan'], risk: 'benchmark', authority: 'advisory-only', executionAuthority: 'benchmark', executionPath: 'benchmark_start', mutation: true, actionFamily: smart_action_family(b.id), available: true });
@@ -3263,6 +3267,9 @@ function apply_action(msg) {
 		if (!a) return { ok: false, error: 'no-legal-candidate' };
 		let source = msg?.executionSource ?? 'manual', frozen = null, tx = null;
 		if (source == 'rill-advisory') {
+			let bound = rill_binding_peek(msg?.decisionId), current = smart_selector_context();
+			if (!bound || bound.actionId != action_id || bound.goal != current.goal || bound.contextKey != current.contextKey)
+				return { ok: false, error: 'exact-decision-context-mismatch' };
 			tx = tx_new(a, source, null);
 			frozen = rill_binding_reserve(msg?.decisionId, action_id, 'safe-direct', 'transaction', tx.transactionId);
 			if (!frozen) return { ok: false, error: 'rill-decision-already-reserved' };
@@ -3476,7 +3483,7 @@ function benchmark_start(msg) {
 	history('benchmark.observed',session); return {ok:true,session:session};
 }
 
-function rill_observe() {
+function rill_observe(mode) {
 	/* Observe is a decision-registration call on the adapter's ledger.  It is
 	 * throttled so PM stays inside the adapter's pending-decision capacity
 	 * (each observe registers one pending decision that only an outcome or the
@@ -3489,7 +3496,8 @@ function rill_observe() {
 	let path = topo.paths[0];
 	let integ_fp = integration_fingerprint([], nft_snapshot());
 	let g = goal();
-	let available_actions = rill_available_actions();
+	mode = mode == 'assisted' ? 'assisted' : 'conservative';
+	let available_actions = rill_available_actions(mode);
 	if (!length(available_actions)) return { ok: false, state: 'no-available-actions' };
 	let payload = {
 		protocolVersion: RILL_RUNTIME_API_VERSION, requestId: sprintf('obs-%d', now), op: 'observe', deviceProfile: cfg('main.profile','recommended'),
@@ -3499,7 +3507,7 @@ function rill_observe() {
 		integrationFingerprint: integ_fp,
 		contextKey: rill_context_key_build(cfg('main.profile','recommended'), capability_hash(caps), topology_generation,
 			path?.id ?? 'path:lan-to-wan', path?.routeIdentity ?? 'unresolved', path?.workloadClass ?? ['plain_forwarding'], integ_fp, g),
-		availableActions: available_actions
+		availableActions: available_actions, selectorMode: mode
 	};
 	rill_last_observe_ms = now;
 	rill_runtime_counters.rillObserveAttempts++;
@@ -3519,6 +3527,7 @@ function rill_observe() {
 function smart_selector_context() {
 	let caps = capabilities(), topo = topology(), path = topo.paths?.[0], integ = integration_fingerprint([], nft_snapshot());
 	return {
+		profile: cfg('main.profile', 'recommended'), pathId: path?.id ?? 'path:lan-to-wan', workloadClass: path?.workloadClass ?? [ 'plain_forwarding' ], integrationState: integration_state(),
 		contextKey: rill_context_key_build(cfg('main.profile','recommended'), capability_hash(caps), topology_generation,
 			path?.id ?? 'path:lan-to-wan', path?.routeIdentity ?? 'unresolved', path?.workloadClass ?? ['plain_forwarding'], integ, goal()),
 		goal: goal(), path: path, topologyGeneration: topology_generation, routeIdentity: path?.routeIdentity ?? 'unresolved',
@@ -3553,18 +3562,22 @@ function select_smart_action(mode, candidates, context) {
 	for (let action in legal) if (action.id != 'pm.noop') { fallback = action; break; }
 	let result = { source: 'core-fallback', mode: mode, selectedActionId: fallback?.id ?? 'pm.noop', decisionId: null,
 		confidence: 0, learningStage: 'cold', autoEligible: true, reason: fallback ? 'deterministic-core-fallback' : 'no-legal-action',
-		fallback: fallback?.id ?? 'pm.noop', blockedReasons: blocked, ranking: [], goal: context.goal, contextKey: context.contextKey };
+		fallback: fallback?.id ?? 'pm.noop', coreRecommendation: fallback?.id ?? 'pm.noop', blockedReasons: blocked, ranking: [], goal: context.goal, contextKey: context.contextKey, context: context };
 	if (!bool_cfg('main.smart_rill_auto', true)) { result.reason = 'smart-rill-opt-out'; return result; }
 	let rill = rill_status(), advisory = rill_advisory_get();
+	/* A decision made for one Auto mode is not reusable by the other mode:
+	 * Conservative receives only safe-direct candidates, while Assisted may
+	 * inspect benchmark recommendations as non-direct advice. */
+	if (advisory && advisory.selectorMode != mode) { rill_advisory = null; advisory = null; }
 	if (!advisory && (rill.state == RILL_STATES.available || rill.state == RILL_STATES.learning)) {
-		let observed = rill_observe();
+		let observed = rill_observe(mode);
 		advisory = rill_advisory_get();
 		if (!advisory && observed?.state) result.reason = `rill-${observed.state}`;
 	}
 	let stage = smart_learning_stage(context.contextKey, advisory?.confidence ?? 0);
 	result.learningStage = stage.stage; result.validatedSamples = stage.validatedSamples; result.minimumSamples = stage.minimumSamples ?? SMART_MIN_VALIDATED_SAMPLES;
 	let context_stats = smart_context_stats(context.contextKey, '', false).context;
-	result.lastReward = context_stats?.lastReward ?? null; result.lastRewardComponents = context_stats?.lastRewardComponents ?? {};
+	result.lastReward = context_stats?.lastReward ?? null; result.lastRewardComponents = context_stats?.lastRewardComponents ?? {}; result.lastOutcome = context_stats?.lastOutcome ?? null;
 	result.drifted = stage.drifted; result.confidence = advisory?.confidence ?? 0; result.rillState = rill.state;
 	result.ranking = advisory?.ranking ?? [];
 	if (!advisory) { if (rill.state != RILL_STATES.available && rill.state != RILL_STATES.learning) result.reason = `rill-${rill.reason ?? rill.state}`; return result; }
@@ -3643,7 +3656,7 @@ function recommendations(allow_observe) {
 	let rill_advisory_live = rill_advisory_get();
 	let rill_observation = null;
 	if (allow_observe && !rill_advisory_live && (rill.state == RILL_STATES.available || rill.state == RILL_STATES.learning)) {
-		rill_observation = rill_observe();
+		rill_observation = rill_observe('conservative');
 		rill_advisory_live = rill_advisory_get();
 	}
 	return {
@@ -3952,7 +3965,7 @@ function refresh(reason) {
 function rill_refresh_advisory() {
 	rill_invalidate_runtime_decisions('explicit-refresh');
 	rill_last_observe_ms = null;
-	return rill_observe();
+	return rill_observe(cfg('main.automation', 'conservative') == 'assisted' ? 'assisted' : 'conservative');
 }
 
 function schedule_event(reason) {

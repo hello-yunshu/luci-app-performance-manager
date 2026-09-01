@@ -97,6 +97,20 @@ class SmartDecisionTests(unittest.TestCase):
             self.assertIn(token, CORE)
         self.assertIn("rill_refresh:", CORE)
 
+    def test_conservative_runtime_ranking_is_scoped_to_safe_actions(self):
+        self.assertIn("function rill_available_actions(mode)", CORE)
+        self.assertIn("if (mode == 'conservative') return out;", CORE)
+        self.assertIn("selectorMode: mode", CORE)
+        self.assertIn("exact-decision-context-mismatch", CORE)
+        gate = (ROOT / "scripts/openwrt-target-gate.sh").read_text()
+        self.assertNotIn("actions[0]", gate)
+
+    def test_current_config_has_one_runtime_binary_key(self):
+        config = (ROOT / "package/performance-manager/files/etc/config/performance-manager").read_text()
+        shadow = config.split("config rill 'shadow'", 1)[1].split("config benchmark", 1)[0]
+        self.assertEqual(shadow.count("option binary"), 1)
+        self.assertNotIn("runtime_binary", config)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -87,8 +87,11 @@ mutation_ok=null
 if [ "$ALLOW_MUTATION" = "1" ]; then
   mutation_tested=true
   REC=$(ubus call performance-manager recommendations '{}' 2>/dev/null || printf '{}')
-  aid=$(jget "$REC" '@.actions[0].id')
-  target=$(jget "$REC" '@.actions[0].applyTarget')
+  # The target gate exercises the Core's explicit safe recommendation. Resolve
+  # the candidate by Action ID instead of relying on array order, which is not
+  # a Smart Decision contract and may change when Rill ranks candidates.
+  aid=$(jget "$REC" '@.smartSelection.coreRecommendation')
+  target=$(jget "$REC" '@.actions[@.id="nic.ring.floor"].applyTarget')
   if [ "$aid" = "nic.ring.floor" ] && [ -n "$target" ]; then
     ps_before=$(uci -q get network.@globals[0].packet_steering 2>/dev/null || true)
     APPLY=$(ubus call performance-manager apply "{\"actionId\":\"$aid\",\"target\":\"$target\"}" 2>/dev/null || printf '{}')

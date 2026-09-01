@@ -25,6 +25,8 @@ jobs:
         with:
           python-version: '3.13'
       - name: Resolve latest qualified Stable 1.x
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
         run: python3 scripts/check_rill_dependency.py --sync --package-dir rill-openwrt-packages
       - name: Open update pull request
         shell: bash

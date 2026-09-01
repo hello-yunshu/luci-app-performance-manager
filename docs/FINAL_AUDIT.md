@@ -15,7 +15,7 @@ artifacts and cannot claim functional-integration or Stable-release PASS.
 - rill-static-contract: **PASS** (source)
 - resource-budget: **PASS** (source)
 
-- Executable unit/contract tests: **186**, status **PASS**.
+- Executable unit/contract tests: **123**, status **PASS**.
 - Rill static contract: **PASS**.
 - Rill release-pin structure: **None**.
 - Rill functional integration: **NOT_EVALUATED** in this report.
@@ -40,7 +40,7 @@ artifacts and cannot claim functional-integration or Stable-release PASS.
 
 - same-commit official OpenWrt SDK/APK build: **NOT_EVALUATED**
 - exact Rill release provenance and binary runtime: **NOT_EVALUATED**
-- production Core to exact adapter Observe/Outcome lifecycle: **NOT_EVALUATED**
+- production Core to exact generic Runtime Observe/Outcome lifecycle: **NOT_EVALUATED**
 - booted OpenWrt Core-only, full, and mutation target gates: **NOT_EVALUATED**
 - Hyper-V and KVM TargetRef/hotplug/replay/rollback: **NOT_EVALUATED**
 - LAN-WAN and router-local controlled A/B: **NOT_EVALUATED**
