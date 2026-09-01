@@ -62,6 +62,18 @@ def main(argv=None) -> int:
     except ArtifactIdentityError as exc:
         raise RuntimeError(str(exc)) from exc
     integration_apk = Path(integration_identity["canonicalPath"])
+    native_targets = [
+        {
+            "openwrtVersion": target.get("openwrtVersion"),
+            "target": target.get("target"),
+            "packageArch": target.get("packageArch"),
+            "rustTarget": target.get("rustTarget"),
+            "packageManagerFormat": target.get("packageManagerFormat"),
+            "sdkIdentity": target.get("sdkIdentity"),
+            "sdkArchiveSha256": target.get("sdkArchiveSha256"),
+        }
+        for target in (build.get("targets") or [])
+    ]
     files = [{"name": path.name, "bytes": path.stat().st_size, "sha256": sha256(path)}
              for path in sorted(root.iterdir()) if path.is_file()]
     manifest = {
@@ -75,6 +87,10 @@ def main(argv=None) -> int:
         "stableReleaseAuthorized": (final.get("stableReleaseAuthorized") is True) if final else False,
         "primaryPackage": PACKAGE,
         "primaryPackageSha256": sha256(apk),
+        # Native coverage is build provenance only.  PM's public packages are
+        # intentionally noarch/all; rill-runtime remains an external package
+        # and must not be copied into this release.
+        "nativeTargets": native_targets,
         "architectureIndependentPackages": [
             {"package": PACKAGE, "filename": apk.name, "sha256": sha256(apk), "arch": "all"},
             {"package": INTEGRATION_PACKAGE, "filename": integration_apk.name,

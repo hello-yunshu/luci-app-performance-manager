@@ -1,96 +1,92 @@
 {
-  "schemaVersion": 4,
+  "schemaVersion": 1,
   "contract": "rill-integration-status",
-  "scope": "PM-owned adapter and pm-rill-shadow v1 static contract",
+  "scope": "PM consumer of external generic Rill Runtime v3",
   "staticContractVerdict": "PASS",
   "functionalIntegrationVerdict": "NOT_EVALUATED",
-  "upstreamReleaseVerification": "current rill-ml identity is contract-pinned; historical adapter fixture separately verified",
-  "adapterOwner": "hello-yunshu/luci-app-performance-manager",
-  "adapterBinary": "performance-manager-rill-adapter",
-  "rillMlVersion": "1.5.3",
+  "resolvedRuntime": {
+    "version": "1.5.6",
+    "tag": "v1.5.6",
+    "upstreamCommit": "b990cd7043d313b0ff29c9693f091a94a5bdaf47",
+    "sourceArchiveSha256": "c06a792811d1f08aa7b640c10ee36047c44f825cf7272aa0f75c42ab60806a84"
+  },
+  "openwrtPackage": {
+    "repository": "hello-yunshu/rill-openwrt-packages",
+    "commit": "de8294e52d9fad45aae201722de3cd2ebf9f2d17",
+    "package": "rill-runtime",
+    "packageVersion": "1.5.6",
+    "packageRelease": 1,
+    "binary": "/usr/bin/rill-runtime"
+  },
+  "qualification": {
+    "required": true,
+    "workflow": "qualify.yml",
+    "runId": 33413866061,
+    "verdict": "PASS"
+  },
   "checks": [
     {
-      "name": "schema contract const==pm-rill-shadow",
+      "name": "schemaVersion",
       "ok": true
     },
     {
-      "name": "schema protocolVersion const==1",
+      "name": "stable policy",
       "ok": true
     },
     {
-      "name": "dependency contract name",
+      "name": "resolved semver",
       "ok": true
     },
     {
-      "name": "dependency protocol owner",
+      "name": "resolved tag",
       "ok": true
     },
     {
-      "name": "dependency protocol name/version",
+      "name": "resolved commit",
       "ok": true
     },
     {
-      "name": "required operations match schema",
+      "name": "resolved archive hash",
       "ok": true
     },
     {
-      "name": "context key bounds match schema",
+      "name": "package repository",
       "ok": true
     },
     {
-      "name": "Core shadow protocol wiring",
+      "name": "package commit",
       "ok": true
     },
     {
-      "name": "Core exact linked versions",
+      "name": "package identity",
       "ok": true
     },
     {
-      "name": "Core fail-closed tokens",
+      "name": "canonical binary",
       "ok": true
     },
     {
-      "name": "Core canonical binary resolver",
+      "name": "qualification required",
       "ok": true
     },
     {
-      "name": "init canonical binary resolver",
+      "name": "qualification run",
       "ok": true
     },
     {
-      "name": "explicit binary fails closed",
+      "name": "consumer dependency",
       "ok": true
     },
     {
-      "name": "PM adapter exact registry dependency",
+      "name": "core v3",
       "ok": true
     },
     {
-      "name": "PM adapter binary/package identity",
+      "name": "core exact version",
       "ok": true
     },
     {
-      "name": "RillML exact dependency identity",
-      "ok": true
-    },
-    {
-      "name": "RillML exact release identity",
-      "ok": true
-    },
-    {
-      "name": "integration package owns adapter",
-      "ok": true
-    },
-    {
-      "name": "historical upstream fixture retained",
-      "ok": true
-    },
-    {
-      "name": "state path/schema contract",
-      "ok": true
-    },
-    {
-      "name": "advisory-only authority",
+      "name": "no legacy resolver",
       "ok": true
     }
   ]

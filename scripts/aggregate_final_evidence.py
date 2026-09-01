@@ -26,7 +26,7 @@ build-openwrt.yml):
 
 Usage:
   python3 scripts/aggregate_final_evidence.py \
-    [--evidence-dir docs] [--expected-commit <sha>] [--scope full|rill|build]
+    [--evidence-dir docs] [--expected-commit <sha>] [--scope full|rill|rill-runtime|build]
     [--out docs/final-release-evidence.json]
 
 Exit code: 0 only when the combined verdict of the selected scope is PASS; any
@@ -46,6 +46,8 @@ ROOT = Path(__file__).resolve().parents[1]
 #   full  -> both the Rill jobs AND the SDK/APK build gates (merged docs dir)
 #   rill  -> the three Rill jobs only (ci.yml); SDK/APK gates are owned by the
 #            build-openwrt.yml workflow and merged at release-audit time
+#   rill-runtime -> generic Runtime/provenance jobs only (ordinary ci.yml);
+#                   Core roundtrip is owned by the SDK/target workflow
 #   build -> SDK/APK build gates only (build-openwrt.yml); Rill runtime /
 #            functional gates are owned by the ci.yml workflow
 REQUIRED_FILES = {
@@ -57,6 +59,7 @@ REQUIRED_FILES = {
         "apk-verification.json",
     ),
     "rill": ("rill-provenance.json", "rill-runtime.json", "rill-core-integration.json"),
+    "rill-runtime": ("rill-provenance.json", "rill-runtime.json"),
     "build": ("build-metadata.json", "apk-verification.json"),
 }
 OPTIONAL_FILES = ("rill-wire-harness.json", "rill-runtime-contract.json")
@@ -101,7 +104,7 @@ def main(argv=None) -> int:
     ap.add_argument("--evidence-dir", default=str(ROOT / "docs"))
     ap.add_argument("--expected-commit", default=None,
                     help="the PM commit SHA this release is being gated on; every evidence file must match")
-    ap.add_argument("--scope", choices=("full", "rill", "build"), default="full",
+    ap.add_argument("--scope", choices=("full", "rill", "rill-runtime", "build"), default="full",
                     help="evidence chain to gate on: full = Rill + SDK/APK; rill = Rill jobs only "
                          "(SDK/APK gates owned by build-openwrt.yml); build = SDK/APK only "
                          "(Rill gates owned by ci.yml)")
@@ -110,7 +113,8 @@ def main(argv=None) -> int:
 
     ev_dir = Path(args.evidence_dir)
     required = REQUIRED_FILES[args.scope]
-    in_rill = args.scope in ("full", "rill")
+    in_rill = args.scope in ("full", "rill", "rill-runtime")
+    in_core = args.scope in ("full", "rill")
     in_build = args.scope in ("full", "build")
     files = {}
     missing = []
@@ -194,20 +198,17 @@ def main(argv=None) -> int:
     # ------------------------------------------------------------------
     prov_v = prov_reason = OUT_OF_SCOPE
     if in_rill:
-        prov_v, prov_reason = file_verdict("rill-provenance.json", "provenanceVerdict")
-        if prov_v in ("PASS", "FAIL", "BLOCKED"):
-            provenance = files.get("rill-provenance.json") or {}
-            if provenance.get("contract") == "pm-owned-rill-provenance":
-                if not provenance.get("runtimeSha256") or not provenance.get("runtimeOwner"):
-                    prov_v = "BLOCKED"
-                    prov_reason = "generic Runtime provenance is missing owner or binary SHA-256"
-            else:
-                tag, _ = file_verdict("rill-provenance.json", "tagIdentityVerdict")
-                idx, _ = file_verdict("rill-provenance.json", "indexSignatureVerdict")
-                art, _ = file_verdict("rill-provenance.json", "artifact", "artifactIntegrityVerdict")
-                prov_v = combine_required([tag, idx, art])
-                if prov_v != "PASS":
-                    prov_reason = f"provenance sub-verdicts: tag={tag} index={idx} artifact={art}"
+        provenance = files.get("rill-provenance.json") or {}
+        if provenance.get("contract") != "rill-runtime-provenance":
+            prov_v = "FAIL"
+            prov_reason = "rill-provenance.json does not use the canonical generic Runtime provenance contract"
+        else:
+            prov_v, prov_reason = file_verdict("rill-provenance.json", "provenanceVerdict")
+            if prov_v in ("PASS", "FAIL", "BLOCKED") and (
+                not provenance.get("runtimeSha256") or not provenance.get("runtimeOwner")
+            ):
+                prov_v = "BLOCKED"
+                prov_reason = "generic Runtime provenance is missing owner or binary SHA-256"
 
     # Runtime compatibility: executable/version/startup/status from the real
     # adapter runtime job.  Functional: observe/outcome/failClosed + the real
@@ -240,8 +241,12 @@ def main(argv=None) -> int:
             if top_func is not None and _norm(top_func) != runtime_func:
                 rf_reason = (rf_reason or "") + f" top-level functionalIntegrationVerdict={top_func} contradicts verdicts.* ({runtime_func})"
                 runtime_func = "FAIL"
-        core_v, core_reason = file_verdict("rill-core-integration.json", "verdict")
-        functional = combine_required([runtime_func, core_v])
+        if in_core:
+            core_v, core_reason = file_verdict("rill-core-integration.json", "verdict")
+            functional = combine_required([runtime_func, core_v])
+        else:
+            core_v = OUT_OF_SCOPE
+            functional = runtime_func
         if functional != "PASS":
             rf_reason = (rf_reason or "") + f" coreRoundtrip={core_v}"
 
