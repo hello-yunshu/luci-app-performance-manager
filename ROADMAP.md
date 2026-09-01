@@ -1,6 +1,6 @@
 # Roadmap
 
-Planning pack v0.3.2 is contract-frozen. `1.0.3` retains the exact Rill/evidence closure and repairs the public release identity by making the byte-verified all-in-one APK plus target-specific adapter APK correspond to one final commit. Every repository-owned runtime layer and compiled Simplified Chinese translation remains covered by the SDK build. Rill remains an external runtime dependency for the Core; the PM-owned adapter is built separately from exact crates.io `rill-ml`. The remaining work is execution of the declared same-commit validation matrix, not feature expansion.
+Planning pack v0.3.2 is contract-frozen. Smart Decision v2 adds the unified Core selector, Runtime v3 feature/reward contract, fail-closed learning stages, confidence/drift/cooldown gates, explainability and LuCI refresh/status surfaces. Rill remains an external Runtime dependency; this repository does not vendor a PM-owned adapter or Rust Runtime source. The remaining work is same-commit validation across local, CI and target evidence.
 
 1. Pass the CI gates on official OpenWrt 25.12.5: `ci.yml` (static, pm-rill-provenance, pm-rill-runtime, pm-core-rill-roundtrip, openwrt-ucode rootfs) and `build-openwrt.yml` (openwrt-sdk-build, which also emits build-metadata.json + checksums.txt evidence).
 2. Pass booted-target evidence on clean x86_64 OpenWrt 25.12.x VMs, including Core without LuCI/Rill dependency.

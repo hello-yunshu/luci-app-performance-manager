@@ -1,4 +1,4 @@
-# Test Plan — 1.0.0-rc.2
+# Test Plan — Smart Decision v2
 
 The frozen plan requires separate evidence layers. Passing one layer never substitutes for another.
 
@@ -11,11 +11,12 @@ The frozen plan requires separate evidence layers. Passing one layer never subst
 - Profile inheritance plus required/recommended/conditional package/capability/target checks.
 - Benchmark state/persistence ordering and rollback-before-reward invariants.
 - Ownership-safe uninstall/runtime-lease and sysupgrade keep semantics.
-- Security source guards: fixed argv Core, Rill no command execution, Shadow-only protocol.
+- Security source guards: fixed argv Core, Runtime no command execution, advisory-only Runtime v3 protocol.
+- Smart Decision v2: unified selector, `pm.noop`, 20-feature schema, reward-goal completeness, cold/warming/ready/drifted stages, confidence, cooldown and drift recovery.
 - LuCI JavaScript syntax, JSON/YAML, shell syntax and complete current zh_Hans literal coverage.
 - Machine-computed Phase 0–12 **source-only** gates.
 
-Rust unit tests additionally exercise strict envelope parsing, bounded reads, UTF-8/JSON escapes, validated-only outcomes, bounded state and positive-evidence recommendation behavior. They run in CI because the current assembly environment has no local Rust toolchain.
+Runtime v3 integration additionally exercises strict envelope parsing, bounded reads, validated-only feedback, bounded state and partitioned decision behavior. It runs in CI because the current assembly environment has no local Runtime toolchain.
 
 ## CI gates
 

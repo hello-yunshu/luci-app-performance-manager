@@ -352,8 +352,8 @@ def methodology_matches(control_methodology: tuple[str, ...], candidate: tuple[s
 def goal_measurement(goal: str) -> str | None:
     """Which measurement a Goal genuinely needs.  An unsupported Goal must not
     silently degrade to throughput (Blocker 2)."""
-    return {"balanced": "throughput", "throughput": "throughput",
-            "latency": None, "cpu_efficiency": None}.get(goal)
+    return {"balanced": "controlled_ab", "throughput": "controlled_ab",
+            "latency": "controlled_ab", "cpu_efficiency": "controlled_ab"}.get(goal)
 
 
 def replay_cede_decision(*, has_owned_lease: bool, owned_ring: str | None, live_ring: str | None) -> str:
@@ -580,7 +580,7 @@ def binding_is_valid(binding: object, *, boot_id: str, now_ms: int, ttl_ms: int 
     if not all(binding.get(k) for k in ("actionId", "contextKey", "goal", "bootId")):
         return False
     at_ms = binding.get("atMs")
-    return (binding.get("bootId") == boot_id and binding.get("modelGeneration") == 1
+    return (binding.get("bootId") == boot_id and binding.get("modelGeneration") == 2
             and isinstance(at_ms, int) and 0 <= now_ms - at_ms <= ttl_ms)
 
 

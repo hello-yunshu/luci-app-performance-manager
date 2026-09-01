@@ -123,9 +123,9 @@ def function_body(src,name):
 
 # Benchmark must use explicit evidence + the common transaction/rollback engine.
 bench=function_body(core,'benchmark_start')
-for token in ['companion_evidence_valid(','benchmark_apply_candidate(','rollback_transaction(session.transactionId',"validated:true","validated:false"]:
+for token in ['companion_evidence_valid(','benchmark_apply_candidate(','rollback_transaction(session.transactionId','validated:reward_result.validated','validated:false']:
     if token not in bench: fail(f'benchmark state-machine mechanism missing: {token}')
-if bench.index("rollback_transaction(session.transactionId,'benchmark-complete')")>bench.index('reward=(c1-c0)/c0'): fail('benchmark reward computed before rollback verification')
+if bench.index("rollback_transaction(session.transactionId,'benchmark-complete')")>bench.index('let reward_result=build_reward'): fail('benchmark reward computed before rollback verification')
 for unsafe_refusal in ['exact-qdisc-restore-not-proven','no-generic-third-party-sfe-contract']:
     if unsafe_refusal not in core: fail(f'explicit unsafe-provider refusal missing: {unsafe_refusal}')
 

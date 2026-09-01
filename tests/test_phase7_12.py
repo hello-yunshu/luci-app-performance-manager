@@ -47,8 +47,8 @@ class Phase712Tests(unittest.TestCase):
         for call in ['companion_evidence_valid(', 'benchmark_apply_candidate(', 'rollback_transaction(session.transactionId', "measurementClass:'controlled_ab'"]:
             self.assertIn(call,body)
         candidate=body[body.index("phase == 'candidate'"):]
-        self.assertLess(candidate.index("rollback_transaction(session.transactionId,'benchmark-complete')"),candidate.index('reward=(c1-c0)/c0'))
-        self.assertIn("validated:true",candidate)
+        self.assertLess(candidate.index("rollback_transaction(session.transactionId,'benchmark-complete')"),candidate.index('build_reward('))
+        self.assertIn("validated:reward_result.validated",candidate)
     def test_passive_measurements_never_claim_validation(self):
         body=self.function('benchmark_start')
         passive=body[body.rindex('let snap=telemetry_snapshot()'):]
@@ -76,9 +76,9 @@ class Phase712Tests(unittest.TestCase):
     def test_assisted_auto_is_double_opt_in(self):
         self.assertIn("option automation 'conservative'",CFG); self.assertIn("option assisted_auto '0'",CFG)
         body=self.function('assisted_auto_tick')
-        for token in ["!= 'assisted'","bool_cfg('main.assisted_auto', false)",'in_maintenance_window()','system_guard()','index(SAFE_ACTIONS, action.id)']:
+        for token in ["!= 'assisted'","bool_cfg('main.assisted_auto', false)",'in_maintenance_window()','system_guard()',"select_smart_action('assisted', actions, context)"]:
             self.assertIn(token,body)
-        self.assertLess(body.index('let action = actions[0]'),body.index('assisted_low_traffic(current, target_ref?.runtimeName ?? null)'))
+        self.assertLess(body.index('let action = smart_selector_action(selection, actions)'),body.index('assisted_low_traffic(current, target_ref?.runtimeName ?? null)'))
         self.assertIn('assisted_low_traffic(current, runtime)',CORE)
         self.assertIn('assisted-previous-',CORE)
         self.assertIn('resolve_target(action.applyTarget)',body)

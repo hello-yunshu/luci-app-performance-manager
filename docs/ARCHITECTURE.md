@@ -6,18 +6,29 @@
 
 Rill is a sidecar, not an actuator:
 
-`Core → bounded UDS → Rill Shadow → advisory only → Core recommendations`
+`Core → bounded Runtime v3 UDS → Rill ranking → Smart Action Selector → Core transaction engine`
 
 The Companion Agent is an endpoint evidence utility for explicit tests and has no router-control surface.
 
-### PM-owned Rill adapter
+### External Rill Runtime v3
 
-Since 1.0.1 the consumer-specific adapter is owned by Performance Manager at `integrations/performance-manager-rill-adapter/`. It links exact crates.io `rill-ml = 1.5.3`, implements only the advisory `pm-rill-shadow` v1 contract, and is packaged as target-specific `performance-manager-rill-adapter`. The arch-independent all-in-one APK does not contain native code; install it together with the target package for Rill Intelligence. No RillML Release adapter artifact is downloaded or selected; the upstream PM adapter active surface was removed in RillML 1.5.2.
+The external `/usr/bin/rill-runtime` package owns the generic Runtime binary and
+its generic persistence/conformance. This repository owns the product feature
+vector, action legality, Smart Decision v2 policy state and LuCI surfaces. The
+Runtime receives legal candidates and returns ranking/feedback only; it has no
+router mutation authority.
 
-- The `shadow` rill UCI section resolves explicit paths first, then `/usr/sbin/performance-manager-rill-adapter`, `/usr/bin/performance-manager-rill-adapter`, and only then legacy paths; invalid explicit paths fail closed.
-- `contracts/rill-dependency.json` formalizes PM ownership, exact `rill-ml` registry dependency, protocol v1, state schema 1 and advisory authority; `scripts/rill_contract_check.py` validates it.
-- Core enforces a capability/protocol gate: `external-runtime-missing`, `protocol-major-mismatch`, `RILL_PROTOCOL_API`, shadow-only ops. Rill missing/unreachable/protocol-incompatible ⇒ Rill unavailable/incompatible, fail-closed, never auto-apply, never fake recommendation.
-- Ownership split: `performance-manager` owns Core; `luci-app-performance-manager` owns the LuCI UI; Performance Manager owns the adapter, packaging and release; RillML owns only generic crates and contracts.
+- Core sends a bounded Runtime v3 envelope with feature schema hash, model/state
+  generations, context key and 20-dimensional stable features.
+- Core's unified selector gates Rill by Runtime availability, learning stage,
+  confidence, exact decision binding, performance drift, cooldown and the safe
+  action allowlist. `pm.noop` is always legal and never mutates state.
+- Runtime missing/unreachable/schema-incompatible or state recovery failure is
+  fail-closed; Core falls back deterministically and never fabricates a Rill
+  recommendation.
+- Ownership split: `performance-manager` owns Core and policy state;
+  `luci-app-performance-manager` owns UI/ACL; the external Rill package owns
+  only the generic Runtime binary and learning engine.
 
 ## Core invariants
 

@@ -101,6 +101,7 @@ const rpc = { declare: (d) => () => Promise.resolve({ ok: false, error: 'rpc-una
 const pm = { status: rpc.declare({}), capabilities: rpc.declare({}), topology: rpc.declare({}),
   recommendations: rpc.declare({}), transactions: rpc.declare({}), locks: rpc.declare({}),
   history: rpc.declare({}), rill: rpc.declare({}), diagnostics: rpc.declare({}), apply: rpc.declare({}),
+  rillRefresh: rpc.declare({}),
   confirm: rpc.declare({}), rollback: rpc.declare({}), benchmarkStart: rpc.declare({}),
   benchmarkStatus: rpc.declare({}), benchmarkStop: rpc.declare({}) };
 const ui = { addNotification: () => {} };

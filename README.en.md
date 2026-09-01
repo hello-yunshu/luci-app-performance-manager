@@ -26,7 +26,7 @@
 - **Telemetry + Health Guard**: evidence/confidence Analyzer, baseline-relative health gate, resource locks, durable pending markers, verified rollback and a real monotonic commit-confirm engine
 - **Phase-7 benchmark orchestration**: irqbalance, backlog/budget, buffers, busy poll, tx queue, coalescing, CC, qdisc, SFO/HFO/SFE and CPU governor; providers run only when an exact reversible contract exists
 - **Controlled A/B truthfulness**: persisted control evidence → one-variable transactional candidate → candidate evidence → verified rollback → result persistence → optional Rill outcome; missing/invalid evidence never becomes `validated=true`
-- **RillML (Rill) Shadow learning**: PM owns the consumer-specific adapter and links exact crates.io `rill-ml` 1.5.3 through the bounded shadow-only IPC protocol (context drift detection, validated-outcome weighting, Decision Ledger, model health), failing closed without faking recommendations when the adapter is missing or incompatible
+- **Rill Runtime v3 Smart Decision**: an external `rill-runtime` ranks a stable feature vector; Core owns the unified Conservative/Assisted selector, safe allowlist, `pm.noop`, confidence, drift and cooldown gates, and never delegates actuation authority
 - **Assisted Auto**: explicit opt-in only — maintenance window + low-traffic gate + safe allowlist
 - **Multi-platform guidance**: generic x86, Hyper-V and KVM (including Proxmox VE guest guidance)
 - **Companion Agent**: an explicit LAN/WAN iperf3 endpoint tool with no router-mutation authority
@@ -48,8 +48,8 @@
 |---|---|
 | `performance-manager` | procd-managed ucode/ubus Core: contracts, discovery, telemetry, transaction engine and safe actions |
 | `luci-app-performance-manager` | Supported-first LuCI UI (Simplified Chinese) |
-| `performance-manager-rill` | PM-owned adapter service glue; the target-specific `performance-manager-rill-adapter` package ships the native binary |
-| `luci-app-performance-manager-all` | Recommended all-in-one APK: physically contains Core, LuCI, rpcd ACL/menu and Simplified Chinese translation; Rill glue remains the separate `performance-manager-rill` package |
+| `performance-manager-rill` | External Runtime integration glue; the Rill Runtime package owns `/usr/bin/rill-runtime` |
+| `luci-app-performance-manager-all` | Recommended all-in-one APK: physically contains Core, LuCI, rpcd ACL/menu and Simplified Chinese translation |
 
 ## Installation
 
@@ -61,10 +61,8 @@
 ### Build from source (OpenWrt SDK / buildroot)
 
 ```sh
-# 1. Build and stage the native adapter in the Performance Manager repository
+# 1. Provide the external Rill Runtime from the Rill OpenWrt feed
 cd /path/to/openwrt-performance-manager
-python3 scripts/build_pm_adapter.py --target x86_64-unknown-linux-musl
-
 # 2. Then enter the OpenWrt SDK
 cd /path/to/openwrt-sdk
 ./scripts/feeds update -a
@@ -72,39 +70,32 @@ cd /path/to/openwrt-sdk
 mkdir -p package/openwrt-performance-manager
 cp -a /path/to/openwrt-performance-manager/package/* package/openwrt-performance-manager/
 make defconfig
-make package/performance-manager-rill-adapter/compile V=s
 make package/performance-manager/compile V=s
 make package/luci-app-performance-manager/compile V=s
 make package/performance-manager-rill/compile V=s
 make package/luci-app-performance-manager-all/compile V=s
 ```
 
-`build_pm_adapter.py` builds and stages the target-specific native adapter from this repository's Rust source; the generated binary must not be committed. The recommended Rill installation model is `luci-app-performance-manager-all`, `performance-manager-rill`, and the matching target-specific `performance-manager-rill-adapter` package. The all-in-one package does not contain the Rill service glue.
+The Rill package is an external-runtime integration boundary; this repository does not build or vendor Rust Runtime source. Install the matching external `/usr/bin/rill-runtime` package together with `luci-app-performance-manager-all`.
 
 > You can also rely on the GitHub Actions `build-openwrt.yml` → `openwrt-sdk-build` job to produce the build instead of using a local SDK.
 
 ### Recommended: one-APK installation
 
-Download `luci-app-performance-manager-all-1.0.3-r1.apk` and `performance-manager-rill-1.0.3-r1.apk` from the GitHub Release, then choose the adapter matching the device architecture. The next Release uses architecture-qualified adapter assets (the examples below retain the current candidate version):
-
-The repository's official OpenWrt SDK build still compiles and verifies every split package and the physical all-in-one package. The public Release includes one copy each of the architecture-independent all-in-one and Rill glue packages, plus one target-specific native adapter for each qualified target; the current matrix is x86_64, aarch64_generic, and aarch64_cortex-a53. The independent `rill-runtime` package is obtained from `hello-yunshu/rill-openwrt-packages` and is not copied into this Release.
+Download `luci-app-performance-manager-all-1.0.3-r1.apk` and `performance-manager-rill-1.0.3-r1.apk` from the GitHub Release, plus the matching external `rill-runtime` package from the Rill OpenWrt feed. The Runtime package is not built or copied by this repository.
 
 ```text
-performance-manager-rill-adapter-1.0.3-r1_x86_64.apk
-performance-manager-rill-adapter-1.0.3-r1_aarch64_generic.apk
-performance-manager-rill-adapter-1.0.3-r1_aarch64_cortex-a53.apk
+performance-manager-rill-1.0.3-r1.apk
+rill-runtime-<matching-target>.apk
 ```
 
 ```sh
 apk add --allow-untrusted /tmp/luci-app-performance-manager-all-1.0.3-r1.apk
 apk add --allow-untrusted /tmp/performance-manager-rill-1.0.3-r1.apk
-# Install exactly one adapter matching the device architecture:
-apk add --allow-untrusted /tmp/performance-manager-rill-adapter-1.0.3-r1_x86_64.apk
-# For aarch64_generic use *_aarch64_generic.apk;
-# for aarch64_cortex-a53 use *_aarch64_cortex-a53.apk.
+apk add --allow-untrusted /tmp/rill-runtime-<matching-target>.apk
 ```
 
-OpenWrt still resolves system runtime libraries such as `luci-base`, `rpcd` and `ucode` from its configured repositories. The all-in-one APK contains the Core, LuCI, backend and translation payloads; `performance-manager-rill` owns the service glue and the adapter package owns the native binary. The all-in-one package conflicts with the Core/LuCI split packages so duplicate file ownership is impossible. Back up `/etc/config/performance-manager` and switch package forms only during a maintenance window on devices already using the split packages.
+OpenWrt still resolves system runtime libraries such as `luci-base`, `rpcd` and `ucode` from its configured repositories. The all-in-one APK contains the Core, LuCI, backend and translation payloads; the external Runtime owns `/usr/bin/rill-runtime`, while the small `performance-manager-rill` package owns only integration glue. Back up `/etc/config/performance-manager` and switch package forms only during a maintenance window.
 
 ### Package info
 
@@ -205,19 +196,19 @@ package/luci-app-performance-manager-all/Makefile  # merges all owned runtime co
 │   LuCI UI    │ ─────────→ │  performance-manager   │
 │  (8 views)   │ ←───────── │  Core (ucode/ubus)     │
 └──────────────┘  JSON     └───────────┬────────────┘
-                                      │ UDS (bounded, shadow-only)
+                                      │ UDS (bounded, Runtime v3)
                           ┌───────────▼────────────┐
                           │ performance-manager-rill │
-                          │   (integration glue)     │
+                          │   (external glue)        │
                           └───────────┬────────────┘
-                                      │ owns adapter + exact rill-ml
+                                      │ generic Runtime v3
                           ┌───────────▼────────────┐
-                          │ PM-owned adapter runtime  │
-                          │ exact crates.io rill-ml   │
+                          │ external rill-runtime     │
+                          │ ranking, no actuator      │
                           └────────────────────────┘
 ```
 
-> **Consumer ownership boundary.** Performance Manager owns `pm-rill-shadow` and its native adapter. The adapter links exact crates.io `rill-ml` 1.5.3; it does not consume a PM-specific RillML Release artifact. RillML remains the owner of generic crates and contracts. The upstream PM adapter active surface was removed in RillML 1.5.2; the retained v1.5.1 fixture is historical-only.
+> **Consumer ownership boundary.** Performance Manager owns the Core selector, feature mapping, Smart v2 state and UI. The external Rill Runtime owns only generic ranking/learning and its binary; it cannot apply router changes. Core remains fail-closed when the Runtime is missing or incompatible.
 
 **Data flow**:
 
@@ -250,8 +241,8 @@ package/luci-app-performance-manager-all/Makefile  # merges all owned runtime co
 
 | Option | Type | Default | Description |
 |---|---|---|---|
-| `enabled` | boolean | 1 | enable Rill Shadow |
-| `mode` | enum | shadow | read-only learning, no apply authority |
+| `enabled` | boolean | 1 | enable external Runtime |
+| `mode` | enum | shadow | advisory ranking only, no apply authority |
 | `socket` | string | /run/performance-manager/rill.sock | UDS path |
 | `max_message` | integer | 65536 | max message bytes |
 | `timeout_ms` | integer | 1000 | call timeout |
@@ -272,15 +263,15 @@ package/luci-app-performance-manager-all/Makefile  # merges all owned runtime co
 
 This project is built and verified automatically with GitHub Actions, triggered by pushing to main or manually:
 
-**`ci.yml` (source, behavior, contract & PM-owned adapter verification)**
+**`ci.yml` (source, behavior, contract & Runtime v3 verification)**
 - **static**: unit tests + contract validation + source gates + final audit + LuCI JS syntax & render smoke
-- **adapter-rust / rill-contract**: verifies the PM-owned adapter with exact crates.io `rill-ml` 1.5.3, retained historical v1.5.1 fixture, and emits `rill-consumed-manifest.json`
+- **rill-runtime-v3**: verifies the generic Runtime v3 handshake/health/decide/feedback contract and fail-closed behavior
 - **openwrt-ucode**: compiles and validates Core ucode inside the official OpenWrt 25.12.5 rootfs
 
 **`build-openwrt.yml` (remote official SDK build)**
-- **openwrt-sdk-build**: builds the four split packages (including the PM-owned native adapter) plus the all-in-one APK with the official SDK, and emits `build-metadata.json`, `checksums.txt` and audit-evidence artifacts
+- **openwrt-sdk-build**: builds the split Core/LuCI/glue packages plus the all-in-one APK with the official SDK, and emits `build-metadata.json`, `checksums.txt` and audit-evidence artifacts
 
-> The native build here is intentionally limited to the consumer-owned adapter. Generic `rill-ml` crates remain a crates.io dependency; the PM adapter is built by this repository's Rust CI and target-specific OpenWrt package job.
+> The generic Runtime binary is intentionally external. This repository validates the Runtime v3 boundary and does not build, vendor or release a PM-owned Rust adapter.
 
 Local quick verification:
 
@@ -293,7 +284,7 @@ make package        # build release artifacts
 - Resource / write soak: `scripts/openwrt-resource-soak.sh`
 - External validation evidence: `docs/EXTERNAL_VALIDATION.md`
 
-> `1.0.3` uses the explicit `portable-docker` release profile: same-commit official SDK/APKs, exact Rill evidence, hosted Actions, and the Docker Core ucode harness must pass before publishing the verified all-in-one and x86_64-musl adapter APKs. This profile does not claim Hyper-V, real-router A/B, firmware sysupgrade, or 24-hour soak coverage; those require the separate `hardware` profile.
+> `1.0.3` uses the explicit `portable-docker` release profile: same-commit official SDK/APKs, exact Runtime evidence, hosted Actions, and the Docker Core ucode harness must pass before publishing the verified all-in-one and integration APKs. The external `rill-runtime` package is qualified and published by its own feed. This profile does not claim Hyper-V, real-router A/B, firmware sysupgrade, or 24-hour soak coverage; those require the separate `hardware` profile.
 
 ## Documentation
 

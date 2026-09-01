@@ -110,8 +110,8 @@ def resolve_package_identity(
 def resolve_target_copy(*, input_root: Path, package: str, expected_sha: str, filename: str) -> dict:
     """Resolve one target's copy when other targets share its filename.
 
-    Native adapters intentionally have the same package filename in each SDK
-    artifact, while their contents and SHA-256 differ by target.  First select
+    Target-specific packages can intentionally have the same filename in each
+    SDK artifact while their contents and SHA-256 differ by target. First select
     the physical copy by its authoritative SHA, then use the common resolver on
     that single path so unrelated target copies cannot look like a conflict.
     """

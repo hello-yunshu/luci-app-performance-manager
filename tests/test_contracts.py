@@ -100,37 +100,35 @@ class ContractTests(unittest.TestCase):
             with self.subTest(example=example):
                 obj=json.loads((ROOT/'schemas'/example).read_text()); sch=json.loads((ROOT/'contracts'/schema).read_text())
                 jsonschema.Draft202012Validator(sch).validate(obj)
-    def test_rill_ipc_per_op_branches_enforce_full_context_binding(self):
+    def test_rill_ipc_runtime_v3_branches_enforce_method_binding(self):
         sch=json.loads((ROOT/'contracts/rill-ipc.schema.json').read_text())
         v=jsonschema.Draft202012Validator(sch)
-        # The schema is oneOf over per-op $defs with additionalProperties:false,
-        # mirroring the tagged Request enum (deny_unknown_fields) in
-        # crates/rill-pm-adapter/src/lib.rs v1.5.1: a valid outcome carries ONLY
-        # the outcomeRequest fields (no observe-only metadata).
-        outcome={ 'contract':'pm-rill-shadow','protocolVersion':1,'requestId':'o1','op':'outcome','validated':True,'actionId':'nic.ring.floor','decisionId':'d1','goal':'balanced','modelGeneration':1,
-                  'sessionId':'s1','reward':0.25,
-                  'contextKey':'ctx-v1:profile=p;cap=c;topo=1;path=path:lan-to-wan;route=r;workload=plain_forwarding;integ=f;goal=balanced' }
-        self.assertTrue(v.is_valid(outcome))
-        for field in ['validated','contextKey','reward','actionId','sessionId','decisionId','goal','modelGeneration','requestId']:
+        decide=json.loads((ROOT/'schemas/rill-ipc.example.json').read_text())
+        self.assertTrue(v.is_valid(decide))
+        self.assertFalse(v.is_valid({**decide,'apiVersion':2}))
+        self.assertFalse(v.is_valid({**decide,'request':{**decide['request'],'method':'health'}}))
+        self.assertFalse(v.is_valid({**decide,'unexpected':True}))
+        self.assertFalse(v.is_valid({k:value for k,value in decide.items() if k!='featureSchemaHash'}))
+    def test_rill_ipc_feedback_requires_decision_and_reward_fields(self):
+        sch=json.loads((ROOT/'contracts/rill-ipc.schema.json').read_text())
+        v=jsonschema.Draft202012Validator(sch)
+        feedback=json.loads((ROOT/'schemas/rill-ipc.example.json').read_text())
+        feedback['request']={'method':'feedback','decisionId':'d1','selectedActionId':'pm.noop','reward':0.0,'outcomeTimeMs':1,'generation':0}
+        self.assertTrue(v.is_valid(feedback))
+        for field in ['decisionId','selectedActionId','reward','outcomeTimeMs','generation']:
             with self.subTest(field=field):
-                broken=dict(outcome); del broken[field]
-                self.assertFalse(v.is_valid(broken),f'outcome must reject missing {field}')
-        invalid_context=dict(outcome); invalid_context['contextKey']='v1:prefix'
-        self.assertFalse(v.is_valid(invalid_context))
-        # deny_unknown_fields: a foreign field is REJECTED, never ignored.
-        unknown=dict(outcome); unknown['deviceProfile']='p'
+                broken=json.loads(json.dumps(feedback)); del broken['request'][field]
+                self.assertFalse(v.is_valid(broken),f'feedback must reject missing {field}')
+    def test_rill_ipc_response_is_generic_runtime_v3(self):
+        schema=json.loads((ROOT/'contracts/rill-ipc-response.schema.json').read_text())
+        v=jsonschema.Draft202012Validator(schema)
+        base={'requestId':'d1','apiVersion':3,'runtimeIdentity':{'name':'rill-runtime','version':'1.5.6'},'modelGeneration':2,'stateGeneration':1}
+        handshake={**base,'response':{'kind':'handshake','capabilities':['org.rill.preview.decide'],'featureSchemaHash':'9'*64,'handlerApiVersion':2}}
+        self.assertTrue(v.is_valid(handshake))
+        result={**base,'response':{'kind':'result','output':{'accepted':True,'selectedActionId':'pm.noop','scores':[]}}}
+        self.assertTrue(v.is_valid(result))
+        unknown=json.loads(json.dumps(result)); unknown['response']['extra']=True
         self.assertFalse(v.is_valid(unknown))
-    def test_rill_ipc_observe_requires_full_metadata(self):
-        sch=json.loads((ROOT/'contracts/rill-ipc.schema.json').read_text())
-        v=jsonschema.Draft202012Validator(sch)
-        observe=json.loads((ROOT/'schemas/rill-ipc.example.json').read_text())
-        self.assertTrue(v.is_valid(observe))
-        for field in ['deviceProfile','capabilityHash','topologyGeneration','pathId','routeIdentity',
-                      'workloadClass','measurementClass','context','integrations','goal','integrationFingerprint',
-                      'contextKey','availableActions']:
-            with self.subTest(field=field):
-                broken=dict(observe); del broken[field]
-                self.assertFalse(v.is_valid(broken),f'observe must reject missing {field}')
     def test_runtime_package_has_every_formal_schema(self):
         dest=ROOT/'package/performance-manager/files/usr/share/performance-manager/schemas'
         for schema in sorted((ROOT/'contracts').glob('*.schema.json')):

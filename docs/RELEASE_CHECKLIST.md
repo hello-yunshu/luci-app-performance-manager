@@ -14,8 +14,8 @@ hardware soak are **NOT_EVALUATED**. The checklist below remains the separate
 - [ ] Official OpenWrt 25.12.x x86_64 SDK builds `performance-manager`.
 - [ ] SDK builds `luci-app-performance-manager`.
 - [ ] SDK builds `performance-manager-rill` as an integration/meta package (no Rust build; fail-closed init guard and `lib/upgrade/keep.d` packaged).
-- [ ] SDK builds `luci-app-performance-manager-all` and `performance-manager-rill-adapter`; exact APK verification proves all repository-owned Core/LuCI/rpcd source files match, the compiled zh-cn LMO is present, and the target-specific adapter APK is byte-identified. Rill glue is verified as the separate `performance-manager-rill` package.
-- [ ] Public assembly includes exactly one `luci-app-performance-manager-all` and one `performance-manager-rill` APK, plus one adapter APK for each of `x86_64`, `aarch64_generic`, and `aarch64_cortex-a53`; `rill-runtime` remains an external package from `rill-openwrt-packages`.
+- [ ] SDK builds `luci-app-performance-manager-all` and `performance-manager-rill`; exact APK verification proves all repository-owned Core/LuCI/rpcd source files match and the compiled zh-cn LMO is present. The generic Runtime remains an external package.
+- [ ] Public assembly includes exactly one `luci-app-performance-manager-all` and one `performance-manager-rill` APK; `rill-runtime` remains an external package from `rill-openwrt-packages` and is verified by its own provenance/compatibility chain.
 - [ ] Official OpenWrt rootfs compiles Core ucode with all declared modules.
 
 ## Runtime / topology / ownership
