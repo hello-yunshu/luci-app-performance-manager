@@ -2,31 +2,31 @@
   "schemaVersion": 2,
   "areas": {
     "core": {
-      "files": 40,
-      "sourceBytes": 259449,
-      "knownStaticPayloadBytes": 256316
+      "files": 41,
+      "sourceBytes": 280039,
+      "knownStaticPayloadBytes": 276906
     },
     "luci": {
-      "files": 14,
-      "sourceBytes": 36355,
-      "knownStaticPayloadBytes": 35487
+      "files": 15,
+      "sourceBytes": 64610,
+      "knownStaticPayloadBytes": 63742
     },
     "rill": {
-      "files": 3,
-      "sourceBytes": 5155,
-      "knownStaticPayloadBytes": 3496
+      "files": 2,
+      "sourceBytes": 1419,
+      "knownStaticPayloadBytes": 31
     },
     "allInOne": {
       "files": 1,
-      "sourceBytes": 4479,
+      "sourceBytes": 4458,
       "knownStaticPayloadBytes": 0
     }
   },
   "persistentWritePolicy": {
     "core": "event-only transaction/history/policy intents; fast/deep telemetry remains tmpfs",
-    "rill": "Pinned Rill release from contracts/rill-dependency.json persists after every successful Observe and every successful Outcome; its state file is bounded/compacted.",
+    "rill": "External Runtime v3 state and PM Smart Decision v2 state are bounded/compacted; only validated controlled-A/B outcomes update learning.",
     "idleInvariant": "Periodic Core telemetry never calls Observe. With no UI/API refresh, benchmark, or configuration/topology event, rillObserveAccepted and expectedAdapterPersistenceEvents must remain unchanged.",
-    "accounting": "Core exposes logical counters inferred from the audited pinned Rill contract; these are not physical flash-block write measurements."
+    "accounting": "Core exposes logical counters inferred from the Runtime contract; these are not physical flash-block write measurements."
   },
   "limits": {
     "rillMaxMessageBytes": 65536,

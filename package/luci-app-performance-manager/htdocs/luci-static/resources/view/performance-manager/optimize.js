@@ -11,7 +11,7 @@ return view.extend({
 		const nodes = [];
 		const smart = (r && r.smartSelection) || {};
 		nodes.push(pu.card(_('Smart policy'), pu.kv([
-			[_('Learning stage'), smart.learningStage || _('cold')], [_('Selected action'), smart.selectedActionId || '—'], [_('Confidence'), smart.confidence == null ? '—' : String(smart.confidence)], [_('Last reward'), smart.lastReward == null ? '—' : String(smart.lastReward)], [_('Auto eligibility'), smart.autoEligible === false ? _('Paused') : (smart.reason || _('Eligible'))]
+			[_('Learning stage'), smart.learningStage || _('cold')], [_('Selected action'), smart.selectedActionId || '—'], [_('Confidence'), smart.confidence == null ? '—' : String(smart.confidence)], [_('Last reward'), smart.lastReward == null ? '—' : String(smart.lastReward)], [_('Auto eligibility'), smart.autoEligible === false ? _('Paused') : (smart.reason || _('Eligible'))], [_('Core recommendation'), smart.coreRecommendation || _('Deterministic fallback')], [_('Policy reason'), smart.reason || '—']
 		]), smart.drifted ? 'warning' : 'hero'));
 		if (smart.selectedActionId === 'pm.noop') nodes.push(pu.note(_('Rill judges that keeping the current configuration is better.'), 'success'));
 		if (smart.drifted) nodes.push(pu.note(_('Performance drift detected. Rill Auto temporarily paused.'), 'warning'));

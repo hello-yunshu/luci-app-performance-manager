@@ -639,3 +639,63 @@ msgstr "延迟（需要延迟证据）"
 
 msgid "CPU efficiency (requires Core CPU evidence)"
 msgstr "CPU 效率（需要 Core CPU 证据）"
+
+msgid "Version"
+msgstr "版本"
+
+msgid "Last outcome"
+msgstr "最近结果"
+
+msgid "Decision context"
+msgstr "决策上下文"
+
+msgid "Route identity"
+msgstr "路由标识"
+
+msgid "Integration"
+msgstr "集成状态"
+
+msgid "Drift"
+msgstr "漂移"
+
+msgid "Detected"
+msgstr "已检测"
+
+msgid "Stable"
+msgstr "稳定"
+
+msgid "Recent feedback"
+msgstr "最近反馈"
+
+msgid "Reward"
+msgstr "奖励"
+
+msgid "Quality"
+msgstr "质量"
+
+msgid "Accepted"
+msgstr "已接受"
+
+msgid "Reconciled"
+msgstr "已对账"
+
+msgid "No validated feedback yet."
+msgstr "暂时没有已验证的反馈。"
+
+msgid "Eligibility"
+msgstr "资格"
+
+msgid "Cooldown"
+msgstr "冷却"
+
+msgid "Rill refresh failed: %s"
+msgstr "Rill 刷新失败：%s"
+
+msgid "Core recommendation"
+msgstr "Core 建议"
+
+msgid "Deterministic fallback"
+msgstr "确定性回退"
+
+msgid "Policy reason"
+msgstr "策略原因"

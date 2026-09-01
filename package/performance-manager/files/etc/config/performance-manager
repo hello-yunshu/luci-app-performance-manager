@@ -32,11 +32,9 @@ config core 'main'
 config rill 'shadow'
 	option enabled '1'
 	option binary ''
-	option state_file '/etc/performance-manager/rill/runtime-state-v2.json'
 	option mode 'shadow'
 	# Empty uses the package-owned generic Runtime at /usr/bin/rill-runtime;
 	# an explicit absolute executable is an opt-in override and never falls back.
-	option binary ''
 	option max_message '65536'
 	option timeout_ms '1000'
 	option state_file '/etc/performance-manager/rill/runtime-state.json'

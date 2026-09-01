@@ -5,9 +5,11 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import re
 import subprocess
 import sys
+from urllib.error import HTTPError
 from urllib.request import Request, urlopen
 from pathlib import Path
 
@@ -81,10 +83,30 @@ def check(package_dir: Path | None) -> list[str]:
     return errors
 
 
+def api_headers() -> dict[str, str]:
+    """Return GitHub API headers without ever exposing the token."""
+    headers = {
+        "Accept": "application/vnd.github+json",
+        "User-Agent": "pm-rill-sync",
+    }
+    token = os.environ.get("GITHUB_TOKEN", "").strip()
+    if token:
+        headers["Authorization"] = f"Bearer {token}"
+    return headers
+
+
 def api(path: str):
-    request = Request(f"https://api.github.com/{path}", headers={"Accept": "application/vnd.github+json", "User-Agent": "pm-rill-sync"})
-    with urlopen(request, timeout=30) as response:
-        return json.load(response)
+    authenticated = "Authorization" in api_headers()
+    request = Request(f"https://api.github.com/{path}", headers=api_headers())
+    try:
+        with urlopen(request, timeout=30) as response:
+            return json.load(response)
+    except HTTPError as error:
+        if error.code == 403:
+            raise RuntimeError(
+                f"GitHub API rate limit exceeded (authenticated={str(authenticated).lower()})"
+            ) from error
+        raise
 
 
 def sync(package_dir: Path) -> int:

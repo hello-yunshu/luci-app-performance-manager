@@ -26,17 +26,19 @@ return view.extend({
 		o = s.option(form.Flag, 'telemetry', _('Telemetry')); o.default=o.enabled;
 		o = s.option(form.Flag, 'history', _('History')); o.default=o.enabled;
 		o = s.option(form.Flag, 'failsafe', _('Failsafe')); o.default=o.enabled;
-		o = s.option(form.Value, 'telemetry_interval', _('Fast telemetry interval (seconds)')); o.datatype='uinteger'; o.default='45';
-		o = s.option(form.Value, 'deep_interval', _('Deep telemetry interval (seconds)')); o.datatype='uinteger'; o.default='600';
-		let r = m.section(form.NamedSection, 'shadow', 'rill', _('Rill Intelligence'));
-		o = r.option(form.Flag, 'enabled', _('Enable Runtime')); o.default=o.enabled;
-		o = r.option(form.Value, 'binary', _('Generic Runtime binary')); o.default=''; o.placeholder='/usr/bin/rill-runtime';
-		o = s.option(form.Flag, 'smart_rill_auto', _('Allow Rill ranking in Auto')); o.default=o.enabled;
-		o = s.option(form.Value, 'min_validated_samples', _('Minimum validated samples')); o.datatype='uinteger'; o.default='8';
-		o = s.option(form.Value, 'min_confidence_conservative', _('Conservative minimum confidence')); o.datatype='ufloat'; o.default='0.65';
-		o = s.option(form.Value, 'min_confidence_assisted', _('Assisted minimum confidence')); o.datatype='ufloat'; o.default='0.75';
-		o = s.option(form.Value, 'performance_drift_threshold', _('Performance drift threshold')); o.datatype='ufloat'; o.default='0.20';
-		o = s.option(form.Value, 'action_cooldown_base_seconds', _('Action cooldown (seconds)')); o.datatype='uinteger'; o.default='600';
+	o = s.option(form.Value, 'telemetry_interval', _('Fast telemetry interval (seconds)')); o.datatype='uinteger'; o.default='45';
+	o = s.option(form.Value, 'deep_interval', _('Deep telemetry interval (seconds)')); o.datatype='uinteger'; o.default='600';
+	// Advanced Smart Settings remain on the Core section so older LuCI form
+	// implementations render them correctly without a tab API dependency.
+	let r = m.section(form.NamedSection, 'shadow', 'rill', _('Rill Intelligence'));
+	o = r.option(form.Flag, 'enabled', _('Enable Runtime')); o.default=o.enabled;
+	o = r.option(form.Value, 'binary', _('Generic Runtime binary')); o.default=''; o.placeholder='/usr/bin/rill-runtime';
+	o = s.option(form.Flag, 'smart_rill_auto', _('Allow Rill ranking in Auto')); o.default=o.enabled;
+	o = s.option(form.Value, 'min_validated_samples', _('Minimum validated samples')); o.datatype='uinteger'; o.default='8';
+	o = s.option(form.Value, 'min_confidence_conservative', _('Conservative minimum confidence')); o.datatype='ufloat'; o.default='0.65';
+	o = s.option(form.Value, 'min_confidence_assisted', _('Assisted minimum confidence')); o.datatype='ufloat'; o.default='0.75';
+	o = s.option(form.Value, 'performance_drift_threshold', _('Performance drift threshold')); o.datatype='ufloat'; o.default='0.20';
+	o = s.option(form.Value, 'action_cooldown_base_seconds', _('Action cooldown (seconds)')); o.datatype='uinteger'; o.default='600';
 		const rendered = m.render();
 		if (rendered && typeof rendered.then === 'function') return rendered.then(function(form) {
 			return pu.page(_('Settings'), _('Keep conservative automation as the safe default; assisted actions remain explicitly opt-in.'), [ form ]);
