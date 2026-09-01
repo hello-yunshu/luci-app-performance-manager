@@ -4,7 +4,7 @@
 This is the auditable evidence record required by the RC gate: it captures the
  repository commit, OpenWrt version/architecture, SDK identity/digest, feed
  commits, the packages that were built, the package manager format, the exact
- PM-owned adapter dependency and the overall
+ external Runtime dependency and the overall
 PASS/FAIL verdict. It is emitted by the remote GitHub Actions build job; the
 script is kept runnable on the host so the schema and field population can be
 reused and tested without a toolchain.
@@ -162,7 +162,7 @@ def main(argv):
         return [_rt.get(f) for f in fields]
 
     def _core_roundtrip_verdict():
-        # Core<->adapter roundtrip is a separate parallel job; its own per-job
+        # Core<->Runtime roundtrip is a separate parallel job; its own per-job
         # file is authoritative when present (never the shared seed, which the
         # roundtrip job must not clobber).
         if _core_job:
@@ -213,7 +213,7 @@ def main(argv):
     rill_provenance_reason = None if rill_provenance == 'PASS' else 'same-commit generic Runtime provenance not resolved'
 
     # Rill Gates 2 (Runtime Compatibility) and 3 (Functional Integration) require
-    # executing the real adapter and are recorded by the gate jobs. The verdicts
+    # executing the real external Runtime and are recorded by the gate jobs. The verdicts
     # come from the per-job evidence files (rill-runtime.json / rill-core-integration.json);
     # any missing/unknown verdict is BLOCKED (never fabricated PASS).
     rill_runtime_verdict = combine_required(_rt_verdicts(

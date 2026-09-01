@@ -9,6 +9,12 @@ return view.extend({
 	render: function(r) {
 		const actions = (r && r.actions) || [];
 		const nodes = [];
+		const smart = (r && r.smartSelection) || {};
+		nodes.push(pu.card(_('Smart policy'), pu.kv([
+			[_('Learning stage'), smart.learningStage || _('cold')], [_('Selected action'), smart.selectedActionId || '—'], [_('Confidence'), smart.confidence == null ? '—' : String(smart.confidence)], [_('Last reward'), smart.lastReward == null ? '—' : String(smart.lastReward)], [_('Auto eligibility'), smart.autoEligible === false ? _('Paused') : (smart.reason || _('Eligible'))]
+		]), smart.drifted ? 'warning' : 'hero'));
+		if (smart.selectedActionId === 'pm.noop') nodes.push(pu.note(_('Rill judges that keeping the current configuration is better.'), 'success'));
+		if (smart.drifted) nodes.push(pu.note(_('Performance drift detected. Rill Auto temporarily paused.'), 'warning'));
 		if (!actions.length) nodes.push(pu.note(_('No conservative changes are currently needed.'), 'success'));
 		actions.forEach(function(a) {
 			const apply = E('button', { 'class': 'btn cbi-button cbi-button-action', 'type': 'button' }, [ _('Apply safely') ]);
@@ -25,7 +31,7 @@ return view.extend({
 		});
 		(r.observations || []).forEach(function(o) { nodes.push(pu.card(o.id, E('p', {}, [ o.detail ]))); });
 		(r.learnedAdvisory || []).forEach(function(a) {
-			const body = E('div', {}, [ pu.kv([ [_('Authority'), a.authority || _('none')], [_('Execution path'), a.kind === 'benchmark' ? _('Controlled benchmark') : _('Safe direct apply')], [_('Confidence'), a.confidence == null ? '—' : String(a.confidence)] ]) ]);
+			const body = E('div', {}, [ pu.kv([ [_('Authority'), a.authority || _('none')], [_('Execution path'), a.kind === 'benchmark' ? _('Controlled benchmark') : (a.kind === 'noop' ? _('No mutation') : _('Safe direct apply'))], [_('Confidence'), a.confidence == null ? '—' : String(a.confidence)] ]) ]);
 			if (a.kind === 'safe-direct') {
 				const apply = E('button', { 'class': 'btn cbi-button cbi-button-action', 'type': 'button' }, [ _('Apply this exact Rill advisory') ]);
 				apply.addEventListener('click', function() {
@@ -35,6 +41,8 @@ return view.extend({
 					}).finally(function() { apply.disabled = false; });
 				});
 				body.appendChild(E('div', { 'class': 'pm-toolbar' }, [ apply ]));
+			} else if (a.kind === 'noop') {
+				body.appendChild(E('p', { 'class': 'pm-control-help' }, [ _('Rill judges that keeping the current configuration is better.') ]));
 			} else {
 				body.appendChild(E('p', { 'class': 'pm-control-help' }, [ _('This advisory is benchmark-only. Open Performance Test and complete both Companion evidence legs; it can never enter direct Apply.') ]));
 			}

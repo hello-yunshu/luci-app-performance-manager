@@ -211,7 +211,7 @@ def main(argv=None) -> int:
                 prov_reason = "generic Runtime provenance is missing owner or binary SHA-256"
 
     # Runtime compatibility: executable/version/startup/status from the real
-    # adapter runtime job.  Functional: observe/outcome/failClosed + the real
+    # external Runtime job.  Functional: observe/outcome/failClosed + the real
     # Core roundtrip verdict.
     runtime_compat = runtime_func = functional = core_v = OUT_OF_SCOPE
     rc_reason = rf_reason = core_reason = None

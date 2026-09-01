@@ -92,7 +92,7 @@ jobs:
           set -euo pipefail
           # The shared resolver accepts identical dedicated/full copies and
           # rejects conflicting identities before staging the all-in-one and
-          # target-specific adapter APKs.
+          # integration APKs. The generic Runtime package is external.
           python3 scripts/assemble_public_release.py \
             --input release-input/build --out release-assets \
             --expected-commit '${{ inputs.expected_sha }}'

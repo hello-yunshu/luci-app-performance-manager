@@ -60,7 +60,7 @@
         "actionId": { "type": "string", "minLength": 1 },
         "contextKey": { "type": "string", "minLength": 1 },
         "goal": { "type": "string", "minLength": 1 },
-        "modelGeneration": { "const": 1 },
+        "modelGeneration": { "const": 2 },
         "bootId": { "type": "string", "minLength": 1 },
         "executionAuthority": {"const": "safe-direct"},
         "ownerType": {"const": "transaction"},

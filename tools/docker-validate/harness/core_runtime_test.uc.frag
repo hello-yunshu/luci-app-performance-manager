@@ -239,7 +239,7 @@ check(_hist != null && _hist.ok == true, 'conservative applied event recorded to
 /* benchmark/unsafe/unknown candidates are NEVER auto-applied. */
 candidate_actions = function() { return [{ id: 'network.backlog', risk: 'benchmark' }]; };
 let c3 = conservative_auto_tick();
-check(c3.state == 'candidate-not-safe', 'benchmark-flagged candidate NOT auto-applied', c3);
+check(c3.state == 'noop' && c3.selection?.selectedActionId == 'pm.noop', 'benchmark-flagged candidate falls back to NOOP', c3);
 check(_applied?.id == 'nic.ring.floor', 'apply_ring not called for non-safe candidate', _applied);
 /* never races an active benchmark experiment. */
 benchmark_active = function() { return true; };
@@ -250,15 +250,14 @@ benchmark_active = function() { return false; };
 
 print('== [7] Rill fail-closed: unavailable + malformed (real socket) ==\n');
 /* Unavailable: no listener at the configured socket path. */
-rill_socket_path = function() { return '/tmp/pm-harness/no-such-rill.sock'; };
 let r1 = rill_send({ op: 'status' });
-check(!r1.ok && r1.state == 'connect-failed' && r1.connected === false && r1.fullySent === false && r1.responseReceived === false,
-	'rill_send classifies pre-connect failure without peer uncertainty', r1);
+check(!r1.ok && r1.state == 'not-provisioned' && r1.connected === false && r1.fullySent === false && r1.responseReceived === false,
+	'rill_send classifies missing external Runtime without peer uncertainty', r1);
 
 print('== [8] Exact Rill decision reservation: single production owner ==\n');
 read=_core_read;
 let _decision='0123456789abcdef0123456789abcdef';
-rill_bindings[_decision]={schemaVersion:RILL_BINDINGS_SCHEMA_VERSION,decisionId:_decision,actionId:'nic.ring.floor',contextKey:'ctx-v1:harness',goal:'balanced',modelGeneration:1,advisory:true,confidence:0.8,executionAuthority:'safe-direct',bootId:boot_id(),atMs:monotonic_ms()};
+rill_bindings[_decision]={schemaVersion:RILL_BINDINGS_SCHEMA_VERSION,decisionId:_decision,actionId:'nic.ring.floor',contextKey:'ctx-v1:harness',goal:'balanced',modelGeneration:2,advisory:true,confidence:0.8,executionAuthority:'safe-direct',bootId:boot_id(),atMs:monotonic_ms()};
 let reserved=rill_binding_reserve(_decision,'nic.ring.floor','safe-direct','transaction','tx-harness-a');
 check(reserved != null && reserved.ownerId == 'tx-harness-a', 'first exact decision reservation succeeds', reserved);
 let duplicate=rill_binding_reserve(_decision,'nic.ring.floor','safe-direct','transaction','tx-harness-b');
@@ -270,16 +269,15 @@ check(journal_row.ownerId == 'tx-harness-a' && journal_row.executionState == 're
 check(rill_execution_mark_mutation_started(reserved) === true, 'mutation ownership is durably transferred', null);
 rill_outcome_schedule_hook=null;
 let intent=rill_prepare_outcome(reserved,'health_only',0.0,'tx-harness-a','committed');
-check(intent.ok === true, 'validated terminal result creates persistent Outcome intent', intent);
+check(intent.ok === false && intent.state == 'unvalidated-outcome-rejected', 'health-only evidence cannot create Outcome intent', intent);
 let outcome_row=json(fs.readfile(rill_execution_path(_decision)) ?? '{}');
-check(outcome_row.executionState == 'outcome-prepared' && outcome_row.validated === true && outcome_row.mayHaveReachedPeer === false,
-	'Outcome intent is durable before terminal owner state', outcome_row);
-ensure_dir(`${state_dir()}/transactions`);
-json_write(tx_path('tx-harness-a'),{transactionId:'tx-harness-a',state:'committed'});
-check(rill_arm_outcome(reserved).ok === true, 'durable terminal owner arms Outcome delivery', null);
+check(outcome_row.executionState == 'executing' && outcome_row.validated == null,
+	'health-only rejection leaves no fake validated state', outcome_row);
+check(rill_execution_finalize_without_outcome(reserved, 'retired-no-valid-outcome', 'no-controlled-ab-evidence', { measurementClass: 'health_only' }) === true,
+	'executed advisory is retired without fake Outcome delivery', null);
 outcome_row=json(fs.readfile(rill_execution_path(_decision)) ?? '{}');
-check(outcome_row.executionState == 'outcome-pending' && outcome_row.mayHaveReachedPeer === false,
-	'armed Outcome is retryable and not falsely marked as sent', outcome_row);
+check(outcome_row.executionState == 'retired-no-valid-outcome' && outcome_row.mayHaveReachedPeer === false,
+	'no-outcome terminal state is durable', outcome_row);
 fs.unlink(rill_execution_path(_decision));
 fs.unlink(tx_path('tx-harness-a'));
 

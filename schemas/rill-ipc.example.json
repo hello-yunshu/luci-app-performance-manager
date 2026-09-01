@@ -1,54 +1,12 @@
 {
-  "contract": "pm-rill-shadow",
-  "protocolVersion": 1,
-  "requestId": "req-example",
-  "op": "observe",
-  "deviceProfile": "profile-hash",
-  "capabilityHash": "cap-hash",
-  "topologyGeneration": 42,
-  "pathId": "path:lan-to-wan",
-  "routeIdentity": "r1",
-  "workloadClass": [
-    "plain_forwarding"
-  ],
-  "measurementClass": "passive_before_after",
-  "context": {
-    "cpuCount": 4,
-    "rxQueues": 4,
-    "rss": true,
-    "softnetDropRate": 0,
-    "cpuBusy": 0.62
-  },
-  "integrations": [
-    {
-      "id": "sqm",
-      "present": false
-    },
-    {
-      "id": "packetSteering",
-      "present": true
-    }
-  ],
-  "goal": "balanced",
-  "integrationFingerprint": "integ-fp-1",
-  "contextKey": "ctx-v1:profile=profile-hash;cap=cap-hash;topo=42;path=path:lan-to-wan;route=r1;workload=plain_forwarding;integ=integ-fp-1",
-  "availableActions": [
-    {
-      "id": "noop",
-      "applyScope": "system",
-      "applyTarget": "system",
-      "evaluationPaths": [
-        "path:lan-to-wan"
-      ]
-    },
-    {
-      "id": "fastpath.software_flow_offload",
-      "applyScope": "service",
-      "applyTarget": "firewall:defaults",
-      "evaluationPaths": [
-        "path:lan-to-wan"
-      ],
-      "risk": "benchmark"
-    }
-  ]
+  "requestId": "decide-example",
+  "apiVersion": 3,
+  "clientIdentity": {"name": "performance-manager", "version": "1.0.3"},
+  "partitionKey": "default",
+  "capability": "org.rill.preview.decide",
+  "featureSchemaHash": "925778554fc142043e49e3097ed94baa9fa4b2de251493ba62b96ea55c176557",
+  "modelGeneration": 2,
+  "stateGeneration": 0,
+  "payloadLimit": 262144,
+  "request": {"method": "decide", "context": {"contextKey": "ctx-v1:profile=profile;cap=cap;topo=42;path=path:lan-to-wan;route=r;workload=w;integ=i;goal=balanced", "goal": "balanced", "actions": [{"id": "pm.noop", "features": [0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]}]}}
 }

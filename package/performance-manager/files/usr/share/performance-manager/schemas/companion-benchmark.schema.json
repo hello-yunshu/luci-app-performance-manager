@@ -62,7 +62,9 @@
         "bitsPerSecond": {
           "type": "number",
           "exclusiveMinimum": 0
-        }
+        },
+        "latencyMs": {"type": "number", "exclusiveMinimum": 0},
+        "latencyP95Ms": {"type": "number", "exclusiveMinimum": 0}
       }
     },
     "candidate": {
@@ -74,7 +76,9 @@
         "bitsPerSecond": {
           "type": "number",
           "exclusiveMinimum": 0
-        }
+        },
+        "latencyMs": {"type": "number", "exclusiveMinimum": 0},
+        "latencyP95Ms": {"type": "number", "exclusiveMinimum": 0}
       }
     },
     "reward": {

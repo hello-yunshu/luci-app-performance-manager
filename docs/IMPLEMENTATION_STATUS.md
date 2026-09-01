@@ -1,18 +1,16 @@
 # Implementation Status — 1.0.3
 
-## Current Rill 1.5.3 release state
+## Current Smart Decision v2 state
 
-The current PM-owned adapter release candidate is `1.0.3`. It consumes exact crates.io
-`rill-ml` `1.5.3`, keeps `pm-rill-shadow` protocol v1, and publishes both the
-all-in-one APK and the target-specific `performance-manager-rill-adapter`
-APK for OpenWrt 25.12.x x86_64 and aarch64_generic. The real musl adapter runtime,
-official OpenWrt rootfs, Core roundtrip, remote SDK build, and same-commit evidence
-chain must be re-run for the final `1.0.3` commit. The public release uses the
-`portable-docker` profile and therefore does not claim physical hardware or
-24-hour soak coverage. The immutable v1.0.2 release is not reused because its
-public manifest mixed the current RillML version with historical v1.5.1 release
-identity. The v1.5.1 upstream adapter files below are historical
-compatibility evidence only; they are not current provisioning inputs.
+The current implementation uses the external generic Rill Runtime v3 contract.
+This repository does not vendor a PM-owned adapter or Rust Runtime source. Core
+owns the 20-feature schema mapping, Smart v2 state, unified Conservative /
+Assisted selector, safe execution boundary and controlled-A/B reward path.
+Runtime ranking can influence Auto only after the ready/sample/confidence,
+exact-binding, drift, cooldown and legal-action gates pass. `pm.noop` remains
+an always-available non-mutating choice. Runtime/target/CI verdicts below must
+be re-run for the final commit; this document does not promote source status
+to a hardware or Stable PASS.
 
 The sections below are retained as implementation history.
 
@@ -81,9 +79,9 @@ This repository implements the frozen planning pack v0.3.2 through Phase 12 as a
 | 5 Transaction/Locks/Commit-confirm | Complete | full state machine, durable pending marker, real monotonic deadline/timer, crash recovery, stale-safe rollback, per-boot ownership lease, uninstall cleanup and fail-closed prerm (removal aborts unless the daemon confirms `ok:true`); benchmark experiment locks recovered on daemon start/cleanup |
 | 6 Conservative | Complete | Hyper-V ring floor; Native Packet Steering observe/respect; NIC offload observe/protect |
 | 7 Benchmark | Complete under capability-first rule | global `benchmark:global` tuning-domain lock (acquire-before-session-write, release on every terminal path, idle-expiry recovery), full context fingerprint with candidate-key masking and `benchmark-context-drift`, strict non-fallback evaluation path, forwarding requires resolved rtnl route (`evaluation-route-unresolved`), path-specific health, real control→candidate→rollback→reward orchestrator; exact reversible providers execute; generic qdisc/unknown SFE remain explicitly blocked when exact restore is not provable |
-| 8 Rill Intelligence | Complete | external immutable dependency pinned to released Rill Stable v1.2.0 (Ed25519-signed `stable` index, exact x86_64-musl pm-adapter, never `latest`); formal dependency contract (`contracts/rill-dependency.json`, `scripts/verify_rill_release.py`, `scripts/rill_contract_check.py`); capability/protocol gate (fail-closed on missing/mismatched runtime); pm-rill-shadow protocol v1 (status/observe/outcome), strict JSON parser, context-partitioned model keyed by Core-computed ContextKey, per-operation validation, stale-recommendation invalidation on drift, bounded persistent ledger/model, strict Shadow protocol |
-| 9 Recommend | Complete | deterministic legal actions + separate Rill advisory with no actuation authority |
-| 10 Assisted Auto | Complete, opt-in only | assisted + explicit switch + maintenance + Health Guard + safe allowlist; low-traffic gate bound to the selected action's own target runtime (`assisted-previous-<runtime>.json`), action chosen before gating |
+| 8 Rill Intelligence | Implemented, target evidence pending | external generic Runtime v3 envelope; 20-feature schema v2; bounded Smart v2 state; cold/warming/ready/drifted stages; controlled-A/B reward v2; fail-closed Runtime and state gates |
+| 9 Recommend | Implemented, target evidence pending | unified Core selector; exact decision binding; ranked explainability; always-available non-mutating `pm.noop`; benchmark-only recommendations remain non-direct |
+| 10 Assisted Auto | Implemented, target evidence pending | same selector as Conservative plus explicit switch, maintenance, low-traffic, Health Guard and safe allowlist; confidence/cooldown/drift gates are shared policy boundaries |
 | 11 Platforms | Complete for RC | Generic x86, Hyper-V, KVM/Proxmox-compatible guest detection/guidance |
 | 12 Companion | Complete | `pm-companion/v2` endpoint evidence, exact context binding, no router mutation |
 

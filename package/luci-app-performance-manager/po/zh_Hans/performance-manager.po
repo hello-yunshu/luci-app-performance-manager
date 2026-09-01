@@ -528,3 +528,114 @@ msgstr "状态与拓扑 JSON"
 
 msgid "Generic Runtime binary"
 msgstr "通用 Runtime 二进制文件"
+
+msgid "Rill ranks legal actions while Core keeps the final execution authority."
+msgstr "Rill 对合法操作排序，最终执行权仍由 Core 保留。"
+
+msgid "Refresh Rill decision"
+msgstr "刷新 Rill 决策"
+
+msgid "Selected"
+msgstr "已选择"
+
+msgid "No ranking is available yet."
+msgstr "当前还没有可用的排序。"
+
+msgid "Rank"
+msgstr "排名"
+
+msgid "Score"
+msgstr "分数"
+
+msgid "Status"
+msgstr "状态"
+
+msgid "Runtime status"
+msgstr "Runtime 状态"
+
+msgid "Runtime contract"
+msgstr "Runtime 契约"
+
+msgid "Last decision"
+msgstr "最近决策"
+
+msgid "Learning status"
+msgstr "学习状态"
+
+msgid "Learning stage"
+msgstr "学习阶段"
+
+msgid "cold"
+msgstr "冷启动"
+
+msgid "Minimum samples"
+msgstr "最小样本数"
+
+msgid "Auto eligibility"
+msgstr "自动执行资格"
+
+msgid "Paused"
+msgstr "已暂停"
+
+msgid "Eligible"
+msgstr "允许"
+
+msgid "Top ranking"
+msgstr "最高排序"
+
+msgid "Performance drift detected. Rill Auto temporarily paused."
+msgstr "检测到性能分布漂移，Rill 自动决策已暂时暂停。"
+
+msgid "Smart policy"
+msgstr "智能策略"
+
+msgid "Selected action"
+msgstr "已选择操作"
+
+msgid "Rill judges that keeping the current configuration is better."
+msgstr "Rill 判断保持当前配置更优。"
+
+msgid "Allow Rill ranking in Auto"
+msgstr "允许自动决策使用 Rill 排序"
+
+msgid "Minimum validated samples"
+msgstr "最小已验证样本数"
+
+msgid "Conservative minimum confidence"
+msgstr "保守模式最低置信度"
+
+msgid "Assisted minimum confidence"
+msgstr "辅助模式最低置信度"
+
+msgid "Performance drift threshold"
+msgstr "性能漂移阈值"
+
+msgid "Action cooldown (seconds)"
+msgstr "操作冷却时间（秒）"
+
+msgid "Last reward"
+msgstr "最近奖励"
+
+msgid "No mutation"
+msgstr "不修改配置"
+
+msgid "Enable Runtime"
+msgstr "启用 Runtime"
+
+msgid "Runtime · Collecting"
+msgstr "Runtime · 收集中"
+
+msgid "Rill Runtime · Collecting"
+msgstr "Rill Runtime · 收集中"
+
+msgid "Balanced (requires latency and CPU evidence)"
+msgstr "平衡（需要延迟和 CPU 证据）"
+
+msgid "Throughput"
+msgstr "吞吐量"
+
+msgid "Latency (requires latency evidence)"
+msgstr "延迟（需要延迟证据）"
+
+msgid "CPU efficiency (requires Core CPU evidence)"
+msgstr "CPU 效率（需要 Core CPU 证据）"

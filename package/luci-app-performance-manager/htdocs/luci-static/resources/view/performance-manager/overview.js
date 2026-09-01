@@ -12,7 +12,7 @@ return view.extend({
 			pu.badge(s.running ? _('Running') : _('Stopped'), s.running ? 'success' : 'danger'),
 			pu.badge(_('Automation: %s').format(s.automation || '—')),
 			pu.badge(_('Goal: %s').format(s.goal || '—')),
-			pu.badge(rill.status || _('Rill Shadow · Collecting')),
+			pu.badge(rill.status || _('Rill Runtime · Collecting')),
 			pu.badge(s.telemetry ? _('Telemetry Active') : _('Telemetry Off'), s.telemetry ? 'success' : 'warning'),
 			pu.badge(s.failsafe ? _('Failsafe Ready') : _('Failsafe Off'), s.failsafe ? 'success' : 'warning'),
 			pu.badge(profile.healthy ? _('Profile Healthy') : _('Profile Degraded'), profile.healthy ? 'success' : 'warning')

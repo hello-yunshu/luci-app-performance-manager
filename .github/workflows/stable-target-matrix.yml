@@ -12,7 +12,7 @@ on:
         required: true
         type: string
       ci_run_id:
-        description: Same-commit CI run containing the exact verified Rill adapter
+        description: Same-commit CI run containing the exact verified Runtime v3 evidence
         required: true
         type: string
 

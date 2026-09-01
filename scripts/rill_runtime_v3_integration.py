@@ -27,9 +27,9 @@ def envelope(request_id: str, request: dict, *, partition: str | None, capabilit
 
 
 def call(binary: Path, state: Path, request_id: str, request: dict, *, partition: str | None, capability: str | None, schema_hash: str, state_generation: int) -> dict:
-    wire = json.dumps(envelope(request_id, request, partition=partition, capability=capability, generation=1, schema_hash=schema_hash, state_generation=state_generation))
+    wire = json.dumps(envelope(request_id, request, partition=partition, capability=capability, generation=2, schema_hash=schema_hash, state_generation=state_generation))
     proc = subprocess.run(
-        [str(binary), "preview-serve", "--state", str(state), "--feature-schema-hash", schema_hash, "--model-generation", "1"],
+        [str(binary), "preview-serve", "--state", str(state), "--feature-schema-hash", schema_hash, "--model-generation", "2"],
         input=wire + "\n", text=True, capture_output=True, check=False,
     )
     if proc.returncode != 0:
@@ -75,14 +75,14 @@ def main() -> int:
 
         feedback = call(binary, state, "feedback", {"method": "feedback", "decisionId": decision_id,
                                         "selectedActionId": selected, "reward": 0.25,
-                                        "outcomeTimeMs": 100, "generation": 1},
+                                        "outcomeTimeMs": 100, "generation": 2},
                         partition="default", capability="org.rill.preview.feedback", schema_hash=schema_hash, state_generation=1)
         if feedback["response"].get("output", {}).get("accepted") is not True or feedback["stateGeneration"] != 2:
             raise RuntimeError(f"feedback lifecycle failed: {feedback}")
 
         duplicate = call(binary, state, "duplicate-feedback", {"method": "feedback", "decisionId": decision_id,
                                          "selectedActionId": selected, "reward": 0.25,
-                                         "outcomeTimeMs": 101, "generation": 1},
+                                         "outcomeTimeMs": 101, "generation": 2},
                          partition="default", capability="org.rill.preview.feedback", schema_hash=schema_hash, state_generation=2)
         if duplicate["response"].get("kind") != "error" or duplicate["response"]["error"]["code"] != "duplicateFeedback":
             raise RuntimeError(f"duplicate feedback was not rejected: {duplicate}")

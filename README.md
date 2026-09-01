@@ -26,7 +26,7 @@
 - **Telemetry + Health Guard**：evidence/confidence Analyzer、baseline-relative 健康门禁、资源锁、持久 pending marker、verified rollback 与真实 monotonic commit-confirm 引擎
 - **Phase-7 Benchmark 编排**：irqbalance、backlog/budget、buffers、busy poll、tx queue、coalescing、CC、qdisc、SFO/HFO/SFE、CPU governor；只有存在精确可逆契约时才执行 provider
 - **受控 A/B 真值**：持久 control evidence → 单变量事务 candidate → candidate evidence → 验证后回滚 → 结果持久化 → 可选 Rill outcome；缺失 / 无效 evidence 永远不会变成 `validated=true`
-- **Rill Runtime Shadow 学习**：PM 通过独立 `rill-runtime` 包的 Preview Runtime v3 进行 advisory-only Shadow 学习；PM 不拥有 Runtime 二进制。缺失、不兼容或状态恢复失败时 fail-closed，绝不写入主机配置。
+- **Rill Runtime v3 Smart Decision**：PM 通过独立 `rill-runtime` 包进行特征排序与 advisory；Core 统一执行 Conservative/Assisted selector，保留安全 allowlist、NO_OP、置信度、漂移和冷却门禁。PM 不拥有 Runtime 二进制。
 - **Assisted Auto**：默认关闭，必须显式选择 + 维护窗口 + 低流量门禁 + 安全 allowlist
 - **多平台指导**：Generic x86、Hyper-V、KVM（含 Proxmox VE guest 建议）
 - **Companion Agent**：显式 LAN/WAN iperf3 端点工具，不拥有路由器修改权限
@@ -62,7 +62,7 @@
 ### 源码构建（OpenWrt SDK / buildroot）
 
 ```sh
-# 1. 在 RillML 仓库中准备通用 Runtime 包；PM 只构建自己的 glue 包
+# 1. 从外部 Rill OpenWrt feed 提供通用 Runtime；本仓库只构建 PM 集成包
 cd /path/to/openwrt-performance-manager
 
 # 2. 再进入 OpenWrt SDK
@@ -79,13 +79,13 @@ make package/performance-manager-rill/compile V=s
 make package/luci-app-performance-manager-all/compile V=s
 ```
 
-随后 SDK 会按顺序构建并校验 Core、LuCI、精确提交绑定的通用 Runtime、Rill glue 与 all-in-one 包。推荐基础安装是 `luci-app-performance-manager-all`；需要 Shadow 集成时，安装 `performance-manager-rill` 与同一架构的 `rill-runtime`。
+随后 SDK 会按顺序构建并校验 Core、LuCI、Rill 集成 glue 与 all-in-one 包。推荐安装 `luci-app-performance-manager-all`；需要 Smart Decision 时，再安装同一架构的外部 `rill-runtime`。
 
 > 也可以直接依赖 GitHub Actions 的 `build-openwrt.yml` → `openwrt-sdk-build` job 产出构建结果，无需本地 SDK。
 
 ### 推荐：单 APK 安装
 
-从 GitHub Release 下载 `luci-app-performance-manager-all-1.0.3-r1.apk`；如启用当前 Preview Shadow 集成，再下载 `performance-manager-rill` 包和同一架构的外部 `rill-runtime` 包。
+从 GitHub Release 下载 `luci-app-performance-manager-all-1.0.3-r1.apk`；如启用 Smart Decision，再下载 `performance-manager-rill` glue 包和同一架构的外部 `rill-runtime` 包。
 
 仓库的官方 OpenWrt SDK 编译会编译并校验所有拆分包以及实体一体化包；公开 Release 提供一份 arch-independent all-in-one 和一份 `performance-manager-rill` glue 包。`rill-runtime` 由 `hello-yunshu/rill-openwrt-packages` 独立提供，必须按设备架构和精确资格证据安装。
 
@@ -127,7 +127,7 @@ ucode ucode-mod-ubus ucode-mod-uci ucode-mod-rtnl ucode-mod-uloop ucode-mod-json
 | Smart Optimization | 推荐动作与安全应用 |
 | Performance Test | Phase-7 受控 benchmark 编排 |
 | Capabilities | 能力 / Topology / TargetRef 视图 |
-| Rill Intelligence | Shadow 学习模型与决策台账 |
+| Rill Intelligence | Runtime v3 学习、排序与决策台账 |
 | History & Rollback | 历史与回滚 |
 | Settings / Advanced | 配置项 |
 
@@ -196,19 +196,19 @@ package/luci-app-performance-manager-all/Makefile  # 将上述自有运行内容
 │  LuCI 前端   │ ─────────→ │  performance-manager   │
 │ (8 个视图)   │ ←───────── │  Core (ucode/ubus)     │
 └──────────────┘  JSON     └───────────┬────────────┘
-                                      │ UDS（有界，shadow-only）
+                                      │ UDS（有界，Runtime v3）
                           ┌───────────▼────────────┐
                           │ performance-manager-rill │
-                          │ (optional integration)  │
+                          │ (external Runtime glue) │
                           └───────────┬────────────┘
-                                      │ pm-rill-shadow v1 / UDS
+                                      │ generic Runtime v3 / UDS
                           ┌───────────▼────────────┐
-                          │ generic Preview Runtime │
-                          │ partitioned, advisory   │
+                          │ external rill-runtime   │
+                          │ ranking, no actuator    │
                           └────────────────────────┘
 ```
 
-> **所有权边界。** `/usr/bin/rill-runtime` 由 Rill 的 OpenWrt 包拥有；PM 只拥有消费者 glue。当前 Runtime v3 仍是 Preview，状态文件按消费者分区持久化，旧状态无法安全恢复时必须显式迁移或重置，不能被发布说明写成 Stable Runtime。
+> **所有权边界。** `/usr/bin/rill-runtime` 由外部 Rill Runtime OpenWrt 包拥有；PM 只拥有 Core、调用 glue、策略状态与 UI。Runtime v3 只返回排序/反馈结果，没有设备执行权；缺失、不兼容或状态恢复失败时 fail-closed。
 
 **数据流**：
 
@@ -216,6 +216,7 @@ package/luci-app-performance-manager-all/Makefile  # 将上述自有运行内容
 2. 前端通过 `ubus call performance-manager <method>` 查询状态 / 能力 / 建议
 3. 合法动作通过事务引擎执行：read-back → 健康验证 → commit-confirm → 必要时回滚
 4. validated outcome 可选写入 Rill，Rill 仅返回 advisory；Rill 缺失 / 协议不兼容时 Core 保持正常并 fail-closed
+5. Auto 统一经过 Smart Action Selector：Rill 只有在 ready、样本数/置信度/漂移/冷却/合法性均通过时才能影响安全动作；`pm.noop` 始终可用且永不执行变更
 
 ## UCI 配置参考
 
@@ -237,17 +238,19 @@ package/luci-app-performance-manager-all/Makefile  # 将上述自有运行内容
 | `health_dns_name` | string | openwrt.org | 健康检查 DNS 目标 |
 | `oom_window_seconds` / `max_load_per_cpu` / `max_cpu_steal_percent` / `max_thermal_millicelsius` | integer | 600 / 2 / 20 / 90000 | 健康门禁阈值 |
 
-### rill section（shadow）
+### rill section（Runtime v3）
 
 | 选项 | 类型 | 默认值 | 说明 |
 |---|---|---|---|
-| `enabled` | boolean | 1 | 启用 Rill Shadow |
-| `mode` | enum | shadow | 只读学习，无 Apply 权限 |
+| `enabled` | boolean | 1 | 启用外部 Runtime |
+| `mode` | enum | shadow | Runtime 只返回 advisory，无 Apply 权限 |
 | `binary` | string | (空) | 外部 Runtime 路径；空值使用 `/usr/bin/rill-runtime`，缺失或不兼容时集成 fail-closed / 阻塞 |
 | `socket` | string | /run/performance-manager/rill.sock | UDS 路径 |
 | `max_message` | integer | 65536 | 最大消息字节 |
 | `timeout_ms` | integer | 1000 | 调用超时 |
 | `state_dir` | string | /etc/performance-manager/rill | Rill 持久状态 |
+
+Smart Decision 默认使用 8 个已验证样本进入 `ready`，Conservative/Assisted 的最低置信度分别为 0.65/0.75；性能分布漂移阈值为 0.20，漂移恢复需要 3 个新样本，动作冷却默认 600 秒。
 
 ### benchmark section
 
@@ -264,7 +267,7 @@ package/luci-app-performance-manager-all/Makefile  # 将上述自有运行内容
 
 本项目使用 GitHub Actions 自动构建与验证，推送 main 分支或手动触发即可运行：
 
-**`ci.yml`（源码、行为、契约与 Preview Runtime 验证）**
+**`ci.yml`（源码、行为、契约与 Runtime v3 验证）**
 - **static**：单测 + 契约校验 + source gates + final audit + LuCI JS 语法 & render smoke
 - **rill-runtime-v3**：构建精确 Runtime 提交，执行真实 handshake/health/observe/decide/feedback、失败闭合、重复反馈和分区持久化检查
 - **openwrt-ucode**：官方 OpenWrt 25.12.5 rootfs 中编译校验 Core ucode
