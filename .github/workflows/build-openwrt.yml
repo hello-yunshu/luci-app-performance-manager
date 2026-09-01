@@ -28,22 +28,26 @@ jobs:
             openwrt_subtarget: "64"
             sdk_prefix: "x86-64"
             package_arch: "x86_64"
+            rust_target: "x86_64-unknown-linux-musl"
           - openwrt_version: "25.12.5"
             openwrt_target: "armsr"
             openwrt_subtarget: "armv8"
             sdk_prefix: "armsr-armv8"
             package_arch: "aarch64_generic"
+            rust_target: "aarch64-unknown-linux-musl"
           - openwrt_version: "25.12.5"
             openwrt_target: "mediatek"
             openwrt_subtarget: "filogic"
             sdk_prefix: "mediatek-filogic"
             package_arch: "aarch64_cortex-a53"
+            rust_target: "aarch64-unknown-linux-musl"
     env:
       OPENWRT_VERSION: ${{ matrix.openwrt_version }}
       OPENWRT_TARGET: ${{ matrix.openwrt_target }}
       OPENWRT_SUBTARGET: ${{ matrix.openwrt_subtarget }}
       SDK_PREFIX: ${{ matrix.sdk_prefix }}
       PACKAGE_ARCH: ${{ matrix.package_arch }}
+      RUST_TARGET: ${{ matrix.rust_target }}
     steps:
       - uses: actions/checkout@v7
       - name: Checkout canonical Runtime package at immutable contract commit
@@ -106,6 +110,7 @@ jobs:
           tar --zstd -xf "$archive"
           sdkdir=$(find . -maxdepth 1 -type d -name "openwrt-sdk-${OPENWRT_VERSION}-${SDK_PREFIX}_*" | head -n1)
           test -n "$sdkdir"
+          sdkdir=$(cd "$sdkdir" && pwd)
           echo "SDKDIR=$sdkdir" >> "$GITHUB_ENV"
       - name: Resolve official feed identity
         id: openwrt-feeds
@@ -149,8 +154,14 @@ jobs:
             echo 'OpenWrt Rust feed still enables CI LLVM downloads' >&2
             exit 1
           fi
-          RUST_TOOLCHAIN=1.94.0 RUST_STAGING_DIR="$SDKDIR/staging_dir/host" \
-            "$GITHUB_WORKSPACE/rill-openwrt-packages/scripts/stage_rust_toolchain.sh"
+          (
+            cd "$GITHUB_WORKSPACE/rill-openwrt-packages"
+            GITHUB_WORKSPACE="$GITHUB_WORKSPACE/rill-openwrt-packages" \
+              RUST_TOOLCHAIN=1.94.0 RUST_TARGET="$RUST_TARGET" \
+              RUSTUP_HOME="$RUNNER_TEMP/rustup" CARGO_HOME="$RUNNER_TEMP/cargo" \
+              RUST_STAGING_DIR="$SDKDIR/staging_dir/host" \
+              ./scripts/prepare_rust_toolchain.sh
+          )
           "$SDKDIR/staging_dir/host/bin/rustc" --version | grep -F 'rustc 1.94.0'
           mkdir -p package/openwrt-performance-manager
           cp -a "$GITHUB_WORKSPACE"/package/* package/openwrt-performance-manager/
@@ -160,8 +171,6 @@ jobs:
         run: cd "$SDKDIR" && bash "$GITHUB_WORKSPACE/scripts/openwrt-build-diagnostic.sh" package/performance-manager/compile
       - name: Build LuCI
         run: cd "$SDKDIR" && bash "$GITHUB_WORKSPACE/scripts/openwrt-build-diagnostic.sh" package/luci-app-performance-manager/compile
-      - name: Build Rill integration package (glue only, never compiles Rill)
-        run: cd "$SDKDIR" && bash "$GITHUB_WORKSPACE/scripts/openwrt-build-diagnostic.sh" package/performance-manager-rill/compile
       - name: Build canonical generic Rill Runtime package
         env:
           GH_TOKEN: ${{ github.token }}
@@ -171,12 +180,13 @@ jobs:
           package_commit="$(git -C "$GITHUB_WORKSPACE/rill-openwrt-packages" rev-parse HEAD)"
           rill_runtime_version="$(sed -n 's/^PKG_VERSION:=//p' "$GITHUB_WORKSPACE/rill-openwrt-packages/package/rill-runtime/Makefile")"
           echo "RILL_OPENWRT_PACKAGE_COMMIT=$package_commit" >> "$GITHUB_ENV"
-          qualification_run="$(gh api "repos/hello-yunshu/rill-openwrt-packages/actions/workflows/qualify.yml/runs?head_sha=${package_commit}&status=completed&per_page=100" --jq '.workflow_runs[] | select(.conclusion=="success") | .id' | head -n1)"
+          qualification_run="$(gh api "repos/hello-yunshu/rill-openwrt-packages/actions/workflows/qualify.yml/runs?head_sha=${package_commit}&status=completed&per_page=100" --jq '[.workflow_runs[] | select(.conclusion=="success") | .id][0] // empty')"
           test -n "$qualification_run"
-          gh api "repos/hello-yunshu/rill-openwrt-packages/actions/runs/${qualification_run}/artifacts" --jq '.artifacts[] | select(.name=="qualification-evidence" and .expired==false) | .id' | grep -q .
+          qualification_artifact_name="$(gh api "repos/hello-yunshu/rill-openwrt-packages/actions/runs/${qualification_run}/artifacts" --jq '[.artifacts[] | select((.name|startswith("qualification-evidence-")) and .expired==false) | .name][0] // empty')"
+          test -n "$qualification_artifact_name"
           qualification_dir="$RUNNER_TEMP/rill-qualification"
           mkdir -p "$qualification_dir"
-          gh run download "$qualification_run" --repo hello-yunshu/rill-openwrt-packages --name qualification-evidence --dir "$qualification_dir"
+          gh run download "$qualification_run" --repo hello-yunshu/rill-openwrt-packages --name "$qualification_artifact_name" --dir "$qualification_dir"
           qualification_file=$(find "$qualification_dir" -type f -name qualification.json -print -quit)
           test -n "$qualification_file"
           python3 "$GITHUB_WORKSPACE/rill-openwrt-packages/scripts/verify_qualification.py" "$qualification_file" \
@@ -192,6 +202,8 @@ jobs:
           cd "$SDKDIR"
           unset CI
           bash "$GITHUB_WORKSPACE/scripts/openwrt-build-diagnostic.sh" package/rill-runtime/compile
+      - name: Build Rill integration package (glue only, never compiles Rill)
+        run: cd "$SDKDIR" && bash "$GITHUB_WORKSPACE/scripts/openwrt-build-diagnostic.sh" package/performance-manager-rill/compile
       - name: Build all-in-one APK (Core + LuCI + rpcd + zh-cn)
         run: cd "$SDKDIR" && bash "$GITHUB_WORKSPACE/scripts/openwrt-build-diagnostic.sh" package/luci-app-performance-manager-all/compile
       - name: Assert expected packages present (exact APK metadata match)
