@@ -40,6 +40,10 @@ jobs:
           fi
           version=$(python3 -c 'import json; print(json.load(open("contracts/rill-runtime.json"))["resolved"]["version"])')
           branch="chore/rill-${version}"
+          if gh pr list --base main --head "$branch" --state open --json number --jq 'length > 0' | grep -q true; then
+            echo "An open update pull request for ${branch} already exists; nothing to do."
+            exit 0
+          fi
           if git ls-remote --exit-code --heads origin "$branch" >/dev/null 2>&1; then
             echo "Generated update branch ${branch} already exists; reusing it."
           else
