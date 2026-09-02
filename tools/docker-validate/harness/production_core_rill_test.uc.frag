@@ -19,7 +19,7 @@ let _production_cfg = cfg;
 cfg = function(key, fallback) {
 	if (key == 'shadow.enabled') return '1';
 	if (key == 'shadow.binary') return '/usr/bin/rill-runtime';
-	if (key == 'shadow.state_file') return '/tmp/pm-production-runtime-state.json';
+	if (key == 'shadow.state_file') return '/tmp/pm-production-runtime/runtime-state.json';
 	if (key == 'main.persistent_dir') return '/tmp/pm-production';
 	if (key == 'main.state_dir') return '/tmp/pm-production-state';
 	if (key == 'main.profile') return 'recommended';

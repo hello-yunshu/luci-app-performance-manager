@@ -167,6 +167,9 @@ class SmartDecisionTests(unittest.TestCase):
             self.assertIn(token, driver)
         for token in ["preview-serve", "Runtime executable", "docker", "production_core_rill_test.uc", "pm<->rill-core-integration", "features_a", "features_b"]:
             self.assertIn(token, runner)
+        self.assertIn('state.parent}:/tmp/pm-production-runtime:rw', runner)
+        self.assertNotIn('state}:/tmp/pm-production-runtime-state.json:rw', runner)
+        self.assertIn('/tmp/pm-production-runtime/runtime-state.json', driver)
 
     def test_runtime_state_checksum_uses_keys_as_values_in_ucode(self):
         checksum = CORE[CORE.index("let canonical_map = function"):CORE.index("let p = fs.popen", CORE.index("let canonical_map = function"))]
