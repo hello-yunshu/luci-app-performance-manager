@@ -6,7 +6,7 @@
 
 Rill is a sidecar, not an actuator:
 
-`Core → bounded Runtime v3 UDS → Rill ranking → Smart Action Selector → Core transaction engine`
+`Core → bounded Runtime v3 stdin/stdout subprocess → Rill ranking → Smart Action Selector → Core transaction engine`
 
 The Companion Agent is an endpoint evidence utility for explicit tests and has no router-control surface.
 

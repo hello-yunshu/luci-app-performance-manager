@@ -592,6 +592,9 @@ msgstr "智能策略"
 msgid "Selected action"
 msgstr "已选择操作"
 
+msgid "Selected candidate"
+msgstr "已选择候选"
+
 msgid "Rill judges that keeping the current configuration is better."
 msgstr "Rill 判断保持当前配置更优。"
 
@@ -615,6 +618,12 @@ msgstr "操作冷却时间（秒）"
 
 msgid "Last reward"
 msgstr "最近奖励"
+
+msgid "Reward components"
+msgstr "奖励组成"
+
+msgid "Measurement quality"
+msgstr "测量质量"
 
 msgid "No mutation"
 msgstr "不修改配置"
