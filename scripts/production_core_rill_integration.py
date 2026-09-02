@@ -134,8 +134,8 @@ def main() -> int:
         evidence = json.loads(match.group(1))
         expected_unprivileged_exit = (
             evidence.get("verdict") == "PASS"
-            and "Operation not permitted (you must be root)" in proc.stderr
-            and "Failed to connect to ubus" in proc.stderr
+            and "Operation not permitted (you must be root)" in output
+            and "Failed to connect to ubus" in output
         )
         if proc.returncode != 0 and not expected_unprivileged_exit:
             raise RuntimeError(f"production Core harness failed:\n{output[-12000:]}")
