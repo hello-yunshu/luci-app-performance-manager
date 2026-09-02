@@ -208,7 +208,26 @@ function json_read(path, fallback) {
 }
 
 function rill_state_checksum(snapshot) {
-	let wire = sprintf('%J', [ snapshot.formatVersion, snapshot.partitions ]);
+	let h = snapshot.handlerSnapshot ?? {}, handler = {
+		stateSchemaVersion: h.stateSchemaVersion, stateGeneration: h.stateGeneration,
+		state: h.state, checksumSha256: h.checksumSha256
+	};
+	let canonical_entry = function(entry) {
+		let out = { decisionId: entry.decisionId, modelGeneration: entry.modelGeneration,
+			stateGeneration: entry.stateGeneration, createdAtUnixMs: entry.createdAtUnixMs };
+		if (entry.selectedActionId != null) out.selectedActionId = entry.selectedActionId;
+		if (entry.selectedActionFeatures != null) out.selectedActionFeatures = entry.selectedActionFeatures;
+		if (entry.reward != null) out.reward = entry.reward;
+		if (entry.outcomeTimeUnixMs != null) out.outcomeTimeUnixMs = entry.outcomeTimeUnixMs;
+		return out;
+	};
+	let canonical_map = function(input) {
+		let out = {}, names = keys(input ?? {});
+		sort(names);
+		for (let name in names) out[names[name]] = canonical_entry(input[names[name]]);
+		return out;
+	};
+	let wire = sprintf('%J', [ handler, canonical_map(snapshot.pendingDecisions), canonical_map(snapshot.completedDecisions) ]);
 	let p = fs.popen(`printf '%s' ${shell_quote(wire)} | sha256sum`, 'r');
 	if (!p) return null;
 	let out = trimstr(p.read('all') ?? ''), rc = p.close() ?? 127;
@@ -1918,18 +1937,11 @@ function rill_state_generation() {
 	if (raw == null || !length(trimstr(raw))) return { ok: true, generation: 0, reason: 'state-absent' };
 	let snapshot = null;
 	try { snapshot = json(raw); } catch (e) { return { ok: false, generation: null, reason: 'state-invalid-json' }; }
-	if (type(snapshot) != 'object' || snapshot.formatVersion != 1 || type(snapshot.partitions) != 'array' || !length(snapshot.partitions) ||
+	if (type(snapshot) != 'object' || snapshot.formatVersion != 1 || type(snapshot.handlerSnapshot) != 'object' ||
+		type(snapshot.pendingDecisions) != 'object' || type(snapshot.completedDecisions) != 'object' ||
 		!match(snapshot.checksumSha256 ?? '', /^[0-9a-f]{64}$/) || rill_state_checksum(snapshot) != snapshot.checksumSha256)
 		return { ok: false, generation: null, reason: 'state-schema-incompatible' };
-	let found = null;
-	for (let partition in snapshot.partitions) {
-		if (partition?.clientIdentityName == 'performance-manager' && partition?.partitionKey == 'default') {
-			if (found != null) return { ok: false, generation: null, reason: 'state-duplicate-partition' };
-			found = partition;
-		}
-	}
-	if (found == null) return { ok: true, generation: 0, reason: 'partition-absent' };
-	let generation = found.handlerSnapshot?.stateGeneration;
+	let generation = snapshot.handlerSnapshot.stateGeneration;
 	if (type(generation) != 'int' || generation < 0) return { ok: false, generation: null, reason: 'state-generation-invalid' };
 	return { ok: true, generation: generation, reason: 'state-valid' };
 }
@@ -1984,7 +1996,6 @@ function rill_send(payload, outcome_attempt, mark_sent_unknown) {
 	let request = {
 		requestId: request_id, apiVersion: RILL_RUNTIME_API_VERSION,
 		clientIdentity: { name: 'performance-manager', version: VERSION },
-		partitionKey: 'default',
 		featureSchemaHash: RILL_FEATURE_SCHEMA_HASH, modelGeneration: RILL_MODEL_GENERATION,
 		stateGeneration: state_generation, payloadLimit: 262144
 	};
