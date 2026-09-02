@@ -169,9 +169,11 @@ class SmartDecisionTests(unittest.TestCase):
             self.assertIn(token, runner)
 
     def test_runtime_state_checksum_uses_keys_as_values_in_ucode(self):
-        checksum = CORE[CORE.index("let canonical_map = function"):CORE.index("let wire = sprintf('%J'", CORE.index("let canonical_map = function"))]
+        checksum = CORE[CORE.index("let canonical_map = function"):CORE.index("let p = fs.popen", CORE.index("let canonical_map = function"))]
         self.assertIn("out[name] = canonical_entry(input[name])", checksum)
         self.assertNotIn("out[names[name]] = canonical_entry(input[names[name]])", checksum)
+        self.assertIn("function json_compact(value)", CORE)
+        self.assertIn("let wire = json_compact(", checksum)
 
     def test_apply_action_can_resolve_exact_selector_context_in_ucode(self):
         self.assertLess(CORE.index("function smart_selector_context()"), CORE.index("function apply_action(msg)"))

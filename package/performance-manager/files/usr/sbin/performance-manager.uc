@@ -207,6 +207,29 @@ function json_read(path, fallback) {
 	}
 }
 
+function json_compact(value) {
+	/* Rust serde_json (used by the generic Runtime) emits compact JSON.  The
+	 * OpenWrt ucode %J formatter inserts insignificant whitespace, so remove
+	 * it only outside quoted strings before hashing; spaces in IDs or state
+	 * payloads remain part of the checksum input. */
+	let raw = sprintf('%J', value), out = '', quoted = false, escaped = false;
+	for (let i = 0; i < length(raw); i++) {
+		let ch = substr(raw, i, 1);
+		if (quoted) {
+			out += ch;
+			if (escaped) escaped = false;
+			else if (ch == '\\') escaped = true;
+			else if (ch == '"') quoted = false;
+		} else if (ch == '"') {
+			quoted = true;
+			out += ch;
+		} else if (ch != ' ' && ch != '\n' && ch != '\r' && ch != '\t') {
+			out += ch;
+		}
+	}
+	return out;
+}
+
 function rill_state_checksum(snapshot) {
 	let h = snapshot.handlerSnapshot ?? {}, handler = {
 		stateSchemaVersion: h.stateSchemaVersion, stateGeneration: h.stateGeneration,
@@ -227,7 +250,7 @@ function rill_state_checksum(snapshot) {
 		for (let name in names) out[name] = canonical_entry(input[name]);
 		return out;
 	};
-	let wire = sprintf('%J', [ handler, canonical_map(snapshot.pendingDecisions), canonical_map(snapshot.completedDecisions) ]);
+	let wire = json_compact([ handler, canonical_map(snapshot.pendingDecisions), canonical_map(snapshot.completedDecisions) ]);
 	let p = fs.popen(`printf '%s' ${shell_quote(wire)} | sha256sum`, 'r');
 	if (!p) return null;
 	let out = trimstr(p.read('all') ?? ''), rc = p.close() ?? 127;
