@@ -3458,6 +3458,19 @@ function apply_ring(action, options) {
 	return { ok: true, transaction: tx };
 }
 
+function smart_selector_context() {
+	let caps = capabilities(), topo = topology(), integ = integration_fingerprint([], nft_snapshot()), actions = rill_available_actions(active_selector_mode()), scope_paths = [];
+	for (let action in actions) for (let path_id in action.evaluationPaths ?? []) push_unique(scope_paths, path_id);
+	let scope = rill_context_scope(scope_paths);
+	return {
+		profile: cfg('main.profile', 'recommended'), pathId: scope.pathId, workloadClass: workload_for_paths(scope_paths), integrationState: integration_state(),
+		contextKey: rill_context_key_build(cfg('main.profile','recommended'), capability_hash(caps), topology_generation,
+			scope.pathId, scope.routeIdentity, workload_for_paths(scope_paths), integ, goal()),
+		goal: goal(), pathScope: scope, topologyGeneration: topology_generation, routeIdentity: scope.routeIdentity,
+		integrationFingerprint: integ
+	};
+}
+
 function apply_action(msg) {
 	let action_id = msg?.actionId;
 	let descriptor = rill_action_descriptor(action_id), a = descriptor?.action ?? null;
@@ -3732,19 +3745,6 @@ function rill_observe(mode) {
 	if (!binding || !advisory) return { ok: false, state: 'binding-registration-failed', requestId: payload.requestId };
 	rill_runtime_counters.rillObserveAccepted++;
 	return { ok: true, decisionId: resp.decisionId, recommendation: resp.recommendation, binding: binding, response: r.response };
-}
-
-function smart_selector_context() {
-	let caps = capabilities(), topo = topology(), integ = integration_fingerprint([], nft_snapshot()), actions = rill_available_actions(active_selector_mode()), scope_paths = [];
-	for (let action in actions) for (let path_id in action.evaluationPaths ?? []) push_unique(scope_paths, path_id);
-	let scope = rill_context_scope(scope_paths);
-	return {
-		profile: cfg('main.profile', 'recommended'), pathId: scope.pathId, workloadClass: workload_for_paths(scope_paths), integrationState: integration_state(),
-		contextKey: rill_context_key_build(cfg('main.profile','recommended'), capability_hash(caps), topology_generation,
-			scope.pathId, scope.routeIdentity, workload_for_paths(scope_paths), integ, goal()),
-		goal: goal(), pathScope: scope, topologyGeneration: topology_generation, routeIdentity: scope.routeIdentity,
-		integrationFingerprint: integ
-	};
 }
 
 function smart_eligible_action(action, mode, context) {
