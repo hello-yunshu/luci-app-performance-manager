@@ -173,6 +173,9 @@ class SmartDecisionTests(unittest.TestCase):
         self.assertIn("out[name] = canonical_entry(input[name])", checksum)
         self.assertNotIn("out[names[name]] = canonical_entry(input[names[name]])", checksum)
 
+    def test_apply_action_can_resolve_exact_selector_context_in_ucode(self):
+        self.assertLess(CORE.index("function smart_selector_context()"), CORE.index("function apply_action(msg)"))
+
     def test_conservative_runtime_ranking_is_scoped_to_safe_actions(self):
         self.assertIn("function rill_available_actions(mode)", CORE)
         self.assertIn("if (mode == 'conservative') return out;", CORE)
