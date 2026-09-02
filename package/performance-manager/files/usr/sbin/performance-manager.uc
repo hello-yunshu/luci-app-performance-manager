@@ -2820,28 +2820,6 @@ function nft_snapshot() {
 	return { items: parts, parsed: parsed, canonical: join('\n', parts) };
 }
 
-function rill_advisory_get() {
-	/* Latest valid advisory for UI display.  Invalidated on ANY drift
-	 * (topology generation, route identity, integration fingerprint, goal) or
-	 * on action disappearance / decision TTL expiry — fail-closed: a stale
-	 * advisory is never surfaced as if it were current.  Keep this definition
-	 * after topology()/nft_snapshot(): raw ucode resolves callees at definition
-	 * time and the shipped daemon has no source transformation. */
-	if (!rill_advisory) return null;
-	let a = rill_advisory;
-	if (monotonic_ms() > a.expiresMonotonicMs) { rill_advisory = null; return null; }
-	let topo = topology();
-	if ((a.topologyGeneration ?? null) != topology_generation) { rill_advisory = null; return null; }
-	let scope_paths = [];
-	for (let candidate in rill_available_actions(a.selectorMode)) for (let path_id in candidate.evaluationPaths ?? []) push_unique(scope_paths, path_id);
-	let scope = rill_context_scope(scope_paths);
-	if (a.pathScope && (a.pathScope.pathId != scope.pathId || a.pathScope.routeIdentity != scope.routeIdentity)) { rill_advisory = null; return null; }
-	if ((a.integrationFingerprint ?? '') != integration_fingerprint([], nft_snapshot())) { rill_advisory = null; return null; }
-	if ((a.goal ?? '') != goal()) { rill_advisory = null; return null; }
-	if (rill_binding_peek(a.decisionId) == null) { rill_advisory = null; return null; }
-	return a;
-}
-
 function nft_ruleset_fingerprint() {
 	/* Canonical live nft ruleset identity, no flow masking (Blocker B).
 	 * Returns the structural hash of the FULL ruleset or null when nft is
@@ -3344,6 +3322,28 @@ function rill_available_actions(mode) {
 		}
 	}
 	return out;
+}
+
+function rill_advisory_get() {
+	/* Latest valid advisory for UI display.  Invalidated on ANY drift
+	 * (topology generation, route identity, integration fingerprint, goal) or
+	 * on action disappearance / decision TTL expiry — fail-closed: a stale
+	 * advisory is never surfaced as if it were current.  This definition is
+	 * deliberately after rill_available_actions(): raw ucode resolves callees
+	 * at definition time and the shipped daemon has no source transformation. */
+	if (!rill_advisory) return null;
+	let a = rill_advisory;
+	if (monotonic_ms() > a.expiresMonotonicMs) { rill_advisory = null; return null; }
+	let topo = topology();
+	if ((a.topologyGeneration ?? null) != topology_generation) { rill_advisory = null; return null; }
+	let scope_paths = [];
+	for (let candidate in rill_available_actions(a.selectorMode)) for (let path_id in candidate.evaluationPaths ?? []) push_unique(scope_paths, path_id);
+	let scope = rill_context_scope(scope_paths);
+	if (a.pathScope && (a.pathScope.pathId != scope.pathId || a.pathScope.routeIdentity != scope.routeIdentity)) { rill_advisory = null; return null; }
+	if ((a.integrationFingerprint ?? '') != integration_fingerprint([], nft_snapshot())) { rill_advisory = null; return null; }
+	if ((a.goal ?? '') != goal()) { rill_advisory = null; return null; }
+	if (rill_binding_peek(a.decisionId) == null) { rill_advisory = null; return null; }
+	return a;
 }
 
 function rill_context_key_observe() {
