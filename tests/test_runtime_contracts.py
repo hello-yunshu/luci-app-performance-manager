@@ -59,7 +59,7 @@ class RuntimeContractModelTests(unittest.TestCase):
 
     def test_runtime_shaped_transactions_validate(self):
         schema=json.loads((ROOT/'contracts/transaction.schema.json').read_text())
-        base={"schemaVersion":2,"transactionId":"tx-1","actionId":"network.backlog","executionSource":"manual","rillDecision":None,"state":"planned","requiredLocks":["sysctl:x"],"bootId":"b","before":None,"applied":None,"deadlineMonotonicMs":None,"commitPolicy":"rollback_after_benchmark","requiresCommitConfirm":True,"pendingMarker":None,"verification":{},"result":None}
+        base={"schemaVersion":2,"transactionId":"tx-1","actionId":"network.backlog","candidateId":"network.backlog@target=deadbeef|path=deadbeef","businessActionId":"network.backlog","executionSource":"manual","rillDecision":None,"state":"planned","requiredLocks":["sysctl:x"],"bootId":"b","before":None,"applied":None,"deadlineMonotonicMs":None,"commitPolicy":"rollback_after_benchmark","requiresCommitConfirm":True,"pendingMarker":None,"verification":{},"result":None}
         jsonschema.Draft202012Validator(schema).validate(base)
         awaiting={**base,"state":"awaiting_confirm","before":{"benchmark":{}},"deadlineMonotonicMs":12345,"pendingMarker":"/etc/performance-manager/pending/tx-1.json"}
         jsonschema.Draft202012Validator(schema).validate(awaiting)

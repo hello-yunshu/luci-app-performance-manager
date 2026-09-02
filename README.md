@@ -41,6 +41,7 @@
 - 事务验证 read-back 与 baseline-relative 健康；恢复失败记为失败而非成功回滚
 - 普通 telemetry / topology 刷新留在 tmpfs；持久历史有界
 - 被动 / 健康类 benchmark 观察保持 `validated=false`；只有真实 validated outcome 才更新 Rill 学习
+- Smart History 以 `candidateId`（business action + stable target + evaluation path）隔离；旧的无法安全映射到 target/path 的 action history 会被丢弃，不会复制到多个候选
 
 ## OpenWrt 包
 

@@ -8,6 +8,7 @@
     "schemaVersion",
     "transactionId",
     "actionId",
+    "candidateId",
     "executionSource",
     "rillDecision",
     "state",
@@ -27,6 +28,14 @@
       "minLength": 1
     },
     "actionId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "candidateId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "businessActionId": {
       "type": "string",
       "minLength": 1
     },

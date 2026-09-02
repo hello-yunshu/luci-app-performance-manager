@@ -104,13 +104,24 @@ class SmartDecisionTests(unittest.TestCase):
         values = build_features(action, interval, {})
         self.assertEqual(values[10:17], [0.4, 0.3, 0.2, 0.5, 0.1, 0.6, 0.7])
 
+    def test_features_prefer_resolved_path_interval_with_global_fallback(self):
+        action = {"id": "nic.ring.floor", "evaluationPaths": ["wan-b"],
+                  "executionAuthority": "safe-direct", "risk": "safe"}
+        telemetry = {"trafficUtilization": 0.9, "ppsPressure": 0.8,
+                     "dropErrorPressure": 0.7, "pathFeatures": {
+                         "wan-b": {"available": True, "trafficUtilization": 0.1,
+                                   "ppsPressure": 0.2, "dropErrorPressure": 0.3}}}
+        self.assertEqual(build_features(action, telemetry, {})[10:13], [0.1, 0.2, 0.3])
+        unresolved = dict(action, evaluationPaths=["missing"])
+        self.assertEqual(build_features(unresolved, telemetry, {})[10:13], [0.9, 0.8, 0.7])
+
     def test_reward_goals_are_distinct_and_missing_evidence_is_invalid(self):
         control = {"bitsPerSecond": 100, "latencyMs": 100}
         candidate = {"bitsPerSecond": 110, "latencyMedianMs": 80, "latencyP95Ms": 120}
         control["latencyMedianMs"] = 100
         control["latencyP95Ms"] = 150
-        telemetry0 = {"health": {"cpu": {"busyPct": 0.5}}}
-        telemetry1 = {"health": {"cpu": {"busyPct": 0.55}}}
+        telemetry0 = {"health": {"cpu": {"busyPct": 0.5}}, "cpuBusyInterval": 0.5}
+        telemetry1 = {"health": {"cpu": {"busyPct": 0.55}}, "cpuBusyInterval": 0.55}
         throughput = build_reward("throughput", control, candidate, telemetry0, telemetry1)
         latency = build_reward("latency", control, candidate, telemetry0, telemetry1)
         cpu = build_reward("cpu_efficiency", control, {"bitsPerSecond": 110}, telemetry0, telemetry1)
@@ -123,12 +134,39 @@ class SmartDecisionTests(unittest.TestCase):
         health_bad = build_reward("throughput", control, candidate, telemetry0, telemetry1, health_regressed=True)
         self.assertFalse(health_bad["validated"])
 
+    def test_cumulative_cpu_busy_is_not_benchmark_evidence(self):
+        control = {"bitsPerSecond": 100, "latencyMedianMs": 10, "latencyP95Ms": 20}
+        candidate = {"bitsPerSecond": 110, "latencyMedianMs": 9, "latencyP95Ms": 18}
+        result = build_reward("cpu_efficiency", control, candidate,
+                              {"health": {"cpu": {"busyPct": 0.1}}},
+                              {"health": {"cpu": {"busyPct": 0.9}}})
+        self.assertFalse(result["validated"])
+        self.assertEqual(result["reason"], "missing-evidence:cpuEfficiency")
+
     def test_core_contains_closed_loop_governance(self):
         for token in ["pm.noop", "SMART_WARMING_SAMPLES", "drifted", "action-cooldown",
                       "build_reward", "smart_record_validated_outcome", "confidence-below-policy",
                       "recommended-for-benchmark", "rill-selected-noop"]:
             self.assertIn(token, CORE)
         self.assertIn("rill_refresh:", CORE)
+
+    def test_candidate_identity_is_used_for_history_cooldown_and_journals(self):
+        self.assertIn("candidateId: rec.actionId", CORE)
+        self.assertIn("candidateId: frozen.candidateId ?? frozen.actionId", CORE)
+        self.assertIn("smart_context_stats(context_key, candidate_id, true)", CORE)
+        self.assertIn("smart_cooldown_state(context.contextKey, candidate_id)", CORE)
+        self.assertNotIn("smart_cooldown_state(context.contextKey, action.id)", CORE)
+        self.assertIn("stats.recentRewards", CORE)
+        self.assertIn("components.cpuBusyInterval", CORE)
+        self.assertNotIn("control_telemetry?.health?.cpu?.busyPct", CORE)
+
+    def test_production_core_runtime_harness_is_wired_to_real_chain(self):
+        driver = (ROOT / "tools/docker-validate/harness/production_core_rill_test.uc.frag").read_text()
+        runner = (ROOT / "scripts/production_core_rill_integration.py").read_text()
+        for token in ["rill_observe", "select_smart_action", "apply_action", "smart_context_stats", "PRODUCTION_CORE_EVIDENCE"]:
+            self.assertIn(token, driver)
+        for token in ["preview-serve", "Runtime executable", "docker", "production_core_rill_test.uc", "pm<->rill-core-integration"]:
+            self.assertIn(token, runner)
 
     def test_conservative_runtime_ranking_is_scoped_to_safe_actions(self):
         self.assertIn("function rill_available_actions(mode)", CORE)

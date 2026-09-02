@@ -15,7 +15,7 @@ interface_dump, device_dump, netdevs, stable_target, integration_state, etc.)
 to fixtures and asserts on the real Core's output.  NO semantic transform is
 applied: `convert_hoist.py` was removed (CORE BLOCKER C).
 
-Usage: python3 build-harness.py [OUT.uc]
+Usage: python3 build-harness.py [OUT.uc] [DRIVER.frag]
 The test driver is read from core_runtime_test.uc.frag (appended verbatim).
 """
 import re
@@ -24,8 +24,9 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[3]
 CORE = ROOT / 'package/performance-manager/files/usr/sbin/performance-manager.uc'
-DRIVER = Path(__file__).resolve().parent / 'core_runtime_test.uc.frag'
+DEFAULT_DRIVER = Path(__file__).resolve().parent / 'core_runtime_test.uc.frag'
 OUT = Path(sys.argv[1]) if len(sys.argv) > 1 else Path(__file__).resolve().parent / 'build/core_runtime_test.uc'
+DRIVER = Path(sys.argv[2]) if len(sys.argv) > 2 else DEFAULT_DRIVER
 
 # 1. Read the shipped Core verbatim (already forward-reference-free; NO hoist).
 raw = CORE.read_text()

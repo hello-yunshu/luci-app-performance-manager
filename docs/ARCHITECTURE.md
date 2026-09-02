@@ -20,6 +20,11 @@ router mutation authority.
 
 - Core sends a bounded Runtime v3 envelope with feature schema hash, model/state
   generations, context key and 20-dimensional stable features.
+- A business action is not a learned identity. Runtime candidates are opaque
+  `candidateId` values derived from business action plus stable target/path
+  identity; history, cooldown, ranking, advisory binding and transaction
+  journals use that candidate identity. The business action remains a separate
+  consumer-owned mapping field.
 - Core's unified selector gates Rill by Runtime availability, learning stage,
   confidence, exact decision binding, performance drift, cooldown and the safe
   action allowlist. `pm.noop` is always legal and never mutates state.
@@ -36,6 +41,10 @@ router mutation authority.
 - Device writes target stable `TargetRef`; long-term policy never treats a raw runtime `eth0` name as identity.
 - PPPoE/VPN logical interfaces are resolved to a stable physical/virtual-bus underlay before `ethtool` tuning.
 - Multi-WAN/PBR paths carry WAN-specific route evidence and are invalidated on rtnetlink/netifd topology drift.
+- Path telemetry resolves the selected WAN to an interface/underlay and uses
+  interval deltas; unresolved paths are unavailable rather than borrowing a
+  different path's counters. CPU efficiency uses paired `/proc/stat` counter
+  windows captured around the controlled A/B legs.
 - Writes use fixed argv execution, fixed Action IDs and resource locks; arbitrary shell is not an API.
 - Transaction order follows the frozen state machine: planned → locked → snapshotted → pending → applied → verified → awaiting_confirm/committed.
 - Active transactions write a durable pending marker before runtime mutation. Same-boot Core crash fails closed to rollback; cross-boot recovery never replays a stale runtime snapshot.
@@ -50,6 +59,9 @@ router mutation authority.
 ## Benchmark boundary
 
 Controlled A/B is an explicit persisted session. Companion control evidence is accepted only if its role and complete frozen context match. Core then applies one reversible variable transactionally, waits for candidate evidence, restores the exact snapshot, validates health/restoration, persists the result and only then emits a learning outcome. Passive/health observations never become validated performance rewards.
+
+Queue pressure is an observed, reserved-neutral feature: it cannot be used to
+claim a queue-management mutation or to silently select a queue action.
 
 ## Persistence
 

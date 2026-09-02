@@ -22,7 +22,7 @@ return view.extend({
 		const ranking = (s.ranking || []).slice(0, 5);
 		const rows = ranking.length ? ranking.map(function(row, i) {
 				const blocked = (s.blockedReasons || []).find(function(item) { return item.actionId === row.actionId; });
-				return E('tr', {}, [ E('td', {}, [ String(i + 1) ]), E('td', {}, [ row.actionId || '—' ]), E('td', {}, [ row.score == null ? '—' : String(row.score) ]), E('td', {}, [ row.actionId === s.selectedActionId ? _('Selected') : (blocked ? (blocked.reason || _('Blocked')) : _('Eligible')) ]), E('td', {}, [ blocked && blocked.cooldownUntil ? String(blocked.cooldownUntil) : '—' ]) ]);
+				return E('tr', {}, [ E('td', {}, [ String(i + 1) ]), E('td', {}, [ row.actionId || '—' ]), E('td', {}, [ row.score == null ? '—' : String(row.score) ]), E('td', {}, [ row.actionId === s.selectedCandidateId ? _('Selected') : (blocked ? (blocked.reason || _('Blocked')) : _('Eligible')) ]), E('td', {}, [ blocked && blocked.cooldownRemaining ? String(blocked.cooldownRemaining) : '—' ]) ]);
 			}) : [ E('tr', {}, [ E('td', { 'colspan': '5' }, [ _('No ranking is available yet.') ]) ]) ];
 		const table = E('table', { 'class': 'table pm-ranking-table' }, [ E('thead', {}, [ E('tr', {}, [ E('th', {}, [ _('Rank') ]), E('th', {}, [ _('Action') ]), E('th', {}, [ _('Score') ]), E('th', {}, [ _('Eligibility') ]), E('th', {}, [ _('Cooldown') ]) ]) ]), E('tbody', {}, rows) ]);
 		const context = s.context || {};
@@ -35,6 +35,9 @@ return view.extend({
 			]), 'hero'),
 			pu.card(_('Decision context'), pu.kv([
 				[_('Profile'), context.profile || '—'], [_('Goal'), s.goal || context.goal || '—'], [_('Path'), context.pathId || '—'], [_('Workload'), (context.workloadClass || []).join(', ') || '—'], [_('Topology generation'), context.topologyGeneration == null ? '—' : String(context.topologyGeneration)], [_('Route identity'), context.routeIdentity || '—'], [_('Integration'), context.integrationState ? JSON.stringify(context.integrationState) : '—']
+			]), 'muted'),
+			pu.card(_('Selected candidate details'), pu.kv([
+				[_('Business action'), s.selectedActionId || '—'], [_('Candidate ID'), s.selectedCandidateId || '—'], [_('Candidate reward mean'), s.candidateHistory?.recentRewardMean == null ? '—' : String(s.candidateHistory.recentRewardMean)], [_('Candidate successes'), s.candidateHistory?.successCount == null ? '—' : String(s.candidateHistory.successCount)], [_('Candidate failures'), s.candidateHistory?.failureCount == null ? '—' : String(s.candidateHistory.failureCount)], [_('Candidate rollbacks'), s.candidateHistory?.rollbackCount == null ? '—' : String(s.candidateHistory.rollbackCount)], [_('Cooldown reason'), s.candidateHistory?.cooldownReason || '—']
 			]), 'muted'),
 			pu.card(_('Learning status'), pu.kv([
 				[_('Learning stage'), s.learningStage || _('cold')], [_('Validated samples'), s.validatedSamples == null ? '0' : String(s.validatedSamples)], [_('Minimum samples'), s.minimumSamples == null ? '—' : String(s.minimumSamples)], [_('Confidence'), s.confidence == null ? '—' : String(s.confidence)], [_('Last reward'), s.lastReward == null ? '—' : String(s.lastReward)], [_('Reward components'), s.lastRewardComponents ? JSON.stringify(s.lastRewardComponents) : '—'], [_('Measurement quality'), s.lastOutcome?.measurementQuality || '—'], [_('Drift'), s.drifted ? _('Detected') : _('Stable')], [_('Auto eligibility'), s.autoEligible === false ? _('Paused') : (s.reason || _('Eligible'))]
