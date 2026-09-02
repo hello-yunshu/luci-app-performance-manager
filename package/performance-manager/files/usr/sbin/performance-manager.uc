@@ -324,6 +324,10 @@ function smart_num(v, fallback) {
 	return (t == 'int' || t == 'double') && v == v ? +v : fallback;
 }
 
+function smart_abs(v) {
+	return v < 0 ? -v : v;
+}
+
 function smart_float_cfg(key, fallback) {
 	let v = +cfg(key, `${fallback}`);
 	return (v == v && v >= 0) ? v : fallback;
@@ -438,7 +442,7 @@ function smart_record_validated_outcome(context_key, goal_id, candidate_id, rewa
 	recent_mean = length(ctx.recentRewards) ? recent_mean / length(ctx.recentRewards) : 0;
 	let variance = n > 1 ? smart_num(ctx.rewardM2, 0) / (n - 1) : 0;
 	let threshold = max(0.05, smart_float_cfg('main.performance_drift_threshold', 0.20));
-	let deviation = abs(recent_mean - smart_num(ctx.ewmaReward, 0));
+	let deviation = smart_abs(recent_mean - smart_num(ctx.ewmaReward, 0));
 	if (n >= max(3, int_cfg('main.min_validated_samples', SMART_MIN_VALIDATED_SAMPLES)) && deviation > max(threshold, 2 * sqrt(max(0, variance)))) {
 		ctx.drifted = true; ctx.driftRecoverySamples = 0;
 	}
@@ -2107,7 +2111,7 @@ function rill_send(payload, outcome_attempt, mark_sent_unknown) {
 		sort(ranking, function(a,b) { return a.score == b.score ? (`${a.actionId}` > `${b.actionId}` ? 1 : -1) : (a.score < b.score ? 1 : -1); });
 		if (length(ranking) > 1) {
 			let top = ranking[0].score, second = ranking[1].score;
-			confidence = min(1, max(0, 0.5 + abs(top - second) / (1 + abs(top) + abs(second))));
+			confidence = min(1, max(0, 0.5 + smart_abs(top - second) / (1 + smart_abs(top) + smart_abs(second))));
 		}
 		return { ok: true, response: { ok: true, requestId: request_id, decisionId: result.response.response?.decisionId ?? request_id,
 			recommendation: { actionId: selected, confidence: confidence, advisory: true, scores: ranking, ranking: ranking },
