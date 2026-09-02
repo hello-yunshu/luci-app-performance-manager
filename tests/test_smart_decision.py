@@ -168,6 +168,11 @@ class SmartDecisionTests(unittest.TestCase):
         for token in ["preview-serve", "Runtime executable", "docker", "production_core_rill_test.uc", "pm<->rill-core-integration"]:
             self.assertIn(token, runner)
 
+    def test_runtime_state_checksum_uses_keys_as_values_in_ucode(self):
+        checksum = CORE[CORE.index("let canonical_map = function"):CORE.index("let wire = sprintf('%J'", CORE.index("let canonical_map = function"))]
+        self.assertIn("out[name] = canonical_entry(input[name])", checksum)
+        self.assertNotIn("out[names[name]] = canonical_entry(input[names[name]])", checksum)
+
     def test_conservative_runtime_ranking_is_scoped_to_safe_actions(self):
         self.assertIn("function rill_available_actions(mode)", CORE)
         self.assertIn("if (mode == 'conservative') return out;", CORE)

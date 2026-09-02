@@ -15,7 +15,7 @@ artifacts and cannot claim functional-integration or Stable-release PASS.
 - rill-static-contract: **PASS** (source)
 - resource-budget: **PASS** (source)
 
-- Executable unit/contract tests: **132**, status **PASS**.
+- Executable unit/contract tests: **133**, status **PASS**.
 - Rill static contract: **PASS**.
 - Rill release-pin structure: **None**.
 - Rill functional integration: **NOT_EVALUATED** in this report.
