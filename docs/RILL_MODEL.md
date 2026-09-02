@@ -21,8 +21,11 @@ The feature vector is deterministic and includes interval-derived byte rate,
 packet rate, drop/error ratio, CPU busy, softirq pressure and bounded memory
 pressure, plus health, topology/path, workload, integration, target and
 action-family signals. The first telemetry snapshot is neutral; cumulative
-boot counters are never treated as live utilization. Raw interface names,
-shell commands and mutable device identifiers are not used as model features.
+boot counters are never treated as live utilization. An invalid or missing
+CPU counter window is represented as `cpuBusyInterval=null` with
+`cpuWindowValid=false` and remains neutral in the feature vector; it is never
+treated as measured zero. Raw interface names, shell commands and mutable
+device identifiers are not used as model features.
 
 ## Unified selector
 
@@ -70,7 +73,7 @@ state is ignored safely and never replayed into device configuration.
 Only the controlled A/B path may produce a validated learning reward. Core
 requires compatible control/candidate evidence, captures throughput, latency
 and CPU counter-delta telemetry in the same control/candidate measurement
-windows, verifies health, rolls back the exact transaction, and
+windows, marks each CPU window explicitly valid, verifies health, rolls back the exact transaction, and
 persists the result before sending Runtime feedback. Reward v2 is goal-aware:
 
 - `throughput`: throughput delta;

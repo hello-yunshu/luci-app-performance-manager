@@ -321,7 +321,10 @@ function smart_state_save(state) {
 
 function smart_num(v, fallback) {
 	let t = type(v);
-	return (t == 'int' || t == 'double') && v == v ? +v : fallback;
+	/* ucode has no portable isfinite() across the supported OpenWrt builds.
+	 * Reject NaN and IEEE infinity explicitly; all product-level numbers are
+	 * bounded well below this finite sentinel. */
+	return (t == 'int' || t == 'double') && v == v && v <= 1e308 && v >= -1e308 ? +v : fallback;
 }
 
 function smart_abs(v) {
@@ -2182,14 +2185,36 @@ function rill_validate_observe_response(request, response) {
 	if ((ct != 'int' && ct != 'double') || rec.confidence != rec.confidence || rec.confidence < 0 || rec.confidence > 1)
 		return { ok: false, error: 'confidence-invalid' };
 	if (rec.scores != null && type(rec.scores) != 'array') return { ok: false, error: 'scores-invalid' };
+	let score_ids = {};
 	for (let score in rec.scores ?? []) {
 		if (type(score) != 'object' || !length(score.id ?? '') || smart_num(score.score, null) == null) return { ok: false, error: 'score-row-invalid' };
+		if (score_ids[score.id]) return { ok: false, error: 'score-candidate-duplicate' };
 		let known = false; for (let action in request.availableActions ?? []) if (action.id == score.id) { known = true; break; }
 		if (!known) return { ok: false, error: 'score-action-unknown' };
+		score_ids[score.id] = true;
 	}
 	let advertised = false;
 	for (let action in request.availableActions ?? []) if (action.id == rec.actionId && (action.executionAuthority == 'none' || action.executionAuthority == 'safe-direct' || action.executionAuthority == 'benchmark')) { advertised = true; break; }
 	if (!advertised) return { ok: false, error: 'recommendation-action-unknown' };
+	return { ok: true };
+}
+
+function smart_runtime_selection_valid(advisory, candidates) {
+	let candidate_ids = {}, selected = advisory?.actionId ?? '';
+	for (let action in candidates ?? []) {
+		let candidate_id = smart_candidate_identity(action);
+		if (!length(candidate_id) || candidate_ids[candidate_id]) return { ok: false, reason: 'duplicate-candidate-id' };
+		candidate_ids[candidate_id] = true;
+	}
+	if (!candidate_ids[selected]) return { ok: false, reason: 'rill-selected-candidate-missing' };
+	let ranking_ids = {};
+	for (let row in advisory?.ranking ?? []) {
+		let row_id = row.actionId ?? row.id, score = smart_num(row.score, null);
+		if (!length(row_id ?? '') || score == null) return { ok: false, reason: 'rill-score-invalid' };
+		if (ranking_ids[row_id]) return { ok: false, reason: 'duplicate-ranking-candidate-id' };
+		if (!candidate_ids[row_id]) return { ok: false, reason: 'rill-ranking-candidate-unknown' };
+		ranking_ids[row_id] = true;
+	}
 	return { ok: true };
 }
 
@@ -2960,14 +2985,22 @@ function telemetry_snapshot() {
 	 * 1Gb/s ceiling is an explicit normalization fallback, never a cumulative
 	 * counter masquerading as utilization. */
 	capacity = max(125000000, min(125000000000, capacity));
-	let features = { trafficUtilization: 0, ppsPressure: 0, dropErrorPressure: 0, cpuBusyInterval: 0,
-		softirqPressure: 0, queuePressure: 0, memoryPressure: 0, intervalSeconds: interval?.seconds ?? null };
+	let features = { trafficUtilization: 0, ppsPressure: 0, dropErrorPressure: 0, cpuBusyInterval: null,
+		cpuWindowValid: false, softirqPressure: 0, queuePressure: 0, memoryPressure: 0, intervalSeconds: interval?.seconds ?? null };
 	if (interval) {
 		features.trafficUtilization = smart_clamp((interval.bytes / interval.seconds) / capacity, 0, 1);
 		features.ppsPressure = smart_clamp((interval.packets / interval.seconds) / max(1, capacity / 64), 0, 1);
 		features.dropErrorPressure = smart_clamp((interval.drops + interval.errors) / max(1, interval.packets), 0, 1);
 		let cpu_window = cpu_interval(previous.cpu, current_cpu);
-		if (cpu_window.valid) features.cpuBusyInterval = cpu_window.busyInterval;
+		if (cpu_window.valid) {
+			features.cpuBusyInterval = cpu_window.busyInterval;
+			features.cpuWindowValid = true;
+		} else {
+			/* Never leave the generic telemetry default at zero: zero is a valid
+			 * measured value, while an invalid/missing A/B window is null. */
+			features.cpuBusyInterval = null;
+			features.cpuWindowValid = false;
+		}
 		let processed = max(0, current_softnet.processed - (previous.softnet?.processed ?? 0));
 		let softnet_pressure = max(0, current_softnet.dropped - (previous.softnet?.dropped ?? 0)) + max(0, current_softnet.timeSqueezed - (previous.softnet?.timeSqueezed ?? 0));
 		features.softirqPressure = smart_clamp(softnet_pressure / max(1, processed), 0, 1);
@@ -3000,6 +3033,7 @@ function telemetry_snapshot() {
 		pathFeatures: path_features, interval: interval,
 		trafficUtilization: features.trafficUtilization, ppsPressure: features.ppsPressure,
 		dropErrorPressure: features.dropErrorPressure, cpuBusyInterval: features.cpuBusyInterval,
+		cpuWindowValid: features.cpuWindowValid,
 		softirqPressure: features.softirqPressure, queuePressure: features.queuePressure,
 		memoryPressure: features.memoryPressure, intervalSeconds: features.intervalSeconds
 	};
@@ -3606,7 +3640,8 @@ function benchmark_start(msg) {
 				session.controlEvidence=msg.evidence; session.controlCpuEnd=cpu_stat();
 				session.controlTelemetry=telemetry_snapshot();
 				let control_cpu=cpu_interval(session.controlCpuStart,session.controlCpuEnd);
-				if (control_cpu.valid) session.controlTelemetry.cpuBusyInterval=control_cpu.busyInterval;
+				session.controlTelemetry.cpuBusyInterval = control_cpu.valid ? control_cpu.busyInterval : null;
+				session.controlTelemetry.cpuWindowValid = control_cpu.valid;
 			/* Freeze the measurement methodology from the control leg so the
 			 * candidate must reproduce it exactly (Blocker 3). */
 			session.companion.methodology=measurement_methodology(msg.evidence);
@@ -3642,7 +3677,8 @@ function benchmark_start(msg) {
 				session.candidateEvidence=msg.evidence; session.candidateCpuEnd=cpu_stat();
 				session.candidateTelemetry=telemetry_snapshot();
 				let candidate_cpu=cpu_interval(session.candidateCpuStart,session.candidateCpuEnd);
-				if (candidate_cpu.valid) session.candidateTelemetry.cpuBusyInterval=candidate_cpu.busyInterval;
+				session.candidateTelemetry.cpuBusyInterval = candidate_cpu.valid ? candidate_cpu.busyInterval : null;
+				session.candidateTelemetry.cpuWindowValid = candidate_cpu.valid;
 			let reward_result=build_reward(session.goal,session.controlEvidence,session.candidateEvidence,session.controlTelemetry,session.candidateTelemetry,!hcmp.pass);
 			let c0=+session.controlEvidence.bitsPerSecond, c1=+session.candidateEvidence.bitsPerSecond;
 			session.state='completed'; session.result={validated:reward_result.validated,changedSystemState:true,rolledBack:true,oneVariable:true,reward:reward_result.reward,rewardResult:reward_result,controlBitsPerSecond:c0,candidateBitsPerSecond:c1,health:hcmp};
@@ -3827,22 +3863,24 @@ function select_smart_action(mode, candidates, context) {
 	if (stage.stage != 'ready') { result.reason = `rill-${stage.stage}`; return result; }
 	let minimum = mode == 'assisted' ? smart_float_cfg('main.min_confidence_assisted', 0.75) : smart_float_cfg('main.min_confidence_conservative', 0.65);
 	if (advisory.confidence < minimum) { result.reason = 'confidence-below-policy'; return result; }
+	let descriptor = rill_action_descriptor(advisory.actionId), runtime_candidates = all;
+	/* Assisted Observe may advertise benchmark-only candidates that are not in
+	 * the direct-apply input list. Include the exact descriptor for validation,
+	 * while keeping it non-direct below. */
+	if (descriptor?.kind == 'benchmark') {
+		runtime_candidates = [];
+		for (let candidate in all) push(runtime_candidates, candidate);
+		push(runtime_candidates, descriptor.action);
+	}
+	let runtime_selection = smart_runtime_selection_valid(advisory, runtime_candidates);
+	if (!runtime_selection.ok) { result.reason = runtime_selection.reason; return result; }
 	let selected = null;
 	for (let action in all) if (smart_candidate_identity(action) == advisory.actionId) { selected = action; break; }
-	let descriptor = rill_action_descriptor(advisory.actionId);
 	if (!selected && descriptor?.kind == 'benchmark' && rill_binding_peek(advisory.decisionId) != null) {
 		result.source = 'rill'; result.selectedActionId = descriptor.action.id; result.selectedCandidateId = advisory.actionId; result.decisionId = advisory.decisionId;
 		result.autoEligible = false; result.reason = 'recommended-for-benchmark'; return result;
 	}
 	if (!selected || rill_binding_peek(advisory.decisionId) == null) { result.reason = 'missing-exact-decision'; return result; }
-	let ranked = null;
-	for (let row in advisory.ranking ?? []) {
-		for (let action in legal) if (smart_candidate_identity(action) == row.actionId) { ranked = action; break; }
-		if (ranked) break;
-	}
-	if (selected.id != 'pm.noop' && (!ranked || smart_candidate_identity(ranked) != smart_candidate_identity(selected))) {
-		result.reason = 'rill-ranking-selection-mismatch'; return result;
-	}
 	if (selected.id == 'pm.noop') {
 		result.source = 'rill'; result.selectedActionId = 'pm.noop'; result.fallback = null; result.reason = 'rill-selected-noop';
 		return result;
@@ -3853,7 +3891,7 @@ function select_smart_action(mode, candidates, context) {
 	}
 	let eligibility = smart_eligible_action(selected, mode, context);
 	if (!eligibility.ok) { result.reason = `rill-${eligibility.reason}`; return result; }
-	result.source = 'rill'; result.selectedActionId = selected.id; result.selectedCandidateId = smart_candidate_identity(selected); result.candidateHistory = smart_context_stats(context.contextKey, result.selectedCandidateId, false).stats ?? null; result.fallback = null; result.reason = 'highest-ranked-eligible-action';
+	result.source = 'rill'; result.selectedActionId = selected.id; result.selectedCandidateId = smart_candidate_identity(selected); result.candidateHistory = smart_context_stats(context.contextKey, result.selectedCandidateId, false).stats ?? null; result.fallback = null; result.reason = 'runtime-selected-eligible-candidate';
 	return result;
 }
 
@@ -3864,7 +3902,7 @@ function smart_selector_action(result, candidates) {
 
 function build_reward(goal_id, control, candidate, control_telemetry, candidate_telemetry, health_regressed) {
 	let c_bps = smart_num(control?.bitsPerSecond, 0), n_bps = smart_num(candidate?.bitsPerSecond, 0);
-	let components = { throughput: null, latency: null, latencyMedian: null, latencyP95: null, cpuEfficiency: null, cpuBusyInterval: { control: null, candidate: null } };
+	let components = { throughput: null, latency: null, latencyMedian: null, latencyP95: null, cpuEfficiency: null, cpuBusyInterval: { control: null, candidate: null }, cpuWindowValid: { control: false, candidate: false } };
 	if (c_bps <= 0 || n_bps <= 0 || health_regressed === true)
 		return { goal: goal_id, reward: null, components: components, measurementQuality: 'invalid', validated: false, reason: health_regressed === true ? 'health-regression' : 'missing-throughput-evidence' };
 	components.throughput = (n_bps - c_bps) / c_bps;
@@ -3873,9 +3911,11 @@ function build_reward(goal_id, control, candidate, control_telemetry, candidate_
 	if (c_median != null && n_median != null && c_median > 0) components.latencyMedian = (c_median - n_median) / c_median;
 	if (c_p95 != null && n_p95 != null && c_p95 > 0) components.latencyP95 = (c_p95 - n_p95) / c_p95;
 	if (components.latencyMedian != null && components.latencyP95 != null) components.latency = 0.5 * components.latencyMedian + 0.5 * components.latencyP95;
-	let c_cpu = smart_num(control_telemetry?.cpuBusyInterval, null), n_cpu = smart_num(candidate_telemetry?.cpuBusyInterval, null);
+	let c_cpu = control_telemetry?.cpuWindowValid === true ? smart_num(control_telemetry?.cpuBusyInterval, null) : null;
+	let n_cpu = candidate_telemetry?.cpuWindowValid === true ? smart_num(candidate_telemetry?.cpuBusyInterval, null) : null;
 	components.cpuBusyInterval = { control: c_cpu, candidate: n_cpu };
-	if (c_cpu != null && n_cpu != null && c_cpu >= 0 && c_cpu <= 1 && n_cpu >= 0 && n_cpu <= 1)
+	components.cpuWindowValid = { control: control_telemetry?.cpuWindowValid === true, candidate: candidate_telemetry?.cpuWindowValid === true };
+	if (components.cpuWindowValid.control && components.cpuWindowValid.candidate && c_cpu != null && n_cpu != null && c_cpu >= 0 && c_cpu <= 1 && n_cpu >= 0 && n_cpu <= 1)
 		components.cpuEfficiency = ((n_bps / max(0.01, n_cpu)) - (c_bps / max(0.01, c_cpu))) / max(0.01, c_bps / max(0.01, c_cpu));
 	let reward = null, missing = [];
 	if (goal_id == 'throughput') reward = components.throughput;
