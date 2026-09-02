@@ -59,9 +59,19 @@ def train_runtime(binary: Path, state: Path, schema_hash: str, candidate_a: str,
     if handshake.get("response", {}).get("kind") != "handshake":
         raise RuntimeError(f"Runtime handshake failed: {handshake}")
     generation = handshake.get("stateGeneration", 0)
+
+    # These are the exact 20-dimensional vectors emitted by the production
+    # Core fixture below: NIC safe-direct candidates, with WAN-A/WAN-B path
+    # interval telemetry substituted into slots 10..12.  Keeping the fixture
+    # width and values identical is part of the real Core -> Runtime contract;
+    # the Runtime must continue to reject a mismatched learner width.
+    features_a = [0.0, 1.0, 0.0, 0.2, 1.0, 0.5, 1.0, 0.0, 0.0, 0.0,
+                  0.2, 0.1, 0.0, 0.25, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+    features_b = [0.0, 1.0, 0.0, 0.2, 1.0, 0.5, 1.0, 0.0, 0.0, 0.0,
+                  0.8, 0.7, 0.1, 0.25, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
     for request_id, candidate, features, reward in (
-        ("production-train-a", candidate_a, [0.0, 1.0], 0.1),
-        ("production-train-b", candidate_b, [1.0, 0.0], 0.9),
+        ("production-train-a", candidate_a, features_a, 0.1),
+        ("production-train-b", candidate_b, features_b, 0.9),
     ):
         decide = runtime_call(binary, state, request_id, {"method": "decide", "context": {
             "actions": [{"id": candidate, "features": features}],
