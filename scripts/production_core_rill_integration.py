@@ -128,7 +128,7 @@ def main() -> int:
             "--entrypoint", "/usr/bin/ucode", args.docker_image, "/tmp/production_core_rill_test.uc",
         ], text=True, capture_output=True, check=False)
         output = proc.stdout + proc.stderr
-        match = re.search(r"PRODUCTION_CORE_EVIDENCE (\{.*\})", output)
+        match = re.search(r"PRODUCTION_CORE_EVIDENCE (\{.*\})", output, re.DOTALL)
         if not match:
             raise RuntimeError(f"production Core harness failed:\n{output[-12000:]}")
         evidence = json.loads(match.group(1))
