@@ -89,3 +89,4 @@ let _production_other = smart_context_stats(_production_context, smart_candidate
 production_check((_production_after?.successCount ?? 0) == 1 && (_production_other?.successCount ?? 0) == 0, 'candidate success history remains isolated', { selected: _production_after, other: _production_other });
 print('PRODUCTION_CORE_EVIDENCE ' + sprintf('%.J', { candidateA: smart_candidate_identity(_production_a), candidateB: smart_candidate_identity(_production_b), runtimeSelectedCandidateId: _production_selection.selectedCandidateId, coreSelectedCandidateId: _production_selection.selectedCandidateId, businessActionId: _production_selection.selectedActionId, transactionCandidateId: _production_tx.candidateId, transactionApplyTarget: _production_tx.applyTarget, transactionEvaluationPaths: _production_tx.evaluationPaths, verdict: _production_failures == 0 ? 'PASS' : 'FAIL' }) + '\n');
 if (_production_failures > 0) exit(1);
+exit(0);
