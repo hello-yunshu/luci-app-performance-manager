@@ -207,7 +207,11 @@ class SmartDecisionTests(unittest.TestCase):
 
     def test_candidate_identity_is_used_for_history_cooldown_and_journals(self):
         self.assertIn("candidateId: rec.actionId", CORE)
-        self.assertIn("candidateId: frozen.candidateId ?? frozen.actionId", CORE)
+        self.assertIn("candidateId: frozen.candidateId", CORE)
+        self.assertIn("candidateId: journal.candidateId", CORE)
+        self.assertNotIn("candidateId: frozen.candidateId ?? frozen.actionId", CORE)
+        self.assertNotIn("candidateId: journal.candidateId ?? journal.actionId", CORE)
+        self.assertNotIn("proof.candidateId != (journal.candidateId ?? journal.actionId)", CORE)
         self.assertIn("smart_context_stats(context_key, candidate_id, true)", CORE)
         self.assertIn("smart_cooldown_state(context.contextKey, candidate_id)", CORE)
         self.assertNotIn("smart_cooldown_state(context.contextKey, action.id)", CORE)
