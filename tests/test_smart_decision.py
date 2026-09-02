@@ -170,6 +170,8 @@ class SmartDecisionTests(unittest.TestCase):
         self.assertIn('state.parent}:/tmp/pm-production-runtime:rw', runner)
         self.assertNotIn('state}:/tmp/pm-production-runtime-state.json:rw', runner)
         self.assertIn('/tmp/pm-production-runtime/runtime-state.json', driver)
+        self.assertIn('expected_unprivileged_exit', runner)
+        self.assertIn('harnessExitCode', runner)
 
     def test_runtime_state_checksum_uses_keys_as_values_in_ucode(self):
         checksum = CORE[CORE.index("let canonical_map = function"):CORE.index("let p = fs.popen", CORE.index("let canonical_map = function"))]
