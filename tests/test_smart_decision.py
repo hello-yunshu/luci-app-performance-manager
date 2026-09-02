@@ -165,7 +165,7 @@ class SmartDecisionTests(unittest.TestCase):
         runner = (ROOT / "scripts/production_core_rill_integration.py").read_text()
         for token in ["rill_observe", "select_smart_action", "apply_action", "smart_context_stats", "PRODUCTION_CORE_EVIDENCE"]:
             self.assertIn(token, driver)
-        for token in ["preview-serve", "Runtime executable", "docker", "production_core_rill_test.uc", "pm<->rill-core-integration"]:
+        for token in ["preview-serve", "Runtime executable", "docker", "production_core_rill_test.uc", "pm<->rill-core-integration", "features_a", "features_b"]:
             self.assertIn(token, runner)
 
     def test_runtime_state_checksum_uses_keys_as_values_in_ucode(self):
