@@ -69,23 +69,28 @@ def train_runtime(binary: Path, state: Path, schema_hash: str, candidate_a: str,
                   0.2, 0.1, 0.0, 0.25, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
     features_b = [0.0, 1.0, 0.0, 0.2, 1.0, 0.5, 1.0, 0.0, 0.0, 0.0,
                   0.8, 0.7, 0.1, 0.25, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
-    for request_id, candidate, features, reward in (
-        ("production-train-a", candidate_a, features_a, 0.1),
-        ("production-train-b", candidate_b, features_b, 0.9),
-    ):
-        decide = runtime_call(binary, state, request_id, {"method": "decide", "context": {
-            "actions": [{"id": candidate, "features": features}],
-            "contextKey": "ctx-production-candidate-isolation",
-        }}, generation, schema_hash, "org.rill.preview.decide")
-        decision_id = decide["response"]["decisionId"]
-        generation = decide["stateGeneration"]
-        feedback = runtime_call(binary, state, request_id + "-feedback", {"method": "feedback",
-            "decisionId": decision_id, "selectedActionId": candidate, "reward": reward,
-            "outcomeTimeMs": generation, "generation": 2}, generation, schema_hash,
-            "org.rill.preview.feedback")
-        if feedback.get("response", {}).get("output", {}).get("accepted") is not True:
-            raise RuntimeError(f"Runtime training feedback failed: {feedback}")
-        generation = feedback["stateGeneration"]
+    # Repeat controlled feedback so the Core's production confidence policy
+    # (>= 0.65 for conservative automation) is exercised without weakening
+    # that policy merely to accommodate a one-sample fixture.
+    for round_index in range(8):
+        for candidate, features, reward, label in (
+            (candidate_a, features_a, -1.0, "a"),
+            (candidate_b, features_b, 1.0, "b"),
+        ):
+            request_id = f"production-train-{label}-{round_index}"
+            decide = runtime_call(binary, state, request_id, {"method": "decide", "context": {
+                "actions": [{"id": candidate, "features": features}],
+                "contextKey": "ctx-production-candidate-isolation",
+            }}, generation, schema_hash, "org.rill.preview.decide")
+            decision_id = decide["response"]["decisionId"]
+            generation = decide["stateGeneration"]
+            feedback = runtime_call(binary, state, request_id + "-feedback", {"method": "feedback",
+                "decisionId": decision_id, "selectedActionId": candidate, "reward": reward,
+                "outcomeTimeMs": generation, "generation": 2}, generation, schema_hash,
+                "org.rill.preview.feedback")
+            if feedback.get("response", {}).get("output", {}).get("accepted") is not True:
+                raise RuntimeError(f"Runtime training feedback failed: {feedback}")
+            generation = feedback["stateGeneration"]
     return {"stateGeneration": generation, "handshake": handshake}
 
 
