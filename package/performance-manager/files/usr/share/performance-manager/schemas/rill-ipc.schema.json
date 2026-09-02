@@ -13,12 +13,11 @@
   "$defs": {
     "base": {
       "type": "object",
-      "required": ["requestId", "apiVersion", "clientIdentity", "partitionKey", "featureSchemaHash", "modelGeneration", "stateGeneration", "payloadLimit", "request"],
+      "required": ["requestId", "apiVersion", "clientIdentity", "featureSchemaHash", "modelGeneration", "stateGeneration", "payloadLimit", "request"],
       "properties": {
         "requestId": {"type": "string", "minLength": 1, "maxLength": 128},
         "apiVersion": {"const": 3},
         "clientIdentity": {"type": "object", "required": ["name", "version"], "additionalProperties": false, "properties": {"name": {"type": "string", "minLength": 1}, "version": {"type": "string", "minLength": 1}}},
-        "partitionKey": {"type": "string", "minLength": 1, "maxLength": 128},
         "capability": {"type": "string", "minLength": 1},
         "deadlineUnixMs": {"type": "integer", "minimum": 0},
         "featureSchemaHash": {"type": "string", "minLength": 1},

@@ -16,7 +16,7 @@ The frozen plan requires separate evidence layers. Passing one layer never subst
 - LuCI JavaScript syntax, JSON/YAML, shell syntax and complete current zh_Hans literal coverage.
 - Machine-computed Phase 0–12 **source-only** gates.
 
-Runtime v3 integration additionally exercises strict envelope parsing, bounded reads, validated-only feedback, bounded state and partitioned decision behavior. It runs in CI because the current assembly environment has no local Runtime toolchain.
+Runtime v3 integration additionally exercises strict envelope parsing, bounded reads, validated-only feedback, bounded state, ranking order and restart persistence. It runs in CI because the current assembly environment has no local Runtime toolchain.
 
 ## CI gates
 

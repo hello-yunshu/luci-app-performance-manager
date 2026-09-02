@@ -67,7 +67,7 @@ class ContractTests(unittest.TestCase):
     def test_production_and_harness_share_the_locked_v3_envelope_shape(self):
         core = (ROOT / 'package/performance-manager/files/usr/sbin/performance-manager.uc').read_text()
         harness = (ROOT / 'scripts/rill_runtime_v3_integration.py').read_text()
-        required = ['requestId', 'apiVersion', 'clientIdentity', 'partitionKey', 'modelGeneration',
+        required = ['requestId', 'apiVersion', 'clientIdentity', 'modelGeneration',
                     'stateGeneration', 'payloadLimit', 'request']
         for field in required:
             with self.subTest(field=field):
@@ -75,8 +75,10 @@ class ContractTests(unittest.TestCase):
                 self.assertIn('"' + field + '"', harness)
         self.assertIn('featureSchemaHash', core)
         self.assertIn('featureSchemaHash', harness)
+        self.assertIn('"featureSchemaHash": schema_hash', harness)
+        self.assertNotIn('partitionKey', core)
+        self.assertNotIn('partitionKey', harness)
         self.assertNotIn('clientIdentityName', core[core.index('let request = {'):core.index("if (op == 'status')")])
-        self.assertNotIn('partitions', harness[:harness.index('def main')])
 
     def test_github_actions_follow_readable_refs(self):
         expected = {
