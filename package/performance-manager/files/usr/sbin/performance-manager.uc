@@ -1192,7 +1192,7 @@ function cpu_interval(start, finish) {
 	let busy_delta = (smart_num(finish.total, -1) - smart_num(finish.idle, -1)) -
 		(smart_num(start.total, -1) - smart_num(start.idle, -1));
 	if (total_delta <= 0 || busy_delta < 0) return { valid: false, reason: 'cpu-window-nonpositive-delta' };
-	let busy = busy_delta / total_delta;
+	let busy = 1.0 * busy_delta / total_delta;
 	if (busy != busy || busy < 0 || busy > 1) return { valid: false, reason: 'cpu-window-invalid' };
 	return { valid: true, busyInterval: busy, totalDelta: total_delta, busyDelta: busy_delta };
 }
@@ -3905,18 +3905,18 @@ function build_reward(goal_id, control, candidate, control_telemetry, candidate_
 	let components = { throughput: null, latency: null, latencyMedian: null, latencyP95: null, cpuEfficiency: null, cpuBusyInterval: { control: null, candidate: null }, cpuWindowValid: { control: false, candidate: false } };
 	if (c_bps <= 0 || n_bps <= 0 || health_regressed === true)
 		return { goal: goal_id, reward: null, components: components, measurementQuality: 'invalid', validated: false, reason: health_regressed === true ? 'health-regression' : 'missing-throughput-evidence' };
-	components.throughput = (n_bps - c_bps) / c_bps;
+	components.throughput = 1.0 * (n_bps - c_bps) / c_bps;
 	let c_median = smart_num(control?.latencyMedianMs, null), n_median = smart_num(candidate?.latencyMedianMs, null);
 	let c_p95 = smart_num(control?.latencyP95Ms, null), n_p95 = smart_num(candidate?.latencyP95Ms, null);
-	if (c_median != null && n_median != null && c_median > 0) components.latencyMedian = (c_median - n_median) / c_median;
-	if (c_p95 != null && n_p95 != null && c_p95 > 0) components.latencyP95 = (c_p95 - n_p95) / c_p95;
+	if (c_median != null && n_median != null && c_median > 0) components.latencyMedian = 1.0 * (c_median - n_median) / c_median;
+	if (c_p95 != null && n_p95 != null && c_p95 > 0) components.latencyP95 = 1.0 * (c_p95 - n_p95) / c_p95;
 	if (components.latencyMedian != null && components.latencyP95 != null) components.latency = 0.5 * components.latencyMedian + 0.5 * components.latencyP95;
 	let c_cpu = control_telemetry?.cpuWindowValid === true ? smart_num(control_telemetry?.cpuBusyInterval, null) : null;
 	let n_cpu = candidate_telemetry?.cpuWindowValid === true ? smart_num(candidate_telemetry?.cpuBusyInterval, null) : null;
 	components.cpuBusyInterval = { control: c_cpu, candidate: n_cpu };
 	components.cpuWindowValid = { control: control_telemetry?.cpuWindowValid === true, candidate: candidate_telemetry?.cpuWindowValid === true };
 	if (components.cpuWindowValid.control && components.cpuWindowValid.candidate && c_cpu != null && n_cpu != null && c_cpu >= 0 && c_cpu <= 1 && n_cpu >= 0 && n_cpu <= 1)
-		components.cpuEfficiency = ((n_bps / max(0.01, n_cpu)) - (c_bps / max(0.01, c_cpu))) / max(0.01, c_bps / max(0.01, c_cpu));
+		components.cpuEfficiency = ((1.0 * n_bps / max(0.01, n_cpu)) - (1.0 * c_bps / max(0.01, c_cpu))) / max(0.01, 1.0 * c_bps / max(0.01, c_cpu));
 	let reward = null, missing = [];
 	if (goal_id == 'throughput') reward = components.throughput;
 	else if (goal_id == 'latency') { if (components.latency == null) push(missing, 'latency'); else reward = components.latency; }
