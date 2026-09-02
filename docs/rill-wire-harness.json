@@ -1,5 +1,6 @@
 {
-  "evidenceStatus": "source-wire-harness",
+  "evidenceStatus": "historical-source-wire-harness",
+  "historicalOnly": true,
   "schemaVersion": 2,
   "pm": {
     "version": "1.0.3"
@@ -106,5 +107,5 @@
       "detail": "{\"explicit-absolute-present\": \"binary-ok\", \"explicit-absolute-missing\": \"binary-invalid\", \"explicit-relative\": \"binary-invalid\", \"empty-default-present\": \"binary-ok\", \"empty-default-missing\": \"not-provisioned\"}"
     }
   ],
-  "note": "Runtime verdicts for real adapter exec/version/startup/outcome and the real Core<->adapter roundtrip are filled by CI pm-rill-runtime / pm-core-rill-roundtrip inside the OpenWrt rootfs; they stay BLOCKED here. status/observe/fail-closed are proven at the wire-protocol level by this mock-adapter harness against the shipped contract artifacts."
+  "note": "Historical v1 mock-adapter snapshot retained for audit provenance only. It is not a current Runtime v3 contract, package, protocol, migration input, or release evidence, and must never be aggregated into a current final verdict. Current Runtime v3 evidence is produced by the exact pinned Runtime and production Core CI jobs."
 }

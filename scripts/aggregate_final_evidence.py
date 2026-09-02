@@ -260,9 +260,15 @@ def main(argv=None) -> int:
         apk_v, apk_reason = file_verdict("apk-verification.json", "verdict")
 
     # Wire harness (mock protocol level) is supplementary but must not fail a
-    # real release on its own; it is recorded for transparency.
-    wire_v, wire_reason = file_verdict("rill-wire-harness.json", "runtime", "wireHarnessVerdict",
-                                       default="BLOCKED")
+    # real release on its own; it is recorded for transparency.  Explicitly
+    # historical snapshots are out of scope so a legacy v1 fixture cannot be
+    # mistaken for current Runtime v3 evidence.
+    wire_data = files.get("rill-wire-harness.json") or {}
+    if isinstance(wire_data, dict) and wire_data.get("historicalOnly") is True:
+        wire_v, wire_reason = OUT_OF_SCOPE, "historical-wire-snapshot"
+    else:
+        wire_v, wire_reason = file_verdict("rill-wire-harness.json", "runtime", "wireHarnessVerdict",
+                                           default="BLOCKED")
 
     release_verdicts = {
         "evidenceChainVerdict": chain_verdict,
