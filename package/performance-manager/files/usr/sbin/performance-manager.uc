@@ -2399,13 +2399,13 @@ function rill_binding_reserve(decision_id, action_id, authority, owner_type, own
 	if (active_count >= RILL_BINDINGS_MAX) return null;
 	let frozen = {
 		schemaVersion: binding.schemaVersion, decisionId: binding.decisionId, contextKey: binding.contextKey,
-		actionId: binding.actionId, candidateId: binding.candidateId ?? binding.actionId, businessActionId: binding.businessActionId ?? smart_business_action_id(binding.actionId), goal: binding.goal, modelGeneration: binding.modelGeneration,
+		actionId: binding.actionId, candidateId: binding.candidateId, businessActionId: binding.businessActionId ?? smart_business_action_id(binding.candidateId), goal: binding.goal, modelGeneration: binding.modelGeneration,
 		advisory: true, confidence: binding.confidence, bootId: binding.bootId, atMs: binding.atMs,
 		executionAuthority: authority, ownerType: owner_type, ownerId: owner_id
 	};
 	let journal = {
 		schemaVersion: RILL_EXECUTION_SCHEMA_VERSION, decisionId: frozen.decisionId,
-		actionId: frozen.actionId, candidateId: frozen.candidateId ?? frozen.actionId, businessActionId: frozen.businessActionId ?? smart_business_action_id(frozen.actionId), contextKey: frozen.contextKey, goal: frozen.goal,
+		actionId: frozen.actionId, candidateId: frozen.candidateId, businessActionId: frozen.businessActionId ?? smart_business_action_id(frozen.candidateId), contextKey: frozen.contextKey, goal: frozen.goal,
 		modelGeneration: frozen.modelGeneration, frozenDecision: frozen,
 		executionAuthority: authority, ownerType: owner_type, ownerId: owner_id,
 		executionState: 'reserved', mutationStarted: false, transportState: 'not-sent',
@@ -2566,7 +2566,7 @@ function rill_terminal_proof_build(journal, owner) {
 	let proof = {
 		ownerType: journal.ownerType, ownerId: journal.ownerId, ownerTerminalState: owner.state,
 		terminalResultDigest: fnv1a32(sprintf('%J', result)), decisionId: journal.decisionId,
-		actionId: journal.actionId, candidateId: journal.candidateId ?? journal.actionId, contextKey: journal.contextKey, goal: journal.goal,
+		actionId: journal.actionId, candidateId: journal.candidateId, contextKey: journal.contextKey, goal: journal.goal,
 		modelGeneration: journal.modelGeneration, measurementClass: journal.measurementClass,
 		reward: journal.reward, validated: journal.validated === true,
 		rollbackCommitProof: { verification: verification, result: result },
@@ -2580,7 +2580,7 @@ function rill_terminal_proof_valid(journal, proof) {
 	if (!proof || type(proof) != 'object') return false;
 	if (proof.ownerType != journal.ownerType || proof.ownerId != journal.ownerId ||
 		proof.ownerTerminalState != journal.expectedOwnerState || proof.decisionId != journal.decisionId ||
-		proof.actionId != journal.actionId || proof.candidateId != (journal.candidateId ?? journal.actionId) || proof.contextKey != journal.contextKey ||
+		proof.actionId != journal.actionId || proof.candidateId != journal.candidateId || proof.contextKey != journal.contextKey ||
 		proof.goal != journal.goal || proof.modelGeneration != journal.modelGeneration ||
 		proof.measurementClass != journal.measurementClass || proof.validated !== true ||
 		proof.terminalResultDigest != fnv1a32(sprintf('%J', proof.rollbackCommitProof?.result ?? null))) return false;
