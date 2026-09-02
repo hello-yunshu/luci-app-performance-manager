@@ -90,6 +90,38 @@ def main() -> int:
         restarted = call(binary, state, "restart-health", {"method": "health"}, partition=None, capability=None, schema_hash=schema_hash, state_generation=2)
         if restarted["response"].get("healthy") is not True:
             raise RuntimeError(f"state restart health failed: {restarted}")
+        next_decide = call(binary, state, "after-restart-decide", {"method": "decide", "context": {"actions": [
+            {"id": "safe-a", "features": [1.0, 0.0]},
+            {"id": "safe-b", "features": [0.0, 1.0]},
+        ]}}, partition="default", capability="org.rill.preview.decide", schema_hash=schema_hash, state_generation=2)
+        if next_decide["stateGeneration"] != 3:
+            raise RuntimeError(f"state generation was not recovered after restart: {next_decide}")
+
+        # Train both opaque candidates through the real Runtime, then prove
+        # selection follows returned score order rather than array position.
+        train_a = call(binary, state, "train-a", {"method": "decide", "context": {"actions": [
+            {"id": "rank-a", "features": [0.0, 1.0]},
+        ]}}, partition="default", capability="org.rill.preview.decide", schema_hash=schema_hash, state_generation=3)
+        train_a_feedback = call(binary, state, "train-a-feedback", {"method": "feedback", "decisionId": train_a["response"]["decisionId"],
+            "selectedActionId": "rank-a", "reward": 0.1, "outcomeTimeMs": 102, "generation": 2},
+            partition="default", capability="org.rill.preview.feedback", schema_hash=schema_hash, state_generation=4)
+        if train_a_feedback["response"].get("output", {}).get("accepted") is not True:
+            raise RuntimeError(f"rank-a feedback failed: {train_a_feedback}")
+        train_b = call(binary, state, "train-b", {"method": "decide", "context": {"actions": [
+            {"id": "rank-b", "features": [1.0, 0.0]},
+        ]}}, partition="default", capability="org.rill.preview.decide", schema_hash=schema_hash, state_generation=5)
+        train_b_feedback = call(binary, state, "train-b-feedback", {"method": "feedback", "decisionId": train_b["response"]["decisionId"],
+            "selectedActionId": "rank-b", "reward": 0.9, "outcomeTimeMs": 103, "generation": 2},
+            partition="default", capability="org.rill.preview.feedback", schema_hash=schema_hash, state_generation=6)
+        if train_b_feedback["response"].get("output", {}).get("accepted") is not True:
+            raise RuntimeError(f"rank-b feedback failed: {train_b_feedback}")
+        ranked = call(binary, state, "ranked-a-b", {"method": "decide", "context": {"actions": [
+            {"id": "rank-a", "features": [0.0, 1.0]},
+            {"id": "rank-b", "features": [1.0, 0.0]},
+        ]}}, partition="default", capability="org.rill.preview.decide", schema_hash=schema_hash, state_generation=7)
+        scores = {row["id"]: row["score"] for row in ranked["response"]["output"]["scores"]}
+        if ranked["response"]["output"].get("selectedActionId") != "rank-b" or not scores["rank-b"] > scores["rank-a"]:
+            raise RuntimeError(f"Runtime ranking did not select the higher-scoring B candidate: {ranked}")
         partition_a = call(binary, state, "partition-a", {"method": "observe", "event": {"source": "a"}},
                            partition="consumer-a", capability="org.rill.preview.observe", schema_hash=schema_hash, state_generation=0)
         partition_b = call(binary, state, "partition-b", {"method": "observe", "event": {"source": "b"}},
@@ -105,7 +137,7 @@ def main() -> int:
         "verdicts": {
             "executableVerdict": "PASS", "versionVerdict": "PASS", "startupVerdict": "PASS",
             "statusVerdict": "PASS", "decideVerdict": "PASS", "feedbackVerdict": "PASS",
-            "observeVerdict": "PASS", "outcomeVerdict": "PASS", "partitionIsolationVerdict": "PASS", "failClosedVerdict": "PASS",
+            "observeVerdict": "PASS", "outcomeVerdict": "PASS", "partitionIsolationVerdict": "PASS", "rankingVerdict": "PASS", "failClosedVerdict": "PASS",
             "duplicateFeedbackVerdict": "PASS", "restartPersistenceVerdict": "PASS",
         },
     }

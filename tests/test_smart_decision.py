@@ -7,7 +7,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
 from smart_decision_model import (  # noqa: E402
     FEATURE_NAMES, FEATURE_SCHEMA_VERSION, build_features, build_reward,
-    learning_stage, select_smart_action,
+    candidate_identity, learning_stage, select_smart_action,
 )
 
 CORE = (ROOT / "package/performance-manager/files/usr/sbin/performance-manager.uc").read_text()
@@ -35,6 +35,25 @@ class SmartDecisionTests(unittest.TestCase):
         self.assertEqual(result.selected_action_id, "nic.ring.floor")
         self.assertEqual(result.source, "rill")
         self.assertEqual(result.decision_id, "decision-2")
+
+    def test_runtime_score_order_selects_b_even_when_a_is_first(self):
+        actions = [
+            {"id": "A", "applyTarget": "NIC-A", "evaluationPaths": ["wan-a"], "executionAuthority": "safe-direct", "risk": "safe"},
+            {"id": "B", "applyTarget": "NIC-B", "evaluationPaths": ["wan-b"], "executionAuthority": "safe-direct", "risk": "safe"},
+        ]
+        result = select_smart_action("assisted", actions, rill_state="available", learning="ready",
+                                     confidence=0.91, ranking=[
+                                         {"actionId": candidate_identity(actions[1]), "score": 0.91},
+                                         {"actionId": candidate_identity(actions[0]), "score": 0.42},
+                                     ], selected_action_id=actions[1]["id"], decision_id="decision-b")
+        self.assertEqual(result.selected_action_id, "B")
+        self.assertEqual(result.source, "rill")
+
+    def test_candidate_identity_separates_targets_and_paths(self):
+        nic_a = {"id": "nic.ring.floor", "applyTarget": "NIC-A", "evaluationPaths": ["wan-a"]}
+        nic_b = {"id": "nic.ring.floor", "applyTarget": "NIC-B", "evaluationPaths": ["wan-b"]}
+        self.assertNotEqual(candidate_identity(nic_a), candidate_identity(nic_b))
+        self.assertLessEqual(len(candidate_identity(nic_a)), 96)
 
     def test_cold_warming_low_confidence_and_invalid_action_fail_closed(self):
         for stage in ("cold", "warming"):
@@ -73,9 +92,23 @@ class SmartDecisionTests(unittest.TestCase):
         self.assertEqual(schema["properties"]["schemaVersion"]["const"], 2)
         self.assertEqual(schema["properties"]["vectorWidth"]["const"], 20)
 
+    def test_features_use_interval_telemetry_not_cumulative_counters(self):
+        action = {"id": "nic.ring.floor", "executionAuthority": "safe-direct", "risk": "safe"}
+        cumulative_only = {"interfaces": {"wan": {"rxBytes": 10**12, "txBytes": 10**12}},
+                           "softnet": {"dropped": 10**6}, "health": {"cpu": {"busyPct": 99}}}
+        values = build_features(action, cumulative_only, {})
+        self.assertEqual(values[10:17], [0.0] * 7)
+        interval = {"trafficUtilization": 0.4, "ppsPressure": 0.3, "dropErrorPressure": 0.2,
+                    "cpuBusyInterval": 0.5, "softirqPressure": 0.1, "queuePressure": 0.6,
+                    "memoryPressure": 0.7}
+        values = build_features(action, interval, {})
+        self.assertEqual(values[10:17], [0.4, 0.3, 0.2, 0.5, 0.1, 0.6, 0.7])
+
     def test_reward_goals_are_distinct_and_missing_evidence_is_invalid(self):
         control = {"bitsPerSecond": 100, "latencyMs": 100}
-        candidate = {"bitsPerSecond": 110, "latencyMs": 80}
+        candidate = {"bitsPerSecond": 110, "latencyMedianMs": 80, "latencyP95Ms": 120}
+        control["latencyMedianMs"] = 100
+        control["latencyP95Ms"] = 150
         telemetry0 = {"health": {"cpu": {"busyPct": 0.5}}}
         telemetry1 = {"health": {"cpu": {"busyPct": 0.55}}}
         throughput = build_reward("throughput", control, candidate, telemetry0, telemetry1)

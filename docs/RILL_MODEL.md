@@ -8,17 +8,21 @@ never receives an actuator or router-mutation authority.
 
 ## Runtime v3 input
 
-Core sends a generic Runtime v3 envelope over the bounded UDS. The decide
+Core sends a generic Runtime v3 envelope over a bounded stdin/stdout subprocess call. The decide
 payload contains a ContextKey, goal, current health/topology evidence and the
 legal action candidates. Every candidate carries a fixed 20-dimensional
 feature vector defined by `contracts/rill-feature-schema.json`; missing values
 are neutral zeroes, and the schema hash plus model generation are bound into
-the request. The action list always contains `pm.noop`.
+the request. The action list always contains `pm.noop`. Runtime IDs include a
+bounded digest of the stable target and evaluation paths, so equal business
+Action IDs cannot collide across NICs or WAN paths.
 
-The feature vector is deterministic and includes normalized throughput,
-latency, CPU pressure, health, topology/path, workload, integration, target
-and action-family signals. Raw interface names, shell commands and mutable
-device identifiers are not used as model features.
+The feature vector is deterministic and includes interval-derived byte rate,
+packet rate, drop/error ratio, CPU busy, softirq pressure and bounded memory
+pressure, plus health, topology/path, workload, integration, target and
+action-family signals. The first telemetry snapshot is neutral; cumulative
+boot counters are never treated as live utilization. Raw interface names,
+shell commands and mutable device identifiers are not used as model features.
 
 ## Unified selector
 
@@ -44,7 +48,7 @@ displayed as benchmark-only and require an explicit controlled session.
 ## Learning stages and drift
 
 Each bounded ContextKey tracks validated samples, reward history, per-action
-attempt/success/rollback counts, last reward, cooldown and a rolling reward
+attempt/success/failure/rollback counts, last reward, cooldown and a rolling reward
 distribution. Stages are:
 
 - `cold`: fewer than 3 validated samples; no Rill influence.
@@ -67,14 +71,15 @@ and CPU telemetry, verifies health, rolls back the exact transaction, and
 persists the result before sending Runtime feedback. Reward v2 is goal-aware:
 
 - `throughput`: throughput delta;
-- `latency`: inverse latency delta;
+- `latency`: 50% median-latency improvement plus 50% p95-latency improvement;
 - `cpu_efficiency`: inverse CPU-busy delta at comparable throughput;
 - `balanced`: weighted throughput/latency/CPU efficiency.
 
 Missing required measurements, methodology mismatch, health regression or
-failed rollback yields `validated=false`; it never updates Smart learning or
-Runtime feedback. Passive and health-only observations remain non-learning
-evidence.
+failed rollback yields `measurementQuality=invalid`; it never updates Smart
+learning or Runtime feedback. Passive, health-only and safe-direct Auto
+execution evidence remain non-training evidence. Only a validated controlled
+A/B outcome trains Smart History and sends Runtime feedback.
 
 ## Explainability and UI
 

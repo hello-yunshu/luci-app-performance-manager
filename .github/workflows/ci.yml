@@ -73,7 +73,7 @@ jobs:
             --binary rill-ml/target/release/rill-runtime \
             --out rill-evidence/runtime-v3.json
           runtime_sha=$(jq -r '.runtimeSha256' rill-evidence/runtime-v3.json)
-          jq --arg commit "$GITHUB_SHA" --arg version "$(jq -r '.version' contracts/rill-runtime.json)" \
+          jq --arg commit "$GITHUB_SHA" --arg version "$(jq -r '.resolved.version' contracts/rill-runtime.json)" \
             '. + {pmCommitSha:$commit, overallVerdict:"BLOCKED", runtimeCompatibilityVerdict:"PASS", functionalIntegrationVerdict:"PASS", runtimeVersion:$version, functionalIntegrationReason:"generic Runtime lifecycle is exercised here; PM Core-to-Runtime production roundtrip is owned by the SDK/target gate"}' \
             rill-evidence/runtime-v3.json > rill-evidence/rill-runtime.json
           jq -n --arg commit "$GITHUB_SHA" --arg owner "hello-yunshu/rill-ml" \

@@ -38,6 +38,25 @@ def action_family(action_id: str) -> str:
     }.get(prefix, "service")
 
 
+def fnv1a32(value: str) -> str:
+    """Match the bounded identity hash used by the shipped ucode runtime."""
+    digest = 2166136261
+    for byte in value.encode():
+        digest = ((digest ^ byte) * 16777619) & 0xFFFFFFFF
+    return f"{digest:08x}"
+
+
+def candidate_identity(action: dict[str, Any]) -> str:
+    """Stable bounded opaque Runtime ID for one action/target/path tuple."""
+    action_id = action.get("id", "")
+    if action_id == "pm.noop":
+        return "pm.noop"
+    target_hash = fnv1a32(str(action.get("applyTarget") or ""))
+    paths = ",".join(sorted(str(p) for p in (action.get("evaluationPaths") or action.get("affectedPaths") or [])))
+    path_hash = fnv1a32(paths)
+    return f"{action_id}@target={target_hash}|path={path_hash}"
+
+
 def build_features(action: dict[str, Any], telemetry: dict[str, Any] | None = None,
                     history: dict[str, Any] | None = None) -> list[float]:
     telemetry = telemetry or {}
@@ -45,15 +64,6 @@ def build_features(action: dict[str, Any], telemetry: dict[str, Any] | None = No
     action_id = action.get("id", "")
     family = action_family(action_id)
     risk = action.get("risk", "none")
-    health = telemetry.get("health") or {}
-    cpu = health.get("cpu") or {}
-    interfaces = telemetry.get("interfaces") or {}
-    rx = sum(float(v.get("rxBytes", 0) or 0) for v in interfaces.values())
-    tx = sum(float(v.get("txBytes", 0) or 0) for v in interfaces.values())
-    traffic = clamp((rx + tx) / max(1.0, float(telemetry.get("trafficCapacity", 1) or 1)))
-    softnet = telemetry.get("softnet") or {}
-    drops = float(softnet.get("dropped", 0) or 0)
-    errors = float(softnet.get("timeSqueezed", 0) or 0)
     return [
         float(action_id == "pm.noop"), float(action.get("executionAuthority") == "safe-direct"),
         float(action.get("executionAuthority") == "benchmark"),
@@ -61,13 +71,14 @@ def build_features(action: dict[str, Any], telemetry: dict[str, Any] | None = No
         float(action.get("available", True) is True),
         clamp(float(action.get("deltaNormalized", 0.0) or 0.0)),
         float(family == "nic"), float(family in {"network-stack", "queue"}),
-        float(family == "cpu"), float(family == "fastpath"), traffic,
+        float(family == "cpu"), float(family == "fastpath"),
+        clamp(float(telemetry.get("trafficUtilization", 0.0) or 0.0)),
         clamp(float(telemetry.get("ppsPressure", 0.0) or 0.0)),
-        clamp((drops + errors) / max(1.0, float(telemetry.get("dropCapacity", 1) or 1))),
-        clamp(float(health.get("load1", 0.0) or 0.0) / max(1.0, float(cpu.get("count", 1) or 1) * 2.0)),
+        clamp(float(telemetry.get("dropErrorPressure", 0.0) or 0.0)),
+        clamp(float(telemetry.get("cpuBusyInterval", 0.0) or 0.0)),
         clamp(float(telemetry.get("softirqPressure", 0.0) or 0.0)),
         clamp(float(telemetry.get("queuePressure", 0.0) or 0.0)),
-        clamp(1.0 - float(health.get("memAvailableKiB", 0.0) or 0.0) / max(1.0, float(telemetry.get("memoryKiB", 1) or 1))),
+        clamp(float(telemetry.get("memoryPressure", 0.0) or 0.0)),
         clamp(float(history.get("recentRewardMean", 0.0) or 0.0), -1.0, 1.0),
         clamp(float(history.get("successRate", 0.0) or 0.0)),
         clamp(float(history.get("negativeStreak", 0.0) or 0.0) / 3.0),
@@ -83,27 +94,31 @@ def build_reward(goal: str, control: dict[str, Any], candidate: dict[str, Any],
     c_bps = float(control.get("bitsPerSecond", 0) or 0)
     n_bps = float(candidate.get("bitsPerSecond", 0) or 0)
     if c_bps <= 0 or n_bps <= 0 or health_regressed:
-        return {"goal": goal, "reward": None, "components": {}, "measurementQuality": "controlled_ab", "validated": False,
+        return {"goal": goal, "reward": None, "components": {}, "measurementQuality": "invalid", "validated": False,
                 "reason": "health-regression" if health_regressed else "missing-throughput-evidence"}
     throughput = (n_bps - c_bps) / c_bps
-    c_latency = control.get("latencyMs")
-    n_latency = candidate.get("latencyMs")
-    latency = None if c_latency is None or n_latency is None or float(c_latency) <= 0 else (float(c_latency) - float(n_latency)) / float(c_latency)
+    c_median = control.get("latencyMedianMs")
+    n_median = candidate.get("latencyMedianMs")
+    c_p95 = control.get("latencyP95Ms")
+    n_p95 = candidate.get("latencyP95Ms")
+    median = None if c_median is None or n_median is None or float(c_median) <= 0 else (float(c_median) - float(n_median)) / float(c_median)
+    p95 = None if c_p95 is None or n_p95 is None or float(c_p95) <= 0 else (float(c_p95) - float(n_p95)) / float(c_p95)
+    latency = None if median is None or p95 is None else 0.5 * median + 0.5 * p95
     c_cpu = control.get("cpuBusy") if control.get("cpuBusy") is not None else (((control_telemetry.get("health") or {}).get("cpu") or {}).get("busyPct"))
     n_cpu = candidate.get("cpuBusy") if candidate.get("cpuBusy") is not None else (((candidate_telemetry.get("health") or {}).get("cpu") or {}).get("busyPct"))
     cpu_eff = None
     if c_cpu is not None and n_cpu is not None and float(c_cpu) >= 0:
         # Comparable throughput-per-busy-unit; requires both legs from Core.
         cpu_eff = ((n_bps / max(float(n_cpu), 0.01)) - (c_bps / max(float(c_cpu), 0.01))) / max(c_bps / max(float(c_cpu), 0.01), 0.01)
-    components = {"throughput": throughput, "latency": latency, "cpuEfficiency": cpu_eff}
+    components = {"throughput": throughput, "latency": latency, "latencyMedian": median, "latencyP95": p95, "cpuEfficiency": cpu_eff}
     required = {"throughput": throughput, "latency": latency, "cpu_efficiency": cpu_eff, "balanced": (throughput, latency, cpu_eff)}.get(goal)
     if goal == "balanced":
         if latency is None or cpu_eff is None:
-            return {"goal": goal, "reward": None, "components": components, "measurementQuality": "controlled_ab", "validated": False,
+            return {"goal": goal, "reward": None, "components": components, "measurementQuality": "invalid", "validated": False,
                     "reason": "missing-balanced-evidence"}
         reward = 0.45 * throughput + 0.35 * latency + 0.20 * cpu_eff
     elif required is None:
-        return {"goal": goal, "reward": None, "components": components, "measurementQuality": "controlled_ab", "validated": False, "reason": "unsupported-goal"}
+        return {"goal": goal, "reward": None, "components": components, "measurementQuality": "invalid", "validated": False, "reason": "unsupported-goal"}
     else:
         reward = float(required)
     return {"goal": goal, "reward": reward, "components": components, "measurementQuality": "controlled_ab", "validated": True, "reason": "validated-controlled-ab"}
@@ -158,6 +173,13 @@ def select_smart_action(mode: str, candidates: list[dict[str, Any]], *, rill_sta
         return Selection(fallback, "core-fallback", True, "rill-action-not-legal")
     if confidence < minimum_confidence:
         return Selection(fallback, "core-fallback", True, "confidence-below-policy")
+    ranked = None
+    for row in ranking or []:
+        ranked = next((a for a in legal if row.get("actionId") in {a.get("id"), candidate_identity(a)}), None)
+        if ranked is not None:
+            break
+    if action["id"] != "pm.noop" and (ranked is None or ranked["id"] != action["id"]):
+        return Selection(fallback, "core-fallback", True, "rill-ranking-selection-mismatch")
     if action["id"] == "pm.noop":
         return Selection("pm.noop", "rill", True, "rill-selected-noop", decision_id)
     return Selection(action["id"], "rill", True, "highest-ranked-eligible-action", decision_id)

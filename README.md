@@ -35,7 +35,7 @@
 ## 安全不变量
 
 - Core 不硬依赖 LuCI / rpcd / Rill，可独立运行
-- Rill 仅接受 root Core 通过 UDS 连接，不能执行命令，不能写 UCI / sysctl / firewall
+- Rill 仅接受 root Core 通过有界 stdin/stdout subprocess 连接，不能执行命令，不能写 UCI / sysctl / firewall
 - 直接 Apply 只使用固定安全 Action allowlist；benchmark 类 action 不会被静默提升为直接写入
 - 已有用户 / 外部 / 先前状态优先；卸载只恢复 PM 当前拥有的运行时 lease，绝不覆盖实时漂移做 stale 回滚
 - 事务验证 read-back 与 baseline-relative 健康；恢复失败记为失败而非成功回滚
@@ -196,12 +196,12 @@ package/luci-app-performance-manager-all/Makefile  # 将上述自有运行内容
 │  LuCI 前端   │ ─────────→ │  performance-manager   │
 │ (8 个视图)   │ ←───────── │  Core (ucode/ubus)     │
 └──────────────┘  JSON     └───────────┬────────────┘
-                                      │ UDS（有界，Runtime v3）
+                                      │ stdin/stdout subprocess（有界，Runtime v3）
                           ┌───────────▼────────────┐
                           │ performance-manager-rill │
                           │ (external Runtime glue) │
                           └───────────┬────────────┘
-                                      │ generic Runtime v3 / UDS
+                                      │ generic Runtime v3 / stdin/stdout
                           ┌───────────▼────────────┐
                           │ external rill-runtime   │
                           │ ranking, no actuator    │
@@ -245,7 +245,6 @@ package/luci-app-performance-manager-all/Makefile  # 将上述自有运行内容
 | `enabled` | boolean | 1 | 启用外部 Runtime |
 | `mode` | enum | shadow | Runtime 只返回 advisory，无 Apply 权限 |
 | `binary` | string | (空) | 外部 Runtime 路径；空值使用 `/usr/bin/rill-runtime`，缺失或不兼容时集成 fail-closed / 阻塞 |
-| `socket` | string | /run/performance-manager/rill.sock | UDS 路径 |
 | `max_message` | integer | 65536 | 最大消息字节 |
 | `timeout_ms` | integer | 1000 | 调用超时 |
 | `state_dir` | string | /etc/performance-manager/rill | Rill 持久状态 |

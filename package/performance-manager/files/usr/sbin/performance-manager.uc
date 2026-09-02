@@ -207,6 +207,15 @@ function json_read(path, fallback) {
 	}
 }
 
+function rill_state_checksum(snapshot) {
+	let wire = sprintf('%J', [ snapshot.formatVersion, snapshot.partitions ]);
+	let p = fs.popen(`printf '%s' ${shell_quote(wire)} | sha256sum`, 'r');
+	if (!p) return null;
+	let out = trimstr(p.read('all') ?? ''), rc = p.close() ?? 127;
+	if (rc != 0) return null;
+	return split(out, /\s+/)[0] ?? null;
+}
+
 function note_persistent_write(path, bytes) {
 	let root=persist_dir();
 	if (path == root || substr(path,0,length(root)+1) == `${root}/`) {
@@ -274,6 +283,33 @@ function smart_action_family(action_id) {
 	return 'service';
 }
 
+function smart_candidate_identity(action) {
+	if (!action || action.id == 'pm.noop') return 'pm.noop';
+	let paths = map(action.evaluationPaths ?? action.affectedPaths ?? [], function(path) { return `${path}`; });
+	sort(paths);
+	/* Runtime IDs are opaque and bounded. Stable target/path digests keep two
+	 * instances of the same business Action distinct without leaking a
+	 * runtime-only interface name or a shell command into the protocol. */
+	return `${action.id}@target=${fnv1a32(action.applyTarget ?? '')}|path=${fnv1a32(join(',', paths))}`;
+}
+
+function rill_context_scope(paths) {
+	let rows = [];
+	for (let path_id in paths ?? []) {
+		let path = primary_path(path_id);
+		if (path && path.id != 'path:local-endpoint') push(rows, `${path.id}|${path.routeIdentity ?? 'unresolved'}`);
+	}
+	if (!length(rows)) {
+		for (let path in topology().paths ?? []) if (path.id != 'path:local-endpoint') push(rows, `${path.id}|${path.routeIdentity ?? 'unresolved'}`);
+	}
+	sort(rows);
+	return { pathId: stable_list_hash('paths', rows), routeIdentity: stable_list_hash('routes', rows), rows: rows };
+}
+
+function active_selector_mode() {
+	return cfg('main.automation', 'conservative') == 'assisted' ? 'assisted' : 'conservative';
+}
+
 function smart_risk_level(risk) {
 	if (risk == 'safe') return 0.2;
 	if (risk == 'benchmark') return 0.7;
@@ -290,7 +326,7 @@ function smart_context_stats(context_key, action_id, create) {
 	}
 	let stats = ctx?.actions?.[action_id];
 	if (!stats && create && ctx) {
-		stats = { attemptCount: 0, successCount: 0, rollbackCount: 0, validatedOutcomeCount: 0,
+		stats = { attemptCount: 0, successCount: 0, failureCount: 0, rollbackCount: 0, validatedOutcomeCount: 0,
 			recentRewardMean: 0, negativeStreak: 0, lastExecution: null, cooldownUntil: 0 };
 		ctx.actions[action_id] = stats;
 	}
@@ -362,17 +398,14 @@ function smart_record_action_event(context_key, action_id, event) {
 	stats.attemptCount = (stats.attemptCount ?? 0) + 1;
 	let now = monotonic_ms(), base = max(60, int_cfg('main.action_cooldown_base_seconds', 600));
 	if (event == 'success') { stats.successCount = (stats.successCount ?? 0) + 1; stats.negativeStreak = 0; stats.cooldownUntil = now + base * 1000; stats.cooldownReason = 'success-debounce'; }
-	else if (event == 'rollback') { stats.rollbackCount = (stats.rollbackCount ?? 0) + 1; stats.negativeStreak = (stats.negativeStreak ?? 0) + 1; stats.cooldownUntil = now + max(3600, base) * 1000; stats.cooldownReason = 'health-regression-rollback'; }
-	else { stats.negativeStreak = (stats.negativeStreak ?? 0) + 1; stats.cooldownUntil = now + min(21600, base * max(2, 2 ** min(5, stats.negativeStreak))) * 1000; stats.cooldownReason = 'execution-failure'; }
+	else if (event == 'rollback') { stats.rollbackCount = (stats.rollbackCount ?? 0) + 1; stats.failureCount = (stats.failureCount ?? 0) + 1; stats.negativeStreak = (stats.negativeStreak ?? 0) + 1; stats.cooldownUntil = now + max(3600, base) * 1000; stats.cooldownReason = 'health-regression-rollback'; }
+	else { stats.failureCount = (stats.failureCount ?? 0) + 1; stats.negativeStreak = (stats.negativeStreak ?? 0) + 1; stats.cooldownUntil = now + min(21600, base * max(2, 2 ** min(5, stats.negativeStreak))) * 1000; stats.cooldownReason = 'execution-failure'; }
 	stats.lastExecution = now;
 	return smart_state_save(row.state);
 }
 
 function smart_feature_vector(action, index, total, telemetry, context_key) {
-	let family = smart_action_family(action.id), health = telemetry?.health ?? {}, cpu = health.cpu ?? {}, stats = smart_context_stats(context_key, action.id, false).stats;
-	let interfaces = telemetry?.interfaces ?? {}, bytes = 0;
-	for (let name in keys(interfaces)) bytes += smart_num(interfaces[name]?.rxBytes, 0) + smart_num(interfaces[name]?.txBytes, 0);
-	let softnet = telemetry?.softnet ?? {}, drops = smart_num(softnet.dropped, 0) + smart_num(softnet.timeSqueezed, 0);
+	let family = smart_action_family(action.id), stats = smart_context_stats(context_key, action.id, false).stats;
 	let risk = smart_risk_level(action.risk);
 	return [
 		action.id == 'pm.noop' ? 1 : 0, action.executionAuthority == 'safe-direct' ? 1 : 0,
@@ -380,10 +413,10 @@ function smart_feature_vector(action, index, total, telemetry, context_key) {
 		action.id == 'pm.noop' ? 0 : (action.executionAuthority == 'benchmark' ? 0.25 : 0.5),
 		family == 'nic' ? 1 : 0, (family == 'network-stack' || family == 'queue') ? 1 : 0,
 		family == 'cpu' ? 1 : 0, family == 'fastpath' ? 1 : 0,
-		smart_clamp(bytes / 100000000, 0, 1), smart_clamp(smart_num(telemetry?.ppsPressure, 0), 0, 1),
-		smart_clamp(drops / 1000, 0, 1), smart_clamp(smart_num(health.load1, 0) / max(1, smart_num(cpu.count, 1) * 2), 0, 1),
+		smart_clamp(smart_num(telemetry?.trafficUtilization, 0), 0, 1), smart_clamp(smart_num(telemetry?.ppsPressure, 0), 0, 1),
+		smart_clamp(smart_num(telemetry?.dropErrorPressure, 0), 0, 1), smart_clamp(smart_num(telemetry?.cpuBusyInterval, 0), 0, 1),
 		smart_clamp(smart_num(telemetry?.softirqPressure, 0), 0, 1), smart_clamp(smart_num(telemetry?.queuePressure, 0), 0, 1),
-		smart_clamp(1 - smart_num(health.memAvailableKiB, 0) / max(1, smart_num(telemetry?.memoryKiB, 1)), 0, 1),
+		smart_clamp(smart_num(telemetry?.memoryPressure, 0), 0, 1),
 		smart_clamp(stats?.recentRewardMean ?? 0, -1, 1), smart_clamp((stats?.successCount ?? 0) / max(1, stats?.attemptCount ?? 1), 0, 1),
 		smart_clamp((stats?.negativeStreak ?? 0) / 3, 0, 1)
 	];
@@ -1851,8 +1884,8 @@ function companion_evidence_valid(e, session, phase) {
 		return {ok:false,error:'companion-context-mismatch'};
 	if (+e.topologyGeneration != +session.topologyGeneration || e.routeIdentity != session.routeIdentity || e.capabilityHash != session.capabilityHash)
 		return {ok:false,error:'companion-context-drift'};
-	if (session.goal == 'latency' && !(+e.latencyMs > 0)) return {ok:false,error:'latency-evidence-required'};
-	if (session.goal == 'balanced' && !(+e.latencyMs > 0)) return {ok:false,error:'balanced-latency-evidence-required'};
+	if ((session.goal == 'latency' || session.goal == 'balanced') && (!(+e.latencyMedianMs > 0) || !(+e.latencyP95Ms > 0)))
+		return {ok:false,error:session.goal == 'latency' ? 'latency-median-p95-evidence-required' : 'balanced-latency-median-p95-evidence-required'};
 	return {ok:true};
 }
 
@@ -1881,12 +1914,24 @@ function rill_state_path() {
 }
 
 function rill_state_generation() {
-	let snapshot = json_read(rill_state_path(), null);
-	for (let partition in snapshot?.partitions ?? []) {
-		if (partition?.clientIdentityName == 'performance-manager' && partition?.partitionKey == 'default')
-			return +(partition?.handlerSnapshot?.stateGeneration ?? 0);
+	let raw = read(rill_state_path());
+	if (raw == null || !length(trimstr(raw))) return { ok: true, generation: 0, reason: 'state-absent' };
+	let snapshot = null;
+	try { snapshot = json(raw); } catch (e) { return { ok: false, generation: null, reason: 'state-invalid-json' }; }
+	if (type(snapshot) != 'object' || snapshot.formatVersion != 1 || type(snapshot.partitions) != 'array' || !length(snapshot.partitions) ||
+		!match(snapshot.checksumSha256 ?? '', /^[0-9a-f]{64}$/) || rill_state_checksum(snapshot) != snapshot.checksumSha256)
+		return { ok: false, generation: null, reason: 'state-schema-incompatible' };
+	let found = null;
+	for (let partition in snapshot.partitions) {
+		if (partition?.clientIdentityName == 'performance-manager' && partition?.partitionKey == 'default') {
+			if (found != null) return { ok: false, generation: null, reason: 'state-duplicate-partition' };
+			found = partition;
+		}
 	}
-	return 0;
+	if (found == null) return { ok: true, generation: 0, reason: 'partition-absent' };
+	let generation = found.handlerSnapshot?.stateGeneration;
+	if (type(generation) != 'int' || generation < 0) return { ok: false, generation: null, reason: 'state-generation-invalid' };
+	return { ok: true, generation: generation, reason: 'state-valid' };
 }
 
 function rill_runtime_call(request, binary) {
@@ -1933,7 +1978,9 @@ function rill_send(payload, outcome_attempt, mark_sent_unknown) {
 	if (!bool_cfg('shadow.enabled', true)) return { ok: false, state: 'disabled', connected: false, fullySent: false, responseReceived: false };
 	let binary = rill_binary_path();
 	if (!binary.ok) return { ok: false, state: binary.reason, connected: false, fullySent: false, responseReceived: false };
-	let op = payload.op, request_id = payload.requestId, state_generation = rill_state_generation();
+	let op = payload.op, request_id = payload.requestId, state = rill_state_generation();
+	if (!state.ok) return { ok: false, state: 'runtime-state-invalid', reason: state.reason, connected: false, fullySent: false, responseReceived: false };
+	let state_generation = state.generation;
 	let request = {
 		requestId: request_id, apiVersion: RILL_RUNTIME_API_VERSION,
 		clientIdentity: { name: 'performance-manager', version: VERSION },
@@ -2338,7 +2385,7 @@ function rill_advisory_update(resp, payload) {
 	 * changed under it, and expiresMonotonicMs bounds its lifetime. */
 	let rec = resp.recommendation;
 	let advertised = null;
-	for (let action in payload.availableActions ?? []) if (action.id == rec.actionId) { advertised = action; break; }
+	for (let action in payload.availableActions ?? []) if (action.id == rec.actionId || (action.id == 'pm.noop' && rec.actionId == 'pm.noop')) { advertised = action; break; }
 	if (!advertised) return null;
 	let now = monotonic_ms();
 	rill_advisory = {
@@ -2346,10 +2393,10 @@ function rill_advisory_update(resp, payload) {
 		confidence: rec.confidence, advisory: true, authority: 'advisory-only',
 		executionAuthority: advertised.executionAuthority, kind: advertised.executionAuthority == 'benchmark' ? 'benchmark' : (advertised.executionAuthority == 'none' ? 'noop' : 'safe-direct'),
 		applyTarget: advertised.applyTarget ?? null, evaluationPaths: advertised.evaluationPaths ?? [],
-		actionFamily: advertised.actionFamily ?? smart_action_family(rec.actionId),
+		businessActionId: advertised.actionId ?? rec.actionId, actionFamily: advertised.actionFamily ?? smart_action_family(advertised.actionId ?? rec.actionId),
 		ranking: rec.ranking ?? rec.scores ?? [], scores: rec.scores ?? rec.ranking ?? [],
 		contextKey: payload.contextKey, goal: payload.goal, selectorMode: payload.selectorMode ?? 'conservative',
-		topologyGeneration: payload.topologyGeneration,
+		topologyGeneration: payload.topologyGeneration, pathScope: payload.pathScope ?? null,
 		routeIdentity: payload.routeIdentity,
 		integrationFingerprint: payload.integrationFingerprint,
 		createdMonotonicMs: now, expiresMonotonicMs: now + RILL_ADVISORY_TTL_MS
@@ -2698,8 +2745,10 @@ function rill_advisory_get() {
 	if (monotonic_ms() > a.expiresMonotonicMs) { rill_advisory = null; return null; }
 	let topo = topology();
 	if ((a.topologyGeneration ?? null) != topology_generation) { rill_advisory = null; return null; }
-	let route = topo?.paths?.[0]?.routeIdentity ?? 'unresolved';
-	if ((a.routeIdentity ?? 'unresolved') != route) { rill_advisory = null; return null; }
+	let scope_paths = [];
+	for (let candidate in rill_available_actions(a.selectorMode)) for (let path_id in candidate.evaluationPaths ?? []) push_unique(scope_paths, path_id);
+	let scope = rill_context_scope(scope_paths);
+	if (a.pathScope && (a.pathScope.pathId != scope.pathId || a.pathScope.routeIdentity != scope.routeIdentity)) { rill_advisory = null; return null; }
 	if ((a.integrationFingerprint ?? '') != integration_fingerprint([], nft_snapshot())) { rill_advisory = null; return null; }
 	if ((a.goal ?? '') != goal()) { rill_advisory = null; return null; }
 	if (rill_binding_peek(a.decisionId) == null) { rill_advisory = null; return null; }
@@ -2802,12 +2851,66 @@ function system_guard() {
 function telemetry_snapshot() {
 	let dev = {};
 	for (let line in split(read('/proc/net/dev') ?? '', '\n')) {
-		let m = match(line, /^\s*([^:]+):\s*([0-9]+)\s+[0-9]+\s+[0-9]+\s+([0-9]+).*?\s([0-9]+)\s+[0-9]+\s+[0-9]+\s+([0-9]+)/);
-		if (m) dev[trimstr(m[1])] = { rxBytes: +m[2], rxDrop: +m[3], txBytes: +m[4], txDrop: +m[5] };
+		let m = match(line, /^\s*([^:]+):\s*(.*)$/);
+		if (m) {
+			let fields = filter(split(trimstr(m[2]), /\s+/), function(x) { return length(x); });
+			if (length(fields) >= 12) dev[trimstr(m[1])] = {
+				rxBytes: +fields[0], rxPackets: +fields[1], rxErrors: +fields[2], rxDrop: +fields[3],
+				txBytes: +fields[8], txPackets: +fields[9], txErrors: +fields[10], txDrop: +fields[11]
+			};
+		}
 	}
-	return {
-		monotonicMs: monotonic_ms(), bootId: boot_id(), topologyGeneration: topology_generation,
-		softnet: softnet(), interfaces: dev, health: baseline_health()
+	let now = monotonic_ms(), current_cpu = cpu_stat(), memory = meminfo(), current_softnet = softnet();
+	let current = { monotonicMs: now, bootId: boot_id(), topologyGeneration: topology_generation,
+		softnet: current_softnet, interfaces: dev, cpu: current_cpu, memoryKiB: memory.MemTotal ?? 0,
+		memAvailableKiB: memory.MemAvailable ?? 0 };
+	let previous_path = `${state_dir()}/telemetry/feature-baseline.json`, previous = json_read(previous_path, null);
+	let interval = null;
+	if (previous?.bootId == current.bootId && previous?.topologyGeneration == current.topologyGeneration) {
+		let seconds = (now - (previous.monotonicMs ?? 0)) / 1000;
+		if (seconds > 0) interval = { seconds: seconds, bytes: 0, packets: 0, drops: 0, errors: 0 };
+		for (let name in keys(dev)) {
+			let before = previous.interfaces?.[name], after = dev[name];
+			if (!interval || !before) continue;
+			interval.bytes += max(0, after.rxBytes - (before.rxBytes ?? 0)) + max(0, after.txBytes - (before.txBytes ?? 0));
+			interval.packets += max(0, after.rxPackets - (before.rxPackets ?? 0)) + max(0, after.txPackets - (before.txPackets ?? 0));
+			interval.drops += max(0, after.rxDrop - (before.rxDrop ?? 0)) + max(0, after.txDrop - (before.txDrop ?? 0));
+			interval.errors += max(0, after.rxErrors - (before.rxErrors ?? 0)) + max(0, after.txErrors - (before.txErrors ?? 0));
+		}
+	}
+	let capacity = 0;
+	for (let name in keys(dev)) {
+		let speed = +trimstr(read(`/sys/class/net/${name}/speed`) ?? '0');
+		if (speed > 0 && speed < 1000000) capacity += speed * 125000;
+	}
+	/* Link speed is not available on every virtual/USB interface. The bounded
+	 * 1Gb/s ceiling is an explicit normalization fallback, never a cumulative
+	 * counter masquerading as utilization. */
+	capacity = max(125000000, min(125000000000, capacity));
+	let features = { trafficUtilization: 0, ppsPressure: 0, dropErrorPressure: 0, cpuBusyInterval: 0,
+		softirqPressure: 0, queuePressure: 0, memoryPressure: 0, intervalSeconds: interval?.seconds ?? null };
+	if (interval) {
+		features.trafficUtilization = smart_clamp((interval.bytes / interval.seconds) / capacity, 0, 1);
+		features.ppsPressure = smart_clamp((interval.packets / interval.seconds) / max(1, capacity / 64), 0, 1);
+		features.dropErrorPressure = smart_clamp((interval.drops + interval.errors) / max(1, interval.packets), 0, 1);
+		let dt = current_cpu.total - (previous.cpu?.total ?? current_cpu.total), idle = (current_cpu.total - current_cpu.busyPct * current_cpu.total) - ((previous.cpu?.total ?? 0) - (previous.cpu?.busyPct ?? 0) * (previous.cpu?.total ?? 0));
+		if (dt > 0) features.cpuBusyInterval = smart_clamp((dt - max(0, idle)) / dt, 0, 1);
+		let processed = max(0, current_softnet.processed - (previous.softnet?.processed ?? 0));
+		let softnet_pressure = max(0, current_softnet.dropped - (previous.softnet?.dropped ?? 0)) + max(0, current_softnet.timeSqueezed - (previous.softnet?.timeSqueezed ?? 0));
+		features.softirqPressure = smart_clamp(softnet_pressure / max(1, processed), 0, 1);
+	}
+	if (current.memoryKiB > 0 && current.memAvailableKiB >= 0)
+		features.memoryPressure = smart_clamp((current.memoryKiB - min(current.memoryKiB, current.memAvailableKiB)) / current.memoryKiB, 0, 1);
+	current.features = features;
+	current.trafficCapacityBytesPerSecond = capacity;
+	json_write(previous_path, current);
+	return { monotonicMs: now, bootId: current.bootId, topologyGeneration: topology_generation,
+		softnet: current_softnet, interfaces: dev, health: baseline_health(), memoryKiB: current.memoryKiB,
+		memAvailableKiB: current.memAvailableKiB, trafficCapacityBytesPerSecond: capacity,
+		trafficUtilization: features.trafficUtilization, ppsPressure: features.ppsPressure,
+		dropErrorPressure: features.dropErrorPressure, cpuBusyInterval: features.cpuBusyInterval,
+		softirqPressure: features.softirqPressure, queuePressure: features.queuePressure,
+		memoryPressure: features.memoryPressure, intervalSeconds: features.intervalSeconds
 	};
 }
 
@@ -3096,7 +3199,7 @@ function rill_action_descriptor(action_id) {
 	if (action_id == 'pm.noop')
 		return { exists: true, kind: 'noop', authority: 'advisory-only', executionAuthority: 'none', executionPath: 'none', mutation: false, action: { id: 'pm.noop', risk: 'none', available: true } };
 	for (let action in candidate_actions())
-		if (action.id == action_id)
+		if (smart_candidate_identity(action) == action_id)
 			return { exists: true, kind: 'safe-direct', authority: 'advisory-only', executionAuthority: 'safe-direct', executionPath: 'apply', action: action };
 	for (let action in benchmark_catalog())
 		if (action.id == action_id && action.status != 'blocked')
@@ -3107,7 +3210,7 @@ function rill_action_descriptor(action_id) {
 function rill_available_actions(mode) {
 	let out = [ { id: 'pm.noop', applyScope: 'none', applyTarget: null, evaluationPaths: [], risk: 'none', authority: 'advisory-only', executionAuthority: 'none', executionPath: 'none', mutation: false, actionFamily: 'noop', available: true } ];
 	for (let a in candidate_actions()) {
-		push(out, { id: a.id, applyScope: a.applyScope, applyTarget: a.applyTarget, evaluationPaths: a.evaluationPaths, risk: a.risk, authority: 'advisory-only', executionAuthority: 'safe-direct', executionPath: 'apply', mutation: true, actionFamily: smart_action_family(a.id), available: true });
+		push(out, { id: smart_candidate_identity(a), actionId: a.id, applyScope: a.applyScope, applyTarget: a.applyTarget, evaluationPaths: a.evaluationPaths, risk: a.risk, authority: 'advisory-only', executionAuthority: 'safe-direct', executionPath: 'apply', mutation: true, actionFamily: smart_action_family(a.id), available: true });
 	}
 	/* Conservative ranking is deliberately scoped before the Runtime call:
 	 * benchmark-only actions cannot win a conservative decision by accident. */
@@ -3120,10 +3223,11 @@ function rill_available_actions(mode) {
 }
 
 function rill_context_key_observe() {
-	let caps = capabilities(), topo = topology(), path = topo.paths[0];
+	let caps = capabilities(), actions = rill_available_actions(active_selector_mode()), paths = [];
+	for (let action in actions) for (let path_id in action.evaluationPaths ?? []) push_unique(paths, path_id);
+	let scope = rill_context_scope(paths);
 	return rill_context_key_build(cfg('main.profile','recommended'), capability_hash(caps), topology_generation,
-		path?.id ?? 'path:lan-to-wan', path?.routeIdentity ?? 'unresolved', path?.workloadClass ?? [ 'plain_forwarding' ],
-		integration_fingerprint([], nft_snapshot()), goal());
+		scope.pathId, scope.routeIdentity, workload_for_paths(paths), integration_fingerprint([], nft_snapshot()), goal());
 }
 
 
@@ -3262,16 +3366,19 @@ function apply_ring(action, options) {
 
 function apply_action(msg) {
 	let action_id = msg?.actionId;
-	if (action_id == 'nic.ring.floor') {
-		let a = find_action(action_id, msg?.target);
+	let descriptor = rill_action_descriptor(action_id), a = descriptor?.action ?? null;
+	if (!a && action_id == 'nic.ring.floor') a = find_action(action_id, msg?.target);
+	if (a?.id == 'nic.ring.floor') {
+		if (msg?.target != null && a.applyTarget != msg.target) return { ok: false, error: 'target-mismatch' };
 		if (!a) return { ok: false, error: 'no-legal-candidate' };
 		let source = msg?.executionSource ?? 'manual', frozen = null, tx = null;
 		if (source == 'rill-advisory') {
 			let bound = rill_binding_peek(msg?.decisionId), current = smart_selector_context();
-			if (!bound || bound.actionId != action_id || bound.goal != current.goal || bound.contextKey != current.contextKey)
+			let candidate_id = smart_candidate_identity(a);
+			if (!bound || bound.actionId != candidate_id || bound.goal != current.goal || bound.contextKey != current.contextKey)
 				return { ok: false, error: 'exact-decision-context-mismatch' };
 			tx = tx_new(a, source, null);
-			frozen = rill_binding_reserve(msg?.decisionId, action_id, 'safe-direct', 'transaction', tx.transactionId);
+			frozen = rill_binding_reserve(msg?.decisionId, candidate_id, 'safe-direct', 'transaction', tx.transactionId);
 			if (!frozen) return { ok: false, error: 'rill-decision-already-reserved' };
 			tx.rillDecision = frozen;
 		} else if (source != 'manual' || msg?.decisionId != null) {
@@ -3493,20 +3600,23 @@ function rill_observe(mode) {
 		return { ok: false, state: 'throttled', retryAfterMs: RILL_OBSERVE_MIN_INTERVAL_MS };
 	let caps = capabilities();
 	let topo = topology();
-	let path = topo.paths[0];
 	let integ_fp = integration_fingerprint([], nft_snapshot());
 	let g = goal();
 	mode = mode == 'assisted' ? 'assisted' : 'conservative';
 	let available_actions = rill_available_actions(mode);
 	if (!length(available_actions)) return { ok: false, state: 'no-available-actions' };
+	let scope_paths = [];
+	for (let candidate in available_actions) for (let path_id in candidate.evaluationPaths ?? []) push_unique(scope_paths, path_id);
+	let scope = rill_context_scope(scope_paths);
+	let scoped_workload = workload_for_paths(scope_paths);
 	let payload = {
 		protocolVersion: RILL_RUNTIME_API_VERSION, requestId: sprintf('obs-%d', now), op: 'observe', deviceProfile: cfg('main.profile','recommended'),
 		capabilityHash: capability_hash(caps), topologyGeneration: topology_generation,
-		pathId: path?.id ?? 'path:lan-to-wan', routeIdentity: path?.routeIdentity ?? 'unresolved', workloadClass: path?.workloadClass ?? ['plain_forwarding'],
+		pathId: scope.pathId, routeIdentity: scope.routeIdentity, pathScope: scope, workloadClass: scoped_workload,
 		measurementClass: 'passive_before_after', context: telemetry_snapshot(), integrations: rill_integrations_payload(), goal: g,
 		integrationFingerprint: integ_fp,
 		contextKey: rill_context_key_build(cfg('main.profile','recommended'), capability_hash(caps), topology_generation,
-			path?.id ?? 'path:lan-to-wan', path?.routeIdentity ?? 'unresolved', path?.workloadClass ?? ['plain_forwarding'], integ_fp, g),
+			scope.pathId, scope.routeIdentity, scoped_workload, integ_fp, g),
 		availableActions: available_actions, selectorMode: mode
 	};
 	rill_last_observe_ms = now;
@@ -3525,12 +3635,14 @@ function rill_observe(mode) {
 }
 
 function smart_selector_context() {
-	let caps = capabilities(), topo = topology(), path = topo.paths?.[0], integ = integration_fingerprint([], nft_snapshot());
+	let caps = capabilities(), topo = topology(), integ = integration_fingerprint([], nft_snapshot()), actions = rill_available_actions(active_selector_mode()), scope_paths = [];
+	for (let action in actions) for (let path_id in action.evaluationPaths ?? []) push_unique(scope_paths, path_id);
+	let scope = rill_context_scope(scope_paths);
 	return {
-		profile: cfg('main.profile', 'recommended'), pathId: path?.id ?? 'path:lan-to-wan', workloadClass: path?.workloadClass ?? [ 'plain_forwarding' ], integrationState: integration_state(),
+		profile: cfg('main.profile', 'recommended'), pathId: scope.pathId, workloadClass: workload_for_paths(scope_paths), integrationState: integration_state(),
 		contextKey: rill_context_key_build(cfg('main.profile','recommended'), capability_hash(caps), topology_generation,
-			path?.id ?? 'path:lan-to-wan', path?.routeIdentity ?? 'unresolved', path?.workloadClass ?? ['plain_forwarding'], integ, goal()),
-		goal: goal(), path: path, topologyGeneration: topology_generation, routeIdentity: path?.routeIdentity ?? 'unresolved',
+			scope.pathId, scope.routeIdentity, workload_for_paths(scope_paths), integ, goal()),
+		goal: goal(), pathScope: scope, topologyGeneration: topology_generation, routeIdentity: scope.routeIdentity,
 		integrationFingerprint: integ
 	};
 }
@@ -3586,13 +3698,21 @@ function select_smart_action(mode, candidates, context) {
 	let minimum = mode == 'assisted' ? smart_float_cfg('main.min_confidence_assisted', 0.75) : smart_float_cfg('main.min_confidence_conservative', 0.65);
 	if (advisory.confidence < minimum) { result.reason = 'confidence-below-policy'; return result; }
 	let selected = null;
-	for (let action in all) if (action.id == advisory.actionId) { selected = action; break; }
+	for (let action in all) if (smart_candidate_identity(action) == advisory.actionId) { selected = action; break; }
 	let descriptor = rill_action_descriptor(advisory.actionId);
 	if (!selected && descriptor?.kind == 'benchmark' && rill_binding_peek(advisory.decisionId) != null) {
-		result.source = 'rill'; result.selectedActionId = advisory.actionId; result.decisionId = advisory.decisionId;
+		result.source = 'rill'; result.selectedActionId = advisory.actionId; result.selectedCandidateId = advisory.actionId; result.decisionId = advisory.decisionId;
 		result.autoEligible = false; result.reason = 'recommended-for-benchmark'; return result;
 	}
 	if (!selected || rill_binding_peek(advisory.decisionId) == null) { result.reason = 'missing-exact-decision'; return result; }
+	let ranked = null;
+	for (let row in advisory.ranking ?? []) {
+		for (let action in legal) if (smart_candidate_identity(action) == row.actionId || action.id == row.actionId) { ranked = action; break; }
+		if (ranked) break;
+	}
+	if (selected.id != 'pm.noop' && (!ranked || smart_candidate_identity(ranked) != smart_candidate_identity(selected))) {
+		result.reason = 'rill-ranking-selection-mismatch'; return result;
+	}
 	if (selected.id == 'pm.noop') {
 		result.source = 'rill'; result.selectedActionId = 'pm.noop'; result.fallback = null; result.reason = 'rill-selected-noop';
 		return result;
@@ -3603,23 +3723,26 @@ function select_smart_action(mode, candidates, context) {
 	}
 	let eligibility = smart_eligible_action(selected, mode, context);
 	if (!eligibility.ok) { result.reason = `rill-${eligibility.reason}`; return result; }
-	result.source = 'rill'; result.selectedActionId = selected.id; result.fallback = null; result.reason = 'highest-ranked-eligible-action';
+	result.source = 'rill'; result.selectedActionId = selected.id; result.selectedCandidateId = smart_candidate_identity(selected); result.fallback = null; result.reason = 'highest-ranked-eligible-action';
 	return result;
 }
 
 function smart_selector_action(result, candidates) {
-	for (let action in candidates ?? []) if (action.id == result?.selectedActionId) return action;
+	for (let action in candidates ?? []) if (smart_candidate_identity(action) == (result?.selectedCandidateId ?? result?.selectedActionId)) return action;
 	return result?.selectedActionId == 'pm.noop' ? { id: 'pm.noop', risk: 'none', executionAuthority: 'none' } : null;
 }
 
 function build_reward(goal_id, control, candidate, control_telemetry, candidate_telemetry, health_regressed) {
 	let c_bps = smart_num(control?.bitsPerSecond, 0), n_bps = smart_num(candidate?.bitsPerSecond, 0);
-	let components = { throughput: null, latency: null, cpuEfficiency: null };
+	let components = { throughput: null, latency: null, latencyMedian: null, latencyP95: null, cpuEfficiency: null };
 	if (c_bps <= 0 || n_bps <= 0 || health_regressed === true)
-		return { goal: goal_id, reward: null, components: components, measurementQuality: 'controlled_ab', validated: false, reason: health_regressed === true ? 'health-regression' : 'missing-throughput-evidence' };
+		return { goal: goal_id, reward: null, components: components, measurementQuality: 'invalid', validated: false, reason: health_regressed === true ? 'health-regression' : 'missing-throughput-evidence' };
 	components.throughput = (n_bps - c_bps) / c_bps;
-	let c_latency = smart_num(control?.latencyMs, null), n_latency = smart_num(candidate?.latencyMs, null);
-	if (c_latency != null && n_latency != null && c_latency > 0) components.latency = (c_latency - n_latency) / c_latency;
+	let c_median = smart_num(control?.latencyMedianMs, null), n_median = smart_num(candidate?.latencyMedianMs, null);
+	let c_p95 = smart_num(control?.latencyP95Ms, null), n_p95 = smart_num(candidate?.latencyP95Ms, null);
+	if (c_median != null && n_median != null && c_median > 0) components.latencyMedian = (c_median - n_median) / c_median;
+	if (c_p95 != null && n_p95 != null && c_p95 > 0) components.latencyP95 = (c_p95 - n_p95) / c_p95;
+	if (components.latencyMedian != null && components.latencyP95 != null) components.latency = 0.5 * components.latencyMedian + 0.5 * components.latencyP95;
 	let c_cpu = smart_num(control_telemetry?.health?.cpu?.busyPct, null), n_cpu = smart_num(candidate_telemetry?.health?.cpu?.busyPct, null);
 	if (c_cpu != null && n_cpu != null && c_cpu >= 0)
 		components.cpuEfficiency = ((n_bps / max(0.01, n_cpu)) - (c_bps / max(0.01, c_cpu))) / max(0.01, c_bps / max(0.01, c_cpu));
@@ -3633,7 +3756,7 @@ function build_reward(goal_id, control, candidate, control_telemetry, candidate_
 		if (!length(missing)) reward = 0.45 * components.throughput + 0.35 * components.latency + 0.20 * components.cpuEfficiency;
 	}
 	else push(missing, 'unsupported-goal');
-	if (length(missing)) return { goal: goal_id, reward: null, components: components, measurementQuality: 'controlled_ab', validated: false, reason: `missing-evidence:${join(',',missing)}` };
+	if (length(missing)) return { goal: goal_id, reward: null, components: components, measurementQuality: 'invalid', validated: false, reason: `missing-evidence:${join(',',missing)}` };
 	return { goal: goal_id, reward: reward, components: components, measurementQuality: 'controlled_ab', validated: true, reason: 'validated-controlled-ab' };
 }
 
@@ -3653,10 +3776,10 @@ function recommendations(allow_observe) {
 	if ((po?.conntrackPressure ?? 0) >= 0.70 || integration_state().transparentProxy)
 		push(notes, { id: 'network.local_port_capacity', disposition: 'analyze', detail: 'Local port capacity is relevant under proxy/high-connection pressure; reserved ports and ownership must be preserved. Any change remains benchmark-only.' });
 	let rill = rill_status();
-	let rill_advisory_live = rill_advisory_get();
+	let selector_mode = active_selector_mode(), rill_advisory_live = rill_advisory_get();
 	let rill_observation = null;
 	if (allow_observe && !rill_advisory_live && (rill.state == RILL_STATES.available || rill.state == RILL_STATES.learning)) {
-		rill_observation = rill_observe('conservative');
+		rill_observation = rill_observe(selector_mode);
 		rill_advisory_live = rill_advisory_get();
 	}
 	return {
@@ -3664,7 +3787,7 @@ function recommendations(allow_observe) {
 		benchmarkActions: benchmark_catalog(),
 		rill: rill,
 		rillObservation: rill_observation,
-		smartSelection: allow_observe ? select_smart_action('conservative', acts, smart_selector_context()) : null,
+		smartSelection: allow_observe ? select_smart_action(selector_mode, acts, smart_selector_context()) : null,
 		learnedAdvisory: rill_advisory_live ? [rill_advisory_live] : [],
 	};
 }
