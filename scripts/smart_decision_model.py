@@ -99,7 +99,7 @@ def build_reward(goal: str, control: dict[str, Any], candidate: dict[str, Any],
     candidate_telemetry = candidate_telemetry or {}
     c_bps = float(control.get("bitsPerSecond", 0) or 0)
     n_bps = float(candidate.get("bitsPerSecond", 0) or 0)
-    if c_bps <= 0 or n_bps <= 0 or health_regressed:
+    if not isfinite(c_bps) or not isfinite(n_bps) or c_bps <= 0 or n_bps <= 0 or health_regressed:
         return {"goal": goal, "reward": None, "components": {}, "measurementQuality": "invalid", "validated": False,
                 "reason": "health-regression" if health_regressed else "missing-throughput-evidence"}
     throughput = (n_bps - c_bps) / c_bps
@@ -107,16 +107,22 @@ def build_reward(goal: str, control: dict[str, Any], candidate: dict[str, Any],
     n_median = candidate.get("latencyMedianMs")
     c_p95 = control.get("latencyP95Ms")
     n_p95 = candidate.get("latencyP95Ms")
-    median = None if c_median is None or n_median is None or float(c_median) <= 0 else (float(c_median) - float(n_median)) / float(c_median)
-    p95 = None if c_p95 is None or n_p95 is None or float(c_p95) <= 0 else (float(c_p95) - float(n_p95)) / float(c_p95)
+    median_values = None if c_median is None or n_median is None else (float(c_median), float(n_median))
+    p95_values = None if c_p95 is None or n_p95 is None else (float(c_p95), float(n_p95))
+    median = None if median_values is None or not all(isfinite(v) for v in median_values) or median_values[0] <= 0 else (median_values[0] - median_values[1]) / median_values[0]
+    p95 = None if p95_values is None or not all(isfinite(v) for v in p95_values) or p95_values[0] <= 0 else (p95_values[0] - p95_values[1]) / p95_values[0]
     latency = None if median is None or p95 is None else 0.5 * median + 0.5 * p95
     # CPU efficiency is valid only when both values came from the same
     # controlled measurement windows.  Cumulative health.cpu.busyPct is a
     # boot-lifetime snapshot and must never be used as benchmark evidence.
-    c_cpu = control.get("cpuBusyInterval") if control.get("cpuBusyInterval") is not None else control_telemetry.get("cpuBusyInterval")
-    n_cpu = candidate.get("cpuBusyInterval") if candidate.get("cpuBusyInterval") is not None else candidate_telemetry.get("cpuBusyInterval")
+    c_cpu = control_telemetry.get("cpuBusyInterval")
+    n_cpu = candidate_telemetry.get("cpuBusyInterval")
     cpu_eff = None
-    if c_cpu is not None and n_cpu is not None and float(c_cpu) >= 0:
+    if (control_telemetry.get("cpuWindowValid") is True and
+            candidate_telemetry.get("cpuWindowValid") is True and
+            c_cpu is not None and n_cpu is not None and
+            isfinite(float(c_cpu)) and isfinite(float(n_cpu)) and
+            0 <= float(c_cpu) <= 1 and 0 <= float(n_cpu) <= 1):
         # Comparable throughput-per-busy-unit; requires both legs from Core.
         cpu_eff = ((n_bps / max(float(n_cpu), 0.01)) - (c_bps / max(float(c_cpu), 0.01))) / max(c_bps / max(float(c_cpu), 0.01), 0.01)
     components = {"throughput": throughput, "latency": latency, "latencyMedian": median, "latencyP95": p95, "cpuEfficiency": cpu_eff}
@@ -172,6 +178,7 @@ class Selection:
     auto_eligible: bool
     reason: str
     decision_id: str | None = None
+    selected_candidate_id: str | None = None
 
 
 def select_smart_action(mode: str, candidates: list[dict[str, Any]], *, rill_state: str,
@@ -179,25 +186,33 @@ def select_smart_action(mode: str, candidates: list[dict[str, Any]], *, rill_sta
                         decision_id: str | None = None, selected_action_id: str | None = None,
                         minimum_confidence: float | None = None) -> Selection:
     minimum_confidence = minimum_confidence or (CONFIDENCE_ASSISTED_DEFAULT if mode == "assisted" else CONFIDENCE_CONSERVATIVE_DEFAULT)
+    all_candidate_ids = [candidate_identity(a) for a in candidates]
+    if len(set(all_candidate_ids)) != len(all_candidate_ids):
+        return Selection("pm.noop", "core-fallback", True, "duplicate-candidate-id", selected_candidate_id="pm.noop")
     legal = [a for a in candidates if a.get("available", True) and
              (a.get("id") == "pm.noop" or (a.get("executionAuthority") == "safe-direct" and a.get("risk") == "safe"))]
     fallback = next((a["id"] for a in legal if a["id"] != "pm.noop"), "pm.noop")
+    fallback_candidate_id = next((candidate_identity(a) for a in legal if a["id"] != "pm.noop"), "pm.noop")
     if rill_state not in {"available", "learning"} or learning != "ready":
-        return Selection(fallback, "core-fallback", True, f"rill-{learning}")
+        return Selection(fallback, "core-fallback", True, f"rill-{learning}", selected_candidate_id=fallback_candidate_id)
     if not selected_action_id or not decision_id:
-        return Selection(fallback, "core-fallback", True, "missing-exact-decision")
-    action = next((a for a in legal if a["id"] == selected_action_id), None)
+        return Selection(fallback, "core-fallback", True, "missing-exact-decision", selected_candidate_id=fallback_candidate_id)
+    action = next((a for a in legal if selected_action_id in {a["id"], candidate_identity(a)}), None)
     if action is None:
-        return Selection(fallback, "core-fallback", True, "rill-action-not-legal")
-    if confidence < minimum_confidence:
-        return Selection(fallback, "core-fallback", True, "confidence-below-policy")
-    ranked = None
+        return Selection(fallback, "core-fallback", True, "rill-selected-candidate-not-legal", selected_candidate_id=fallback_candidate_id)
+    if not isfinite(float(confidence)) or confidence < minimum_confidence:
+        return Selection(fallback, "core-fallback", True, "confidence-below-policy", selected_candidate_id=fallback_candidate_id)
+    seen_ranking_ids = set()
     for row in ranking or []:
-        ranked = next((a for a in legal if row.get("actionId") in {a.get("id"), candidate_identity(a)}), None)
-        if ranked is not None:
-            break
-    if action["id"] != "pm.noop" and (ranked is None or ranked["id"] != action["id"]):
-        return Selection(fallback, "core-fallback", True, "rill-ranking-selection-mismatch")
+        row_id = row.get("actionId", row.get("id"))
+        score = row.get("score")
+        if row_id in seen_ranking_ids:
+            return Selection(fallback, "core-fallback", True, "duplicate-ranking-candidate-id", selected_candidate_id=fallback_candidate_id)
+        if not isinstance(score, (int, float)) or isinstance(score, bool) or not isfinite(float(score)):
+            return Selection(fallback, "core-fallback", True, "rill-score-invalid", selected_candidate_id=fallback_candidate_id)
+        if row_id not in all_candidate_ids:
+            return Selection(fallback, "core-fallback", True, "rill-ranking-candidate-unknown", selected_candidate_id=fallback_candidate_id)
+        seen_ranking_ids.add(row_id)
     if action["id"] == "pm.noop":
-        return Selection("pm.noop", "rill", True, "rill-selected-noop", decision_id)
-    return Selection(action["id"], "rill", True, "highest-ranked-eligible-action", decision_id)
+        return Selection("pm.noop", "rill", True, "rill-selected-noop", decision_id, "pm.noop")
+    return Selection(action["id"], "rill", True, "runtime-selected-eligible-candidate", decision_id, candidate_identity(action))

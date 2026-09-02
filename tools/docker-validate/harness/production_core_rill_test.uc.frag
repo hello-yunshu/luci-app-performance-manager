@@ -60,6 +60,23 @@ ring_matches = function() { return true; };
 link_ok = function() { return true; };
 persist_ring_policy = function() { return true; };
 
+/* Exercise the production interval gate directly.  These are counter
+ * windows, not a Python reimplementation: zero deltas and counter resets
+ * must never become measured zero CPU or a usable reward. */
+let _cpu_valid = cpu_interval({ total: 100, idle: 60 }, { total: 120, idle: 70 });
+let _cpu_zero_delta = cpu_interval({ total: 100, idle: 60 }, { total: 100, idle: 60 });
+let _cpu_reset = cpu_interval({ total: 100, idle: 60 }, { total: 90, idle: 50 });
+production_check(_cpu_valid.valid === true && _cpu_valid.busyInterval == 0.5, 'CPU interval accepts positive counter window', _cpu_valid);
+production_check(_cpu_zero_delta.valid === false, 'CPU interval rejects zero counter delta', _cpu_zero_delta);
+production_check(_cpu_reset.valid === false, 'CPU interval rejects counter reset', _cpu_reset);
+let _invalid_cpu_reward = build_reward('balanced',
+	{ bitsPerSecond: 100, latencyMedianMs: 10, latencyP95Ms: 20 },
+	{ bitsPerSecond: 110, latencyMedianMs: 9, latencyP95Ms: 18 },
+	{ cpuBusyInterval: 0, cpuWindowValid: false, health: { cpu: { busyPct: 0.1 } } },
+	{ cpuBusyInterval: 0.8, cpuWindowValid: true }, false);
+production_check(_invalid_cpu_reward.validated === false && _invalid_cpu_reward.components.cpuEfficiency == null && _invalid_cpu_reward.components.cpuBusyInterval.control == null,
+	'CPU invalid window fails closed without cumulative fallback', _invalid_cpu_reward);
+
 let _production_stats_a = { candidateId: smart_candidate_identity(_production_a), businessActionId: 'nic.ring.floor', attemptCount: 0, successCount: 0, failureCount: 0, rollbackCount: 0, validatedOutcomeCount: 0, recentRewards: [], recentRewardMean: 0, negativeStreak: 0, lastExecution: null, cooldownUntil: 0, cooldownReason: null };
 let _production_stats_b = { candidateId: smart_candidate_identity(_production_b), businessActionId: 'nic.ring.floor', attemptCount: 0, successCount: 0, failureCount: 0, rollbackCount: 0, validatedOutcomeCount: 0, recentRewards: [], recentRewardMean: 0, negativeStreak: 0, lastExecution: null, cooldownUntil: 0, cooldownReason: null };
 let _production_actions = {};

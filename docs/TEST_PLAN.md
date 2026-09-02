@@ -16,10 +16,13 @@ The frozen plan requires separate evidence layers. Passing one layer never subst
 - Candidate identity: same business action with different stable target/path
   candidates must keep ranking, cooldown, outcome history and transaction
   binding isolated; the real production harness exercises Core selector →
-  exact candidate binding → transaction trace against the pinned Runtime.
+  exact candidate binding → transaction trace against the pinned Runtime. A
+  mixed trained/untrained fixture must preserve the exact Runtime exploration
+  choice even when its numeric score is below a trained candidate.
 - Controlled A/B CPU evidence uses paired `/proc/stat` counter deltas captured
   at the control and candidate windows. Cumulative health CPU fields alone are
-  invalid evidence. Path features must resolve to the selected WAN/underlay or
+  invalid evidence; invalid windows are null with `cpuWindowValid=false` and
+  cannot fall back to generic telemetry. Path features must resolve to the selected WAN/underlay or
   fail closed; queue pressure remains reserved-neutral.
 - LuCI JavaScript syntax, JSON/YAML, shell syntax and complete current zh_Hans literal coverage.
 - Machine-computed Phase 0–12 **source-only** gates.
