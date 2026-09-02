@@ -64,6 +64,12 @@ def build_features(action: dict[str, Any], telemetry: dict[str, Any] | None = No
     action_id = action.get("id", "")
     family = action_family(action_id)
     risk = action.get("risk", "none")
+    observed = telemetry
+    for path_id in action.get("evaluationPaths") or action.get("affectedPaths") or []:
+        scoped = telemetry.get("pathFeatures", {}).get(str(path_id), {})
+        if scoped.get("available") is True:
+            observed = scoped
+            break
     return [
         float(action_id == "pm.noop"), float(action.get("executionAuthority") == "safe-direct"),
         float(action.get("executionAuthority") == "benchmark"),
@@ -72,9 +78,9 @@ def build_features(action: dict[str, Any], telemetry: dict[str, Any] | None = No
         clamp(float(action.get("deltaNormalized", 0.0) or 0.0)),
         float(family == "nic"), float(family in {"network-stack", "queue"}),
         float(family == "cpu"), float(family == "fastpath"),
-        clamp(float(telemetry.get("trafficUtilization", 0.0) or 0.0)),
-        clamp(float(telemetry.get("ppsPressure", 0.0) or 0.0)),
-        clamp(float(telemetry.get("dropErrorPressure", 0.0) or 0.0)),
+        clamp(float(observed.get("trafficUtilization", 0.0) or 0.0)),
+        clamp(float(observed.get("ppsPressure", 0.0) or 0.0)),
+        clamp(float(observed.get("dropErrorPressure", 0.0) or 0.0)),
         clamp(float(telemetry.get("cpuBusyInterval", 0.0) or 0.0)),
         clamp(float(telemetry.get("softirqPressure", 0.0) or 0.0)),
         clamp(float(telemetry.get("queuePressure", 0.0) or 0.0)),
@@ -104,23 +110,35 @@ def build_reward(goal: str, control: dict[str, Any], candidate: dict[str, Any],
     median = None if c_median is None or n_median is None or float(c_median) <= 0 else (float(c_median) - float(n_median)) / float(c_median)
     p95 = None if c_p95 is None or n_p95 is None or float(c_p95) <= 0 else (float(c_p95) - float(n_p95)) / float(c_p95)
     latency = None if median is None or p95 is None else 0.5 * median + 0.5 * p95
-    c_cpu = control.get("cpuBusy") if control.get("cpuBusy") is not None else (((control_telemetry.get("health") or {}).get("cpu") or {}).get("busyPct"))
-    n_cpu = candidate.get("cpuBusy") if candidate.get("cpuBusy") is not None else (((candidate_telemetry.get("health") or {}).get("cpu") or {}).get("busyPct"))
+    # CPU efficiency is valid only when both values came from the same
+    # controlled measurement windows.  Cumulative health.cpu.busyPct is a
+    # boot-lifetime snapshot and must never be used as benchmark evidence.
+    c_cpu = control.get("cpuBusyInterval") if control.get("cpuBusyInterval") is not None else control_telemetry.get("cpuBusyInterval")
+    n_cpu = candidate.get("cpuBusyInterval") if candidate.get("cpuBusyInterval") is not None else candidate_telemetry.get("cpuBusyInterval")
     cpu_eff = None
     if c_cpu is not None and n_cpu is not None and float(c_cpu) >= 0:
         # Comparable throughput-per-busy-unit; requires both legs from Core.
         cpu_eff = ((n_bps / max(float(n_cpu), 0.01)) - (c_bps / max(float(c_cpu), 0.01))) / max(c_bps / max(float(c_cpu), 0.01), 0.01)
     components = {"throughput": throughput, "latency": latency, "latencyMedian": median, "latencyP95": p95, "cpuEfficiency": cpu_eff}
-    required = {"throughput": throughput, "latency": latency, "cpu_efficiency": cpu_eff, "balanced": (throughput, latency, cpu_eff)}.get(goal)
     if goal == "balanced":
         if latency is None or cpu_eff is None:
             return {"goal": goal, "reward": None, "components": components, "measurementQuality": "invalid", "validated": False,
                     "reason": "missing-balanced-evidence"}
         reward = 0.45 * throughput + 0.35 * latency + 0.20 * cpu_eff
-    elif required is None:
-        return {"goal": goal, "reward": None, "components": components, "measurementQuality": "invalid", "validated": False, "reason": "unsupported-goal"}
+    elif goal == "cpu_efficiency":
+        if cpu_eff is None:
+            return {"goal": goal, "reward": None, "components": components, "measurementQuality": "invalid", "validated": False,
+                    "reason": "missing-evidence:cpuEfficiency"}
+        reward = cpu_eff
+    elif goal == "latency":
+        if latency is None:
+            return {"goal": goal, "reward": None, "components": components, "measurementQuality": "invalid", "validated": False,
+                    "reason": "missing-evidence:latency"}
+        reward = latency
+    elif goal == "throughput":
+        reward = throughput
     else:
-        reward = float(required)
+        return {"goal": goal, "reward": None, "components": components, "measurementQuality": "invalid", "validated": False, "reason": "unsupported-goal"}
     return {"goal": goal, "reward": reward, "components": components, "measurementQuality": "controlled_ab", "validated": True, "reason": "validated-controlled-ab"}
 
 

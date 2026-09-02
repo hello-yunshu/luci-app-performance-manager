@@ -47,9 +47,11 @@ displayed as benchmark-only and require an explicit controlled session.
 
 ## Learning stages and drift
 
-Each bounded ContextKey tracks validated samples, reward history, per-action
-attempt/success/failure/rollback counts, last reward, cooldown and a rolling reward
-distribution. Stages are:
+Each bounded ContextKey tracks validated samples, reward history and the
+environment-level rolling reward distribution. Each candidate independently
+tracks attempt/success/failure/rollback counts, bounded reward history, last
+execution and cooldown. Candidate keys include the business action, stable
+target and evaluation path. Stages are:
 
 - `cold`: fewer than 3 validated samples; no Rill influence.
 - `warming`: 3–7 validated samples; advisory ranking only.
@@ -67,15 +69,17 @@ state is ignored safely and never replayed into device configuration.
 
 Only the controlled A/B path may produce a validated learning reward. Core
 requires compatible control/candidate evidence, captures throughput, latency
-and CPU telemetry, verifies health, rolls back the exact transaction, and
+and CPU counter-delta telemetry in the same control/candidate measurement
+windows, verifies health, rolls back the exact transaction, and
 persists the result before sending Runtime feedback. Reward v2 is goal-aware:
 
 - `throughput`: throughput delta;
 - `latency`: 50% median-latency improvement plus 50% p95-latency improvement;
-- `cpu_efficiency`: inverse CPU-busy delta at comparable throughput;
+- `cpu_efficiency`: inverse measurement-window CPU-busy delta at comparable throughput;
 - `balanced`: weighted throughput/latency/CPU efficiency.
 
-Missing required measurements, methodology mismatch, health regression or
+Missing required measurements (including either CPU measurement window),
+methodology mismatch, health regression or
 failed rollback yields `measurementQuality=invalid`; it never updates Smart
 learning or Runtime feedback. Passive, health-only and safe-direct Auto
 execution evidence remain non-training evidence. Only a validated controlled
@@ -88,3 +92,5 @@ stage, legal/auto eligibility, refusal reason, ranking and drift state. The
 Rill LuCI view shows Runtime status, last decision, last reward, ranking,
 learning stage, minimum samples, drift and an explicit refresh action. The
 `rill_refresh` RPC is read-only, ACL-gated and never applies an action.
+`queue_pressure` remains a reserved-neutral zero dimension until a stable
+cross-target signal is available; it is not presented as live qdisc telemetry.

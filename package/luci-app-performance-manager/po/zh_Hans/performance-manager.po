@@ -708,3 +708,27 @@ msgstr "确定性回退"
 
 msgid "Policy reason"
 msgstr "策略原因"
+
+msgid "Selected candidate details"
+msgstr "已选候选详情"
+
+msgid "Business action"
+msgstr "业务动作"
+
+msgid "Candidate ID"
+msgstr "候选 ID"
+
+msgid "Candidate reward mean"
+msgstr "候选奖励均值"
+
+msgid "Candidate successes"
+msgstr "候选成功次数"
+
+msgid "Candidate failures"
+msgstr "候选失败次数"
+
+msgid "Candidate rollbacks"
+msgstr "候选回滚次数"
+
+msgid "Cooldown reason"
+msgstr "冷却原因"

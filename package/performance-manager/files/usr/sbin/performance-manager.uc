@@ -34,7 +34,7 @@ const RILL_OBSERVE_MIN_INTERVAL_MS = 30000;
 const RILL_RESOLVED_VERSION = '1.5.6';
 const RILL_FEATURE_SCHEMA_HASH = '925778554fc142043e49e3097ed94baa9fa4b2de251493ba62b96ea55c176557';
 const GOALS = [ 'balanced', 'throughput', 'latency', 'cpu_efficiency' ];
-const SMART_STATE_SCHEMA_VERSION = 2;
+const SMART_STATE_SCHEMA_VERSION = 3;
 const SMART_FEATURE_SCHEMA_VERSION = 2;
 const SMART_MIN_VALIDATED_SAMPLES = 8;
 const SMART_WARMING_SAMPLES = 3;
@@ -268,7 +268,26 @@ function smart_state_path() {
 
 function smart_state_load() {
 	let state = json_read(smart_state_path(), null);
-	if (type(state) != 'object' || state.schemaVersion != SMART_STATE_SCHEMA_VERSION || type(state.contexts) != 'object')
+	if (type(state) != 'object' || type(state.contexts) != 'object')
+		return { schemaVersion: SMART_STATE_SCHEMA_VERSION, contexts: {} };
+	/* v2 keyed action history by business action.  There is no safe way to
+	 * assign that history to one of several targets/paths, so retain only the
+	 * context-level distribution and intentionally reset candidate history. */
+	if (state.schemaVersion == 2) {
+		let migrated = { schemaVersion: SMART_STATE_SCHEMA_VERSION, contexts: {} };
+		for (let context_key in keys(state.contexts)) {
+			let old = state.contexts[context_key] ?? {};
+			migrated.contexts[context_key] = {
+				goal: old.goal ?? 'balanced', validatedSamples: old.validatedSamples ?? 0,
+				ewmaReward: old.ewmaReward ?? 0, rewardMean: old.rewardMean ?? 0,
+				rewardM2: old.rewardM2 ?? 0, recentRewards: old.recentRewards ?? [],
+				drifted: old.drifted === true, driftRecoverySamples: old.driftRecoverySamples ?? 0,
+				actions: {}
+			};
+		}
+		return migrated;
+	}
+	if (state.schemaVersion != SMART_STATE_SCHEMA_VERSION)
 		return { schemaVersion: SMART_STATE_SCHEMA_VERSION, contexts: {} };
 	return state;
 }
@@ -300,6 +319,11 @@ function smart_action_family(action_id) {
 	if (prefix == 'cpu') return 'cpu';
 	if (prefix == 'fastpath') return 'fastpath';
 	return 'service';
+}
+
+function smart_business_action_id(candidate_id) {
+	let text = `${candidate_id ?? ''}`, at = index(text, '@');
+	return at >= 0 ? substr(text, 0, at) : text;
 }
 
 function smart_candidate_identity(action) {
@@ -336,18 +360,19 @@ function smart_risk_level(risk) {
 	return 0.0;
 }
 
-function smart_context_stats(context_key, action_id, create) {
+function smart_context_stats(context_key, candidate_id, create) {
 	let state = smart_state_load(), ctx = state.contexts[context_key];
 	if (!ctx && create) {
 		ctx = { goal: goal(), validatedSamples: 0, ewmaReward: 0, rewardMean: 0, rewardM2: 0,
 			recentRewards: [], drifted: false, driftRecoverySamples: 0, actions: {} };
 		state.contexts[context_key] = ctx;
 	}
-	let stats = ctx?.actions?.[action_id];
+	let stats = ctx?.actions?.[candidate_id];
 	if (!stats && create && ctx) {
 		stats = { attemptCount: 0, successCount: 0, failureCount: 0, rollbackCount: 0, validatedOutcomeCount: 0,
-			recentRewardMean: 0, negativeStreak: 0, lastExecution: null, cooldownUntil: 0 };
-		ctx.actions[action_id] = stats;
+			candidateId: candidate_id, businessActionId: smart_business_action_id(candidate_id), recentRewards: [],
+			recentRewardMean: 0, negativeStreak: 0, lastExecution: null, cooldownUntil: 0, cooldownReason: null };
+		ctx.actions[candidate_id] = stats;
 	}
 	return { state: state, context: ctx, stats: stats };
 }
@@ -362,18 +387,18 @@ function smart_learning_stage(context_key, confidence) {
 		minimumSamples: min_samples, driftRecoverySamples: ctx.driftRecoverySamples ?? 0 };
 }
 
-function smart_cooldown_state(context_key, action_id) {
-	let row = smart_context_stats(context_key, action_id, false), s = row.stats;
+function smart_cooldown_state(context_key, candidate_id) {
+	let row = smart_context_stats(context_key, candidate_id, false), s = row.stats;
 	if (!s) return { active: false, until: 0, reason: null };
 	let until = smart_num(s.cooldownUntil, 0);
 	return { active: until > monotonic_ms(), until: until, reason: until > monotonic_ms() ? (s.cooldownReason ?? 'action-cooldown') : null };
 }
 
-function smart_record_validated_outcome(context_key, goal_id, action_id, reward, components, measurement_quality, health_regressed) {
+function smart_record_validated_outcome(context_key, goal_id, candidate_id, reward, components, measurement_quality, health_regressed) {
 	/* Only controlled A/B with complete, health-clean evidence changes learning.
 	 * Passive and health-only observations are intentionally not labels. */
 	if (measurement_quality != 'controlled_ab' || health_regressed === true || smart_num(reward, null) == null) return false;
-	let row = smart_context_stats(context_key, action_id, true), ctx = row.context, stats = row.stats, value = smart_num(reward, null);
+	let row = smart_context_stats(context_key, candidate_id, true), ctx = row.context, stats = row.stats, value = smart_num(reward, null);
 	if (!ctx || !stats || value == null) return false;
 	stats.validatedOutcomeCount = (stats.validatedOutcomeCount ?? 0) + 1;
 	ctx.validatedSamples = (ctx.validatedSamples ?? 0) + 1;
@@ -381,7 +406,7 @@ function smart_record_validated_outcome(context_key, goal_id, action_id, reward,
 	ctx.rewardMean = old_mean + delta / n;
 	ctx.rewardM2 = smart_num(ctx.rewardM2, 0) + delta * (value - ctx.rewardMean);
 	ctx.goal = goal_id; ctx.lastReward = value; ctx.lastRewardComponents = components ?? {};
-	ctx.lastOutcome = { actionId: action_id, reward: value, components: components ?? {}, measurementQuality: measurement_quality, validated: true };
+	ctx.lastOutcome = { candidateId: candidate_id, businessActionId: smart_business_action_id(candidate_id), reward: value, components: components ?? {}, measurementQuality: measurement_quality, validated: true };
 	ctx.ewmaReward = n == 1 ? value : 0.25 * value + 0.75 * smart_num(ctx.ewmaReward, 0);
 	push(ctx.recentRewards, value);
 	while (length(ctx.recentRewards) > 8) shift(ctx.recentRewards);
@@ -400,7 +425,12 @@ function smart_record_validated_outcome(context_key, goal_id, action_id, reward,
 			ctx.drifted = false; ctx.driftRecoverySamples = 0;
 		}
 	}
-	stats.recentRewardMean = recent_mean; stats.negativeStreak = value < 0 ? (stats.negativeStreak ?? 0) + 1 : 0;
+	push(stats.recentRewards, value);
+	while (length(stats.recentRewards) > 8) shift(stats.recentRewards);
+	let candidate_mean = 0;
+	for (let r in stats.recentRewards) candidate_mean += r;
+	stats.recentRewardMean = length(stats.recentRewards) ? candidate_mean / length(stats.recentRewards) : 0;
+	stats.negativeStreak = value < 0 ? (stats.negativeStreak ?? 0) + 1 : 0;
 	stats.lastExecution = monotonic_ms();
 	let base = max(60, int_cfg('main.action_cooldown_base_seconds', 600));
 	stats.cooldownUntil = monotonic_ms() + (value < 0 ? 1800 : base) * 1000;
@@ -410,9 +440,9 @@ function smart_record_validated_outcome(context_key, goal_id, action_id, reward,
 	return smart_state_save(state);
 }
 
-function smart_record_action_event(context_key, action_id, event) {
-	if (!length(context_key ?? '') || action_id == 'pm.noop') return false;
-	let row = smart_context_stats(context_key, action_id, true), stats = row.stats;
+function smart_record_action_event(context_key, candidate_id, event) {
+	if (!length(context_key ?? '') || candidate_id == 'pm.noop') return false;
+	let row = smart_context_stats(context_key, candidate_id, true), stats = row.stats;
 	if (!stats) return false;
 	stats.attemptCount = (stats.attemptCount ?? 0) + 1;
 	let now = monotonic_ms(), base = max(60, int_cfg('main.action_cooldown_base_seconds', 600));
@@ -424,7 +454,10 @@ function smart_record_action_event(context_key, action_id, event) {
 }
 
 function smart_feature_vector(action, index, total, telemetry, context_key) {
-	let family = smart_action_family(action.id), stats = smart_context_stats(context_key, action.id, false).stats;
+	let candidate_id = smart_candidate_identity(action), family = smart_action_family(action.id), stats = smart_context_stats(context_key, candidate_id, false).stats;
+	let scoped = null;
+	for (let path_id in action.evaluationPaths ?? []) if (telemetry?.pathFeatures?.[path_id]?.available === true) { scoped = telemetry.pathFeatures[path_id]; break; }
+	let observed = scoped ?? telemetry;
 	let risk = smart_risk_level(action.risk);
 	return [
 		action.id == 'pm.noop' ? 1 : 0, action.executionAuthority == 'safe-direct' ? 1 : 0,
@@ -432,8 +465,8 @@ function smart_feature_vector(action, index, total, telemetry, context_key) {
 		action.id == 'pm.noop' ? 0 : (action.executionAuthority == 'benchmark' ? 0.25 : 0.5),
 		family == 'nic' ? 1 : 0, (family == 'network-stack' || family == 'queue') ? 1 : 0,
 		family == 'cpu' ? 1 : 0, family == 'fastpath' ? 1 : 0,
-		smart_clamp(smart_num(telemetry?.trafficUtilization, 0), 0, 1), smart_clamp(smart_num(telemetry?.ppsPressure, 0), 0, 1),
-		smart_clamp(smart_num(telemetry?.dropErrorPressure, 0), 0, 1), smart_clamp(smart_num(telemetry?.cpuBusyInterval, 0), 0, 1),
+		smart_clamp(smart_num(observed?.trafficUtilization, 0), 0, 1), smart_clamp(smart_num(observed?.ppsPressure, 0), 0, 1),
+		smart_clamp(smart_num(observed?.dropErrorPressure, 0), 0, 1), smart_clamp(smart_num(telemetry?.cpuBusyInterval, 0), 0, 1),
 		smart_clamp(smart_num(telemetry?.softirqPressure, 0), 0, 1), smart_clamp(smart_num(telemetry?.queuePressure, 0), 0, 1),
 		smart_clamp(smart_num(telemetry?.memoryPressure, 0), 0, 1),
 		smart_clamp(stats?.recentRewardMean ?? 0, -1, 1), smart_clamp((stats?.successCount ?? 0) / max(1, stats?.attemptCount ?? 1), 0, 1),
@@ -1115,12 +1148,23 @@ function cpu_stat() {
 	for (let row in lines)
 		if (match(row, /^cpu[0-9]+\s/)) count++;
 	if (length(p) < 9)
-		return { stealPct: 0, total: 0, count: max(1, count) };
+		return { stealPct: 0, busyPct: 0, total: 0, idle: 0, count: max(1, count) };
 	let nums = map(slice(p, 1), function(x) { return +x; });
 	let total = 0, idle = (nums[3] ?? 0) + (nums[4] ?? 0);
 	for (let n in nums) total += n;
 	let steal = nums[7] ?? 0;
-	return { stealPct: total > 0 ? steal / total : 0, busyPct: total > 0 ? max(0, total - idle) / total : 0, total: total, count: max(1, count) };
+	return { stealPct: total > 0 ? steal / total : 0, busyPct: total > 0 ? max(0, total - idle) / total : 0, total: total, idle: idle, count: max(1, count) };
+}
+
+function cpu_interval(start, finish) {
+	if (!start || !finish) return { valid: false, reason: 'cpu-window-missing' };
+	let total_delta = smart_num(finish.total, -1) - smart_num(start.total, -1);
+	let busy_delta = (smart_num(finish.total, -1) - smart_num(finish.idle, -1)) -
+		(smart_num(start.total, -1) - smart_num(start.idle, -1));
+	if (total_delta <= 0 || busy_delta < 0) return { valid: false, reason: 'cpu-window-nonpositive-delta' };
+	let busy = busy_delta / total_delta;
+	if (busy != busy || busy < 0 || busy > 1) return { valid: false, reason: 'cpu-window-invalid' };
+	return { valid: true, busyInterval: busy, totalDelta: total_delta, busyDelta: busy_delta };
 }
 
 function service_running(name) {
@@ -1382,6 +1426,7 @@ function tx_new(action, execution_source, rill_decision) {
 	let id = sprintf('tx-%s-%d-%d', substr(boot_id(), 0, 8), monotonic_ms(), tx_counter);
 	return {
 		schemaVersion: 2, transactionId: id, state: 'planned', actionId: action.id,
+		candidateId: smart_candidate_identity(action), businessActionId: action.id,
 		executionSource: execution_source ?? 'manual', rillDecision: rill_decision ?? null,
 		applyScope: action.applyScope, applyTarget: action.applyTarget, evaluationPaths: action.evaluationPaths ?? [],
 		owner: 'performance_manager', topologyGeneration: topology_generation, bootId: boot_id(),
@@ -2183,7 +2228,7 @@ let rill_advisory = null;
 
 function rill_binding_valid(binding) {
 	if (type(binding) != 'object' || binding.schemaVersion != RILL_BINDINGS_SCHEMA_VERSION) return false;
-	if (!match(binding.decisionId ?? '', /^[A-Za-z0-9._:-]{1,128}$/) || !length(binding.actionId ?? '') || !length(binding.contextKey ?? '')) return false;
+	if (!match(binding.decisionId ?? '', /^[A-Za-z0-9._:-]{1,128}$/) || !length(binding.actionId ?? '') || !length(binding.candidateId ?? '') || !length(binding.contextKey ?? '')) return false;
 	if (!length(binding.goal ?? '') || binding.modelGeneration != RILL_MODEL_GENERATION || binding.bootId != boot_id()) return false;
 	if (binding.executionAuthority != 'none' && binding.executionAuthority != 'safe-direct' && binding.executionAuthority != 'benchmark') return false;
 	if (binding.atMs == null || binding.atMs > monotonic_ms() || (monotonic_ms() - binding.atMs) > RILL_BINDINGS_TTL_MS) return false;
@@ -2213,7 +2258,8 @@ function rill_binding_register(payload, response) {
 	let binding = {
 		schemaVersion: RILL_BINDINGS_SCHEMA_VERSION,
 		decisionId: response.decisionId, contextKey: payload.contextKey,
-		actionId: rec.actionId, goal: payload.goal, modelGeneration: RILL_MODEL_GENERATION,
+		actionId: rec.actionId, candidateId: rec.actionId, goal: payload.goal, modelGeneration: RILL_MODEL_GENERATION,
+		businessActionId: advertised.actionId ?? rec.actionId,
 		decisionGeneration: response.stateGeneration ?? 0, featureSchemaHash: RILL_FEATURE_SCHEMA_HASH,
 		advisory: true, confidence: rec.confidence, executionAuthority: advertised.executionAuthority,
 		bootId: boot_id(), atMs: monotonic_ms()
@@ -2298,13 +2344,13 @@ function rill_binding_reserve(decision_id, action_id, authority, owner_type, own
 	if (active_count >= RILL_BINDINGS_MAX) return null;
 	let frozen = {
 		schemaVersion: binding.schemaVersion, decisionId: binding.decisionId, contextKey: binding.contextKey,
-		actionId: binding.actionId, goal: binding.goal, modelGeneration: binding.modelGeneration,
+		actionId: binding.actionId, candidateId: binding.candidateId ?? binding.actionId, businessActionId: binding.businessActionId ?? smart_business_action_id(binding.actionId), goal: binding.goal, modelGeneration: binding.modelGeneration,
 		advisory: true, confidence: binding.confidence, bootId: binding.bootId, atMs: binding.atMs,
 		executionAuthority: authority, ownerType: owner_type, ownerId: owner_id
 	};
 	let journal = {
 		schemaVersion: RILL_EXECUTION_SCHEMA_VERSION, decisionId: frozen.decisionId,
-		actionId: frozen.actionId, contextKey: frozen.contextKey, goal: frozen.goal,
+		actionId: frozen.actionId, candidateId: frozen.candidateId ?? frozen.actionId, businessActionId: frozen.businessActionId ?? smart_business_action_id(frozen.actionId), contextKey: frozen.contextKey, goal: frozen.goal,
 		modelGeneration: frozen.modelGeneration, frozenDecision: frozen,
 		executionAuthority: authority, ownerType: owner_type, ownerId: owner_id,
 		executionState: 'reserved', mutationStarted: false, transportState: 'not-sent',
@@ -2400,7 +2446,7 @@ function rill_advisory_update(resp, payload) {
 	if (!advertised) return null;
 	let now = monotonic_ms();
 	rill_advisory = {
-		decisionId: resp.decisionId, actionId: rec.actionId,
+		decisionId: resp.decisionId, actionId: rec.actionId, candidateId: rec.actionId,
 		confidence: rec.confidence, advisory: true, authority: 'advisory-only',
 		executionAuthority: advertised.executionAuthority, kind: advertised.executionAuthority == 'benchmark' ? 'benchmark' : (advertised.executionAuthority == 'none' ? 'noop' : 'safe-direct'),
 		applyTarget: advertised.applyTarget ?? null, evaluationPaths: advertised.evaluationPaths ?? [],
@@ -2465,7 +2511,7 @@ function rill_terminal_proof_build(journal, owner) {
 	let proof = {
 		ownerType: journal.ownerType, ownerId: journal.ownerId, ownerTerminalState: owner.state,
 		terminalResultDigest: fnv1a32(sprintf('%J', result)), decisionId: journal.decisionId,
-		actionId: journal.actionId, contextKey: journal.contextKey, goal: journal.goal,
+		actionId: journal.actionId, candidateId: journal.candidateId ?? journal.actionId, contextKey: journal.contextKey, goal: journal.goal,
 		modelGeneration: journal.modelGeneration, measurementClass: journal.measurementClass,
 		reward: journal.reward, validated: journal.validated === true,
 		rollbackCommitProof: { verification: verification, result: result },
@@ -2479,7 +2525,7 @@ function rill_terminal_proof_valid(journal, proof) {
 	if (!proof || type(proof) != 'object') return false;
 	if (proof.ownerType != journal.ownerType || proof.ownerId != journal.ownerId ||
 		proof.ownerTerminalState != journal.expectedOwnerState || proof.decisionId != journal.decisionId ||
-		proof.actionId != journal.actionId || proof.contextKey != journal.contextKey ||
+		proof.actionId != journal.actionId || proof.candidateId != (journal.candidateId ?? journal.actionId) || proof.contextKey != journal.contextKey ||
 		proof.goal != journal.goal || proof.modelGeneration != journal.modelGeneration ||
 		proof.measurementClass != journal.measurementClass || proof.validated !== true ||
 		proof.terminalResultDigest != fnv1a32(sprintf('%J', proof.rollbackCommitProof?.result ?? null))) return false;
@@ -2879,20 +2925,28 @@ function telemetry_snapshot() {
 	let interval = null;
 	if (previous?.bootId == current.bootId && previous?.topologyGeneration == current.topologyGeneration) {
 		let seconds = (now - (previous.monotonicMs ?? 0)) / 1000;
-		if (seconds > 0) interval = { seconds: seconds, bytes: 0, packets: 0, drops: 0, errors: 0 };
+		if (seconds > 0) interval = { seconds: seconds, bytes: 0, packets: 0, drops: 0, errors: 0, interfaces: {} };
 		for (let name in keys(dev)) {
 			let before = previous.interfaces?.[name], after = dev[name];
 			if (!interval || !before) continue;
-			interval.bytes += max(0, after.rxBytes - (before.rxBytes ?? 0)) + max(0, after.txBytes - (before.txBytes ?? 0));
-			interval.packets += max(0, after.rxPackets - (before.rxPackets ?? 0)) + max(0, after.txPackets - (before.txPackets ?? 0));
-			interval.drops += max(0, after.rxDrop - (before.rxDrop ?? 0)) + max(0, after.txDrop - (before.txDrop ?? 0));
-			interval.errors += max(0, after.rxErrors - (before.rxErrors ?? 0)) + max(0, after.txErrors - (before.txErrors ?? 0));
+			let row = {
+				bytes: max(0, after.rxBytes - (before.rxBytes ?? 0)) + max(0, after.txBytes - (before.txBytes ?? 0)),
+				packets: max(0, after.rxPackets - (before.rxPackets ?? 0)) + max(0, after.txPackets - (before.txPackets ?? 0)),
+				drops: max(0, after.rxDrop - (before.rxDrop ?? 0)) + max(0, after.txDrop - (before.txDrop ?? 0)),
+				errors: max(0, after.rxErrors - (before.rxErrors ?? 0)) + max(0, after.txErrors - (before.txErrors ?? 0))
+			};
+			interval.interfaces[name] = row;
+			interval.bytes += row.bytes; interval.packets += row.packets;
+			interval.drops += row.drops; interval.errors += row.errors;
 		}
 	}
 	let capacity = 0;
+	let capacity_by_interface = {};
 	for (let name in keys(dev)) {
 		let speed = +trimstr(read(`/sys/class/net/${name}/speed`) ?? '0');
-		if (speed > 0 && speed < 1000000) capacity += speed * 125000;
+		let link_capacity = speed > 0 && speed < 1000000 ? speed * 125000 : 125000000;
+		capacity_by_interface[name] = link_capacity;
+		if (speed > 0 && speed < 1000000) capacity += link_capacity;
 	}
 	/* Link speed is not available on every virtual/USB interface. The bounded
 	 * 1Gb/s ceiling is an explicit normalization fallback, never a cumulative
@@ -2904,20 +2958,38 @@ function telemetry_snapshot() {
 		features.trafficUtilization = smart_clamp((interval.bytes / interval.seconds) / capacity, 0, 1);
 		features.ppsPressure = smart_clamp((interval.packets / interval.seconds) / max(1, capacity / 64), 0, 1);
 		features.dropErrorPressure = smart_clamp((interval.drops + interval.errors) / max(1, interval.packets), 0, 1);
-		let dt = current_cpu.total - (previous.cpu?.total ?? current_cpu.total), idle = (current_cpu.total - current_cpu.busyPct * current_cpu.total) - ((previous.cpu?.total ?? 0) - (previous.cpu?.busyPct ?? 0) * (previous.cpu?.total ?? 0));
-		if (dt > 0) features.cpuBusyInterval = smart_clamp((dt - max(0, idle)) / dt, 0, 1);
+		let cpu_window = cpu_interval(previous.cpu, current_cpu);
+		if (cpu_window.valid) features.cpuBusyInterval = cpu_window.busyInterval;
 		let processed = max(0, current_softnet.processed - (previous.softnet?.processed ?? 0));
 		let softnet_pressure = max(0, current_softnet.dropped - (previous.softnet?.dropped ?? 0)) + max(0, current_softnet.timeSqueezed - (previous.softnet?.timeSqueezed ?? 0));
 		features.softirqPressure = smart_clamp(softnet_pressure / max(1, processed), 0, 1);
 	}
 	if (current.memoryKiB > 0 && current.memAvailableKiB >= 0)
 		features.memoryPressure = smart_clamp((current.memoryKiB - min(current.memoryKiB, current.memAvailableKiB)) / current.memoryKiB, 0, 1);
+	let path_features = {}, logical = {};
+	for (let item in interface_dump().interface ?? []) logical[item.interface] = item;
+	for (let path in topology().paths ?? []) {
+		let iface = logical[path.wanInterface] ?? {}, names = [];
+		for (let name in [ iface.l3_device, iface.device ]) if (name && interval?.interfaces?.[name]) { push_unique(names, name); break; }
+		if (!length(names)) for (let name in path.underlayChain ?? []) if (interval?.interfaces?.[name]) { push_unique(names, name); break; }
+		if (!length(names) || !interval?.seconds) { path_features[path.id] = { available: false, reason: 'path-interval-unavailable' }; continue; }
+		let row = interval.interfaces[names[0]], path_capacity = capacity_by_interface[names[0]] ?? 125000000;
+		path_features[path.id] = {
+			available: true, source: 'interval-netdev', netdevs: names, intervalSeconds: interval.seconds,
+			trafficUtilization: smart_clamp((row.bytes / interval.seconds) / max(1, path_capacity), 0, 1),
+			ppsPressure: smart_clamp((row.packets / interval.seconds) / max(1, path_capacity / 64), 0, 1),
+			dropErrorPressure: smart_clamp((row.drops + row.errors) / max(1, row.packets), 0, 1)
+		};
+	}
 	current.features = features;
+	current.pathFeatures = path_features;
+	current.interval = interval;
 	current.trafficCapacityBytesPerSecond = capacity;
 	json_write(previous_path, current);
 	return { monotonicMs: now, bootId: current.bootId, topologyGeneration: topology_generation,
 		softnet: current_softnet, interfaces: dev, health: baseline_health(), memoryKiB: current.memoryKiB,
 		memAvailableKiB: current.memAvailableKiB, trafficCapacityBytesPerSecond: capacity,
+		pathFeatures: path_features, interval: interval,
 		trafficUtilization: features.trafficUtilization, ppsPressure: features.ppsPressure,
 		dropErrorPressure: features.dropErrorPressure, cpuBusyInterval: features.cpuBusyInterval,
 		softirqPressure: features.softirqPressure, queuePressure: features.queuePressure,
@@ -3212,9 +3284,15 @@ function rill_action_descriptor(action_id) {
 	for (let action in candidate_actions())
 		if (smart_candidate_identity(action) == action_id)
 			return { exists: true, kind: 'safe-direct', authority: 'advisory-only', executionAuthority: 'safe-direct', executionPath: 'apply', action: action };
-	for (let action in benchmark_catalog())
-		if (action.id == action_id && action.status != 'blocked')
-			return { exists: true, kind: 'benchmark', authority: 'advisory-only', executionAuthority: 'benchmark', executionPath: 'benchmark_start', action: action };
+	for (let action in benchmark_catalog()) if (action.status != 'blocked') {
+		for (let path_id in action.evaluationPaths ?? []) {
+			let plan = benchmark_provider_plan(action.id, path_id);
+			if (!plan.ok) continue;
+			let candidate = benchmark_action_contract(action.id, path_id, plan);
+			if (smart_candidate_identity(candidate) == action_id)
+				return { exists: true, kind: 'benchmark', authority: 'advisory-only', executionAuthority: 'benchmark', executionPath: 'benchmark_start', action: candidate };
+		}
+	}
 	return null;
 }
 
@@ -3228,7 +3306,12 @@ function rill_available_actions(mode) {
 	if (mode == 'conservative') return out;
 	for (let b in benchmark_catalog()) {
 		if (b.status == 'blocked') continue;
-		push(out, { id: b.id, applyScope: b.applyScope ?? 'system', applyTarget: null, evaluationPaths: b.evaluationPaths ?? ['path:lan-to-wan'], risk: 'benchmark', authority: 'advisory-only', executionAuthority: 'benchmark', executionPath: 'benchmark_start', mutation: true, actionFamily: smart_action_family(b.id), available: true });
+		for (let path_id in b.evaluationPaths ?? []) {
+			let plan = benchmark_provider_plan(b.id, path_id);
+			if (!plan.ok) continue;
+			let candidate = benchmark_action_contract(b.id, path_id, plan);
+			push(out, { id: smart_candidate_identity(candidate), actionId: candidate.id, applyScope: candidate.applyScope, applyTarget: candidate.applyTarget, evaluationPaths: candidate.evaluationPaths, risk: candidate.risk, authority: 'advisory-only', executionAuthority: 'benchmark', executionPath: 'benchmark_start', mutation: true, actionFamily: smart_action_family(candidate.id), available: true });
+		}
 	}
 	return out;
 }
@@ -3296,7 +3379,7 @@ function apply_ring(action, options) {
 		let restore = ring_restore(ref, snap), restored = restore.rc == 0 && ring_matches(ref, snap);
 		tx.state = restored ? 'rolled_back' : 'failed'; tx.verification.rollbackReadBack = restored ? 'pass' : 'fail';
 		tx.result = { error: 'apply-failed', output: ap.out, rollback: restored ? 'restored' : 'failed' }; tx_save(tx);
-		smart_record_action_event(tx.rillDecision?.contextKey ?? rill_context_key_observe(), action.id, restored ? 'rollback' : 'failure');
+		smart_record_action_event(tx.rillDecision?.contextKey ?? rill_context_key_observe(), smart_candidate_identity(action), restored ? 'rollback' : 'failure');
 		if (tx.rillDecision) rill_execution_finalize_without_outcome(tx.rillDecision, restored ? 'retired-restored-after-failure' : 'intervention-required', 'safe-direct-apply-failed', { rollback: restored ? 'exact' : 'failed' });
 		release_locks(tx.requiredLocks, tx.transactionId);
 		return { ok: false, transaction: tx };
@@ -3321,7 +3404,7 @@ function apply_ring(action, options) {
 		tx.verification = { readBack: readback ? 'pass' : 'fail', link: link ? 'pass' : 'fail', healthRegression: hcmp.pass ? 'none' : hcmp.failures, rollbackReadBack: restored ? 'pass' : 'fail', commitConfirm: 'not_required' };
 		 tx.state = restored ? 'rolled_back' : 'failed';
 		tx.result = { error: 'verification-failed', rollback: restored ? 'restored' : 'failed', rollbackOutput: restore.out ?? '' };
-		smart_record_action_event(tx.rillDecision?.contextKey ?? rill_context_key_observe(), action.id, restored ? 'rollback' : 'failure');
+		smart_record_action_event(tx.rillDecision?.contextKey ?? rill_context_key_observe(), smart_candidate_identity(action), restored ? 'rollback' : 'failure');
 		if (!tx_save(tx)) {
 			if (tx.rillDecision) rill_execution_finalize_without_outcome(tx.rillDecision, restored ? 'retired-restored-after-failure' : 'intervention-required', 'safe-direct-verification-terminal-journal-failed', { rollback: restored ? 'exact' : 'failed' });
 			release_locks(tx.requiredLocks,tx.transactionId); return {ok:false,error:'transaction-terminal-journal-write-failed',transaction:tx};
@@ -3338,7 +3421,7 @@ function apply_ring(action, options) {
 		let restore = ring_restore(ref, snap);
 		let restored = restore.rc == 0 && ring_matches(ref, snap);
 		tx.state = restored ? 'rolled_back' : 'failed'; tx.result = { error: 'transaction-journal-write-failed', rollback: restored ? 'restored' : 'failed' };
-		smart_record_action_event(tx.rillDecision?.contextKey ?? rill_context_key_observe(), action.id, restored ? 'rollback' : 'failure');
+		smart_record_action_event(tx.rillDecision?.contextKey ?? rill_context_key_observe(), smart_candidate_identity(action), restored ? 'rollback' : 'failure');
 		tx_save(tx); if (tx.rillDecision) rill_execution_finalize_without_outcome(tx.rillDecision, restored ? 'retired-restored-after-failure' : 'intervention-required', 'safe-direct-verification-journal-failed', { rollback: restored ? 'exact' : 'failed' });
 		release_locks(tx.requiredLocks, tx.transactionId); return { ok: false, transaction: tx };
 	}
@@ -3353,13 +3436,13 @@ function apply_ring(action, options) {
 		tx.verification.rollbackReadBack = restored ? 'pass' : 'fail';
 		tx.state = restored ? 'rolled_back' : 'failed';
 		tx.result = { error: 'persistence-failed', rollback: restored ? 'restored' : 'failed' };
-		smart_record_action_event(tx.rillDecision?.contextKey ?? rill_context_key_observe(), action.id, restored ? 'rollback' : 'failure');
+		smart_record_action_event(tx.rillDecision?.contextKey ?? rill_context_key_observe(), smart_candidate_identity(action), restored ? 'rollback' : 'failure');
 		tx_save(tx); if (tx.rillDecision) rill_execution_finalize_without_outcome(tx.rillDecision, restored ? 'retired-restored-after-failure' : 'intervention-required', 'safe-direct-persistence-failed', { rollback: restored ? 'exact' : 'failed' }); release_locks(tx.requiredLocks, tx.transactionId);
 		history(restored ? 'transaction.rollback' : 'transaction.rollback_failed', tx);
 		return { ok: false, transaction: tx };
 	}
 	tx.state = 'committed'; tx.result = { ring: after_ring };
-	smart_record_action_event(tx.rillDecision?.contextKey ?? rill_context_key_observe(), action.id, 'success');
+	smart_record_action_event(tx.rillDecision?.contextKey ?? rill_context_key_observe(), smart_candidate_identity(action), 'success');
 	if (!tx_save(tx)) {
 		/* Do not report success if terminal journal/pending-marker cleanup failed.
 		 * For PM-owned policy writes, restore both runtime and policy ownership. */
@@ -3474,15 +3557,18 @@ function benchmark_start(msg) {
 			release_benchmark_lock(session.benchmarkLock?.domain, session.sessionId);
 			session.state='failed'; session.result={validated:false,error:'benchmark-context-drift',nftDelta:nft_cmp}; json_write(benchmark_path(sid),session); return {ok:false,error:'benchmark-context-drift',session:session,nftDelta:nft_cmp};
 		}
-		if (phase == 'control') {
+			if (phase == 'control') {
 			if (session.state != 'awaiting_control') return {ok:false,error:'benchmark-not-awaiting-control'};
 			let valid=companion_evidence_valid(msg?.evidence,session,'control'); if (!valid.ok) return valid;
-			session.controlEvidence=msg.evidence;
-			session.controlTelemetry=telemetry_snapshot();
+				session.controlEvidence=msg.evidence; session.controlCpuEnd=cpu_stat();
+				session.controlTelemetry=telemetry_snapshot();
+				let control_cpu=cpu_interval(session.controlCpuStart,session.controlCpuEnd);
+				if (control_cpu.valid) session.controlTelemetry.cpuBusyInterval=control_cpu.busyInterval;
 			/* Freeze the measurement methodology from the control leg so the
 			 * candidate must reproduce it exactly (Blocker 3). */
 			session.companion.methodology=measurement_methodology(msg.evidence);
-			let applied=benchmark_apply_candidate(session.actionId,session.evaluationPath,session.sessionId,session.rillDecision);
+				session.candidateCpuStart=cpu_stat();
+				let applied=benchmark_apply_candidate(session.actionId,session.evaluationPath,session.sessionId,session.rillDecision);
 			if (!applied.ok) { benchmark_fail_session(benchmark_path(sid),sid,applied.error); return {ok:false,error:applied.error,session:session,detail:applied}; }
 			session.transactionId=applied.transaction.transactionId; session.state='candidate_applied'; session.candidateDeadlineMonotonicMs=applied.transaction.deadlineMonotonicMs;
 			if (!json_write(benchmark_path(sid),session)) {
@@ -3510,8 +3596,10 @@ function benchmark_start(msg) {
 			let hcmp=compare_health(tx.before?.health ?? baseline_health(session.evaluationPath),baseline_health(session.evaluationPath));
 			let restore=rollback_transaction(session.transactionId,'benchmark-complete');
 			if (!restore.ok || !hcmp.pass) { benchmark_fail_session(benchmark_path(sid),sid,!restore.ok?'candidate-rollback-failed':'health-regression'); return {ok:false,error:!restore.ok?'candidate-rollback-failed':'health-regression',health:hcmp,session:session}; }
-			session.candidateEvidence=msg.evidence;
-			session.candidateTelemetry=telemetry_snapshot();
+				session.candidateEvidence=msg.evidence; session.candidateCpuEnd=cpu_stat();
+				session.candidateTelemetry=telemetry_snapshot();
+				let candidate_cpu=cpu_interval(session.candidateCpuStart,session.candidateCpuEnd);
+				if (candidate_cpu.valid) session.candidateTelemetry.cpuBusyInterval=candidate_cpu.busyInterval;
 			let reward_result=build_reward(session.goal,session.controlEvidence,session.candidateEvidence,session.controlTelemetry,session.candidateTelemetry,!hcmp.pass);
 			let c0=+session.controlEvidence.bitsPerSecond, c1=+session.candidateEvidence.bitsPerSecond;
 			session.state='completed'; session.result={validated:reward_result.validated,changedSystemState:true,rolledBack:true,oneVariable:true,reward:reward_result.reward,rewardResult:reward_result,controlBitsPerSecond:c0,candidateBitsPerSecond:c1,health:hcmp};
@@ -3526,7 +3614,7 @@ function benchmark_start(msg) {
 				if (!intent.ok) { rill_execution_finalize_without_outcome(session.rillDecision, 'retired-restored-after-failure', 'benchmark-outcome-intent-failed', { rollback: 'exact' }); return {ok:false,error:'rill-outcome-intent-write-failed',session:session,detail:intent}; }
 			}
 			if (!json_write(benchmark_path(sid),session)) { rill_execution_finalize_without_outcome(session.rillDecision, 'retired-restored-after-failure', 'benchmark-result-journal-failed', { rollback: 'exact' }); return {ok:false,error:'benchmark-result-write-failed-after-safe-rollback',session:session}; }
-			smart_record_validated_outcome(session.rillDecision?.contextKey ?? rill_context_key_observe(), session.goal, session.actionId, reward_result.reward, reward_result.components, reward_result.measurementQuality, !hcmp.pass);
+				smart_record_validated_outcome(session.rillDecision?.contextKey ?? rill_context_key_observe(), session.goal, session.candidateId ?? smart_candidate_identity({ id: session.actionId, applyTarget: session.applyTarget, evaluationPaths: [ session.evaluationPath ] }), reward_result.reward, reward_result.components, reward_result.measurementQuality, !hcmp.pass);
 			if (session.rillDecision) {
 				let armed=rill_arm_outcome(session.rillDecision);
 				if (!armed.ok) { rill_execution_finalize_without_outcome(session.rillDecision, 'intervention-required', 'benchmark-outcome-arm-failed', armed); return {ok:false,error:'rill-outcome-arm-failed',session:session,detail:armed}; }
@@ -3571,10 +3659,11 @@ function benchmark_start(msg) {
 		/* Local benchmarks measure router-local kernel paths and therefore
 		 * define their own route requirement: the local endpoint path must
 		 * exist; no external WAN route evidence is required. */
+		let benchmark_action=benchmark_action_contract(action,path_id,plan), candidate_id=smart_candidate_identity(benchmark_action);
 		let lock_domain=benchmark_lock_domain(action, plan, path_id);
 		let execution_source=msg?.executionSource ?? 'manual', frozen_decision=null;
 		if (execution_source == 'benchmark-rill') {
-			frozen_decision=rill_binding_reserve(msg?.decisionId,action,'benchmark','benchmark',id);
+			frozen_decision=rill_binding_reserve(msg?.decisionId,candidate_id,'benchmark','benchmark',id);
 			if (!frozen_decision) return {ok:false,error:'rill-decision-already-reserved'};
 		} else if (execution_source != 'manual' || msg?.decisionId != null) {
 			return {ok:false,error:'invalid-execution-source'};
@@ -3584,7 +3673,7 @@ function benchmark_start(msg) {
 			if (frozen_decision) rill_binding_release_reservation(frozen_decision,'benchmark-lock-conflict-before-mutation');
 			return {ok:false,error:'benchmark-domain-lock-conflict',conflict:lock.conflict,domain:lock_domain};
 		}
-		let session={schemaVersion:2,sessionId:id,state:'awaiting_control',userInitiated:true,actionId:action,executionSource:execution_source,rillDecision:frozen_decision,applyTarget:plan.targetRef?.stableId ?? null,evaluationPath:path_id,workloadClass:ctx.workloadClass,capabilityHash:ctx.capabilityHash,topologyGeneration:ctx.topologyGeneration,routeIdentity:ctx.routeIdentity,integrationState:ctx.integrationState,integrationFingerprint:ctx.integrationFingerprint,nftSnapshot:ctx.nftSnapshot,deviceProfile:cfg('main.profile','recommended'),goal:cur_goal,benchmarkLock:{domain:lock_domain,sessionId:id},createdMonotonicMs:monotonic_ms(),measurementClass:'controlled_ab',variableCount:1,transactionId:null,controlEvidence:null,candidateEvidence:null,result:null,companion:{contract:'pm-companion/v2',requiredRole:semantics=='local'?'router-local-client':'lan-client',phases:['control','candidate'],methodology:null,metadata:{sessionId:id,actionId:action,pathId:path_id,topologyGeneration:ctx.topologyGeneration,routeIdentity:ctx.routeIdentity,capabilityHash:ctx.capabilityHash,goal:cur_goal}}};
+		let session={schemaVersion:2,sessionId:id,state:'awaiting_control',userInitiated:true,actionId:action,candidateId:candidate_id,executionSource:execution_source,rillDecision:frozen_decision,applyTarget:plan.targetRef?.stableId ?? null,evaluationPath:path_id,workloadClass:ctx.workloadClass,capabilityHash:ctx.capabilityHash,topologyGeneration:ctx.topologyGeneration,routeIdentity:ctx.routeIdentity,integrationState:ctx.integrationState,integrationFingerprint:ctx.integrationFingerprint,nftSnapshot:ctx.nftSnapshot,deviceProfile:cfg('main.profile','recommended'),goal:cur_goal,benchmarkLock:{domain:lock_domain,sessionId:id},createdMonotonicMs:monotonic_ms(),controlCpuStart:cpu_stat(),controlCpuEnd:null,candidateCpuStart:null,candidateCpuEnd:null,measurementClass:'controlled_ab',variableCount:1,transactionId:null,controlEvidence:null,candidateEvidence:null,result:null,companion:{contract:'pm-companion/v2',requiredRole:semantics=='local'?'router-local-client':'lan-client',phases:['control','candidate'],methodology:null,metadata:{sessionId:id,actionId:action,pathId:path_id,topologyGeneration:ctx.topologyGeneration,routeIdentity:ctx.routeIdentity,capabilityHash:ctx.capabilityHash,goal:cur_goal}}};
 		ensure_dir(`${state_dir()}/benchmarks`);
 		if (!json_write(benchmark_path(id),session)) {
 			release_benchmark_lock(lock_domain,id);
@@ -3665,8 +3754,8 @@ function smart_eligible_action(action, mode, context) {
 	if (!ref) return { ok: false, reason: 'target-unresolved' };
 	let comp = compatibility(action.id, ref, action.evaluationPaths?.[0]);
 	if (!comp.allowed) return { ok: false, reason: 'compatibility-blocked', detail: comp };
-	let cooldown = smart_cooldown_state(context.contextKey, action.id);
-	if (cooldown.active) return { ok: false, reason: 'action-cooldown', cooldownUntil: cooldown.until };
+	let candidate_id = smart_candidate_identity(action), cooldown = smart_cooldown_state(context.contextKey, candidate_id);
+	if (cooldown.active) return { ok: false, reason: 'action-cooldown', cooldownUntil: cooldown.until, cooldownRemaining: max(0, cooldown.until - monotonic_ms()), cooldownReason: cooldown.reason, candidateId: candidate_id };
 	return { ok: true, action: action, ref: ref };
 }
 
@@ -3712,13 +3801,13 @@ function select_smart_action(mode, candidates, context) {
 	for (let action in all) if (smart_candidate_identity(action) == advisory.actionId) { selected = action; break; }
 	let descriptor = rill_action_descriptor(advisory.actionId);
 	if (!selected && descriptor?.kind == 'benchmark' && rill_binding_peek(advisory.decisionId) != null) {
-		result.source = 'rill'; result.selectedActionId = advisory.actionId; result.selectedCandidateId = advisory.actionId; result.decisionId = advisory.decisionId;
+		result.source = 'rill'; result.selectedActionId = descriptor.action.id; result.selectedCandidateId = advisory.actionId; result.decisionId = advisory.decisionId;
 		result.autoEligible = false; result.reason = 'recommended-for-benchmark'; return result;
 	}
 	if (!selected || rill_binding_peek(advisory.decisionId) == null) { result.reason = 'missing-exact-decision'; return result; }
 	let ranked = null;
 	for (let row in advisory.ranking ?? []) {
-		for (let action in legal) if (smart_candidate_identity(action) == row.actionId || action.id == row.actionId) { ranked = action; break; }
+		for (let action in legal) if (smart_candidate_identity(action) == row.actionId) { ranked = action; break; }
 		if (ranked) break;
 	}
 	if (selected.id != 'pm.noop' && (!ranked || smart_candidate_identity(ranked) != smart_candidate_identity(selected))) {
@@ -3734,7 +3823,7 @@ function select_smart_action(mode, candidates, context) {
 	}
 	let eligibility = smart_eligible_action(selected, mode, context);
 	if (!eligibility.ok) { result.reason = `rill-${eligibility.reason}`; return result; }
-	result.source = 'rill'; result.selectedActionId = selected.id; result.selectedCandidateId = smart_candidate_identity(selected); result.fallback = null; result.reason = 'highest-ranked-eligible-action';
+	result.source = 'rill'; result.selectedActionId = selected.id; result.selectedCandidateId = smart_candidate_identity(selected); result.candidateHistory = smart_context_stats(context.contextKey, result.selectedCandidateId, false).stats ?? null; result.fallback = null; result.reason = 'highest-ranked-eligible-action';
 	return result;
 }
 
@@ -3745,7 +3834,7 @@ function smart_selector_action(result, candidates) {
 
 function build_reward(goal_id, control, candidate, control_telemetry, candidate_telemetry, health_regressed) {
 	let c_bps = smart_num(control?.bitsPerSecond, 0), n_bps = smart_num(candidate?.bitsPerSecond, 0);
-	let components = { throughput: null, latency: null, latencyMedian: null, latencyP95: null, cpuEfficiency: null };
+	let components = { throughput: null, latency: null, latencyMedian: null, latencyP95: null, cpuEfficiency: null, cpuBusyInterval: { control: null, candidate: null } };
 	if (c_bps <= 0 || n_bps <= 0 || health_regressed === true)
 		return { goal: goal_id, reward: null, components: components, measurementQuality: 'invalid', validated: false, reason: health_regressed === true ? 'health-regression' : 'missing-throughput-evidence' };
 	components.throughput = (n_bps - c_bps) / c_bps;
@@ -3754,8 +3843,9 @@ function build_reward(goal_id, control, candidate, control_telemetry, candidate_
 	if (c_median != null && n_median != null && c_median > 0) components.latencyMedian = (c_median - n_median) / c_median;
 	if (c_p95 != null && n_p95 != null && c_p95 > 0) components.latencyP95 = (c_p95 - n_p95) / c_p95;
 	if (components.latencyMedian != null && components.latencyP95 != null) components.latency = 0.5 * components.latencyMedian + 0.5 * components.latencyP95;
-	let c_cpu = smart_num(control_telemetry?.health?.cpu?.busyPct, null), n_cpu = smart_num(candidate_telemetry?.health?.cpu?.busyPct, null);
-	if (c_cpu != null && n_cpu != null && c_cpu >= 0)
+	let c_cpu = smart_num(control_telemetry?.cpuBusyInterval, null), n_cpu = smart_num(candidate_telemetry?.cpuBusyInterval, null);
+	components.cpuBusyInterval = { control: c_cpu, candidate: n_cpu };
+	if (c_cpu != null && n_cpu != null && c_cpu >= 0 && c_cpu <= 1 && n_cpu >= 0 && n_cpu <= 1)
 		components.cpuEfficiency = ((n_bps / max(0.01, n_cpu)) - (c_bps / max(0.01, c_cpu))) / max(0.01, c_bps / max(0.01, c_cpu));
 	let reward = null, missing = [];
 	if (goal_id == 'throughput') reward = components.throughput;

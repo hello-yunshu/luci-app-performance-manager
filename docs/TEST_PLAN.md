@@ -13,6 +13,14 @@ The frozen plan requires separate evidence layers. Passing one layer never subst
 - Ownership-safe uninstall/runtime-lease and sysupgrade keep semantics.
 - Security source guards: fixed argv Core, Runtime no command execution, advisory-only Runtime v3 protocol.
 - Smart Decision v2: unified selector, `pm.noop`, 20-feature schema, reward-goal completeness, cold/warming/ready/drifted stages, confidence, cooldown and drift recovery.
+- Candidate identity: same business action with different stable target/path
+  candidates must keep ranking, cooldown, outcome history and transaction
+  binding isolated; the real production harness exercises Core selector →
+  exact candidate binding → transaction trace against the pinned Runtime.
+- Controlled A/B CPU evidence uses paired `/proc/stat` counter deltas captured
+  at the control and candidate windows. Cumulative health CPU fields alone are
+  invalid evidence. Path features must resolve to the selected WAN/underlay or
+  fail closed; queue pressure remains reserved-neutral.
 - LuCI JavaScript syntax, JSON/YAML, shell syntax and complete current zh_Hans literal coverage.
 - Machine-computed Phase 0–12 **source-only** gates.
 
@@ -23,7 +31,10 @@ Runtime v3 integration additionally exercises strict envelope parsing, bounded r
 1. `make audit` on Linux.
 2. Native `cargo test --locked` + `cargo check --locked` for Rill.
 3. Official OpenWrt **25.12.5 x86/64** rootfs ucode bytecode compile with required modules.
-4. Official OpenWrt 25.12.5 x86/64 SDK build of Core, LuCI and Rill packages.
+4. Pinned real Runtime + official OpenWrt ucode execution of the raw shipped
+   Core production selector and transaction harness, including candidate
+   identity/history isolation and exact target/path trace.
+5. Official OpenWrt 25.12.5 x86/64 SDK build of Core, LuCI and PM-owned packages.
 
 ## Booted-target gates
 

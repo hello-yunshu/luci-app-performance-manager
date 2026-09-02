@@ -12,6 +12,14 @@ an always-available non-mutating choice. Runtime/target/CI verdicts below must
 be re-run for the final commit; this document does not promote source status
 to a hardware or Stable PASS.
 
+The current CI closure also includes `production-core-rill-integration`: it
+trains the pinned real Runtime, then executes the raw shipped Core in the
+official OpenWrt ucode image through selector, exact candidate binding and the
+transaction safety path. Candidate identity is kept separate from the
+business action, with per-candidate history/cooldown and paired CPU counter
+windows. Until that same-SHA job and the booted-target/soak gates complete,
+functional integration and Stable remain unevaluated.
+
 The sections below are retained as implementation history only. They are not
 the current Runtime contract and must not be used as present-day package or
 integration guidance.

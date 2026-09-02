@@ -4,11 +4,13 @@
   "title": "Persistent Rill Execution and Outcome Journal",
   "type": "object",
   "additionalProperties": false,
-  "required": ["schemaVersion", "decisionId", "actionId", "contextKey", "goal", "modelGeneration", "executionAuthority", "ownerType", "ownerId", "executionState", "mutationStarted", "mayHaveReachedPeer", "attemptCount", "createdBootId"],
+  "required": ["schemaVersion", "decisionId", "actionId", "candidateId", "contextKey", "goal", "modelGeneration", "executionAuthority", "ownerType", "ownerId", "executionState", "mutationStarted", "mayHaveReachedPeer", "attemptCount", "createdBootId"],
   "properties": {
     "schemaVersion": {"const": 2},
     "decisionId": {"type": "string", "pattern": "^[0-9a-f]{32}$"},
     "actionId": {"type": "string", "minLength": 1},
+    "candidateId": {"type": "string", "minLength": 1},
+    "businessActionId": {"type": "string", "minLength": 1},
     "contextKey": {"type": "string", "minLength": 1},
     "goal": {"type": "string", "minLength": 1},
     "modelGeneration": {"const": 2},
@@ -36,11 +38,11 @@
     "terminalSequence": {"type": "integer", "minimum": 1},
     "terminalProof": {
       "type": ["object", "null"], "additionalProperties": false,
-      "required": ["ownerType", "ownerId", "ownerTerminalState", "terminalResultDigest", "decisionId", "actionId", "contextKey", "goal", "modelGeneration", "measurementClass", "reward", "validated", "rollbackCommitProof", "bootIdentity"],
+      "required": ["ownerType", "ownerId", "ownerTerminalState", "terminalResultDigest", "decisionId", "actionId", "candidateId", "contextKey", "goal", "modelGeneration", "measurementClass", "reward", "validated", "rollbackCommitProof", "bootIdentity"],
       "properties": {
         "ownerType": {"enum": ["transaction", "benchmark"]}, "ownerId": {"type": "string", "minLength": 1},
         "ownerTerminalState": {"enum": ["committed", "rolled_back", "completed"]}, "terminalResultDigest": {"type": "string", "pattern": "^[0-9a-f]+$"},
-        "decisionId": {"type": "string", "pattern": "^[0-9a-f]{32}$"}, "actionId": {"type": "string", "minLength": 1},
+        "decisionId": {"type": "string", "pattern": "^[0-9a-f]{32}$"}, "actionId": {"type": "string", "minLength": 1}, "candidateId": {"type": "string", "minLength": 1},
         "contextKey": {"type": "string", "minLength": 1}, "goal": {"type": "string", "minLength": 1}, "modelGeneration": {"const": 2},
         "measurementClass": {"enum": ["controlled_ab", "health_only"]}, "reward": {"type": "number"}, "validated": {"const": true},
         "rollbackCommitProof": {"type": "object"}, "bootIdentity": {"type": "string", "minLength": 1}

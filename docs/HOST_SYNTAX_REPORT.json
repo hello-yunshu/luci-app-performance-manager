@@ -107,6 +107,10 @@
       "status": "pass"
     },
     {
+      "name": "py_compile scripts/production_core_rill_integration.py",
+      "status": "pass"
+    },
+    {
       "name": "py_compile scripts/resource_budget.py",
       "status": "pass"
     },
