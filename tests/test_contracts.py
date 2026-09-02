@@ -96,6 +96,16 @@ class ContractTests(unittest.TestCase):
                 self.assertRegex(ref, r"^v[0-9]+$")
         self.assertEqual(found, set(expected))
 
+    def test_sync_rill_is_read_only_and_cannot_create_branches(self):
+        workflow = (ROOT / ".github/workflows/sync-rill.yml").read_text()
+        self.assertIn("contents: read", workflow)
+        self.assertIn("pull-requests: read", workflow)
+        self.assertNotIn("contents: write", workflow)
+        self.assertNotIn("pull-requests: write", workflow)
+        self.assertNotIn("git switch -c", workflow)
+        self.assertNotIn("git push", workflow)
+        self.assertNotIn("gh pr create", workflow)
+
     def test_openwrt_download_caches_remain_digest_bound_and_fail_closed(self):
         cache_action = "actions/cache@v6"
         ci = (ROOT / ".github/workflows/ci.yml").read_text()

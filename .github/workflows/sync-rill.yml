@@ -8,8 +8,8 @@ on:
     types: [rill-runtime-qualified]
 
 permissions:
-  contents: write
-  pull-requests: write
+  contents: read
+  pull-requests: read
 
 jobs:
   sync:
@@ -28,9 +28,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ github.token }}
         run: python3 scripts/check_rill_dependency.py --sync --package-dir rill-openwrt-packages
-      - name: Open update pull request
-        env:
-          GH_TOKEN: ${{ github.token }}
+      - name: Verify no contract drift
         shell: bash
         run: |
           set -euo pipefail
@@ -38,20 +36,6 @@ jobs:
             echo 'No new qualified Stable 1.x Runtime is available.'
             exit 0
           fi
-          version=$(python3 -c 'import json; print(json.load(open("contracts/rill-runtime.json"))["resolved"]["version"])')
-          branch="chore/rill-${version}"
-          if gh pr list --base main --head "$branch" --state open --json number --jq 'length > 0' | grep -q true; then
-            echo "An open update pull request for ${branch} already exists; nothing to do."
-            exit 0
-          fi
-          if git ls-remote --exit-code --heads origin "$branch" >/dev/null 2>&1; then
-            echo "Generated update branch ${branch} already exists; reusing it."
-          else
-            git config user.name "github-actions[bot]"
-            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-            git switch -c "$branch"
-            git add contracts/rill-runtime.json
-            git commit -m "deps(rill): update runtime to v${version}"
-            git push origin "HEAD:${branch}"
-          fi
-          gh pr create --base main --head "$branch" --title "deps(rill): update runtime to v${version}" --body "Updates the single immutable Rill Runtime contract after the matching rill-openwrt-packages qualification passed. The required consumer integration workflow must pass before merge."
+          echo '::error::Qualified Runtime drift detected; automatic branch/PR creation is disabled.'
+          git diff -- contracts/rill-runtime.json
+          exit 1
