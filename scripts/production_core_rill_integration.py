@@ -67,9 +67,9 @@ def train_runtime(binary: Path, state: Path, schema_hash: str, candidate_a: str,
     # width and values identical is part of the real Core -> Runtime contract;
     # the Runtime must continue to reject a mismatched learner width.
     features_a = [0.0, 1.0, 0.0, 0.2, 1.0, 0.5, 1.0, 0.0, 0.0, 0.0,
-                  0.2, 0.1, 0.0, 0.25, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+                  1.0, 1.0, 1.0, 0.25, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
     features_b = [0.0, 1.0, 0.0, 0.2, 1.0, 0.5, 1.0, 0.0, 0.0, 0.0,
-                  0.8, 0.7, 0.1, 0.25, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+                  0.0, 0.0, 0.0, 0.25, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
     features_noop = [0.0] * 20
     # Repeat controlled feedback so the Core's production confidence policy
     # (>= 0.65 for conservative automation) is exercised without weakening
