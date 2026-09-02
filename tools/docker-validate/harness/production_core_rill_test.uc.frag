@@ -44,9 +44,18 @@ telemetry_snapshot = function() { return { monotonicMs: monotonic_ms(), bootId: 
 goal = function() { return 'balanced'; };
 system_guard = function() { return { pass: true, reasons: [], health: {} }; };
 compatibility = function() { return { allowed: true, blockers: [], warnings: [] }; };
-ring_snapshot = function() { return { rxCurrent: 512, txCurrent: 512, rxMax: 4096, txMax: 4096 }; };
-ring_apply = function() { return { rc: 0, out: '' }; };
-ring_restore = function() { return { rc: 0, out: '' }; };
+let _production_ring = { rxCurrent: 512, txCurrent: 512, rxMax: 4096, txMax: 4096 };
+ring_snapshot = function() { return { rxCurrent: _production_ring.rxCurrent, txCurrent: _production_ring.txCurrent, rxMax: _production_ring.rxMax, txMax: _production_ring.txMax }; };
+ring_apply = function(ref, params) {
+	if (params.rxFloor != null) _production_ring.rxCurrent = params.rxFloor;
+	if (params.txFloor != null) _production_ring.txCurrent = params.txFloor;
+	return { rc: 0, out: '' };
+};
+ring_restore = function(ref, snap) {
+	if (snap.rxCurrent != null) _production_ring.rxCurrent = snap.rxCurrent;
+	if (snap.txCurrent != null) _production_ring.txCurrent = snap.txCurrent;
+	return { rc: 0, out: '' };
+};
 ring_matches = function() { return true; };
 link_ok = function() { return true; };
 persist_ring_policy = function() { return true; };
