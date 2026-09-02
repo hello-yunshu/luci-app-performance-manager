@@ -109,7 +109,10 @@ def main() -> int:
         state = Path(temp) / "runtime-state.json"
         train = train_runtime(binary, state, schema_hash, candidate_a, candidate_b)
         proc = subprocess.run([
-            "docker", "run", "--rm", "--volume", f"{state}:/tmp/pm-production-runtime-state.json:rw",
+            # Mount the directory, not the individual snapshot file. The
+            # Runtime persists state with an atomic rename; replacing a
+            # single-file bind mount returns EBUSY on OpenWrt/overlayfs.
+            "docker", "run", "--rm", "--volume", f"{state.parent}:/tmp/pm-production-runtime:rw",
             "--volume", f"{harness}:/tmp/production_core_rill_test.uc:ro",
             "--entrypoint", "/usr/bin/ucode", args.docker_image, "/tmp/production_core_rill_test.uc",
         ], text=True, capture_output=True, check=False)
