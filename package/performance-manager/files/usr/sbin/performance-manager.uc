@@ -2105,8 +2105,11 @@ function rill_send(payload, outcome_attempt, mark_sent_unknown) {
 		let confidence = 0.5;
 		for (let row in score_rows) {
 			let score = smart_num(row.score, null);
-			if (score == null || !length(row.id ?? '')) continue;
-			push(ranking, { actionId: row.id, score: score });
+			let row_id = row.actionId ?? row.id;
+			if (score == null || !length(row_id ?? '')) continue;
+			/* Runtime v3 names this opaque field actionId; keep the compact
+			 * internal `id` alias for the Core response validator. */
+			push(ranking, { id: row_id, actionId: row_id, score: score });
 		}
 		sort(ranking, function(a,b) { return a.score == b.score ? (`${a.actionId}` > `${b.actionId}` ? 1 : -1) : (a.score < b.score ? 1 : -1); });
 		if (length(ranking) > 1) {
