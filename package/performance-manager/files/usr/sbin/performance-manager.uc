@@ -224,7 +224,7 @@ function rill_state_checksum(snapshot) {
 	let canonical_map = function(input) {
 		let out = {}, names = keys(input ?? {});
 		sort(names);
-		for (let name in names) out[names[name]] = canonical_entry(input[names[name]]);
+		for (let name in names) out[name] = canonical_entry(input[name]);
 		return out;
 	};
 	let wire = sprintf('%J', [ handler, canonical_map(snapshot.pendingDecisions), canonical_map(snapshot.completedDecisions) ]);
