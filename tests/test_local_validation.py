@@ -120,7 +120,7 @@ class LocalValidationTests(unittest.TestCase):
         ], cwd=repo, check=True, capture_output=True, text=True)
         subprocess.run(["git", "-c", "user.name=portable-test", "-c",
                         "user.email=portable-test@example.invalid", "commit", "-m",
-                        "test: mock portable closure"], cwd=repo, check=True,
+                        "test: mock portable closure", "--allow-empty"], cwd=repo, check=True,
                        capture_output=True, text=True)
         bin_dir = directory / "bin"
         bin_dir.mkdir()
