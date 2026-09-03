@@ -16,8 +16,8 @@ return view.extend({
 				])
 			]), 'capability'));
 		});
-		if (!nodes.length) nodes.push(pu.note(_('No capabilities were reported by the current provider.'), 'warning'));
-		return pu.page(_('Capabilities'), _('Unsupported optional capabilities are hidden from action surfaces; expected profile gaps are reported as degraded.'), [
+		if (!nodes.length) nodes.push(pu.note(_('No capabilities are available from the current provider.'), 'warning'));
+		return pu.page(_('Capabilities'), _('Review the capabilities available on this device. Unsupported capabilities are hidden from action controls; expected profile gaps appear as degraded.'), [
 			pu.grid(nodes, 'pm-card-grid--dense'),
 			pu.card(_('Capability / Topology / TargetRef JSON'), pu.jsonBox({ capabilities: c, topology: t }, _('Raw capability contract')), 'muted')
 		]);
