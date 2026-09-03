@@ -2,14 +2,14 @@
   "schemaVersion": 2,
   "areas": {
     "core": {
-      "files": 41,
-      "sourceBytes": 301138,
-      "knownStaticPayloadBytes": 297938
+      "files": 42,
+      "sourceBytes": 304206,
+      "knownStaticPayloadBytes": 301006
     },
     "luci": {
       "files": 15,
-      "sourceBytes": 66287,
-      "knownStaticPayloadBytes": 65419
+      "sourceBytes": 115550,
+      "knownStaticPayloadBytes": 114682
     },
     "rill": {
       "files": 2,

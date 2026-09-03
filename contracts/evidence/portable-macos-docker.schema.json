@@ -36,5 +36,29 @@
     "stableReleaseAuthorized": { "const": false },
     "reason": { "type": "string" },
     "artifact": { "type": ["object", "null"] }
-  }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "portableVerdict": { "const": "PASS" } } },
+      "then": {
+        "properties": {
+          "openwrt": {
+            "properties": { "rootfsSha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" } }
+          },
+          "sourceTests": { "const": "PASS" },
+          "coreRuntime": { "const": "PASS" },
+          "runtimeV3": { "const": "PASS" },
+          "packageComposition": { "const": "PASS" },
+          "serviceSmoke": { "const": "PASS" },
+          "ubusSmoke": { "const": "PASS" },
+          "rillRemovalSmoke": { "const": "PASS" },
+          "artifact": {
+            "type": "object",
+            "required": ["identityVerdict"],
+            "properties": { "identityVerdict": { "const": "PASS" } }
+          }
+        }
+      }
+    }
+  ]
 }

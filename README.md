@@ -221,6 +221,8 @@ make portable-macos
 # 或：tools/docker-validate/run-local-macos.sh
 ```
 
+前置条件：Docker Desktop、Git、Python 3、已认证的 `gh` CLI，以及可访问 GitHub / OpenWrt 的网络；当前 commit 对应的 same-SHA CI 和 same-SHA Build 必须已经成功完成。首次运行会自动下载并校验 OpenWrt 25.12.5 x86_64 rootfs；后续运行可复用 rootfs cache，但每次都会重新校验官方 `sha256sums`。同 SHA Build 尚未完成时结果是 `BLOCKED`，不是项目代码 `FAIL`。
+
 入口会复用仓库现有的 source audit、OpenWrt ucode harness、artifact identity、package-composition gate 和 portable gate。所有运行证据写入未跟踪的 `local-evidence/`，并绑定当前 commit SHA；构建包必须来自同一 SHA 的 GitHub Actions Build，不能使用 latest 或旧分支缓存。
 
 `Mac Docker PASS != Hardware Stable PASS`。Portable 验证保持 `hardwareCoverage = NOT_EVALUATED` 和 `stableReleaseAuthorized = false`，不能覆盖 real NIC、Hyper-V/KVM、LAN-WAN、sysupgrade、reboot 或真实路由器 24h soak 等硬件门禁。Docker Desktop 不可用、linux/amd64 仿真不可用、网络下载失败或 same-SHA artifact 未准备好时，入口会输出可诊断的 `BLOCKED`，不会伪造 PASS。

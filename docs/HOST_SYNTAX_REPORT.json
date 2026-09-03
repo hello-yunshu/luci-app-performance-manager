@@ -63,6 +63,10 @@
       "status": "pass"
     },
     {
+      "name": "py_compile scripts/build_local_validation_report.py",
+      "status": "pass"
+    },
+    {
       "name": "py_compile scripts/build_release_manifest.py",
       "status": "pass"
     },
@@ -104,6 +108,10 @@
     },
     {
       "name": "py_compile scripts/pin_feeds.py",
+      "status": "pass"
+    },
+    {
+      "name": "py_compile scripts/po_parser.py",
       "status": "pass"
     },
     {
