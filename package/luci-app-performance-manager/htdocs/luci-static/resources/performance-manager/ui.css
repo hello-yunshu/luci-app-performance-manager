@@ -71,7 +71,7 @@ body[data-aurora-preview="true"] .cbi-button-negative { border-color: var(--dang
 
 .pm-page-content { display: grid; gap: 1.25rem; }
 .pm-preview-nav { display: flex; flex-wrap: wrap; gap: .35rem; max-width: 1180px; box-sizing: border-box; margin: 0 auto 1.2rem; padding: .35rem; border: 1px solid var(--pm-border); border-radius: var(--pm-radius); background: var(--pm-surface-low); }
-.pm-preview-nav a { flex: 1 1 auto; min-width: 0; box-sizing: border-box; padding: .48rem .7rem; border-radius: .45rem; color: var(--pm-muted); font-size: .8rem; font-weight: 700; text-align: center; text-decoration: none; }
+.pm-preview-nav a { display: flex; align-items: center; justify-content: center; flex: 1 1 auto; min-width: 0; min-height: 2.75rem; box-sizing: border-box; padding: .48rem .7rem; border-radius: .45rem; color: var(--pm-muted); font-size: .8rem; font-weight: 700; text-align: center; text-decoration: none; }
 .pm-preview-nav a[aria-current="page"] { background: var(--pm-surface); box-shadow: 0 .15rem .5rem rgba(28, 44, 66, .08); color: var(--pm-accent); }
 .pm-preview-screen { display: grid; gap: 1rem; min-width: 0; }
 .pm-preview-screen > * { min-width: 0; }
@@ -127,7 +127,7 @@ body[data-aurora-preview="true"] .cbi-button-negative { border-color: var(--dang
 .pm-card > .pm-toolbar { margin-top: .85rem; }
 .pm-toolbar > * { min-width: 0; }
 .pm-toolbar > .pm-field { flex: 1 1 12rem; }
-.pm-toolbar select { flex: 1 1 12rem; }
+.pm-toolbar select { flex: 1 1 12rem; min-height: 2.75rem; }
 .pm-toolbar button { flex: 0 1 auto; }
 .pm-field { display: flex; min-width: 0; flex-direction: column; gap: .35rem; }
 .pm-field-label { color: var(--pm-muted); font-size: .78rem; font-weight: 700; line-height: 1.25; }
