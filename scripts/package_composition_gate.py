@@ -69,7 +69,15 @@ def execute(rootfs: Path, packages: dict[str, Path], names: tuple[str, ...]) -> 
                 "command -v apk >/dev/null 2>&1 || command -v opkg >/dev/null 2>&1; "
                 "if command -v apk >/dev/null 2>&1; then "
                 f"test '{suffix}' = '.apk'; "
-                "apk add --allow-untrusted --no-cache " + " ".join(staged) + "; "
+                "if apk add --allow-untrusted --no-cache " + " ".join(staged) + "; then "
+                "echo PM_APK_REPOSITORY_TRANSPORT=https; "
+                "else "
+                "sed 's#^https://downloads.openwrt.org/#http://downloads.openwrt.org/#' "
+                "/etc/apk/repositories > /tmp/pm-repositories-http; "
+                "apk --repositories-file /tmp/pm-repositories-http "
+                "add --allow-untrusted --no-cache " + " ".join(staged) + "; "
+                "echo PM_APK_REPOSITORY_TRANSPORT=http-fallback; "
+                "fi; "
                 "test -x /usr/sbin/performance-manager.uc; "
                 "test -x /usr/bin/rill-runtime; "
                 "test -f /usr/share/rpcd/acl.d/luci-app-performance-manager.json; "
@@ -88,6 +96,10 @@ def execute(rootfs: Path, packages: dict[str, Path], names: tuple[str, ...]) -> 
                 "returncode": completed.returncode,
                 "stdout": completed.stdout[-4000:],
                 "stderr": completed.stderr[-4000:],
+                "repositoryTransport": (
+                    "http-fallback" if "PM_APK_REPOSITORY_TRANSPORT=http-fallback" in completed.stdout
+                    else "https"
+                ),
             }
         finally:
             shutil.rmtree(guest, ignore_errors=True)
