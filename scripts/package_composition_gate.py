@@ -25,7 +25,7 @@ ALL_IN_ONE = ("luci-app-performance-manager-all", "performance-manager-rill",
 
 def package_name(path: Path) -> str:
     name = path.name
-    for package in (*SPLIT, "luci-app-performance-manager-all"):
+    for package in ("luci-app-performance-manager-all", *SPLIT):
         if name.startswith(package + "-") or name.startswith(package + "_"):
             return package
     return ""
