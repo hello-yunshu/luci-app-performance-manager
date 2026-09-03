@@ -91,9 +91,10 @@ rill-runtime-<matching-target>.apk
 
 ```sh
 apk add --allow-untrusted /tmp/luci-app-performance-manager-all-1.0.4-r1.apk
-apk add --allow-untrusted /tmp/performance-manager-rill-1.0.4-r1.apk
-apk add --allow-untrusted /tmp/rill-runtime-<matching-target>.apk
+apk add --allow-untrusted /tmp/rill-runtime-1.5.6-r1.apk /tmp/performance-manager-rill-1.0.4-r1.apk
 ```
+
+Install the qualified external `rill-runtime` for the device architecture before the `performance-manager-rill` glue package. If the package manager resolves dependencies, it must preserve the same Runtime-before-glue requirement; a missing Runtime remains fail-closed.
 
 OpenWrt still resolves system runtime libraries such as `luci-base`, `rpcd` and `ucode` from its configured repositories. The all-in-one APK contains the Core, LuCI, backend and translation payloads; the external Runtime owns `/usr/bin/rill-runtime`, while the small `performance-manager-rill` package owns only integration glue. Back up `/etc/config/performance-manager` and switch package forms only during a maintenance window.
 

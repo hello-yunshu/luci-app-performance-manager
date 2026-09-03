@@ -92,9 +92,10 @@ make package/luci-app-performance-manager-all/compile V=s
 
 ```sh
 apk add --allow-untrusted /tmp/luci-app-performance-manager-all-1.0.4-r1.apk
-apk add --allow-untrusted /tmp/performance-manager-rill-1.0.4-r1.apk
-# 另外安装外部 feed 提供的、与设备架构匹配的 rill-runtime 包。
+apk add --allow-untrusted /tmp/rill-runtime-1.5.6-r1.apk /tmp/performance-manager-rill-1.0.4-r1.apk
 ```
+
+必须先安装同一架构、已资格验证的外部 `rill-runtime`，再安装 `performance-manager-rill` glue；如果使用包管理器依赖解析，也必须保持这个依赖顺序。缺少 Runtime 时 PM 集成保持 fail-closed。
 
 它仍会通过 OpenWrt 软件源解析 `luci-base`、`rpcd`、`ucode` 等系统运行库；“单 APK”只表示 Performance Manager 自有的 Core、LuCI、后端和翻译位于一个文件内。它与三个 Core/LuCI 拆分包互斥；Rill 集成包是可选的独立所有者。已有拆分版设备应先备份 `/etc/config/performance-manager`，再在维护窗口切换包形态。
 
