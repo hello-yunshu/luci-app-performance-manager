@@ -133,7 +133,7 @@ jobs:
             --docker-log stable-output/docker-runtime.log \
             --test-report stable-output/test-report.json \
             --out stable-output/portable-docker.json
-          python3 scripts/package_composition_gate.py \
+          sudo python3 scripts/package_composition_gate.py \
             --rootfs .portable-rootfs \
             --packages "$selected_root" \
             --expected-commit "${{ inputs.expected_sha }}" \
