@@ -111,7 +111,7 @@ def main(argv=None) -> int:
     with tempfile.TemporaryDirectory(prefix="pm-composition-rootfs-") as temp:
         for label, names in (("split", SPLIT), ("all-in-one", ALL_IN_ONE)):
             clone = Path(temp) / label
-            shutil.copytree(args.rootfs, clone)
+            shutil.copytree(args.rootfs, clone, symlinks=True)
             results[label] = execute(clone, packages, names)
     report = {"schemaVersion": 1, "gate": "package-composition",
               "pmCommitSha": args.expected_commit,
