@@ -89,8 +89,8 @@ jobs:
             > rill-evidence/rill-provenance.json
           python3 scripts/aggregate_final_evidence.py --evidence-dir rill-evidence --scope rill-runtime \
             --expected-commit "$GITHUB_SHA" --out rill-evidence/final-release-evidence.json
-          cp rill-ml/target/x86_64-unknown-linux-musl/release/rill-runtime rill-evidence/rill-runtime
-          chmod 0755 rill-evidence/rill-runtime
+          tar -czf rill-evidence/rill-runtime.tar.gz \
+            -C rill-ml/target/x86_64-unknown-linux-musl/release rill-runtime
       - name: Verify package contract against exact package commit
         shell: bash
         run: |
@@ -118,8 +118,11 @@ jobs:
         with:
           name: rill-runtime-v3-evidence
           path: rill-runtime-input
-      - name: Verify exact Runtime binary artifact
-        run: test -x rill-runtime-input/rill-runtime
+      - name: Extract and verify exact Runtime binary artifact
+        run: |
+          set -euo pipefail
+          tar -xzf rill-runtime-input/rill-runtime.tar.gz -C rill-runtime-input
+          test -x rill-runtime-input/rill-runtime
       - name: Prepare official OpenWrt ucode image with the exact Runtime
         shell: bash
         run: |
