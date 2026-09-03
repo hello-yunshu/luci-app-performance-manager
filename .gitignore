@@ -37,3 +37,11 @@ integrations/performance-manager-rill-adapter/target/
 build-metadata.json
 checksums.txt
 rill-consumed-manifest.json
+
+# MacBook + Docker local validation outputs (run-specific, never release evidence)
+.venv/
+local-evidence/
+local-artifacts/
+openwrt-25.12.5-x86-64-rootfs.tar.gz
+sha256sums
+.portable-rootfs/

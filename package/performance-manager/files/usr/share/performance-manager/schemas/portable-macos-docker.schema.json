@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openwrt-performance-manager.dev/contracts/evidence/portable-macos-docker.schema.json",
+  "title": "MacBook Docker portable validation evidence",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "profile", "pmCommitSha", "host", "docker", "openwrt", "sourceTests", "coreRuntime", "runtimeV3", "packageComposition", "serviceSmoke", "ubusSmoke", "rillRemovalSmoke", "portableVerdict", "hardwareCoverage", "stableReleaseAuthorized"],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "profile": { "const": "portable-macos-docker" },
+    "pmCommitSha": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+    "host": {
+      "type": "object", "additionalProperties": false, "required": ["os", "architecture"],
+      "properties": { "os": { "const": "macOS" }, "architecture": { "enum": ["arm64", "x86_64"] } }
+    },
+    "docker": {
+      "type": "object", "additionalProperties": false, "required": ["platform"],
+      "properties": { "platform": { "const": "linux/amd64" }, "version": { "type": "string" } }
+    },
+    "openwrt": {
+      "type": "object", "additionalProperties": false, "required": ["version", "target", "rootfsSha256"],
+      "properties": {
+        "version": { "const": "25.12.5" }, "target": { "const": "x86/64" },
+        "rootfsSha256": { "type": ["string", "null"], "pattern": "^[0-9a-f]{64}$" }
+      }
+    },
+    "sourceTests": { "enum": ["PASS", "FAIL", "BLOCKED", "NOT_EVALUATED"] },
+    "coreRuntime": { "enum": ["PASS", "FAIL", "BLOCKED", "NOT_EVALUATED"] },
+    "runtimeV3": { "enum": ["PASS", "FAIL", "BLOCKED", "NOT_EVALUATED"] },
+    "packageComposition": { "enum": ["PASS", "FAIL", "BLOCKED", "NOT_EVALUATED"] },
+    "serviceSmoke": { "enum": ["PASS", "FAIL", "BLOCKED", "NOT_EVALUATED"] },
+    "ubusSmoke": { "enum": ["PASS", "FAIL", "BLOCKED", "NOT_EVALUATED"] },
+    "rillRemovalSmoke": { "enum": ["PASS", "FAIL", "BLOCKED", "NOT_EVALUATED"] },
+    "portableVerdict": { "enum": ["PASS", "FAIL", "BLOCKED"] },
+    "hardwareCoverage": { "const": "NOT_EVALUATED" },
+    "stableReleaseAuthorized": { "const": false },
+    "reason": { "type": "string" },
+    "artifact": { "type": ["object", "null"] }
+  }
+}
