@@ -161,6 +161,16 @@ class ContractTests(unittest.TestCase):
             with self.subTest(schema=schema.name):
                 self.assertTrue((dest/schema.name).exists())
                 self.assertEqual(json.loads(schema.read_text()),json.loads((dest/schema.name).read_text()))
+
+    def test_contracts_are_the_only_active_schema_source(self):
+        active_ids = {}
+        for schema in sorted((ROOT / 'contracts').glob('*.schema.json')):
+            data = json.loads(schema.read_text())
+            schema_id = data.get('$id')
+            if schema_id:
+                self.assertNotIn(schema_id, active_ids, schema_id)
+                active_ids[schema_id] = schema.name
+        self.assertFalse(list((ROOT / 'schemas').glob('*.schema.json')))
     def test_action_contract_requires_frozen_safety_fields(self):
         sch=json.loads((ROOT/'contracts/action.schema.json').read_text())
         for field in ['risk','requiresBenchmark','persistenceClass','commitPolicy','requiredLocks','requiresCommitConfirm']:

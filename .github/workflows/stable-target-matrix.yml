@@ -1,10 +1,10 @@
-name: Portable stable validation matrix
+name: Portable validation matrix
 
 on:
   workflow_dispatch:
     inputs:
       expected_sha:
-        description: Full PM commit SHA under portable release validation
+        description: Full PM commit SHA under portable validation
         required: true
         type: string
       build_run_id:
@@ -137,11 +137,16 @@ jobs:
             --docker-log stable-output/docker-runtime.log \
             --test-report stable-output/test-report.json \
             --out stable-output/portable-docker.json
+          python3 scripts/package_composition_gate.py \
+            --rootfs .portable-rootfs \
+            --packages "$selected_root" \
+            --expected-commit "${{ inputs.expected_sha }}" \
+            --out stable-output/package-composition.json
 
       - name: Upload portable evidence
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: stable-portable-docker
+          name: portable-docker-validation
           path: stable-output
           if-no-files-found: error

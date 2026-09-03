@@ -99,6 +99,10 @@
       "status": "pass"
     },
     {
+      "name": "py_compile scripts/package_composition_gate.py",
+      "status": "pass"
+    },
+    {
       "name": "py_compile scripts/pin_feeds.py",
       "status": "pass"
     },

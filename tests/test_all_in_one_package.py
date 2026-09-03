@@ -30,7 +30,9 @@ class AllInOnePackageTests(unittest.TestCase):
         self.assertNotIn("performance-manager-rill/files", makefile)
         self.assertNotIn("+performance-manager ", makefile)
         self.assertNotIn("+luci-app-performance-manager", makefile)
-        self.assertNotIn("PROVIDES:=", makefile)
+        self.assertIn("PROVIDES:=performance-manager-core", makefile)
+        self.assertNotIn("PROVIDES:=performance-manager\n", makefile)
+        self.assertNotIn("PROVIDES:=luci-app-performance-manager\n", makefile)
 
     def test_bundle_conflicts_with_every_split_owner(self):
         makefile = BUNDLE.read_text()
@@ -40,6 +42,21 @@ class AllInOnePackageTests(unittest.TestCase):
             "luci-app-performance-manager",
             "luci-i18n-performance-manager-zh-cn",
         })
+
+    def test_rill_uses_shared_virtual_core_capability(self):
+        rill = (ROOT / "package/performance-manager-rill/Makefile").read_text()
+        self.assertIn("DEPENDS:=+performance-manager-core +rill-runtime", rill)
+        self.assertNotIn("DEPENDS:=+performance-manager +rill-runtime", rill)
+        bundle = BUNDLE.read_text()
+        self.assertIn("PROVIDES:=performance-manager-core", bundle)
+
+    def test_package_composition_gate_is_a_real_rootfs_gate(self):
+        gate = (ROOT / "scripts/package_composition_gate.py").read_text()
+        self.assertIn('chroot', gate)
+        self.assertIn('SPLIT', gate)
+        self.assertIn('ALL_IN_ONE', gate)
+        self.assertIn('apk add', gate)
+        self.assertIn('pmCommitSha', gate)
 
     def test_exact_verifier_maps_all_owned_source_payloads(self):
         spec = importlib.util.spec_from_file_location("verify_apks", ROOT / "scripts/verify_apks.py")
@@ -78,13 +95,14 @@ class AllInOnePackageTests(unittest.TestCase):
         matrix = (ROOT / ".github/workflows/stable-target-matrix.yml").read_text()
         aggregate = (ROOT / ".github/workflows/stable-aggregate.yml").read_text()
         release = (ROOT / ".github/workflows/stable-release.yml").read_text()
-        self.assertIn("name: Portable stable validation matrix", matrix)
+        self.assertIn("name: Portable validation matrix", matrix)
         self.assertIn("runs-on: ubuntu-latest", matrix)
         self.assertNotIn("self-hosted", matrix)
         self.assertIn("Dockerfile.local", matrix)
         self.assertIn("portable_docker_gate.py", matrix)
         self.assertIn('--profile "${{ inputs.profile }}"', aggregate)
         self.assertIn("Docker-verified", release)
+        self.assertIn("test '${{ inputs.profile }}' = hardware", release)
 
     def test_prerelease_auto_publish_is_main_same_repo_release_commit_only(self):
         workflow = (ROOT / ".github/workflows/prerelease.yml").read_text()

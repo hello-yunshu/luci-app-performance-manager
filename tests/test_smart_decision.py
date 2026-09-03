@@ -255,8 +255,12 @@ class SmartDecisionTests(unittest.TestCase):
 
     def test_current_config_has_one_runtime_binary_key(self):
         config = (ROOT / "package/performance-manager/files/etc/config/performance-manager").read_text()
-        shadow = config.split("config rill 'shadow'", 1)[1].split("config benchmark", 1)[0]
-        self.assertEqual(shadow.count("option binary"), 1)
+        runtime = config.split("config rill 'runtime'", 1)[1].split("config benchmark", 1)[0]
+        self.assertEqual(runtime.count("option binary"), 1)
+        self.assertNotIn("config rill 'shadow'", config)
+        migration = (ROOT / "package/performance-manager/files/etc/uci-defaults/90-performance-manager").read_text()
+        self.assertIn("uci rename performance-manager.shadow=runtime", migration)
+        self.assertIn("uci -q get performance-manager.runtime", migration)
         self.assertNotIn("runtime_binary", config)
 
 

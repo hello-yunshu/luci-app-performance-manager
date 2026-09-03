@@ -51,12 +51,21 @@ for ex,sch in pairs.items():
     if obj is not None and schema is not None:
         try: jsonschema.Draft202012Validator(schema).validate(obj)
         except Exception as e: fail(f'{ex} violates {sch}: {getattr(e,"message",e)}')
-# Every formal schema must ship in Core payload and stay identical.
+# Every formal schema must ship in Core payload and stay identical. `contracts/`
+# is the only active source; root `schemas/` contains examples only.
 dest=ROOT/'package/performance-manager/files/usr/share/performance-manager/schemas'
 for sch in (ROOT/'contracts').glob('*.schema.json'):
     dst=dest/sch.name
     if not dst.exists(): fail(f'runtime schema missing: {sch.name}')
     elif load(sch)!=load(dst): fail(f'runtime schema drift: {sch.name}')
+active_ids = {}
+for sch in sorted((ROOT/'contracts').glob('*.schema.json')):
+    obj = load(sch)
+    if obj and obj.get('$id'):
+        if obj['$id'] in active_ids: fail(f'duplicate active schema $id: {obj["$id"]}')
+        active_ids[obj['$id']] = sch.name
+for sch in sorted((ROOT/'schemas').glob('*.schema.json')):
+    fail(f'active schema must not live in schemas/: {sch.name}')
 
 core=(ROOT/'package/performance-manager/files/usr/sbin/performance-manager.uc').read_text(); contracts=(ROOT/'package/performance-manager/files/usr/share/performance-manager/contracts.uc').read_text(); make=(ROOT/'package/performance-manager/Makefile').read_text()
 for m in ['ucode-mod-fs','ucode-mod-ubus','ucode-mod-uci','ucode-mod-rtnl','ucode-mod-uloop','ucode-mod-socket','ucode-mod-log']:
@@ -183,7 +192,9 @@ else:
                      'luci-i18n-performance-manager-zh-cn']:
         if conflict not in bundle_pkg.group(1): fail(f'all-in-one split-owner conflict missing: {conflict}')
     if 'performance-manager-rill' in bundle_pkg.group(1): fail('all-in-one must not own the temporary Rill compatibility bridge')
-if 'PROVIDES:=' in bundle: fail('all-in-one must not alias split package names through APK PROVIDES')
+if 'PROVIDES:=performance-manager-core' not in bundle: fail('all-in-one virtual core capability missing')
+if re.search(r'^\s*PROVIDES:=performance-manager\s*$', bundle, re.M) or re.search(r'^\s*PROVIDES:=luci-app-performance-manager\s*$', bundle, re.M):
+    fail('all-in-one must not alias split package names through APK PROVIDES')
 
 # Scan only the repository's own files.  In CI the workspace also contains the
 # downloaded OpenWrt SDK tree (a subdirectory whose feeds legitimately include
@@ -194,7 +205,7 @@ if 'PROVIDES:=' in bundle: fail('all-in-one must not alias split package names t
 try:
     import subprocess
     _out = subprocess.run(['git', 'ls-files', '-z'], cwd=ROOT, capture_output=True, text=True)
-    _tracked = [ROOT / p for p in _out.stdout.split('\0') if p]
+    _tracked = [ROOT / p for p in _out.stdout.split('\0') if p and (ROOT / p).is_file()]
 except Exception:
     _tracked = [p for p in ROOT.rglob('*') if p.is_file() and '__pycache__' not in p.parts and '.git' not in p.parts]
 for p in _tracked:

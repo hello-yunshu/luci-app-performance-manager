@@ -1,5 +1,10 @@
 # External Validation Profiles for 1.0.3
 
+Checked-in JSON snapshots under `docs/` and `evidence/` that carry
+`historicalOnly: true` are audit history only. Current release decisions must
+use same-commit workflow artifacts collected by `collect_stable_evidence.py`;
+the historical snapshots never authorize Stable.
+
 `1.0.3` keeps the official OpenWrt SDK build compiling and verifying every PM-owned split package and the physical arch-independent all-in-one APK. The package matrix is OpenWrt 25.12.5 x86_64, armsr/armv8 (`aarch64_generic`), and mediatek/filogic (`aarch64_cortex-a53`); the external generic Runtime evidence and target behavior evidence remain x86_64-scoped until an arm64 Runtime gate is executed. The all-in-one APK does not contain Runtime code; install the optional `performance-manager-rill` integration glue together with the matching external `rill-runtime` package from `rill-openwrt-packages`. This profile does not claim Hyper-V, router hardware, firmware sysupgrade reboot, or a 24-hour soak until those evidence gates complete.
 
 The current official 25.12.x x86/64 target is available as OpenWrt 25.12.5, including an x86/64 rootfs and SDK; the SDK matrix also qualifies official armsr/armv8 and mediatek/filogic. Runtime gates remain pinned to x86/64 until a booted arm64 rootfs gate is added. CI builds Core, LuCI, the PM integration glue and the all-in-one package for all three native package architectures, while the external Runtime feed owns the Runtime package.

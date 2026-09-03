@@ -30,7 +30,7 @@ return view.extend({
 	o = s.option(form.Value, 'deep_interval', _('Deep telemetry interval (seconds)')); o.datatype='uinteger'; o.default='600';
 	// Advanced Smart Settings remain on the Core section so older LuCI form
 	// implementations render them correctly without a tab API dependency.
-	let r = m.section(form.NamedSection, 'shadow', 'rill', _('Rill Intelligence'));
+	let r = m.section(form.NamedSection, 'runtime', 'rill', _('Rill Runtime'));
 	o = r.option(form.Flag, 'enabled', _('Enable Runtime')); o.default=o.enabled;
 	o = r.option(form.Value, 'binary', _('Generic Runtime binary')); o.default=''; o.placeholder='/usr/bin/rill-runtime';
 	o = s.option(form.Flag, 'smart_rill_auto', _('Allow Rill ranking in Auto')); o.default=o.enabled;

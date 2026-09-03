@@ -1,4 +1,6 @@
 {
+  "historicalOnly": true,
+  "evidenceStatus": "historical-only",
   "schemaVersion": 1,
   "gate": "openwrt-target-runtime",
   "openwrtRelease": "25.12.5",

@@ -18,7 +18,7 @@ on:
       profile:
         description: Authorized release evidence profile
         required: true
-        default: portable-docker
+        default: hardware
         type: string
 
 permissions:
@@ -40,6 +40,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
+          test '${{ inputs.profile }}' = hardware
           test "$(git rev-parse HEAD)" = "${{ inputs.expected_sha }}"
           version=$(cat VERSION)
           [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]
@@ -67,9 +68,9 @@ jobs:
           python3 - "$evidence" "${{ inputs.expected_sha }}" <<'PY'
           import json, sys
           data=json.load(open(sys.argv[1]))
-          assert data['overallVerdict']=='PASS' and data['stableReleaseAuthorized'] is True, data
+          assert data['overallVerdict']=='PASS' and data['stableReleaseVerdict']=='PASS' and data['stableReleaseAuthorized'] is True, data
           assert data['releaseProfile']=='${{ inputs.profile }}', data
-          assert data['hardwareCoverage']=='NOT_EVALUATED' if '${{ inputs.profile }}' == 'portable-docker' else True, data
+          assert data['releaseProfile']=='hardware' and data['hardwareCoverage']=='PASS', data
           assert data['pmCommitSha']==sys.argv[2], data
           PY
       - name: Prove source ZIP reproducibility from tracked files

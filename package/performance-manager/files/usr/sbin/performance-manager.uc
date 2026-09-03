@@ -369,11 +369,8 @@ function smart_candidate_identity(action) {
 function rill_context_scope(paths) {
 	let rows = [];
 	for (let path_id in paths ?? []) {
-		let path = primary_path(path_id);
+		let path = type(path_id) == 'object' ? path_id : primary_path(path_id);
 		if (path && path.id != 'path:local-endpoint') push(rows, `${path.id}|${path.routeIdentity ?? 'unresolved'}`);
-	}
-	if (!length(rows)) {
-		for (let path in topology().paths ?? []) if (path.id != 'path:local-endpoint') push(rows, `${path.id}|${path.routeIdentity ?? 'unresolved'}`);
 	}
 	sort(rows);
 	return { pathId: stable_list_hash('paths', rows), routeIdentity: stable_list_hash('routes', rows), rows: rows };
@@ -2004,7 +2001,7 @@ function benchmark_stop(session_id) {
 }
 
 function rill_state_path() {
-	return cfg('shadow.state_file', '/etc/performance-manager/rill/runtime-state-v2.json');
+	return cfg('runtime.state_file', '/etc/performance-manager/rill/runtime-state-v2.json');
 }
 
 function rill_state_generation() {
@@ -2028,10 +2025,10 @@ function rill_runtime_call(request, binary) {
 	let state = rill_state_path(), parent = join('/', slice(split(state, '/'), 0, -1));
 	ensure_dir(parent);
 	let wire = sprintf('%J\n', request);
-	let max_msg = min(262144, max(4096, int_cfg('shadow.max_message', 65536)));
+	let max_msg = min(262144, max(4096, int_cfg('runtime.max_message', 65536)));
 	if (length(wire) > max_msg)
 		return { ok: false, state: 'oversized-local-context', connected: false, fullySent: false, responseReceived: false };
-	let timeout = min(5000, max(100, int_cfg('shadow.timeout_ms', 1000)));
+	let timeout = min(5000, max(100, int_cfg('runtime.timeout_ms', 1000)));
 	let command = sprintf("printf '%%s\\n' %s | timeout %ds %s preview-serve --state %s --feature-schema-hash %s --model-generation %d",
 		shell_quote(trimstr(wire)), max(1, int((timeout + 999) / 1000)), shell_quote(binary), shell_quote(state), shell_quote(RILL_FEATURE_SCHEMA_HASH), RILL_MODEL_GENERATION);
 	let p = fs.popen(command, 'r');
@@ -2050,7 +2047,7 @@ function rill_binary_path() {
 	/* Explicit paths are opt-in overrides. The only default identity is the
 	 * package-owned generic Runtime path; old adapter and legacy executable
 	 * names are intentionally not searched. */
-	let configured = str_cfg('shadow.binary', '');
+	let configured = str_cfg('runtime.binary', '');
 	if (configured != '') {
 		if (substr(configured, 0, 1) != '/' || !file_executable(configured))
 			return { ok: false, binary: configured, effective: null, source: 'explicit', reason: 'binary-invalid' };
@@ -2062,7 +2059,7 @@ function rill_binary_path() {
 }
 
 function rill_send(payload, outcome_attempt, mark_sent_unknown) {
-	if (!bool_cfg('shadow.enabled', true)) return { ok: false, state: 'disabled', connected: false, fullySent: false, responseReceived: false };
+	if (!bool_cfg('runtime.enabled', true)) return { ok: false, state: 'disabled', connected: false, fullySent: false, responseReceived: false };
 	let binary = rill_binary_path();
 	if (!binary.ok) return { ok: false, state: binary.reason, connected: false, fullySent: false, responseReceived: false };
 	let op = payload.op, request_id = payload.requestId, state = rill_state_generation();
@@ -2227,42 +2224,42 @@ function rill_validate_outcome_response(request, response) {
 }
 
 function rill_status() {
-	let enabled = bool_cfg('shadow.enabled', true);
-	if (!enabled) return { enabled: false, mode: 'shadow', status: 'Runtime · Disabled', state: RILL_STATES.disabled, reason: 'disabled', compatibility: 'not-applicable', transport: 'unavailable', protocolVersion: RILL_RUNTIME_API_VERSION, binary: { configured: str_cfg('shadow.binary', ''), effective: null, source: 'n/a' } };
+	let enabled = bool_cfg('runtime.enabled', true);
+	if (!enabled) return { enabled: false, mode: 'advisory', status: 'Runtime · Disabled', state: RILL_STATES.disabled, reason: 'disabled', compatibility: 'not-applicable', transport: 'unavailable', protocolVersion: RILL_RUNTIME_API_VERSION, binary: { configured: str_cfg('runtime.binary', ''), effective: null, source: 'n/a' } };
 	/* External dependency check driven by the unique binary-resolution
 	 * contract.  Explicit binary wins exclusively and must be absolute and
 	 * present; an empty binary resolves the default install path; a missing
 	 * runtime is reported not-provisioned, never assumed available. */
 	let bin = rill_binary_path();
-	let bmeta = { configured: str_cfg('shadow.binary', ''), effective: bin.effective, source: bin.source };
+	let bmeta = { configured: str_cfg('runtime.binary', ''), effective: bin.effective, source: bin.source };
 	if (!bin.ok) {
 		if (bin.reason == 'binary-invalid')
-			return { enabled: true, mode: 'shadow', status: 'Runtime · Binary invalid', state: RILL_STATES.binaryInvalid, reason: 'binary-invalid', compatibility: 'not-provisioned', transport: 'unavailable', protocolVersion: RILL_RUNTIME_API_VERSION, binary: bmeta };
-		return { enabled: true, mode: 'shadow', status: 'Runtime · Not provisioned', state: RILL_STATES.notProvisioned, reason: 'external-runtime-not-provisioned', compatibility: 'not-provisioned', transport: 'unavailable', protocolVersion: RILL_RUNTIME_API_VERSION, binary: bmeta };
+			return { enabled: true, mode: 'advisory', status: 'Runtime · Binary invalid', state: RILL_STATES.binaryInvalid, reason: 'binary-invalid', compatibility: 'not-provisioned', transport: 'unavailable', protocolVersion: RILL_RUNTIME_API_VERSION, binary: bmeta };
+		return { enabled: true, mode: 'advisory', status: 'Runtime · Not provisioned', state: RILL_STATES.notProvisioned, reason: 'external-runtime-not-provisioned', compatibility: 'not-provisioned', transport: 'unavailable', protocolVersion: RILL_RUNTIME_API_VERSION, binary: bmeta };
 	}
 	let requestId = sprintf('status-%d', monotonic_ms());
 	let request = { requestId: requestId, op: 'status' };
 	let r = rill_send(request);
-	if (!r.ok) return { enabled: true, mode: 'shadow', status: 'Runtime · Unavailable', state: RILL_STATES.unavailable, reason: r.state ?? 'unavailable', compatibility: 'unknown', transport: r.state ?? 'unavailable', protocolVersion: RILL_RUNTIME_API_VERSION, binary: bmeta };
+	if (!r.ok) return { enabled: true, mode: 'advisory', status: 'Runtime · Unavailable', state: RILL_STATES.unavailable, reason: r.state ?? 'unavailable', compatibility: 'unknown', transport: r.state ?? 'unavailable', protocolVersion: RILL_RUNTIME_API_VERSION, binary: bmeta };
 	let resp = r.response ?? {};
 	let valid = rill_validate_status_response(request, resp);
 	if (!valid.ok && valid.error == 'runtime-version-mismatch')
-		return { enabled: true, mode: 'shadow', status: 'Runtime · Version mismatch', state: RILL_STATES.incompatible, reason: 'runtime-version-mismatch', compatibility: 'incompatible', transport: 'connected', requestedRuntimeVersion: RILL_RESOLVED_VERSION, advertisedRuntimeVersion: resp.rillVersion ?? null, protocolVersion: RILL_RUNTIME_API_VERSION, binary: bmeta, detail: r.response };
+		return { enabled: true, mode: 'advisory', status: 'Runtime · Version mismatch', state: RILL_STATES.incompatible, reason: 'runtime-version-mismatch', compatibility: 'incompatible', transport: 'connected', requestedRuntimeVersion: RILL_RESOLVED_VERSION, advertisedRuntimeVersion: resp.rillVersion ?? null, protocolVersion: RILL_RUNTIME_API_VERSION, binary: bmeta, detail: r.response };
 	if (!valid.ok)
-		return { enabled: true, mode: 'shadow', status: 'Runtime · Error', state: RILL_STATES.unhealthy, reason: valid.error, compatibility: 'incompatible', transport: 'connected', protocolVersion: RILL_RUNTIME_API_VERSION, binary: bmeta, detail: r.response };
+		return { enabled: true, mode: 'advisory', status: 'Runtime · Error', state: RILL_STATES.unhealthy, reason: valid.error, compatibility: 'incompatible', transport: 'connected', protocolVersion: RILL_RUNTIME_API_VERSION, binary: bmeta, detail: r.response };
 	/* Required capabilities: the adapter must declare every capability the
 	 * integration depends on; a missing one is fail-closed. */
 	let caps = resp.capabilities ?? [];
 	for (let need in RILL_RUNTIME_CAPABILITIES)
 		if (index(caps, need) < 0)
-			return { enabled: true, mode: 'shadow', status: 'Runtime · Missing capabilities', state: RILL_STATES.incompatible, reason: 'missing-required-capability', compatibility: 'incompatible', transport: 'connected', missingCapability: need, protocolVersion: RILL_RUNTIME_API_VERSION, binary: bmeta, detail: r.response };
+			return { enabled: true, mode: 'advisory', status: 'Runtime · Missing capabilities', state: RILL_STATES.incompatible, reason: 'missing-required-capability', compatibility: 'incompatible', transport: 'connected', missingCapability: need, protocolVersion: RILL_RUNTIME_API_VERSION, binary: bmeta, detail: r.response };
 	/* Model health: advisory is only allowed when the adapter reports a
 	 * healthy model; a degraded adapter is fail-closed unhealthy. */
 	let health = resp.modelHealth ?? {};
 	if (health.overall != 'healthy')
-			return { enabled: true, mode: 'shadow', status: 'Runtime · Unhealthy', state: RILL_STATES.unhealthy, reason: 'model-unhealthy', compatibility: 'compatible', transport: 'connected', modelHealth: health, protocolVersion: RILL_RUNTIME_API_VERSION, binary: bmeta, detail: r.response };
+			return { enabled: true, mode: 'advisory', status: 'Runtime · Unhealthy', state: RILL_STATES.unhealthy, reason: 'model-unhealthy', compatibility: 'compatible', transport: 'connected', modelHealth: health, protocolVersion: RILL_RUNTIME_API_VERSION, binary: bmeta, detail: r.response };
 	let learning = resp.state == 'learning';
-	return { enabled: true, mode: 'shadow', authority: 'advisory-only', status: learning ? 'Runtime · Learning' : 'Runtime · Available', state: learning ? RILL_STATES.learning : RILL_STATES.available, reason: null, compatibility: 'compatible', transport: 'subprocess', rillVersion: resp.rillVersion, resolvedRillVersion: RILL_RESOLVED_VERSION, protocolVersion: RILL_RUNTIME_API_VERSION, binary: bmeta, detail: r.response };
+	return { enabled: true, mode: 'advisory', authority: 'advisory-only', status: learning ? 'Runtime · Learning' : 'Runtime · Available', state: learning ? RILL_STATES.learning : RILL_STATES.available, reason: null, compatibility: 'compatible', transport: 'subprocess', rillVersion: resp.rillVersion, resolvedRillVersion: RILL_RESOLVED_VERSION, protocolVersion: RILL_RUNTIME_API_VERSION, binary: bmeta, detail: r.response };
 }
 
 function rill_integrations_payload() {
@@ -3372,7 +3369,7 @@ function rill_advisory_get() {
 	if ((a.topologyGeneration ?? null) != topology_generation) { rill_advisory = null; return null; }
 	let scope_paths = [];
 	for (let candidate in rill_available_actions(a.selectorMode)) for (let path_id in candidate.evaluationPaths ?? []) push_unique(scope_paths, path_id);
-	let scope = rill_context_scope(scope_paths);
+	let scope = rill_context_scope(length(scope_paths) ? scope_paths : topo.paths);
 	if (a.pathScope && (a.pathScope.pathId != scope.pathId || a.pathScope.routeIdentity != scope.routeIdentity)) { rill_advisory = null; return null; }
 	if ((a.integrationFingerprint ?? '') != integration_fingerprint([], nft_snapshot())) { rill_advisory = null; return null; }
 	if ((a.goal ?? '') != goal()) { rill_advisory = null; return null; }
@@ -3381,9 +3378,9 @@ function rill_advisory_get() {
 }
 
 function rill_context_key_observe() {
-	let caps = capabilities(), actions = rill_available_actions(active_selector_mode()), paths = [];
+	let caps = capabilities(), topo = topology(), actions = rill_available_actions(active_selector_mode()), paths = [];
 	for (let action in actions) for (let path_id in action.evaluationPaths ?? []) push_unique(paths, path_id);
-	let scope = rill_context_scope(paths);
+	let scope = rill_context_scope(length(paths) ? paths : topo.paths);
 	return rill_context_key_build(cfg('main.profile','recommended'), capability_hash(caps), topology_generation,
 		scope.pathId, scope.routeIdentity, workload_for_paths(paths), integration_fingerprint([], nft_snapshot()), goal());
 }
@@ -3525,7 +3522,7 @@ function apply_ring(action, options) {
 function smart_selector_context() {
 	let caps = capabilities(), topo = topology(), integ = integration_fingerprint([], nft_snapshot()), actions = rill_available_actions(active_selector_mode()), scope_paths = [];
 	for (let action in actions) for (let path_id in action.evaluationPaths ?? []) push_unique(scope_paths, path_id);
-	let scope = rill_context_scope(scope_paths);
+	let scope = rill_context_scope(length(scope_paths) ? scope_paths : topo.paths);
 	return {
 		profile: cfg('main.profile', 'recommended'), pathId: scope.pathId, workloadClass: workload_for_paths(scope_paths), integrationState: integration_state(),
 		contextKey: rill_context_key_build(cfg('main.profile','recommended'), capability_hash(caps), topology_generation,
@@ -3786,7 +3783,7 @@ function rill_observe(mode) {
 	if (!length(available_actions)) return { ok: false, state: 'no-available-actions' };
 	let scope_paths = [];
 	for (let candidate in available_actions) for (let path_id in candidate.evaluationPaths ?? []) push_unique(scope_paths, path_id);
-	let scope = rill_context_scope(scope_paths);
+	let scope = rill_context_scope(length(scope_paths) ? scope_paths : topo.paths);
 	let scoped_workload = workload_for_paths(scope_paths);
 	let payload = {
 		protocolVersion: RILL_RUNTIME_API_VERSION, requestId: sprintf('obs-%d', now), op: 'observe', deviceProfile: cfg('main.profile','recommended'),
@@ -3838,7 +3835,7 @@ function select_smart_action(mode, candidates, context) {
 	}
 	let fallback = null;
 	for (let action in legal) if (action.id != 'pm.noop') { fallback = action; break; }
-	let result = { source: 'core-fallback', mode: mode, selectedActionId: fallback?.id ?? 'pm.noop', decisionId: null,
+	let result = { source: 'core-fallback', mode: mode, selectedActionId: fallback?.id ?? 'pm.noop', selectedCandidateId: fallback ? smart_candidate_identity(fallback) : null, decisionId: null,
 		confidence: 0, learningStage: 'cold', autoEligible: true, reason: fallback ? 'deterministic-core-fallback' : 'no-legal-action',
 		fallback: fallback?.id ?? 'pm.noop', coreRecommendation: fallback?.id ?? 'pm.noop', blockedReasons: blocked, ranking: [], goal: context.goal, contextKey: context.contextKey, context: context };
 	if (!bool_cfg('main.smart_rill_auto', true)) { result.reason = 'smart-rill-opt-out'; return result; }
@@ -4199,7 +4196,7 @@ function resource_usage() {
 		m=match(line,/^VmSize:\s+([0-9]+)\s+kB/); if (m) vmsize=+m[1];
 		m=match(line,/^Pid:\s+([0-9]+)/); if (m) pid=+m[1];
 	}
-	let rill_dir=cfg('shadow.state_dir',`${persist_dir()}/rill`);
+	let rill_dir=cfg('runtime.state_dir',`${persist_dir()}/rill`);
 	let hs=fs.stat(`${persist_dir()}/history.jsonl`), outcomes=fs.stat(`${rill_dir}/validated-outcomes.tsv`), ledger=fs.stat(`${rill_dir}/decision-ledger.jsonl`);
 	let counters = {};
 	for (let key in keys(rill_runtime_counters)) counters[key] = rill_runtime_counters[key];
@@ -4300,7 +4297,7 @@ function schedule_rill_outcome_retry() {
 	if (rill_outcome_timer || rill_pending_outcome_count() == 0) return;
 	rill_outcome_timer = uloop.timer(5000, function() {
 		rill_outcome_timer = null;
-		if (bool_cfg('shadow.enabled', true)) { if (rill_recover_execution_hook) rill_recover_execution_hook(); rill_retry_pending_outcomes(); }
+		if (bool_cfg('runtime.enabled', true)) { if (rill_recover_execution_hook) rill_recover_execution_hook(); rill_retry_pending_outcomes(); }
 		if (rill_pending_outcome_count() > 0) schedule_rill_outcome_retry();
 	});
 }

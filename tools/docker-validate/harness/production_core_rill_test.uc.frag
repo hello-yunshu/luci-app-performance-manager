@@ -17,9 +17,9 @@ function production_check(condition, label, detail) {
 
 let _production_cfg = cfg;
 cfg = function(key, fallback) {
-	if (key == 'shadow.enabled') return '1';
-	if (key == 'shadow.binary') return '/usr/bin/rill-runtime';
-	if (key == 'shadow.state_file') return '/tmp/pm-production-runtime/runtime-state.json';
+	if (key == 'runtime.enabled') return '1';
+	if (key == 'runtime.binary') return '/usr/bin/rill-runtime';
+	if (key == 'runtime.state_file') return '/tmp/pm-production-runtime/runtime-state.json';
 	if (key == 'main.persistent_dir') return '/tmp/pm-production';
 	if (key == 'main.state_dir') return '/tmp/pm-production-state';
 	if (key == 'main.profile') return 'recommended';

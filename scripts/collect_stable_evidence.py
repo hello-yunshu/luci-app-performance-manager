@@ -47,6 +47,7 @@ def main(argv=None):
         "rillCoreFunctional": Path(args.ci_root),
         "openwrtSdk": build_root,
         "apkVerification": build_root,
+        "packageComposition": Path(args.target_root),
     }
     missing = []
     for name, filename in required.items():

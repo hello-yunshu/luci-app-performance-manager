@@ -1,4 +1,6 @@
 {
+  "historicalOnly": true,
+  "evidenceStatus": "historical-only",
   "schemaVersion": 1,
   "gate": "resource-soak",
   "durationSeconds": 120,
