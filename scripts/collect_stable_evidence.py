@@ -35,7 +35,9 @@ def main(argv=None):
         aggregate_build_matrix([
             "--input", str(build_root), "--out", str(matrix_out),
             "--expected-commit", args.expected_commit,
-            "--expected-arch", "x86_64", "--expected-arch", "aarch64_generic",
+            "--expected-arch", "x86_64",
+            "--expected-arch", "aarch64_generic",
+            "--expected-arch", "aarch64_cortex-a53",
         ])
         build_root = matrix_out
     required = PORTABLE_REQUIRED if args.profile == "portable-docker" else REQUIRED

@@ -62,6 +62,8 @@ class AllInOnePackageTests(unittest.TestCase):
         self.assertIn('--openwrt-version', gate)
         self.assertIn('--package-arch', gate)
         self.assertIn('pmCommitSha', gate)
+        collector = (ROOT / 'scripts/collect_stable_evidence.py').read_text()
+        self.assertIn('aarch64_cortex-a53', collector)
 
     def test_package_composition_names_prefer_specific_bundle(self):
         spec = importlib.util.spec_from_file_location(
