@@ -24,6 +24,7 @@ class LocalValidationTests(unittest.TestCase):
         self.assertIn("sha256sums", text)
         self.assertIn("sha256sum -c", text)
         self.assertIn("openwrt-25.12.5-x86-64-rootfs.tar.gz", text)
+        self.assertIn(r"r'Ran (\d+) tests?'", text)
 
     def test_mac_validation_reuses_existing_gates_and_exact_artifact_identity(self):
         text = SCRIPT.read_text()

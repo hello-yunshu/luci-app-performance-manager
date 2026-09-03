@@ -75,7 +75,7 @@ else
     fi
     if run_logged "$SOURCE/unit-tests.log" "$PY" -m unittest discover -s tests -p 'test_*.py'; then unit=PASS; else unit=FAIL; fi
     if run_logged "$SOURCE/make-audit.log" env PATH="$(dirname "$PY"):$PATH" GITHUB_SHA="$EXPECTED_SHA" make audit; then audit=PASS; else audit=FAIL; fi
-    "$PY" -c "import json,re; t=open('$SOURCE/unit-tests.log').read(); m=re.search(r'Ran (\\d+) tests?',t); json.dump({'verdict':'$unit','testCount':int(m.group(1)) if m else None,'command':'python3 -m unittest discover -s tests -p test_*.py'},open('$SOURCE/test-report.json','w'),indent=2)"
+    "$PY" -c "import json,re; t=open('$SOURCE/unit-tests.log').read(); m=re.search(r'Ran (\d+) tests?',t); json.dump({'verdict':'$unit','testCount':int(m.group(1)) if m else None,'command':'python3 -m unittest discover -s tests -p test_*.py'},open('$SOURCE/test-report.json','w'),indent=2)"
     [ ! -f "$ROOT/docs/source-audit.json" ] || cp "$ROOT/docs/source-audit.json" "$SOURCE/source-audit.json"
     [ ! -f "$ROOT/docs/FINAL_AUDIT.json" ] || cp "$ROOT/docs/FINAL_AUDIT.json" "$SOURCE/FINAL_AUDIT.json"
     [ ! -f "$ROOT/docs/FINAL_AUDIT.md" ] || cp "$ROOT/docs/FINAL_AUDIT.md" "$SOURCE/FINAL_AUDIT.md"
