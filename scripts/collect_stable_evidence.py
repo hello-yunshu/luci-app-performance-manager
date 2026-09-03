@@ -38,6 +38,7 @@ def main(argv=None):
             "--expected-arch", "x86_64",
             "--expected-arch", "aarch64_generic",
             "--expected-arch", "aarch64_cortex-a53",
+            "--include-path-fragment", "packages-and-evidence",
         ])
         build_root = matrix_out
     required = PORTABLE_REQUIRED if args.profile == "portable-docker" else REQUIRED

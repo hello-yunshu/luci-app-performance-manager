@@ -8,8 +8,12 @@ import json
 from pathlib import Path
 
 
-def files(root: Path, name: str) -> list[Path]:
-    return sorted((p for p in root.rglob(name) if p.is_file()), key=lambda p: str(p))
+def files(root: Path, name: str, path_fragments: list[str]) -> list[Path]:
+    candidates = (p for p in root.rglob(name) if p.is_file())
+    if path_fragments:
+        candidates = (p for p in candidates
+                      if any(fragment in str(p) for fragment in path_fragments))
+    return sorted(candidates, key=lambda p: str(p))
 
 
 def sha256(path: Path) -> str:
@@ -26,12 +30,13 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--out", required=True)
     parser.add_argument("--expected-commit", required=True)
     parser.add_argument("--expected-arch", action="append", required=True)
+    parser.add_argument("--include-path-fragment", action="append", default=[])
     args = parser.parse_args(argv)
 
     root = Path(args.input).resolve()
     out = Path(args.out).resolve()
-    metadata_files = files(root, "build-metadata.json")
-    verification_files = files(root, "apk-verification.json")
+    metadata_files = files(root, "build-metadata.json", args.include_path_fragment)
+    verification_files = files(root, "apk-verification.json", args.include_path_fragment)
     expected_count = len(args.expected_arch)
     if len(metadata_files) != expected_count or len(verification_files) != expected_count:
         raise RuntimeError(
