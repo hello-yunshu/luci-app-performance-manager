@@ -220,6 +220,8 @@ make portable-macos
 # or: tools/docker-validate/run-local-macos.sh
 ```
 
+Prerequisites are Docker Desktop, Git, Python 3, an authenticated `gh` CLI, and network access to GitHub / OpenWrt. The same-SHA CI and same-SHA Build for the current commit must already have completed successfully. The first run automatically downloads and verifies the OpenWrt 25.12.5 x86_64 rootfs; later runs may reuse the rootfs cache, but always re-check it against the official `sha256sums`. If the same-SHA Build is not complete, the result is `BLOCKED`, not a project-code `FAIL`.
+
 The entry point reuses the existing source audit, OpenWrt ucode harness, artifact identity, package-composition gate, and portable gate. Run evidence is written to untracked `local-evidence/` and bound to the current commit SHA; package artifacts must come from a same-SHA GitHub Actions Build, never from `latest` or an older branch cache.
 
 `Mac Docker PASS != Hardware Stable PASS`. Portable evidence always reports `hardwareCoverage = NOT_EVALUATED` and `stableReleaseAuthorized = false`; it cannot cover real NIC behavior, Hyper-V/KVM, LAN-WAN, sysupgrade, reboot, or a real-router 24-hour soak. If Docker Desktop, linux/amd64 emulation, network downloads, or same-SHA artifacts are unavailable, the entry point reports a diagnostic `BLOCKED` instead of fabricating PASS.

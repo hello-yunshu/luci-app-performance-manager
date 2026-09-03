@@ -4,7 +4,8 @@ set -u
 
 ROOT=$(cd "$(dirname "$0")/../.." && pwd)
 cd "$ROOT" || exit 1
-EXPECTED_SHA=${PM_EXPECTED_SHA:-$(git rev-parse HEAD 2>/dev/null || true)}
+ACTUAL_HEAD=$(git rev-parse HEAD 2>/dev/null || true)
+EXPECTED_SHA=${PM_EXPECTED_SHA:-$ACTUAL_HEAD}
 HOST_ARCH=$(uname -m)
 DOCKER_PLATFORM=linux/amd64
 EVIDENCE="$ROOT/local-evidence"
@@ -14,7 +15,12 @@ PACKAGE="$EVIDENCE/package"
 PORTABLE="$EVIDENCE/portable"
 INPUT="$EVIDENCE/.artifact-input"
 ARTIFACTS="$ROOT/local-artifacts/x86_64"
-PY="$ROOT/.venv/bin/python3"
+PY=${PM_VALIDATION_PYTHON:-$ROOT/.venv/bin/python3}
+
+# Evidence and extracted files are run-specific. The downloaded rootfs itself
+# is intentionally outside these directories and is retained as a digest-bound
+# cache.
+rm -rf "$EVIDENCE" "$ARTIFACTS"
 
 mkdir -p "$SOURCE" "$DOCKER" "$PACKAGE" "$PORTABLE"
 source_verdict=NOT_EVALUATED
@@ -41,7 +47,7 @@ report() {
     local report_python="$PY"
     if [ ! -x "$report_python" ]; then report_python=$(command -v python3); fi
     "$report_python" scripts/build_local_validation_report.py \
-        --out "$PORTABLE/portable-macos-docker.json" --commit "$EXPECTED_SHA" \
+        --out "$PORTABLE/portable-macos-docker.json" --commit "$ACTUAL_HEAD" \
         --host-arch "$HOST_ARCH" --docker-version "${DOCKER_VERSION:-unavailable}" \
         --rootfs-sha "$rootfs_sha" --source "$source_verdict" --core "$core_verdict" \
         --runtime "$runtime_verdict" --package "$package_verdict" \
@@ -50,29 +56,56 @@ report() {
         --reason "$report_reason"
 }
 
+if [ -z "$ACTUAL_HEAD" ] || ! printf '%s' "$ACTUAL_HEAD" | grep -Eq '^[0-9a-f]{40}$'; then
+    source_verdict=FAIL
+    portable_verdict=FAIL
+    report "invalid current commit SHA" || true
+    echo "FAIL: invalid current commit SHA"
+    exit 1
+fi
 if [ -z "$EXPECTED_SHA" ] || ! printf '%s' "$EXPECTED_SHA" | grep -Eq '^[0-9a-f]{40}$'; then
     source_verdict=FAIL
     portable_verdict=FAIL
-    report "invalid current commit SHA"
-    echo "FAIL: invalid current commit SHA"
+    report "invalid expected commit SHA" || true
+    echo "FAIL: invalid expected commit SHA"
+    exit 1
+fi
+if [ "$ACTUAL_HEAD" != "$EXPECTED_SHA" ]; then
+    source_verdict=FAIL
+    portable_verdict=FAIL
+    report "HEAD mismatch: expected $EXPECTED_SHA, actual $ACTUAL_HEAD" || true
+    echo "FAIL: HEAD mismatch"
+    exit 1
+fi
+if ! git diff --quiet || ! git diff --cached --quiet || [ -n "$(git ls-files --others --exclude-standard)" ]; then
+    source_verdict=FAIL
+    portable_verdict=FAIL
+    report "dirty-worktree"
+    echo "FAIL: dirty-worktree"
     exit 1
 fi
 
 echo "[local-macos] validating commit $EXPECTED_SHA on macOS $HOST_ARCH"
-if ! run_logged "$SOURCE/venv.log" python3 -m venv --system-site-packages .venv; then
-    source_verdict=FAIL
-    reason="source validation environment setup failed"
+if [ -n "${PM_VALIDATION_PYTHON:-}" ]; then
+    if [ ! -x "$PY" ]; then source_verdict=FAIL; reason="configured validation Python is not executable"; fi
 else
-    if ! run_logged "$SOURCE/dependencies.log" "$PY" -m pip install jsonschema pyyaml; then
-        if "$PY" -c 'import jsonschema, yaml' >/dev/null 2>&1; then :
-        elif python3 -c 'import jsonschema, yaml' >/dev/null 2>&1; then PY=$(command -v python3)
-        else source_verdict=FAIL; reason="jsonschema/pyyaml are unavailable"; fi
+    if ! run_logged "$SOURCE/venv.log" python3 -m venv --system-site-packages .venv; then
+        source_verdict=FAIL
+        reason="source validation environment setup failed"
+    else
+        if ! run_logged "$SOURCE/dependencies.log" "$PY" -m pip install jsonschema pyyaml; then
+            if "$PY" -c 'import jsonschema, yaml' >/dev/null 2>&1; then :
+            elif python3 -c 'import jsonschema, yaml' >/dev/null 2>&1; then PY=$(command -v python3)
+            else source_verdict=FAIL; reason="jsonschema/pyyaml are unavailable"; fi
+        fi
     fi
-    if [ "$source_verdict" = FAIL ]; then
-        report "$reason"
-        echo "FAIL: $reason"
-        exit 1
-    fi
+fi
+if [ "$source_verdict" = FAIL ]; then
+    report "$reason"
+    echo "FAIL: $reason"
+    exit 1
+fi
+if [ "$source_verdict" != FAIL ]; then
     if run_logged "$SOURCE/unit-tests.log" "$PY" -m unittest discover -s tests -p 'test_*.py'; then unit=PASS; else unit=FAIL; fi
     if run_logged "$SOURCE/make-audit.log" env PATH="$(dirname "$PY"):$PATH" GITHUB_SHA="$EXPECTED_SHA" make audit; then audit=PASS; else audit=FAIL; fi
     "$PY" -c "import json,re; t=open('$SOURCE/unit-tests.log').read(); m=re.search(r'Ran (\d+) tests?',t); json.dump({'verdict':'$unit','testCount':int(m.group(1)) if m else None,'command':'python3 -m unittest discover -s tests -p test_*.py'},open('$SOURCE/test-report.json','w'),indent=2)"
@@ -108,14 +141,31 @@ fi
 
 ROOTFS_COMMAND='set -eu
 export DEBIAN_FRONTEND=noninteractive
-apt-get update
-apt-get install -y --no-install-recommends ca-certificates curl tar gzip
+if ! apt-get update || ! apt-get install -y --no-install-recommends ca-certificates curl tar gzip; then
+  echo BLOCKED: OpenWrt bootstrap dependencies unavailable
+  exit 2
+fi
 rootfs=openwrt-25.12.5-x86-64-rootfs.tar.gz
 base=https://downloads.openwrt.org/releases/25.12.5/targets/x86/64
-curl -fsSLo sha256sums "$base/sha256sums"
+if ! curl -fsSLo sha256sums "$base/sha256sums"; then
+  echo BLOCKED: OpenWrt checksum source unavailable
+  exit 2
+fi
+if [ ! -f "$rootfs" ]; then
+  if ! curl -fsSLo "$rootfs" "$base/$rootfs"; then
+    echo BLOCKED: OpenWrt rootfs source unavailable
+    exit 2
+  fi
+fi
 rootfs_sha=$(awk -v f="*$rootfs" '\''$2 == f {print $1}'\'' sha256sums)
-test "$rootfs_sha" != ""
-printf "%s *%s\n" "$rootfs_sha" "$rootfs" | sha256sum -c -
+if [ -z "$rootfs_sha" ]; then
+  echo FAIL: OpenWrt rootfs is absent from sha256sums
+  exit 1
+fi
+if ! printf "%s *%s\n" "$rootfs_sha" "$rootfs" | sha256sum -c -; then
+  echo FAIL: OpenWrt rootfs checksum mismatch
+  exit 1
+fi
 printf "{\n  \"url\": \"%s/%s\",\n  \"sha256\": \"%s\",\n  \"verified\": true\n}\n" "$base" "$rootfs" "$rootfs_sha" > local-evidence/docker/openwrt-rootfs-sha256.json
 rm -rf .portable-rootfs
 mkdir -p .portable-rootfs
@@ -132,12 +182,27 @@ chown -R "$PM_HOST_UID:$PM_HOST_GID" .portable-rootfs local-evidence/docker/open
 if ! run_logged "$DOCKER/rootfs-prepare.log" docker run --rm --platform "$DOCKER_PLATFORM" \
     -e PM_HOST_UID="$(id -u)" -e PM_HOST_GID="$(id -g)" \
     -v "$ROOT:/workspace" -w /workspace ubuntu:24.04 bash -lc "$ROOTFS_COMMAND"; then
-    reason='OpenWrt rootfs download, checksum, extraction, or ucode installation failed'
-    core_verdict=FAIL; runtime_verdict=BLOCKED; package_verdict=BLOCKED
+    if grep -q '^BLOCKED:' "$DOCKER/rootfs-prepare.log"; then
+        reason='OpenWrt server/network unavailable'
+        core_verdict=BLOCKED; runtime_verdict=BLOCKED; package_verdict=BLOCKED
+    else
+        reason='OpenWrt rootfs download, checksum, extraction, or ucode installation failed'
+        core_verdict=FAIL; runtime_verdict=BLOCKED; package_verdict=BLOCKED
+    fi
     service_verdict=BLOCKED; ubus_verdict=BLOCKED; removal_verdict=BLOCKED
     report "$reason"
+    if grep -q '^BLOCKED:' "$DOCKER/rootfs-prepare.log"; then
+        echo "BLOCKED: $reason"
+        exit 2
+    fi
     echo "FAIL: $reason"
     exit 1
+fi
+
+if ! rootfs_sha=$("$PY" -c 'import json,sys,re; value=json.load(open(sys.argv[1])).get("sha256"); assert re.fullmatch(r"[0-9a-f]{64}", value or ""); print(value)' "$DOCKER/openwrt-rootfs-sha256.json"); then
+    reason='verified rootfs SHA evidence is missing or invalid'
+    core_verdict=FAIL; portable_verdict=FAIL
+    report "$reason"; echo "FAIL: $reason"; exit 1
 fi
 
 if ! run_logged "$DOCKER/docker-build.log" docker build --platform "$DOCKER_PLATFORM" \
@@ -146,7 +211,7 @@ if ! run_logged "$DOCKER/docker-build.log" docker build --platform "$DOCKER_PLAT
     report "$reason"; echo "FAIL: $reason"; exit 1
 fi
 if run_logged "$DOCKER/image-arch.log" docker run --rm --platform "$DOCKER_PLATFORM" \
-    "pm-openwrt-portable:$EXPECTED_SHA" uname -m; then :; else
+    --entrypoint /bin/uname "pm-openwrt-portable:$EXPECTED_SHA" -m && grep -qx x86_64 "$DOCKER/image-arch.log"; then :; else
     reason='portable Docker image did not start'; core_verdict=FAIL; portable_verdict=FAIL
     report "$reason"; echo "FAIL: $reason"; exit 1
 fi
@@ -235,10 +300,36 @@ else runtime_verdict=FAIL; reason='exact APK-installed Rill Runtime v3 integrati
 if [ "$runtime_verdict" = PASS ] && run_logged "$PACKAGE/package-composition.log" docker run --rm --privileged --platform "$DOCKER_PLATFORM" \
     -v "$ROOT:/workspace" -w /workspace ubuntu:24.04 bash -lc \
     "apt-get update >/dev/null && apt-get install -y --no-install-recommends python3 >/dev/null && python3 scripts/package_composition_gate.py --rootfs .portable-rootfs --packages local-artifacts/x86_64 --expected-commit $EXPECTED_SHA --openwrt-version 25.12.5 --target x86/64 --package-arch x86_64 --out local-evidence/package/package-composition.json"; then
-    package_verdict=PASS
-    service_verdict=$("$PY" -c "import json; r=json.load(open('local-evidence/package/package-composition.json')); print('PASS' if all(x.get('serviceSmoke') == 'PASS' for x in r.get('matrices', {}).values()) else 'FAIL')")
-    ubus_verdict=$("$PY" -c "import json; r=json.load(open('local-evidence/package/package-composition.json')); print('PASS' if all(x.get('ubusStatusSmoke') == 'PASS' and x.get('rillStatusSmoke') == 'PASS' for x in r.get('matrices', {}).values()) else 'FAIL')")
-    removal_verdict=$("$PY" -c "import json; r=json.load(open('local-evidence/package/package-composition.json')); print('PASS' if all(x.get('rillRemovalSmoke') == 'PASS' for x in r.get('matrices', {}).values()) else 'FAIL')")
+    package_verdict=$("$PY" - "$PACKAGE/package-composition.json" <<'PY'
+import json, sys
+r = json.loads(open(sys.argv[1]).read())
+matrices = list((r.get("matrices") or {}).values())
+required = ("serviceSmoke", "ubusStatusSmoke", "rillStatusSmoke", "rillRemovalSmoke", "installedPayloadExact")
+ok = bool(matrices) and r.get("verdict") == "PASS" and all(
+    item.get("status") == "PASS" and all(item.get(field) is True for field in required)
+    for item in matrices
+)
+print("PASS" if ok else "FAIL")
+PY
+)
+    service_verdict=$("$PY" - "$PACKAGE/package-composition.json" <<'PY'
+import json, sys
+rows = list((json.loads(open(sys.argv[1]).read()).get("matrices") or {}).values())
+print("PASS" if rows and all(row.get("status") == "PASS" and row.get("serviceSmoke") is True for row in rows) else "FAIL")
+PY
+)
+    ubus_verdict=$("$PY" - "$PACKAGE/package-composition.json" <<'PY'
+import json, sys
+rows = list((json.loads(open(sys.argv[1]).read()).get("matrices") or {}).values())
+print("PASS" if rows and all(row.get("status") == "PASS" and row.get("ubusStatusSmoke") is True and row.get("rillStatusSmoke") is True for row in rows) else "FAIL")
+PY
+)
+    removal_verdict=$("$PY" - "$PACKAGE/package-composition.json" <<'PY'
+import json, sys
+rows = list((json.loads(open(sys.argv[1]).read()).get("matrices") or {}).values())
+print("PASS" if rows and all(row.get("status") == "PASS" and row.get("rillRemovalSmoke") is True for row in rows) else "FAIL")
+PY
+)
 else
     package_verdict=FAIL; service_verdict=FAIL; ubus_verdict=FAIL; removal_verdict=FAIL
     [ "$runtime_verdict" = PASS ] && reason='package composition or service smoke failed'

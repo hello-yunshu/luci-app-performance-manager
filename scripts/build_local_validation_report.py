@@ -4,7 +4,32 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
+import sys
 from pathlib import Path
+
+import jsonschema
+
+
+PASS_FIELDS = (
+    "sourceTests", "coreRuntime", "runtimeV3", "packageComposition",
+    "serviceSmoke", "ubusSmoke", "rillRemovalSmoke",
+)
+SHA256 = re.compile(r"^[0-9a-f]{64}$")
+
+
+def validate_report(report: dict) -> None:
+    schema_path = Path(__file__).resolve().parents[1] / "contracts/evidence/portable-macos-docker.schema.json"
+    schema = json.loads(schema_path.read_text())
+    jsonschema.Draft202012Validator(schema).validate(report)
+    if report["portableVerdict"] != "PASS":
+        return
+    if any(report[field] != "PASS" for field in PASS_FIELDS):
+        raise ValueError("portable PASS requires every local gate to be PASS")
+    if report["artifact"].get("identityVerdict") != "PASS":
+        raise ValueError("portable PASS requires artifact.identityVerdict=PASS")
+    if not SHA256.fullmatch(report["openwrt"]["rootfsSha256"] or ""):
+        raise ValueError("portable PASS requires a valid OpenWrt rootfs SHA256")
 
 
 def main() -> int:
@@ -47,6 +72,11 @@ def main() -> int:
         "reason": args.reason,
         "artifact": {"identityVerdict": args.artifact_identity},
     }
+    try:
+        validate_report(report)
+    except (jsonschema.ValidationError, ValueError) as exc:
+        print(f"portable local evidence rejected: {exc}", file=sys.stderr)
+        return 1
     args.out.parent.mkdir(parents=True, exist_ok=True)
     args.out.write_text(json.dumps(report, ensure_ascii=False, indent=2) + "\n")
     markdown = f"""# MacBook + Docker Local Validation
