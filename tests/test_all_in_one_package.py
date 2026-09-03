@@ -62,6 +62,11 @@ class AllInOnePackageTests(unittest.TestCase):
         self.assertIn('--openwrt-version', gate)
         self.assertIn('--package-arch', gate)
         self.assertIn('pmCommitSha', gate)
+        for token in ('PM_SERVICE_SMOKE=PASS', 'PM_UBUS_STATUS=PASS',
+                      'PM_RILL_STATUS=PASS', 'PM_RILL_REMOVAL_SMOKE=PASS',
+                      'installedPayloadExact', 'ubus call performance-manager status',
+                      'ubus call performance-manager rill_status'):
+            self.assertIn(token, gate)
         collector = (ROOT / 'scripts/collect_stable_evidence.py').read_text()
         self.assertIn('aarch64_cortex-a53', collector)
         self.assertIn('packages-and-evidence', collector)
@@ -128,8 +133,35 @@ class AllInOnePackageTests(unittest.TestCase):
         self.assertIn("Dockerfile.local", matrix)
         self.assertIn("portable_docker_gate.py", matrix)
         self.assertIn('--profile "${{ inputs.profile }}"', aggregate)
-        self.assertIn("Docker-verified", release)
+        self.assertIn("Hardware-validated", release)
         self.assertIn("test '${{ inputs.profile }}' = hardware", release)
+
+    def test_hardware_validation_is_a_separate_controller_owned_profile(self):
+        workflow = (ROOT / ".github/workflows/hardware-validation.yml").read_text()
+        aggregate = (ROOT / ".github/workflows/stable-aggregate.yml").read_text()
+        for token in (
+            "name: Hardware validation matrix",
+            "run-core-only.sh", "run-full.sh", "run-mutation.sh",
+            "run-hyperv.ps1", "run-kvm.sh", "run-lan-wan-ab.sh",
+            "run-router-local-ab.sh", "run-sysupgrade.sh",
+            "run-lifecycle.sh", "run-resource-soak.sh",
+            "package_composition_gate.py", "package-composition.json",
+            ".package-rootfs", "OPENWRT_VERSION",
+            "PM_TESTBED_TRANSPORT", "raw-facts transport",
+            "verify_action_run_identity.py", "Hardware validation matrix",
+            "hardware-validation.yml", "actions/upload-artifact@v7",
+        ):
+            self.assertIn(token, workflow + aggregate)
+        self.assertIn("target_workflow='Portable validation matrix'", aggregate)
+        self.assertIn("target_workflow='Hardware validation matrix'", aggregate)
+        self.assertIn("target_workflow_path='.github/workflows/stable-target-matrix.yml'", aggregate)
+        self.assertIn("target_workflow_path='.github/workflows/hardware-validation.yml'", aggregate)
+
+    def test_legacy_controller_entrypoints_resolve_validator_gate_names(self):
+        common = (ROOT / "tools/stable-testbed/controller-common.sh").read_text()
+        self.assertIn("core-only) gate=target-core-only", common)
+        self.assertIn("full) gate=target-full", common)
+        self.assertIn("mutation) gate=target-mutation", common)
 
     def test_prerelease_auto_publish_is_main_same_repo_release_commit_only(self):
         workflow = (ROOT / ".github/workflows/prerelease.yml").read_text()

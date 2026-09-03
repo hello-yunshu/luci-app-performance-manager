@@ -1,4 +1,4 @@
-# Implementation Status — 1.0.3
+# Implementation Status — 1.0.4
 
 ## Current Smart Decision v2 state
 

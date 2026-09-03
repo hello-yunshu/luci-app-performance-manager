@@ -28,7 +28,7 @@ from smart_decision_model import candidate_identity  # noqa: E402
 def envelope(request_id: str, request: dict, generation: int, state_generation: int, schema_hash: str) -> dict:
     return {
         "requestId": request_id, "apiVersion": 3,
-        "clientIdentity": {"name": "performance-manager", "version": "1.0.3"},
+        "clientIdentity": {"name": "performance-manager", "version": (ROOT / "VERSION").read_text().strip()},
         "featureSchemaHash": schema_hash, "modelGeneration": 2,
         "stateGeneration": state_generation, "payloadLimit": 262144,
         "request": request,

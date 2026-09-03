@@ -1,0 +1,273 @@
+name: Hardware validation matrix
+
+on:
+  workflow_dispatch:
+    inputs:
+      expected_sha:
+        description: Full PM commit SHA under hardware validation
+        required: true
+        type: string
+      ci_run_id:
+        description: Successful same-commit CI run containing Runtime evidence
+        required: true
+        type: string
+      build_run_id:
+        description: Successful same-commit Build OpenWrt run containing exact APKs
+        required: true
+        type: string
+
+permissions:
+  actions: read
+  contents: read
+
+env:
+  OPENWRT_VERSION: "25.12.5"
+  OPENWRT_TARGET: "x86/64"
+
+# These jobs intentionally target repository-managed self-hosted testbed labels.
+# If a transport or runner is unavailable, the corresponding gate is unavailable
+# or BLOCKED; no hosted job may synthesize hardware evidence.
+jobs:
+  package-composition:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.expected_sha }}
+          fetch-depth: 1
+
+      - name: Verify exact checkout and build identity
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "${{ inputs.expected_sha }}"
+          python3 scripts/verify_action_run_identity.py \
+            --run-id "${{ inputs.build_run_id }}" \
+            --expected-sha "${{ inputs.expected_sha }}" \
+            --expected-workflow 'Build OpenWrt (remote SDK)' \
+            --expected-workflow-path '.github/workflows/build-openwrt.yml'
+          mkdir -p package-input
+          gh run download "${{ inputs.build_run_id }}" --dir package-input
+          selected_build=$(find package-input -type f -path '*x86-64-x86_64-packages-and-evidence/build-metadata.json' -print -quit)
+          selected_apk=$(find package-input -type f -path '*x86-64-x86_64-packages-and-evidence/docs/apk-verification.json' -print -quit)
+          test -n "$selected_build" -a -n "$selected_apk"
+          selected_root="$RUNNER_TEMP/package-build-input"
+          mkdir -p "$selected_root"
+          cp -a "$(dirname "$selected_build")/." "$selected_root/"
+          echo "PACKAGE_BUILD_ROOT=$selected_root" >> "$GITHUB_ENV"
+
+      - name: Prepare exact OpenWrt rootfs
+        shell: bash
+        run: |
+          set -euo pipefail
+          base="https://downloads.openwrt.org/releases/${OPENWRT_VERSION}/targets/${OPENWRT_TARGET}"
+          rootfs="openwrt-${OPENWRT_VERSION}-x86-64-rootfs.tar.gz"
+          curl -fsSL "$base/sha256sums" -o "$RUNNER_TEMP/openwrt-sha256sums"
+          rootfs_sha=$(awk -v f="*$rootfs" '$2 == f {print $1}' "$RUNNER_TEMP/openwrt-sha256sums")
+          [[ "$rootfs_sha" =~ ^[0-9a-f]{64}$ ]]
+          mkdir -p "$RUNNER_TEMP/openwrt-cache" .package-rootfs
+          archive="$RUNNER_TEMP/openwrt-cache/$rootfs"
+          if [ ! -f "$archive" ]; then
+            curl -fsSL "$base/$rootfs" -o "$archive"
+          fi
+          printf '%s *%s\n' "$rootfs_sha" "$archive" | sha256sum -c -
+          sudo tar -xzf "$archive" -C .package-rootfs
+          sudo rm -f .package-rootfs/etc/resolv.conf
+          sudo cp /etc/resolv.conf .package-rootfs/etc/resolv.conf
+          if sudo chroot .package-rootfs /bin/sh -c 'command -v apk >/dev/null 2>&1'; then
+            sudo chroot .package-rootfs /bin/sh -c 'apk update --no-check-certificate && apk add --no-check-certificate ucode ucode-mod-fs ucode-mod-ubus ucode-mod-uci ucode-mod-rtnl ucode-mod-uloop ucode-mod-socket ucode-mod-log coreutils-timeout'
+          else
+            sudo chroot .package-rootfs /bin/sh -c 'opkg update && opkg install ucode ucode-mod-fs ucode-mod-ubus ucode-mod-uci ucode-mod-rtnl ucode-mod-uloop ucode-mod-socket ucode-mod-log'
+          fi
+          sudo chown -R "$(id -u):$(id -g)" .package-rootfs
+
+      - name: Run real package composition and service smoke
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p stable-output
+          sudo python3 scripts/package_composition_gate.py \
+            --rootfs .package-rootfs \
+            --packages "$PACKAGE_BUILD_ROOT" \
+            --expected-commit "${{ inputs.expected_sha }}" \
+            --openwrt-version "$OPENWRT_VERSION" \
+            --target "$OPENWRT_TARGET" \
+            --package-arch x86_64 \
+            --out stable-output/package-composition.json
+
+      - name: Upload package composition evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: package-composition
+          path: stable-output/package-composition.json
+          if-no-files-found: error
+
+  linux-gates:
+    runs-on: [self-hosted, "${{ matrix.runner }}"]
+    timeout-minutes: 1440
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - gate: target-core-only
+            entrypoint: run-core-only.sh
+            output: target-core-only.json
+            runner: pm-generic
+          - gate: target-full
+            entrypoint: run-full.sh
+            output: target-full.json
+            runner: pm-generic
+          - gate: target-mutation
+            entrypoint: run-mutation.sh
+            output: target-mutation.json
+            runner: pm-generic
+          - gate: kvm
+            entrypoint: run-kvm.sh
+            output: kvm.json
+            runner: pm-kvm
+          - gate: lan-wan-ab
+            entrypoint: run-lan-wan-ab.sh
+            output: lan-wan-ab.json
+            runner: pm-lan-wan
+          - gate: router-local-ab
+            entrypoint: run-router-local-ab.sh
+            output: router-local-ab.json
+            runner: pm-router-local
+          - gate: sysupgrade
+            entrypoint: run-sysupgrade.sh
+            output: sysupgrade.json
+            runner: pm-sysupgrade
+          - gate: lifecycle
+            entrypoint: run-lifecycle.sh
+            output: lifecycle.json
+            runner: pm-lifecycle
+          - gate: resource-soak
+            entrypoint: run-resource-soak.sh
+            output: resource-soak.json
+            runner: pm-soak
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.expected_sha }}
+          fetch-depth: 1
+
+      - name: Verify exact checkout and input run identities
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "${{ inputs.expected_sha }}"
+          python3 scripts/verify_action_run_identity.py \
+            --run-id "${{ inputs.ci_run_id }}" \
+            --expected-sha "${{ inputs.expected_sha }}" \
+            --expected-workflow 'CI' \
+            --expected-workflow-path '.github/workflows/ci.yml'
+          python3 scripts/verify_action_run_identity.py \
+            --run-id "${{ inputs.build_run_id }}" \
+            --expected-sha "${{ inputs.expected_sha }}" \
+            --expected-workflow 'Build OpenWrt (remote SDK)' \
+            --expected-workflow-path '.github/workflows/build-openwrt.yml'
+          mkdir -p hardware-input/build hardware-input/ci
+          gh run download "${{ inputs.build_run_id }}" --dir hardware-input/build
+          gh run download "${{ inputs.ci_run_id }}" --dir hardware-input/ci
+          selected_build=$(find hardware-input/build -type f -path '*x86-64-x86_64-packages-and-evidence/build-metadata.json' -print -quit)
+          selected_apk=$(find hardware-input/build -type f -path '*x86-64-x86_64-packages-and-evidence/docs/apk-verification.json' -print -quit)
+          test -n "$selected_build" -a -n "$selected_apk"
+          selected_root="$RUNNER_TEMP/pm-build-input"
+          rm -rf "$selected_root"
+          mkdir -p "$selected_root"
+          cp -a "$(dirname "$selected_build")/." "$selected_root/"
+
+      - name: Require repository-owned raw-facts transport
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "${PM_TESTBED_TRANSPORT:-}" || {
+            echo 'BLOCKED: PM_TESTBED_TRANSPORT is not configured on this testbed runner' >&2
+            exit 1
+          }
+          test -x "$PM_TESTBED_TRANSPORT" || {
+            echo "BLOCKED: transport is not executable: $PM_TESTBED_TRANSPORT" >&2
+            exit 1
+          }
+
+      - name: Execute repository controller for exact hardware gate
+        shell: bash
+        env:
+          PM_BUILD_INPUT: ${{ runner.temp }}/pm-build-input
+          PM_CI_INPUT: ${{ github.workspace }}/hardware-input/ci
+          PM_EXPECTED_SHA: ${{ inputs.expected_sha }}
+          PM_EVIDENCE_OUT: ${{ github.workspace }}/evidence/${{ matrix.output }}
+        run: |
+          set -euo pipefail
+          mkdir -p evidence
+          tools/stable-testbed/${{ matrix.entrypoint }}
+
+      - name: Upload exact hardware gate evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: hardware-${{ matrix.gate }}
+          path: evidence/${{ matrix.output }}
+          if-no-files-found: error
+
+  hyperv:
+    runs-on: [self-hosted, pm-hyperv]
+    timeout-minutes: 1440
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.expected_sha }}
+          fetch-depth: 1
+
+      - name: Verify exact checkout and input run identities
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          if ((git rev-parse HEAD) -ne '${{ inputs.expected_sha }}') { throw 'exact checkout identity mismatch' }
+          python scripts/verify_action_run_identity.py --run-id '${{ inputs.ci_run_id }}' --expected-sha '${{ inputs.expected_sha }}' --expected-workflow 'CI' --expected-workflow-path '.github/workflows/ci.yml'
+          python scripts/verify_action_run_identity.py --run-id '${{ inputs.build_run_id }}' --expected-sha '${{ inputs.expected_sha }}' --expected-workflow 'Build OpenWrt (remote SDK)' --expected-workflow-path '.github/workflows/build-openwrt.yml'
+          New-Item -ItemType Directory -Force -Path hardware-input/build, hardware-input/ci | Out-Null
+          gh run download '${{ inputs.build_run_id }}' --dir hardware-input/build
+          gh run download '${{ inputs.ci_run_id }}' --dir hardware-input/ci
+          $selected = Get-ChildItem hardware-input/build -Recurse -Filter build-metadata.json | Where-Object { $_.FullName -like '*x86-64-x86_64-packages-and-evidence*' } | Select-Object -First 1
+          $apk = Get-ChildItem hardware-input/build -Recurse -Filter apk-verification.json | Where-Object { $_.FullName -like '*x86-64-x86_64-packages-and-evidence*' } | Select-Object -First 1
+          if ($null -eq $selected -or $null -eq $apk) { throw 'exact x86_64 build evidence not found' }
+          $selectedRoot = Join-Path $env:RUNNER_TEMP 'pm-build-input'
+          Remove-Item -Recurse -Force -ErrorAction SilentlyContinue $selectedRoot
+          New-Item -ItemType Directory -Force -Path $selectedRoot | Out-Null
+          Copy-Item -Recurse -Force (Join-Path $selected.Directory.FullName '*') $selectedRoot
+
+      - name: Require repository-owned raw-facts transport
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          if ([string]::IsNullOrWhiteSpace($env:PM_TESTBED_TRANSPORT)) { throw 'BLOCKED: PM_TESTBED_TRANSPORT is not configured' }
+          if (-not (Test-Path -File $env:PM_TESTBED_TRANSPORT)) { throw "BLOCKED: transport not found: $env:PM_TESTBED_TRANSPORT" }
+
+      - name: Execute repository Hyper-V controller
+        shell: pwsh
+        env:
+          PM_BUILD_INPUT: ${{ runner.temp }}/pm-build-input
+          PM_CI_INPUT: ${{ github.workspace }}/hardware-input/ci
+          PM_EXPECTED_SHA: ${{ inputs.expected_sha }}
+          PM_EVIDENCE_OUT: ${{ github.workspace }}/evidence/hyperv.json
+        run: |
+          $ErrorActionPreference = 'Stop'
+          New-Item -ItemType Directory -Force -Path evidence | Out-Null
+          powershell -ExecutionPolicy Bypass -File tools/stable-testbed/run-hyperv.ps1
+
+      - name: Upload exact Hyper-V gate evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: hardware-hyperv
+          path: evidence/hyperv.json
+          if-no-files-found: error

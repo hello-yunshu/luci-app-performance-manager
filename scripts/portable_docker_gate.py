@@ -68,7 +68,10 @@ def main(argv=None) -> int:
     docker_log = Path(args.docker_log).read_text()
     built = (build.get("packages") or {}).get(PACKAGE) or {}
     verified = (apk.get("packages") or {}).get(PACKAGE) or {}
-    apk_path = identical_artifact(build_root, built.get("apkFilename") or "luci-app-performance-manager-all-1.0.3-r1.apk")
+    apk_filename = built.get("apkFilename")
+    if not isinstance(apk_filename, str) or not apk_filename:
+        raise RuntimeError("build metadata lacks the exact all-in-one APK filename")
+    apk_path = identical_artifact(build_root, apk_filename)
     actual_sha = sha256(apk_path)
     runtime = (build.get("packages") or {}).get("rill-runtime") or {}
     runtime_verified = (apk.get("packages") or {}).get("rill-runtime") or {}

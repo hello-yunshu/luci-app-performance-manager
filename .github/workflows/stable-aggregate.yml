@@ -47,7 +47,17 @@ jobs:
           mkdir -p evidence/ci evidence/build evidence/target
           python3 scripts/verify_action_run_identity.py --run-id "${{ inputs.ci_run_id }}" --expected-sha "${{ inputs.expected_sha }}" --expected-workflow 'CI' --expected-workflow-path '.github/workflows/ci.yml'
           python3 scripts/verify_action_run_identity.py --run-id "${{ inputs.build_run_id }}" --expected-sha "${{ inputs.expected_sha }}" --expected-workflow 'Build OpenWrt (remote SDK)' --expected-workflow-path '.github/workflows/build-openwrt.yml'
-          python3 scripts/verify_action_run_identity.py --run-id "${{ inputs.target_run_id }}" --expected-sha "${{ inputs.expected_sha }}" --expected-workflow 'Portable validation matrix' --expected-workflow-path '.github/workflows/stable-target-matrix.yml'
+          if [ "${{ inputs.profile }}" = portable-docker ]; then
+            target_workflow='Portable validation matrix'
+            target_workflow_path='.github/workflows/stable-target-matrix.yml'
+          elif [ "${{ inputs.profile }}" = hardware ]; then
+            target_workflow='Hardware validation matrix'
+            target_workflow_path='.github/workflows/hardware-validation.yml'
+          else
+            echo "unsupported evidence profile: ${{ inputs.profile }}" >&2
+            exit 1
+          fi
+          python3 scripts/verify_action_run_identity.py --run-id "${{ inputs.target_run_id }}" --expected-sha "${{ inputs.expected_sha }}" --expected-workflow "$target_workflow" --expected-workflow-path "$target_workflow_path"
           gh run download "${{ inputs.ci_run_id }}" --dir evidence/ci
           gh run download "${{ inputs.build_run_id }}" --dir evidence/build
           gh run download "${{ inputs.target_run_id }}" --dir evidence/target
