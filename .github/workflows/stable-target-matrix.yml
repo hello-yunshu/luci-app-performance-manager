@@ -120,7 +120,7 @@ jobs:
         run: |
           set -euo pipefail
           selected_build=$(find stable-input/build -type f -path '*x86-64-x86_64-packages-and-evidence/build-metadata.json' -print -quit)
-          selected_apk=$(find stable-input/build -type f -path '*x86-64-x86_64-packages-and-evidence/apk-verification.json' -print -quit)
+          selected_apk=$(find stable-input/build -type f -path '*x86-64-x86_64-packages-and-evidence/docs/apk-verification.json' -print -quit)
           test -n "$selected_build"
           test -n "$selected_apk"
           selected_root="$RUNNER_TEMP/portable-x86-build"
