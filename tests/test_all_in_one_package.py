@@ -58,6 +58,7 @@ class AllInOnePackageTests(unittest.TestCase):
         self.assertIn('apk add', gate)
         self.assertIn('PM_APK_REPOSITORY_TRANSPORT=http-fallback', gate)
         self.assertIn('downloads.openwrt.org', gate)
+        self.assertIn('packages.adb', gate)
         self.assertIn('--openwrt-version', gate)
         self.assertIn('--package-arch', gate)
         self.assertIn('pmCommitSha', gate)
