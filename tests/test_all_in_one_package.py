@@ -72,6 +72,10 @@ class AllInOnePackageTests(unittest.TestCase):
             module.package_name(Path("luci-app-performance-manager-1.0.3-r1.apk")),
             "luci-app-performance-manager",
         )
+        self.assertEqual(
+            module.package_name(Path("performance-manager-rill-1.0.3-r1.apk")),
+            "performance-manager-rill",
+        )
 
     def test_exact_verifier_maps_all_owned_source_payloads(self):
         spec = importlib.util.spec_from_file_location("verify_apks", ROOT / "scripts/verify_apks.py")
