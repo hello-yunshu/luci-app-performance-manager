@@ -211,6 +211,19 @@ package/luci-app-performance-manager-all/Makefile  # merges all owned runtime co
 
 > **Consumer ownership boundary.** Performance Manager owns the Core selector, feature mapping, Smart v2 state and UI. The external Rill Runtime owns only generic ranking/learning and its binary; it cannot apply router changes. Core remains fail-closed when the Runtime is missing or incompatible.
 
+## MacBook + Docker local Portable validation
+
+Run the repeatable repository-software validation before pushing:
+
+```sh
+make portable-macos
+# or: tools/docker-validate/run-local-macos.sh
+```
+
+The entry point reuses the existing source audit, OpenWrt ucode harness, artifact identity, package-composition gate, and portable gate. Run evidence is written to untracked `local-evidence/` and bound to the current commit SHA; package artifacts must come from a same-SHA GitHub Actions Build, never from `latest` or an older branch cache.
+
+`Mac Docker PASS != Hardware Stable PASS`. Portable evidence always reports `hardwareCoverage = NOT_EVALUATED` and `stableReleaseAuthorized = false`; it cannot cover real NIC behavior, Hyper-V/KVM, LAN-WAN, sysupgrade, reboot, or a real-router 24-hour soak. If Docker Desktop, linux/amd64 emulation, network downloads, or same-SHA artifacts are unavailable, the entry point reports a diagnostic `BLOCKED` instead of fabricating PASS.
+
 **Data flow**:
 
 1. Core discovers capabilities and topology through ubus / rtnl / uci and keeps stable TargetRefs

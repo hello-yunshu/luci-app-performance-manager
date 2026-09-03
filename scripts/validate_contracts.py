@@ -3,6 +3,7 @@ from __future__ import annotations
 import ast, json, re, sys
 from pathlib import Path
 import jsonschema
+from po_parser import missing_msgids
 ROOT=Path(__file__).resolve().parents[1]
 errors=[]
 def fail(msg): errors.append(msg)
@@ -166,15 +167,12 @@ for token in ['shell=True','uci set','/proc/sys','nft ','iptables']:
 # LuCI required surfaces + full literal zh_Hans coverage.
 for page in ['overview','optimize','benchmark','capabilities','rill','history','advanced','settings']:
     if not (ROOT/f'package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/{page}.js').exists(): fail(f'LuCI page missing: {page}')
-po=(ROOT/'package/luci-app-performance-manager/po/zh_Hans/performance-manager.po').read_text()
-po_ids=set(re.findall(r'^msgid "(.*)"$',po,re.M)); js_ids=set()
+po=(ROOT/'package/luci-app-performance-manager/po/zh_Hans/performance-manager.po').read_text(); js_ids=set()
 for p in (ROOT/'package/luci-app-performance-manager/htdocs/luci-static/resources').rglob('*.js'):
     for m in re.finditer(r"_\('((?:\\.|[^'\\])*)'\)",p.read_text()):
         try: js_ids.add(ast.literal_eval("'"+m.group(1)+"'"))
         except Exception: js_ids.add(m.group(1))
-for msg in sorted(js_ids):
-    esc=msg.replace('\\','\\\\').replace('"','\\"').replace('\n','\\n')
-    if esc not in po_ids: fail(f'zh_Hans missing msgid: {msg}')
+for msg in missing_msgids(po, js_ids): fail(f'zh_Hans missing msgid: {msg}')
 
 # The recommended all-in-one APK must physically own every application layer;
 # it is not allowed to regress into a meta package depending on the split APKs.

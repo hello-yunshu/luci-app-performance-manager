@@ -212,6 +212,19 @@ package/luci-app-performance-manager-all/Makefile  # 将上述自有运行内容
 
 > **所有权边界。** `/usr/bin/rill-runtime` 由外部 Rill Runtime OpenWrt 包拥有；PM 只拥有 Core、调用 glue、策略状态与 UI。Runtime v3 只返回排序/反馈结果，没有设备执行权；缺失、不兼容或状态恢复失败时 fail-closed。
 
+## MacBook + Docker 本地 Portable 验证
+
+在 push 前，可以在 MacBook 上执行可重复的 Repository Software Portable 验证：
+
+```sh
+make portable-macos
+# 或：tools/docker-validate/run-local-macos.sh
+```
+
+入口会复用仓库现有的 source audit、OpenWrt ucode harness、artifact identity、package-composition gate 和 portable gate。所有运行证据写入未跟踪的 `local-evidence/`，并绑定当前 commit SHA；构建包必须来自同一 SHA 的 GitHub Actions Build，不能使用 latest 或旧分支缓存。
+
+`Mac Docker PASS != Hardware Stable PASS`。Portable 验证保持 `hardwareCoverage = NOT_EVALUATED` 和 `stableReleaseAuthorized = false`，不能覆盖 real NIC、Hyper-V/KVM、LAN-WAN、sysupgrade、reboot 或真实路由器 24h soak 等硬件门禁。Docker Desktop 不可用、linux/amd64 仿真不可用、网络下载失败或 same-SHA artifact 未准备好时，入口会输出可诊断的 `BLOCKED`，不会伪造 PASS。
+
 **数据流**：
 
 1. Core 通过 ubus / rtnl / uci 发现能力与 topology，维护稳定 TargetRef

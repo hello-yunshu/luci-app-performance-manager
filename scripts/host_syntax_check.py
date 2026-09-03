@@ -3,6 +3,7 @@ from __future__ import annotations
 import json, py_compile, shutil, subprocess, sys, tempfile
 from pathlib import Path
 import yaml
+from po_parser import parse_po_msgids
 
 ROOT = Path(__file__).resolve().parents[1]
 errors=[]; checks=[]
@@ -64,12 +65,15 @@ else:
     errors.append('node is required for LuCI syntax validation')
 
 po=ROOT/'package/luci-app-performance-manager/po/zh_Hans/performance-manager.po'
-msgids=[]
-for line in po.read_text().splitlines():
-    if line.startswith('msgid "'): msgids.append(line)
-if len(msgids)!=len(set(msgids)):
-    errors.append('duplicate msgid entries in zh_Hans PO')
-checks.append({'name':'zh_Hans PO duplicate check','status':'fail' if len(msgids)!=len(set(msgids)) else 'pass'})
+try:
+    msgids=parse_po_msgids(po.read_text())
+    duplicate_count=len(msgids)-len(set(msgids))
+    if duplicate_count:
+        errors.append(f'duplicate msgid entries in zh_Hans PO: {duplicate_count}')
+    checks.append({'name':'zh_Hans PO duplicate check','status':'fail' if duplicate_count else 'pass'})
+except ValueError as exc:
+    errors.append(f'zh_Hans PO parse failed: {exc}')
+    checks.append({'name':'zh_Hans PO duplicate check','status':'fail','output':str(exc)})
 
 report={'checks':checks,'errorCount':len(errors),'errors':errors}
 (ROOT/'docs/HOST_SYNTAX_REPORT.json').write_text(json.dumps(report,ensure_ascii=False,indent=2)+'\n')
