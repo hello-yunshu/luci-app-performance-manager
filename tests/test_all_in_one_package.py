@@ -58,6 +58,21 @@ class AllInOnePackageTests(unittest.TestCase):
         self.assertIn('apk add', gate)
         self.assertIn('pmCommitSha', gate)
 
+    def test_package_composition_names_prefer_specific_bundle(self):
+        spec = importlib.util.spec_from_file_location(
+            "package_composition_gate", ROOT / "scripts/package_composition_gate.py"
+        )
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        self.assertEqual(
+            module.package_name(Path("luci-app-performance-manager-all-1.0.3-r1.apk")),
+            "luci-app-performance-manager-all",
+        )
+        self.assertEqual(
+            module.package_name(Path("luci-app-performance-manager-1.0.3-r1.apk")),
+            "luci-app-performance-manager",
+        )
+
     def test_exact_verifier_maps_all_owned_source_payloads(self):
         spec = importlib.util.spec_from_file_location("verify_apks", ROOT / "scripts/verify_apks.py")
         module = importlib.util.module_from_spec(spec)
