@@ -10,7 +10,10 @@ function parseEvidence(text) {
 }
 
 function stageRow(stage, active) {
-	return E('li', { 'class': 'pm-stage' + (active ? ' pm-stage--active' : '') }, [ stage ]);
+	return E('li', { 'class': 'pm-stage' + (active ? ' pm-stage--active' : '') }, [
+		E('span', { 'class': 'pm-stage-status' }, [ active ? _('Complete') : _('Pending') ]),
+		E('span', {}, [ stage ])
+	]);
 }
 
 return view.extend({
@@ -39,7 +42,7 @@ return view.extend({
 
 		function renderSession(res) {
 			output.replaceChildren();
-			if (!res || !res.ok) { output.appendChild(pu.jsonBox(res || {}, _('Blocked result'))); return; }
+			if (!res || !res.ok) { output.appendChild(pu.inset(_('Blocked result'), pu.jsonBox(res || {}, _('Details')), 'warning')); return; }
 			const s = res.session || {};
 			const stages = E('ol', { 'class': 'pm-stage-list' }, [
 				stageRow(_('Environment'), true), stageRow(_('Path'), true), stageRow(_('Compatibility'), true), stageRow(_('Locks / Failsafe'), s.state !== 'awaiting_control'),
@@ -58,10 +61,13 @@ return view.extend({
 				submitEvidence.addEventListener('click', function() {
 					let evidence;
 					try { evidence = parseEvidence(evidenceBox.value); } catch (e) { ui.addNotification(null, E('p', {}, [ e.message ])); return; }
-					submitEvidence.disabled = true;
-					pm.benchmarkStart(s.actionId, s.evaluationPath, 'controlled_ab', phase, s.sessionId, evidence).then(renderSession).finally(function(){ submitEvidence.disabled=false; });
+					const restore = pu.setBusy(submitEvidence, _('Working…'));
+					pm.benchmarkStart(s.actionId, s.evaluationPath, 'controlled_ab', phase, s.sessionId, evidence)
+						.then(renderSession)
+						.catch(function(error) { ui.addNotification(null, E('p', {}, [ error.message || error ])); })
+						.finally(restore);
 				});
-				output.appendChild(pu.card(phase === 'control' ? _('Baseline evidence') : _('Candidate evidence'), E('div', {}, [
+				output.appendChild(pu.inset(phase === 'control' ? _('Baseline evidence') : _('Candidate evidence'), E('div', {}, [
 					E('p', {}, [ phase === 'control' ? _('Run the Companion before any candidate is applied, then paste its JSON result.') : _('The candidate is temporarily active and protected by commit-confirm. Run the same endpoint test now; Core will restore the original value before validating the result.') ]),
 					E('pre', {}, [ command ]), evidenceBox, E('div', { 'class': 'pm-toolbar' }, [ submitEvidence ])
 				])));
@@ -70,17 +76,26 @@ return view.extend({
 		}
 
 		start.addEventListener('click', function() {
-			start.disabled = true;
+			const restore = pu.setBusy(start, _('Starting…'));
 			const selected = actions.find(function(a){ return a.id === action.value; });
 			const path = pathSelect.value || (selected && selected.evaluationPaths && selected.evaluationPaths[0]) || 'path:lan-to-wan';
 			const selectedAdvisory = advisories.find(function(a) { return a.kind === 'benchmark' && a.actionId === action.value; });
 			pm.benchmarkStart(measurement.value === 'controlled_ab' ? action.value : 'observe', path, measurement.value, 'begin', null, null,
 				selectedAdvisory && measurement.value === 'controlled_ab' ? 'benchmark-rill' : 'manual',
 				selectedAdvisory && measurement.value === 'controlled_ab' ? selectedAdvisory.decisionId : null)
-				.then(renderSession).finally(function(){ start.disabled=false; });
+				.then(renderSession)
+				.catch(function(error) { output.replaceChildren(pu.inset(_('Test could not start'), pu.note(error.message || error, 'warning'))); })
+				.finally(restore);
 		});
 
-		root.appendChild(pu.toolbar([ action, pathSelect, measurement, start ]));
+		start.disabled = !actions.length;
+		root.appendChild(pu.toolbar([
+			pu.field(_('Benchmark action'), action),
+			pu.field(_('Evaluation path'), pathSelect),
+			pu.field(_('Measurement class'), measurement),
+			start
+		]));
+		if (!actions.length) root.appendChild(pu.note(_('No benchmark action is currently available for this device.'), 'warning'));
 		root.appendChild(output);
 		return pu.page(_('Performance Test'), _('Active tests are explicit, one-variable-at-a-time transactions. A controlled A/B result is validated only after context stability, health checks and verified rollback.'), [
 			pu.card(_('Environment → Path → Compatibility → Locks/Failsafe → Baseline → Candidate → Commit-confirm → Result'), root),

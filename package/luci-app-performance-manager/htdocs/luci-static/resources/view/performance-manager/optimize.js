@@ -10,35 +10,42 @@ return view.extend({
 		const actions = (r && r.actions) || [];
 		const nodes = [];
 		const smart = (r && r.smartSelection) || {};
-		nodes.push(pu.card(_('Smart policy'), pu.kv([
-			[_('Learning stage'), smart.learningStage || _('cold')], [_('Selected action'), smart.selectedActionId || '—'], [_('Confidence'), smart.confidence == null ? '—' : String(smart.confidence)], [_('Last reward'), smart.lastReward == null ? '—' : String(smart.lastReward)], [_('Auto eligibility'), smart.autoEligible === false ? _('Paused') : (smart.reason || _('Eligible'))], [_('Core recommendation'), smart.coreRecommendation || _('Deterministic fallback')], [_('Policy reason'), smart.reason || '—']
-		]), smart.drifted ? 'warning' : 'hero'));
+		const smartCard = pu.card(_('Smart policy'), E('div', {}, [
+			pu.badge(smart.autoEligible === false ? _('Auto paused') : _('Auto eligible'), smart.autoEligible === false ? 'warning' : 'success'),
+			pu.kv([
+				[_('Learning stage'), smart.learningStage || _('cold')], [_('Selected action'), smart.selectedActionId || '—'], [_('Confidence'), smart.confidence == null ? '—' : String(smart.confidence)], [_('Last reward'), smart.lastReward == null ? '—' : String(smart.lastReward)], [_('Auto eligibility'), smart.autoEligible === false ? _('Paused') : (smart.reason || _('Eligible'))], [_('Core recommendation'), smart.coreRecommendation || _('Deterministic fallback')], [_('Policy reason'), smart.reason || '—']
+			])
+		]), smart.drifted ? 'warning' : 'hero');
 		if (smart.selectedActionId === 'pm.noop') nodes.push(pu.note(_('Rill judges that keeping the current configuration is better.'), 'success'));
 		if (smart.drifted) nodes.push(pu.note(_('Performance drift detected. Rill Auto temporarily paused.'), 'warning'));
 		if (!actions.length) nodes.push(pu.note(_('No conservative changes are currently needed.'), 'success'));
 		actions.forEach(function(a) {
 			const apply = E('button', { 'class': 'btn cbi-button cbi-button-action', 'type': 'button' }, [ _('Apply safely') ]);
 			apply.addEventListener('click', function() {
-				apply.disabled = true;
+				const restore = pu.setBusy(apply, _('Applying…'));
 				pm.apply(a.id, a.applyTarget).then(function(res) {
 					ui.addNotification(null, E('p', {}, [ res && res.ok ? _('Action committed after verification.') : _('Action was not committed; inspect transaction details.') ]));
-				}).finally(function() { apply.disabled = false; });
+				}).catch(function(error) {
+					ui.addNotification(null, E('p', {}, [ _('Action failed: %s').format(error.message || error) ]), 'error');
+				}).finally(restore);
 			});
 			nodes.push(pu.card(a.id, E('div', {}, [
 				pu.kv([ [_('Applies To'), a.applyTarget], [_('Affected'), (a.affectedTargets || []).join(', ')], [_('Evaluated On'), (a.evaluationPaths || []).join(', ')], [_('Risk'), a.risk], [_('Reason'), a.reason] ]),
 				E('div', { 'class': 'pm-toolbar' }, [ apply ])
-			])));
+			]), 'action'));
 		});
-		(r.observations || []).forEach(function(o) { nodes.push(pu.card(o.id, E('p', {}, [ o.detail ]))); });
-		(r.learnedAdvisory || []).forEach(function(a) {
+		((r && r.observations) || []).forEach(function(o) { nodes.push(pu.card(o.id, E('p', {}, [ o.detail ]))); });
+		((r && r.learnedAdvisory) || []).forEach(function(a) {
 			const body = E('div', {}, [ pu.kv([ [_('Authority'), a.authority || _('none')], [_('Execution path'), a.kind === 'benchmark' ? _('Controlled benchmark') : (a.kind === 'noop' ? _('No mutation') : _('Safe direct apply'))], [_('Confidence'), a.confidence == null ? '—' : String(a.confidence)] ]) ]);
 			if (a.kind === 'safe-direct') {
 				const apply = E('button', { 'class': 'btn cbi-button cbi-button-action', 'type': 'button' }, [ _('Apply this exact Rill advisory') ]);
 				apply.addEventListener('click', function() {
-					apply.disabled = true;
+					const restore = pu.setBusy(apply, _('Applying…'));
 					pm.apply(a.actionId, a.applyTarget, 'rill-advisory', a.decisionId).then(function(res) {
 						ui.addNotification(null, E('p', {}, [ res && res.ok ? _('Exact Rill decision applied and verified.') : _('The advisory was not applied; its exact decision binding was rejected or the safety gate failed.') ]));
-					}).finally(function() { apply.disabled = false; });
+					}).catch(function(error) {
+						ui.addNotification(null, E('p', {}, [ _('Advisory failed: %s').format(error.message || error) ]), 'error');
+					}).finally(restore);
 				});
 				body.appendChild(E('div', { 'class': 'pm-toolbar' }, [ apply ]));
 			} else if (a.kind === 'noop') {
@@ -48,6 +55,6 @@ return view.extend({
 			}
 			nodes.push(pu.card(_('Rill advisory: %s').format(a.actionId || '—'), body));
 		});
-		return pu.page(_('Smart Optimization'), _('Only legal, supported actions are shown. Existing user/external/preexisting settings are respected.'), [ pu.grid(nodes) ]);
+		return pu.page(_('Smart Optimization'), _('Only legal, supported actions are shown. Existing user/external/preexisting settings are respected.'), [ smartCard, pu.grid(nodes, 'pm-card-grid--dense') ]);
 	}
 });

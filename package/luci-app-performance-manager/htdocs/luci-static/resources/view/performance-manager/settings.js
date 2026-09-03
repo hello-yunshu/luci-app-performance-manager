@@ -41,8 +41,8 @@ return view.extend({
 	o = s.option(form.Value, 'action_cooldown_base_seconds', _('Action cooldown (seconds)')); o.datatype='uinteger'; o.default='600';
 		const rendered = m.render();
 		if (rendered && typeof rendered.then === 'function') return rendered.then(function(form) {
-			return pu.page(_('Settings'), _('Keep conservative automation as the safe default; assisted actions remain explicitly opt-in.'), [ form ]);
+			return pu.page(_('Settings'), _('Keep conservative automation as the safe default; assisted actions remain explicitly opt-in.'), [ pu.card(_('Configuration'), form, 'form') ]);
 		});
-		return pu.page(_('Settings'), _('Keep conservative automation as the safe default; assisted actions remain explicitly opt-in.'), [ rendered ]);
+		return pu.page(_('Settings'), _('Keep conservative automation as the safe default; assisted actions remain explicitly opt-in.'), [ pu.card(_('Configuration'), rendered, 'form') ]);
 	}
 });

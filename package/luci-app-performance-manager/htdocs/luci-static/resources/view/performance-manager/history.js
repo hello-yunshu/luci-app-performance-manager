@@ -13,24 +13,34 @@ return view.extend({
 			const controls = [];
 			if (tx.state === 'awaiting_confirm') {
 				const c = E('button', { 'class': 'btn cbi-button cbi-button-positive', 'type': 'button' }, [ _('Confirm') ]);
-				c.addEventListener('click', function() { pm.confirm(tx.transactionId).then(function(r){ ui.addNotification(null, E('p', {}, [ r && r.ok ? _('Transaction confirmed.') : _('Confirmation failed or expired.') ])); }); });
+				c.addEventListener('click', function() {
+					const restore = pu.setBusy(c, _('Confirming…'));
+					pm.confirm(tx.transactionId).then(function(r){ ui.addNotification(null, E('p', {}, [ r && r.ok ? _('Transaction confirmed.') : _('Confirmation failed or expired.') ])); })
+						.catch(function(error) { ui.addNotification(null, E('p', {}, [ _('Confirmation failed: %s').format(error.message || error) ]), 'error'); })
+						.finally(restore);
+				});
 				controls.push(c);
 			}
 			if (!['rolled_back','failed'].includes(tx.state)) {
 				const b = E('button', { 'class': 'btn cbi-button cbi-button-negative', 'type': 'button' }, [ _('Rollback') ]);
-				b.addEventListener('click', function() { pm.rollback(tx.transactionId).then(function(r){ ui.addNotification(null, E('p', {}, [ r && r.ok ? _('Rollback completed and read-back verified.') : _('Rollback could not be completed; inspect the transaction.') ])); }); });
+				b.addEventListener('click', function() {
+					const restore = pu.setBusy(b, _('Rolling back…'));
+					pm.rollback(tx.transactionId).then(function(r){ ui.addNotification(null, E('p', {}, [ r && r.ok ? _('Rollback completed and read-back verified.') : _('Rollback could not be completed; inspect the transaction.') ])); })
+						.catch(function(error) { ui.addNotification(null, E('p', {}, [ _('Rollback failed: %s').format(error.message || error) ]), 'error'); })
+						.finally(restore);
+				});
 				controls.push(b);
 			}
-			nodes.push(pu.card(tx.transactionId, E('div', {}, [ pu.kv([ [_('Action'), tx.actionId], [_('State'), tx.state], [_('Target'), tx.applyTarget], [_('Boot identity'), tx.bootId] ]), controls.length ? E('div', { 'class': 'pm-toolbar' }, controls) : null, pu.jsonBox(tx, _('Transaction JSON')) ])));
+			nodes.push(pu.card(tx.transactionId, E('div', {}, [ pu.kv([ [_('Action'), tx.actionId], [_('State'), tx.state], [_('Target'), tx.applyTarget], [_('Boot identity'), tx.bootId] ]), controls.length ? E('div', { 'class': 'pm-toolbar' }, controls) : null, pu.jsonBox(tx, _('Transaction JSON')) ]), 'transaction'));
 		});
 		if (!txs.length) nodes.push(pu.note(_('No transactions are currently recorded.'), 'success'));
 		return pu.page(_('History & Rollback'), _('Review pending confirmations, verified rollbacks, and the runtime record without losing the safety context.'), [
-			pu.grid(nodes),
+			pu.grid(nodes, 'pm-card-grid--dense'),
 			pu.grid([
 				pu.card(_('Resource locks'), pu.jsonBox(locks, _('Locks JSON'))),
 				pu.card(_('Persistent action history'), pu.jsonBox(history, _('History JSON'))),
 				pu.card(_('Runtime event history'), pu.jsonBox(runtimeHistory, _('Runtime History JSON')))
-			])
+			], 'pm-card-grid--supporting')
 		]);
 	}
 });
