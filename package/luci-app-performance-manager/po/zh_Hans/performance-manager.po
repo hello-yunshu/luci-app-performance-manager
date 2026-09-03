@@ -1,806 +1,1243 @@
 msgid ""
 msgstr ""
-"Content-Type: text/plain; charset=UTF-8\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-09-04 02:46+0800\n"
+"Project-Id-Version: luci-app-performance-manager\n"
+"PO-Revision-Date: 2026-09-04 03:00+0800\n"
+"Last-Translator: Performance Manager contributors\n"
+"Language-Team: Simplified Chinese\n"
+"MIME-Version: 1.0\n"
 "Language: zh_Hans\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=1; plural=0;\n"
 
-msgid "Action"
-msgstr "操作"
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/settings.js:8
+msgid "Performance Manager settings"
+msgstr "性能管理器设置"
 
-msgid "Action committed after verification."
-msgstr "操作已在验证通过后提交。"
-
-msgid "Action was not committed; inspect transaction details."
-msgstr "操作未提交；请检查事务详情。"
-
-msgid "Active tests are explicit, one-variable-at-a-time transactions. A controlled A/B result is validated only after context stability, health checks and verified rollback."
-msgstr "主动测试必须由用户明确启动，并按单变量事务执行。受控 A/B 只有在上下文稳定、健康检查和回滚验证均通过后才会被认定有效。"
-
-msgid "Adjustable"
-msgstr "可调整"
-
-msgid "Advanced"
-msgstr "高级"
-
-msgid "Advanced details"
-msgstr "高级详情"
-
-msgid "Affected"
-msgstr "受影响对象"
-
-msgid "Applies To"
-msgstr "应用到"
-
-msgid "Apply authority"
-msgstr "应用权限"
-
-msgid "Apply candidate after validating baseline"
-msgstr "验证基线后应用候选项"
-
-msgid "Apply safely"
-msgstr "安全应用"
-
-msgid "Assisted Auto (opt-in, safe actions only)"
-msgstr "辅助自动（需选择启用，仅安全操作）"
-
-msgid "Authority"
-msgstr "权限"
-
-msgid "Automation"
-msgstr "自动化"
-
-msgid "Automation: %s"
-msgstr "自动化：%s"
-
-msgid "Availability"
-msgstr "可用性"
-
-msgid "Baseline"
-msgstr "基线"
-
-msgid "Baseline evidence"
-msgstr "基线证据"
-
-msgid "Benchmark action"
-msgstr "基准测试操作"
-
-msgid "Benchmark session JSON"
-msgstr "基准测试会话 JSON"
-
-msgid "Blocked"
-msgstr "已阻止"
-
-msgid "Blocked providers"
-msgstr "被阻止的 Provider"
-
-msgid "Blocked result"
-msgstr "阻止结果"
-
-msgid "Boot identity"
-msgstr "启动标识"
-
-msgid "Build and provider recommendations"
-msgstr "构建与 Provider 建议"
-
-msgid "Build recommendations"
-msgstr "构建建议"
-
-msgid "Candidate"
-msgstr "候选项"
-
-msgid "Candidate evidence"
-msgstr "候选证据"
-
-msgid "Capabilities"
-msgstr "能力"
-
-msgid "Capability / Topology / TargetRef JSON"
-msgstr "Capability / Topology / TargetRef JSON"
-
-msgid "Capability-first, topology-aware and transactional performance control plane."
-msgstr "以能力为先、感知拓扑并采用事务机制的性能控制平面。"
-
-msgid "Commit-confirm"
-msgstr "提交确认"
-
-msgid "Compatibility"
-msgstr "兼容性"
-
-msgid "Confidence"
-msgstr "置信度"
-
-msgid "Confirm"
-msgstr "确认"
-
-msgid "Confirmation failed or expired."
-msgstr "确认失败或已超时。"
-
-msgid "Conservative"
-msgstr "保守"
-
-msgid "Conservative automation is the supported default. Active benchmark saturation remains disabled by default."
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/settings.js:8
+msgid ""
+"Conservative automation is the supported default. Active benchmark "
+"saturation remains disabled by default."
 msgstr "默认采用保守自动化。主动饱和型基准测试默认保持关闭。"
 
-msgid "Controlled A/B"
-msgstr "受控 A/B"
-
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/settings.js:9
 msgid "Core"
 msgstr "核心"
 
-msgid "Deep telemetry interval (seconds)"
-msgstr "深度遥测间隔（秒）"
-
-msgid "Diagnostics"
-msgstr "诊断"
-
-msgid "Diagnostics JSON"
-msgstr "诊断 JSON"
-
-msgid "Enable Assisted Auto"
-msgstr "启用辅助自动"
-
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/settings.js:10
 msgid "Enable Core"
 msgstr "启用核心"
 
-msgid "Enable Shadow"
-msgstr "启用 Shadow"
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/settings.js:10
+msgid ""
+"Run the Performance Manager core service. Disable this to stop performance "
+"management."
+msgstr "运行性能管理器核心服务。关闭后将停止性能管理。"
 
-msgid "Environment"
-msgstr "环境"
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/settings.js:11
+msgid "Automation mode"
+msgstr "自动化模式"
 
-msgid "Environment → Path → Compatibility → Locks/Failsafe → Baseline → Candidate → Commit-confirm → Result"
-msgstr "环境 → 路径 → 兼容性 → 锁/故障保护 → 基线 → 候选项 → 提交确认 → 结果"
-
-msgid "Evaluated On"
-msgstr "评估路径"
-
-msgid "Evidence must be valid JSON."
-msgstr "证据必须是有效的 JSON。"
-
-msgid "Failsafe"
-msgstr "故障保护"
-
-msgid "Failsafe Off"
-msgstr "故障保护已关闭"
-
-msgid "Failsafe Ready"
-msgstr "故障保护就绪"
-
-msgid "Fast telemetry interval (seconds)"
-msgstr "快速遥测间隔（秒）"
-
-msgid "Generic x86"
-msgstr "通用 x86"
-
-msgid "Goal"
-msgstr "目标"
-
-msgid "Goal: %s"
-msgstr "目标：%s"
-
-msgid "Balanced (measurable for A/B)"
-msgstr "均衡（可用于 A/B 测量）"
-
-msgid "Throughput (measurable for A/B)"
-msgstr "吞吐（可用于 A/B 测量）"
-
-msgid "Latency (not measurable for A/B)"
-msgstr "低延迟（不可用于 A/B 测量）"
-
-msgid "CPU efficiency (not measurable for A/B)"
-msgstr "CPU 效率（不可用于 A/B 测量）"
-
-msgid "Guard"
-msgstr "保护状态"
-
-msgid "Health only"
-msgstr "仅健康检查"
-
-msgid "Hidden capabilities"
-msgstr "隐藏的能力"
-
-msgid "History"
-msgstr "历史"
-
-msgid "History & Rollback"
-msgstr "历史与回滚"
-
-msgid "History JSON"
-msgstr "历史 JSON"
-
-msgid "LAN → WAN"
-msgstr "LAN → WAN"
-
-msgid "Locks / Failsafe"
-msgstr "锁 / 故障保护"
-
-msgid "Locks JSON"
-msgstr "锁 JSON"
-
-msgid "Low-traffic threshold (bytes/s)"
-msgstr "低流量阈值（字节/秒）"
-
-msgid "Maintenance window end"
-msgstr "维护窗口结束"
-
-msgid "Maintenance window start"
-msgstr "维护窗口开始"
-
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/settings.js:11
 msgid "Manual"
 msgstr "手动"
 
-msgid "Mean reward"
-msgstr "平均收益"
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/settings.js:11
+msgid "Conservative"
+msgstr "保守"
 
-msgid "Measurement class"
-msgstr "测量类型"
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/settings.js:11
+msgid "Assisted automation (opt-in; safe actions only)"
+msgstr "辅助自动化（需明确启用；仅执行安全操作）"
 
-msgid "Mode"
-msgstr "模式"
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/settings.js:11
+msgid "Choose how Core responds: manual, conservative, or assisted automation."
+msgstr "选择核心的响应方式：手动、保守或辅助自动化。"
 
-msgid "Native Packet Steering"
-msgstr "原生 Packet Steering"
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/settings.js:13
+msgid "Enable assisted automation"
+msgstr "启用辅助自动化"
 
-msgid "No"
-msgstr "否"
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/settings.js:13
+msgid "Allow assisted automation to apply only actions on the safe allowlist."
+msgstr "允许辅助自动化仅应用安全允许列表中的操作。"
 
-msgid "No conservative changes are currently needed."
-msgstr "当前不需要保守型修改。"
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/settings.js:14
+msgid "Maintenance window start"
+msgstr "维护窗口开始"
 
-msgid "None"
-msgstr "无"
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/settings.js:14
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/settings.js:15
+msgid "Assisted automation may run only within this local time window."
+msgstr "辅助自动化只能在此本地时间窗口内运行。"
 
-msgid "Observe / Respect"
-msgstr "观察 / 尊重现状"
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/settings.js:15
+msgid "Maintenance window end"
+msgstr "维护窗口结束"
 
-msgid "Observe / learn / recommend only"
-msgstr "仅观察 / 学习 / 建议"
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/settings.js:16
+msgid "Low-traffic threshold (bytes/s)"
+msgstr "低流量阈值（字节/秒）"
 
-msgid "Only legal, supported actions are shown. Existing user/external/preexisting settings are respected."
-msgstr "仅显示合法且受支持的操作，并尊重用户、外部组件和既有设置。"
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/settings.js:16
+msgid "Assisted automation runs only while traffic stays below this threshold."
+msgstr "仅当流量低于此阈值时，辅助自动化才会运行。"
 
-msgid "Overview"
-msgstr "概览"
-
-msgid "Ownership"
-msgstr "所有权"
-
-msgid "Pass"
-msgstr "通过"
-
-msgid "Passive before/after"
-msgstr "被动前后对比"
-
-msgid "Paste Companion JSON evidence"
-msgstr "粘贴 Companion JSON 证据"
-
-msgid "Path"
-msgstr "路径"
-
-msgid "Performance Manager"
-msgstr "性能管理器"
-
-msgid "Performance Manager Settings"
-msgstr "Performance Manager 设置"
-
-msgid "Performance Test"
-msgstr "性能测试"
-
-msgid "Persistent action history"
-msgstr "持久化操作历史"
-
-msgid "Platform"
-msgstr "平台"
-
-msgid "Project"
-msgstr "项目"
-
-msgid "Policy"
-msgstr "策略"
-
-msgid "Profile"
-msgstr "Profile"
-
-msgid "Profile Degraded"
-msgstr "Profile 降级"
-
-msgid "Profile Healthy"
-msgstr "Profile 正常"
-
-msgid "Profile contract"
-msgstr "Profile 契约"
-
-msgid "Profile status JSON"
-msgstr "Profile 状态 JSON"
-
-msgid "Provider"
-msgstr "Provider"
-
-msgid "Raw JSON"
-msgstr "原始 JSON"
-
-msgid "Raw topology contract"
-msgstr "原始拓扑契约"
-
-msgid "Reason"
-msgstr "原因"
-
-msgid "Reasons"
-msgstr "原因"
-
-msgid "Resource locks"
-msgstr "资源锁"
-
-msgid "Resource usage"
-msgstr "资源使用情况"
-
-msgid "Resource usage JSON"
-msgstr "资源使用 JSON"
-
-msgid "Result"
-msgstr "结果"
-
-msgid "Rill Intelligence"
-msgstr "Rill 智能"
-
-msgid "RillML (Rill) Intelligence"
-msgstr "RillML（Rill）智能"
-
-msgid "Rill Runtime"
-msgstr "Rill Runtime"
-
-msgid "Rill Shadow"
-msgstr "Rill Shadow（历史名称）"
-
-msgid "Rill Shadow · Collecting"
-msgstr "Rill Shadow · 收集中"
-
-msgid "Rill advisory: %s"
-msgstr "Rill 建议：%s"
-
-msgid "Rill cannot write UCI, sysctl or firewall state, cannot execute arbitrary shell, and cannot apply Actions."
-msgstr "Rill 无法写入 UCI、sysctl 或防火墙状态，不能执行任意 Shell，也不能直接应用操作。"
-
-msgid "Rill details"
-msgstr "Rill 详情"
-
-msgid "Risk"
-msgstr "风险"
-
-msgid "Rollback"
-msgstr "回滚"
-
-msgid "Rollback completed and read-back verified."
-msgstr "回滚已完成且读回验证通过。"
-
-msgid "Rollback could not be completed; inspect the transaction."
-msgstr "无法完成回滚；请检查事务。"
-
-msgid "Run the Companion before any candidate is applied, then paste its JSON result."
-msgstr "在应用任何候选项之前运行 Companion，然后粘贴其 JSON 结果。"
-
-msgid "Running"
-msgstr "运行中"
-
-msgid "Runtime History JSON"
-msgstr "运行时历史 JSON"
-
-msgid "Runtime event history"
-msgstr "运行时事件历史"
-
-msgid "Scope"
-msgstr "作用域"
-
-msgid "Settings"
-msgstr "设置"
-
-msgid "Shadow boundary"
-msgstr "Shadow 边界"
-
-msgid "Shadow · Collecting"
-msgstr "Shadow · 收集中"
-
-msgid "Smart Optimization"
-msgstr "智能优化"
-
-msgid "Stable targets"
-msgstr "稳定目标"
-
-msgid "Start explicit test"
-msgstr "明确启动测试"
-
-msgid "State"
-msgstr "状态"
-
-msgid "Stopped"
-msgstr "已停止"
-
-msgid "System health guard"
-msgstr "系统健康保护"
-
-msgid "Target"
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/settings.js:19
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/rill.js:31
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/rill.js:38
+msgid "Goal"
 msgstr "目标"
 
-msgid "Telemetry"
-msgstr "遥测"
-
-msgid "Telemetry Active"
-msgstr "遥测已启用"
-
-msgid "Telemetry Off"
-msgstr "遥测已关闭"
-
-msgid "The candidate is temporarily active and protected by commit-confirm. Run the same endpoint test now; Core will restore the original value before validating the result."
-msgstr "候选项当前临时生效并受提交确认保护。请立即运行相同端点测试；Core 会先恢复原值，再验证结果。"
-
-msgid "Topology generation"
-msgstr "拓扑代次"
-
-msgid "Transaction JSON"
-msgstr "事务 JSON"
-
-msgid "Transaction confirmed."
-msgstr "事务已确认。"
-
-msgid "Transactions"
-msgstr "事务"
-
-msgid "Transactions JSON"
-msgstr "事务 JSON"
-
-msgid "Transport"
-msgstr "传输"
-
-msgid "Unavailable capability JSON"
-msgstr "不可用能力 JSON"
-
-msgid "Unix socket"
-msgstr "Unix 套接字"
-
-msgid "Unsupported optional capabilities are hidden from action surfaces; expected profile gaps are reported as degraded."
-msgstr "不受支持的可选能力会从操作界面隐藏；Profile 预期项缺失时会报告为降级。"
-
-msgid "Validate candidate and restore original state"
-msgstr "验证候选项并恢复原始状态"
-
-msgid "Validated samples"
-msgstr "已验证样本"
-
-msgid "Why some benchmark actions are unavailable"
-msgstr "部分基准测试操作不可用的原因"
-
-msgid "Workload"
-msgstr "工作负载"
-
-msgid "Yes"
-msgstr "是"
-
-msgid "none"
-msgstr "无"
-
-msgid "Evaluation path"
-msgstr "评估路径"
-
-msgid "Apply this exact Rill advisory"
-msgstr "应用这条精确绑定的 Rill 建议"
-
-msgid "Controlled benchmark"
-msgstr "受控基准测试"
-
-msgid "Exact Rill decision applied and verified."
-msgstr "已应用并验证精确绑定的 Rill 决策。"
-
-msgid "Execution path"
-msgstr "执行路径"
-
-msgid "Safe direct apply"
-msgstr "安全直接应用"
-
-msgid "The advisory was not applied; its exact decision binding was rejected or the safety gate failed."
-msgstr "建议未被应用；其精确决策绑定被拒绝，或未通过安全保护检查。"
-
-msgid "This advisory is benchmark-only. Open Performance Test and complete both Companion evidence legs; it can never enter direct Apply."
-msgstr "此建议仅限基准测试。请打开性能测试并完成两段 Companion 证据；它绝不会进入直接应用路径。"
-
-msgid "Inspect the read-only contracts and resource state that explain the decisions shown in the supported views."
-msgstr "检查解释受支持视图决策的只读契约和资源状态。"
-
-msgid "Keep conservative automation as the safe default; assisted actions remain explicitly opt-in."
-msgstr "保持保守自动化为安全默认值；辅助操作仍需明确选择启用。"
-
-msgid "No capabilities were reported by the current provider."
-msgstr "当前提供者未报告任何能力。"
-
-msgid "No transactions are currently recorded."
-msgstr "当前没有已记录的事务。"
-
-msgid "Raw Rill contract"
-msgstr "原始 Rill 契约"
-
-msgid "Raw capability contract"
-msgstr "原始能力契约"
-
-msgid "Review pending confirmations, verified rollbacks, and the runtime record without losing the safety context."
-msgstr "在保留安全上下文的同时，检查待确认事务、已验证回滚和运行时记录。"
-
-msgid "Rill provides observation and recommendations while Core keeps the final execution authority."
-msgstr "Rill 负责观察和建议，最终执行权由 Core 保留。"
-
-msgid "Status and topology JSON"
-msgstr "状态与拓扑 JSON"
-
-msgid "Generic Runtime binary"
-msgstr "通用 Runtime 二进制文件"
-
-msgid "Rill ranks legal actions while Core keeps the final execution authority."
-msgstr "Rill 对合法操作排序，最终执行权仍由 Core 保留。"
-
-msgid "Refresh Rill decision"
-msgstr "刷新 Rill 决策"
-
-msgid "Selected"
-msgstr "已选择"
-
-msgid "No ranking is available yet."
-msgstr "当前还没有可用的排序。"
-
-msgid "Rank"
-msgstr "排名"
-
-msgid "Score"
-msgstr "分数"
-
-msgid "Status"
-msgstr "状态"
-
-msgid "Runtime status"
-msgstr "Runtime 状态"
-
-msgid "Runtime contract"
-msgstr "Runtime 契约"
-
-msgid "Last decision"
-msgstr "最近决策"
-
-msgid "Learning status"
-msgstr "学习状态"
-
-msgid "Learning stage"
-msgstr "学习阶段"
-
-msgid "cold"
-msgstr "冷启动"
-
-msgid "Minimum samples"
-msgstr "最小样本数"
-
-msgid "Auto eligibility"
-msgstr "自动执行资格"
-
-msgid "Paused"
-msgstr "已暂停"
-
-msgid "Eligible"
-msgstr "允许"
-
-msgid "Top ranking"
-msgstr "最高排序"
-
-msgid "Performance drift detected. Rill Auto temporarily paused."
-msgstr "检测到性能分布漂移，Rill 自动决策已暂时暂停。"
-
-msgid "Smart policy"
-msgstr "智能策略"
-
-msgid "Selected action"
-msgstr "已选择操作"
-
-msgid "Selected candidate"
-msgstr "已选择候选"
-
-msgid "Rill judges that keeping the current configuration is better."
-msgstr "Rill 判断保持当前配置更优。"
-
-msgid "Allow Rill ranking in Auto"
-msgstr "允许自动决策使用 Rill 排序"
-
-msgid "Minimum validated samples"
-msgstr "最小已验证样本数"
-
-msgid "Conservative minimum confidence"
-msgstr "保守模式最低置信度"
-
-msgid "Assisted minimum confidence"
-msgstr "辅助模式最低置信度"
-
-msgid "Performance drift threshold"
-msgstr "性能漂移阈值"
-
-msgid "Action cooldown (seconds)"
-msgstr "操作冷却时间（秒）"
-
-msgid "Last reward"
-msgstr "最近奖励"
-
-msgid "Reward components"
-msgstr "奖励组成"
-
-msgid "Measurement quality"
-msgstr "测量质量"
-
-msgid "No mutation"
-msgstr "不修改配置"
-
-msgid "Enable Runtime"
-msgstr "启用 Runtime"
-
-msgid "Runtime · Collecting"
-msgstr "Runtime · 收集中"
-
-msgid "Rill Runtime · Collecting"
-msgstr "Rill Runtime · 收集中"
-
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/settings.js:20
 msgid "Balanced (requires latency and CPU evidence)"
 msgstr "平衡（需要延迟和 CPU 证据）"
 
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/settings.js:21
 msgid "Throughput"
 msgstr "吞吐量"
 
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/settings.js:22
 msgid "Latency (requires latency evidence)"
 msgstr "延迟（需要延迟证据）"
 
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/settings.js:23
 msgid "CPU efficiency (requires Core CPU evidence)"
-msgstr "CPU 效率（需要 Core CPU 证据）"
+msgstr "CPU 效率（需要核心 CPU 证据）"
 
-msgid "Version"
-msgstr "版本"
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/settings.js:24
+msgid ""
+"Select the outcome used to rank supported actions and evaluate evidence."
+msgstr "选择用于为受支持操作排名和评估证据的目标结果。"
 
-msgid "Last outcome"
-msgstr "最近结果"
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/settings.js:25
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/rill.js:38
+msgid "Profile"
+msgstr "配置方案"
 
-msgid "Decision context"
-msgstr "决策上下文"
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/settings.js:25
+msgid "Minimal"
+msgstr "最小"
 
-msgid "Route identity"
-msgstr "路由标识"
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/settings.js:25
+msgid "Recommended"
+msgstr "推荐"
 
-msgid "Integration"
-msgstr "集成状态"
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/settings.js:25
+msgid "Performance x86"
+msgstr "x86 性能"
 
-msgid "Drift"
-msgstr "漂移"
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/settings.js:25
+msgid "Wireless"
+msgstr "无线"
 
-msgid "Detected"
-msgstr "已检测"
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/settings.js:25
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/advanced.js:20
+msgid "Diagnostics"
+msgstr "诊断"
 
-msgid "Stable"
-msgstr "稳定"
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/settings.js:25
+msgid ""
+"Load the selected configuration profile and its capability expectations."
+msgstr "加载所选配置方案及其能力预期。"
 
-msgid "Recent feedback"
-msgstr "最近反馈"
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/settings.js:26
+msgid "Telemetry"
+msgstr "遥测"
 
-msgid "Reward"
-msgstr "奖励"
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/settings.js:26
+msgid "Collect measurements used by health checks and decision-making."
+msgstr "收集健康检查和决策所需的测量数据。"
 
-msgid "Quality"
-msgstr "质量"
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/settings.js:27
+msgid "History"
+msgstr "历史"
 
-msgid "Accepted"
-msgstr "已接受"
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/settings.js:27
+msgid "Store action and runtime events for review and rollback."
+msgstr "保存操作和运行时事件，供查看和回滚使用。"
 
-msgid "Reconciled"
-msgstr "已对账"
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/settings.js:28
+msgid "Failsafe"
+msgstr "故障保护"
 
-msgid "No validated feedback yet."
-msgstr "暂时没有已验证的反馈。"
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/settings.js:28
+msgid "Protect changes with locks, health checks, and verified rollback."
+msgstr "通过资源锁、健康检查和已验证回滚保护变更。"
 
-msgid "Eligibility"
-msgstr "资格"
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/settings.js:29
+msgid "Fast telemetry interval (seconds)"
+msgstr "快速遥测间隔（秒）"
 
-msgid "Cooldown"
-msgstr "冷却"
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/settings.js:29
+msgid "How often to collect fast measurements."
+msgstr "快速测量数据的收集间隔。"
 
-msgid "Rill refresh failed: %s"
-msgstr "Rill 刷新失败：%s"
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/settings.js:30
+msgid "Deep telemetry interval (seconds)"
+msgstr "深度遥测间隔（秒）"
 
-msgid "Core recommendation"
-msgstr "Core 建议"
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/settings.js:30
+msgid "How often to collect deeper measurements."
+msgstr "深度测量数据的收集间隔。"
 
-msgid "Deterministic fallback"
-msgstr "确定性回退"
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/settings.js:33
+msgid "Rill Runtime"
+msgstr "Rill 运行时"
 
-msgid "Policy reason"
-msgstr "策略原因"
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/settings.js:34
+msgid "Enable Runtime"
+msgstr "启用运行时"
 
-msgid "Selected candidate details"
-msgstr "已选候选详情"
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/settings.js:34
+msgid ""
+"Enable the optional Rill Runtime integration. Core remains the execution "
+"authority."
+msgstr "启用可选的 Rill 运行时集成。最终执行权仍由核心保留。"
 
-msgid "Business action"
-msgstr "业务动作"
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/settings.js:35
+msgid "Generic Runtime binary"
+msgstr "通用运行时二进制文件"
 
-msgid "Candidate ID"
-msgstr "候选 ID"
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/settings.js:35
+msgid "Path to the external generic Rill Runtime binary."
+msgstr "外部通用 Rill 运行时二进制文件的路径。"
 
-msgid "Candidate reward mean"
-msgstr "候选奖励均值"
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/settings.js:36
+msgid "Use Rill ranking in automatic modes"
+msgstr "在自动化模式中使用 Rill 排名"
 
-msgid "Candidate successes"
-msgstr "候选成功次数"
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/settings.js:36
+msgid ""
+"Let Rill rank Core-approved actions in automatic modes. Core still decides "
+"and executes."
+msgstr "允许 Rill 在自动化模式中为核心批准的操作排名。决策和执行仍由核心负责。"
 
-msgid "Candidate failures"
-msgstr "候选失败次数"
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/settings.js:37
+msgid "Minimum validated samples"
+msgstr "最小已验证样本数"
 
-msgid "Candidate rollbacks"
-msgstr "候选回滚次数"
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/settings.js:37
+msgid ""
+"Minimum validated samples before an action can be considered for automatic "
+"selection."
+msgstr "操作进入自动选择候选范围前所需的最少已验证样本数。"
 
-msgid "Cooldown reason"
-msgstr "冷却原因"
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/settings.js:38
+msgid "Conservative minimum confidence"
+msgstr "保守模式最低置信度"
 
-msgid "System status"
-msgstr "系统状态"
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/settings.js:38
+msgid "Minimum confidence required by conservative automation."
+msgstr "保守自动化所需的最低置信度。"
 
-msgid "Guard passed"
-msgstr "保护已通过"
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/settings.js:39
+msgid "Assisted minimum confidence"
+msgstr "辅助模式最低置信度"
 
-msgid "Guard blocked"
-msgstr "保护已阻止"
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/settings.js:39
+msgid "Minimum confidence required by assisted automation."
+msgstr "辅助自动化所需的最低置信度。"
 
-msgid "Recent transaction"
-msgstr "最近事务"
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/settings.js:40
+msgid "Performance drift threshold"
+msgstr "性能漂移阈值"
 
-msgid "Auto paused"
-msgstr "自动化已暂停"
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/settings.js:40
+msgid ""
+"Pause automatic Rill decisions when measured performance drifts beyond this "
+"threshold."
+msgstr "测得的性能超过此阈值发生漂移时，暂停 Rill 自动决策。"
 
-msgid "Auto eligible"
-msgstr "符合自动化条件"
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/settings.js:41
+msgid "Action cooldown (seconds)"
+msgstr "操作冷却时间（秒）"
 
-msgid "Applying…"
-msgstr "应用中…"
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/settings.js:41
+msgid "Minimum time between repeated applications of the same action."
+msgstr "同一操作重复应用之间的最短间隔。"
 
-msgid "Starting…"
-msgstr "启动中…"
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/settings.js:44
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/settings.js:46
+msgid "Settings"
+msgstr "设置"
 
-msgid "Refreshing…"
-msgstr "刷新中…"
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/settings.js:44
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/settings.js:46
+msgid ""
+"Keep conservative automation as the safe default; assisted actions remain "
+"explicitly opt-in."
+msgstr "保持保守自动化为安全默认值；辅助操作仍需明确选择启用。"
 
-msgid "Confirming…"
-msgstr "确认中…"
-
-msgid "Rolling back…"
-msgstr "回滚中…"
-
-msgid "Complete"
-msgstr "已完成"
-
-msgid "Pending"
-msgstr "待处理"
-
-msgid "Unknown"
-msgstr "未知"
-
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/settings.js:44
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/settings.js:46
 msgid "Configuration"
 msgstr "配置"
 
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/rill.js:11
+msgid "Refresh Rill decision"
+msgstr "刷新 Rill 决策"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/rill.js:13
+msgid "Refreshing…"
+msgstr "刷新中…"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/rill.js:16
+msgid "Unable to refresh Rill."
+msgstr "无法刷新 Rill。"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/rill.js:19
+#, javascript-format
+msgid "Unable to refresh Rill: %s. Try again."
+msgstr "无法刷新 Rill：%s。请重试。"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/rill.js:25
+msgid "Selected"
+msgstr "已选中"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/rill.js:25
+msgid "Blocked"
+msgstr "已阻止"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/rill.js:25
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/rill.js:44
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/optimize.js:16
+msgid "Eligible"
+msgstr "可执行"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/rill.js:26
+msgid ""
+"No ranking is available yet. Refresh the decision or wait for the next "
+"evaluation."
+msgstr "暂时没有可用的排名。请刷新决策，或等待下一次评估。"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/rill.js:27
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/rill.js:48
+msgid "Top ranking"
+msgstr "排名前列"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/rill.js:27
+msgid "Rank"
+msgstr "排名"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/rill.js:27
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/rill.js:31
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/benchmark.js:49
+msgid "Candidate"
+msgstr "候选项"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/rill.js:27
+msgid "Score"
+msgstr "分数"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/rill.js:27
+msgid "Eligibility"
+msgstr "执行资格"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/rill.js:27
+msgid "Cooldown"
+msgstr "冷却时间"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/rill.js:30
+msgid "Accepted"
+msgstr "已接受"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/rill.js:30
+msgid "Reconciled"
+msgstr "已对账"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/rill.js:30
+msgid "No validated feedback yet."
+msgstr "暂时没有已验证的反馈。"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/rill.js:31
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/rill.js:49
+msgid "Recent feedback"
+msgstr "最近反馈"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/rill.js:31
+msgid "Reward"
+msgstr "奖励"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/rill.js:31
+msgid "Quality"
+msgstr "质量"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/rill.js:31
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/benchmark.js:50
+msgid "Result"
+msgstr "结果"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/rill.js:32
+msgid "RillML (Rill) intelligence"
+msgstr "RillML（Rill）智能决策"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/rill.js:32
+msgid ""
+"Rill ranks Core-approved actions; Core keeps final authority to execute them."
+msgstr "Rill 为核心批准的操作排名；最终执行权由核心保留。"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/rill.js:33
+msgid "Runtime status"
+msgstr "运行时状态"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/rill.js:34
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/overview.js:36
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/history.js:34
+msgid "State"
+msgstr "状态"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/rill.js:34
+msgid "Runtime · Collecting"
+msgstr "运行时 · 收集中"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/rill.js:34
+msgid "Version"
+msgstr "版本"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/rill.js:34
+msgid "Transport"
+msgstr "传输"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/rill.js:34
+msgid "Runtime contract"
+msgstr "运行时契约"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/rill.js:34
+msgid "Last decision"
+msgstr "最近决策"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/rill.js:34
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/optimize.js:16
+msgid "Selected action"
+msgstr "已选操作"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/rill.js:34
+msgid "Selected candidate"
+msgstr "已选候选项"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/rill.js:34
+msgid "Last outcome"
+msgstr "最近结果"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/rill.js:37
+msgid "Decision context"
+msgstr "决策上下文"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/rill.js:38
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/overview.js:48
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/benchmark.js:48
+msgid "Path"
+msgstr "路径"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/rill.js:38
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/overview.js:50
+msgid "Workload"
+msgstr "工作负载"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/rill.js:38
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/overview.js:30
+msgid "Topology generation"
+msgstr "拓扑代次"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/rill.js:38
+msgid "Route identity"
+msgstr "路由标识"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/rill.js:38
+msgid "Integration"
+msgstr "集成状态"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/rill.js:40
+msgid "Selected candidate details"
+msgstr "所选候选项详情"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/rill.js:41
+msgid "Business action"
+msgstr "业务操作"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/rill.js:41
+msgid "Candidate ID"
+msgstr "候选 ID"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/rill.js:41
+msgid "Candidate reward mean"
+msgstr "候选奖励均值"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/rill.js:41
+msgid "Candidate successes"
+msgstr "候选成功次数"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/rill.js:41
+msgid "Candidate failures"
+msgstr "候选失败次数"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/rill.js:41
+msgid "Candidate rollbacks"
+msgstr "候选回滚次数"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/rill.js:41
+msgid "Cooldown reason"
+msgstr "冷却原因"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/rill.js:43
+msgid "Learning status"
+msgstr "学习状态"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/rill.js:44
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/optimize.js:16
+msgid "Learning stage"
+msgstr "学习阶段"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/rill.js:44
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/optimize.js:16
+msgid "cold"
+msgstr "冷启动"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/rill.js:44
+msgid "Validated samples"
+msgstr "已验证样本"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/rill.js:44
+msgid "Minimum samples"
+msgstr "最小样本数"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/rill.js:44
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/capabilities.js:15
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/optimize.js:16
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/optimize.js:39
+msgid "Confidence"
+msgstr "置信度"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/rill.js:44
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/optimize.js:16
+msgid "Last reward"
+msgstr "最近奖励"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/rill.js:44
+msgid "Reward components"
+msgstr "奖励组成"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/rill.js:44
+msgid "Measurement quality"
+msgstr "测量质量"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/rill.js:44
+msgid "Drift"
+msgstr "漂移"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/rill.js:44
+msgid "Detected"
+msgstr "已检测"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/rill.js:44
+msgid "Stable"
+msgstr "稳定"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/rill.js:44
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/optimize.js:16
+msgid "Auto eligibility"
+msgstr "自动执行资格"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/rill.js:44
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/optimize.js:16
+msgid "Paused"
+msgstr "已暂停"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/rill.js:51
+msgid "Performance drift detected. Rill Auto temporarily paused."
+msgstr "检测到性能分布漂移，Rill 自动决策已暂时暂停。"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/rill.js:52
+msgid ""
+"Rill provides observation and recommendations only. It cannot write UCI, "
+"sysctl, or firewall state, execute arbitrary shell commands, or apply "
+"actions."
+msgstr ""
+"Rill 仅提供观察和建议。它不能写入 UCI、sysctl 或防火墙状态，不能执行任意 "
+"Shell 命令，也不能应用操作。"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/rill.js:53
+msgid "Rill details"
+msgstr "Rill 详情"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/rill.js:53
+msgid "Raw Rill contract"
+msgstr "原始 Rill 契约"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/overview.js:13
+msgid "System status"
+msgstr "系统状态"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/overview.js:14
+msgid "Running"
+msgstr "运行中"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/overview.js:14
+msgid "Stopped"
+msgstr "已停止"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/overview.js:15
+#, javascript-format
+msgid "Automation: %s"
+msgstr "自动化：%s"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/overview.js:16
+#, javascript-format
+msgid "Goal: %s"
+msgstr "目标：%s"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/overview.js:17
+msgid "Rill Runtime · Collecting"
+msgstr "Rill 运行时 · 收集中"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/overview.js:18
+msgid "Telemetry enabled"
+msgstr "遥测已启用"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/overview.js:18
+msgid "Telemetry disabled"
+msgstr "遥测已停用"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/overview.js:19
+msgid "Failsafe enabled"
+msgstr "故障保护已启用"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/overview.js:19
+msgid "Failsafe disabled"
+msgstr "故障保护已停用"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/overview.js:20
+msgid "Profile healthy"
+msgstr "配置方案正常"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/overview.js:20
+msgid "Profile degraded"
+msgstr "配置方案降级"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/overview.js:23
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/performance-manager/ui.js:5
+msgid "Performance Manager"
+msgstr "性能管理器"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/overview.js:23
+msgid "See system health, active safeguards, and the latest verified action."
+msgstr "查看系统健康状态、已启用的保护措施和最近一次验证通过的操作。"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/overview.js:26
+msgid "System health guard"
+msgstr "系统健康保护"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/overview.js:27
+msgid "Health guard passed"
+msgstr "健康保护已通过"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/overview.js:27
+msgid "Blocked by health guard"
+msgstr "未通过健康保护"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/overview.js:29
+msgid "Reasons"
+msgstr "原因"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/overview.js:29
+msgid "None"
+msgstr "无"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/overview.js:31
+msgid "Platform"
+msgstr "平台"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/overview.js:31
+msgid "Generic x86"
+msgstr "通用 x86"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/overview.js:34
+msgid "Recent transaction"
+msgstr "最近事务"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/overview.js:35
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/history.js:34
+msgid "Action"
+msgstr "操作"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/overview.js:37
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/history.js:34
+msgid "Target"
+msgstr "目标"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/overview.js:38
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/history.js:34
+msgid "Boot identity"
+msgstr "启动标识"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/overview.js:42
+msgid "Native Packet Steering"
+msgstr "原生数据包分流（Packet Steering）"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/overview.js:43
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/capabilities.js:15
+msgid "Provider"
+msgstr "提供方"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/overview.js:44
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/capabilities.js:15
+msgid "Availability"
+msgstr "可用性"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/overview.js:45
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/capabilities.js:15
+msgid "Policy"
+msgstr "策略"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/overview.js:45
+msgid "Observe / Respect"
+msgstr "观察 / 尊重现状"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/overview.js:46
+msgid "Ownership"
+msgstr "所有权"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/overview.js:49
+msgid "LAN → WAN"
+msgstr "LAN → WAN"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/overview.js:51
+msgid "Stable targets"
+msgstr "稳定目标"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/overview.js:54
+msgid "Advanced details"
+msgstr "高级详情"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/overview.js:54
+msgid "Status and topology JSON"
+msgstr "状态与拓扑 JSON"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/capabilities.js:13
+msgid "Unknown"
+msgstr "未知"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/capabilities.js:15
+msgid "Scope"
+msgstr "作用域"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/capabilities.js:15
+msgid "Adjustable"
+msgstr "可调整"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/capabilities.js:15
+msgid "Yes"
+msgstr "是"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/capabilities.js:15
+msgid "No"
+msgstr "否"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/capabilities.js:19
+msgid "No capabilities are available from the current provider."
+msgstr "当前提供方没有可用能力。"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/capabilities.js:20
+msgid "Capabilities"
+msgstr "能力"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/capabilities.js:20
+msgid ""
+"Review the capabilities available on this device. Unsupported capabilities "
+"are hidden from action controls; expected profile gaps appear as degraded."
+msgstr ""
+"查看此设备可用的能力。不受支持的能力不会出现在操作控件中；配置方案预期能力缺"
+"失时会显示为降级。"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/capabilities.js:22
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/advanced.js:16
+msgid "Capability / Topology / TargetRef JSON"
+msgstr "能力 / 拓扑 / TargetRef JSON"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/capabilities.js:22
+msgid "Raw capability contract"
+msgstr "原始能力契约"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/history.js:15
+msgid "Confirm"
+msgstr "确认"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/history.js:17
+msgid "Confirming…"
+msgstr "确认中…"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/history.js:18
+msgid "Transaction confirmed."
+msgstr "事务已确认。"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/history.js:18
+msgid ""
+"Confirmation failed or expired. Refresh the page to check the transaction "
+"state."
+msgstr "确认失败或已过期。请刷新页面查看事务状态。"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/history.js:19
+#, javascript-format
+msgid ""
+"Unable to confirm transaction: %s. Refresh the page and try again if it is "
+"still pending."
+msgstr "无法确认事务：%s。如果事务仍在等待确认，请刷新页面后重试。"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/history.js:25
+msgid "Rollback"
+msgstr "回滚"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/history.js:27
+msgid "Rolling back…"
+msgstr "回滚中…"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/history.js:28
+msgid "Rollback completed and read-back verified."
+msgstr "回滚已完成且读回验证通过。"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/history.js:28
+msgid ""
+"Rollback could not be completed. Check the transaction details before trying "
+"again."
+msgstr "无法完成回滚。再次尝试前，请检查事务详情。"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/history.js:29
+#, javascript-format
+msgid ""
+"Unable to roll back transaction: %s. Check the transaction details and try "
+"again."
+msgstr "无法回滚事务：%s。请检查事务详情后重试。"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/history.js:34
+msgid "Transaction JSON"
+msgstr "事务 JSON"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/history.js:36
+msgid "No transactions are currently recorded."
+msgstr "当前没有记录的事务。"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/history.js:37
+msgid "History and rollback"
+msgstr "历史与回滚"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/history.js:37
+msgid ""
+"Review pending confirmations, verified rollbacks, and runtime events with "
+"their safety context."
+msgstr "查看待确认事务、已验证回滚和运行时事件，同时保留安全上下文。"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/history.js:40
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/advanced.js:17
+msgid "Resource locks"
+msgstr "资源锁"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/history.js:40
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/advanced.js:17
+msgid "Locks JSON"
+msgstr "锁 JSON"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/history.js:41
+msgid "Persistent action history"
+msgstr "持久化操作历史"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/history.js:41
+msgid "History JSON"
+msgstr "历史 JSON"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/history.js:42
+msgid "Runtime event history"
+msgstr "运行时事件历史"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/history.js:42
+msgid "Runtime History JSON"
+msgstr "运行时历史 JSON"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/benchmark.js:9
+msgid "Unable to read evidence. Paste valid JSON and try again."
+msgstr "无法读取证据。请粘贴有效 JSON 后重试。"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/benchmark.js:14
+msgid "Complete"
+msgstr "已完成"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/benchmark.js:14
+msgid "Pending"
+msgstr "待处理"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/benchmark.js:25
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/benchmark.js:93
+msgid "Benchmark action"
+msgstr "基准测试操作"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/benchmark.js:27
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/benchmark.js:94
+msgid "Evaluation path"
+msgstr "评估路径"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/benchmark.js:35
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/benchmark.js:95
+msgid "Measurement class"
+msgstr "测量类型"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/benchmark.js:36
+msgid "Controlled A/B"
+msgstr "受控 A/B"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/benchmark.js:37
+msgid "Passive before/after"
+msgstr "被动前后对比"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/benchmark.js:38
+msgid "Health only"
+msgstr "仅健康检查"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/benchmark.js:40
+msgid "Start test"
+msgstr "开始测试"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/benchmark.js:45
+msgid "Test blocked"
+msgstr "测试已阻止"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/benchmark.js:45
 msgid "Details"
 msgstr "详情"
 
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/benchmark.js:48
+msgid "Environment"
+msgstr "环境"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/benchmark.js:48
+msgid "Compatibility"
+msgstr "兼容性"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/benchmark.js:48
+msgid "Locks / Failsafe"
+msgstr "锁 / 故障保护"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/benchmark.js:49
+msgid "Baseline"
+msgstr "基线"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/benchmark.js:50
+msgid "Commit-confirm"
+msgstr "提交确认"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/benchmark.js:59
+msgid "Paste Companion JSON evidence"
+msgstr "粘贴 Companion JSON 证据"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/benchmark.js:60
+msgid "Validate baseline and apply candidate"
+msgstr "验证基线并应用候选项"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/benchmark.js:60
+msgid "Validate candidate and restore original state"
+msgstr "验证候选项并恢复原始状态"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/benchmark.js:64
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/performance-manager/ui.js:98
+msgid "Working…"
+msgstr "处理中…"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/benchmark.js:67
+#, javascript-format
+msgid "Unable to submit evidence: %s. Check the evidence and try again."
+msgstr "无法提交证据：%s。请检查证据后重试。"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/benchmark.js:70
+msgid "Baseline evidence"
+msgstr "基线证据"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/benchmark.js:70
+msgid "Candidate evidence"
+msgstr "候选证据"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/benchmark.js:71
+msgid ""
+"Run the Companion before any candidate is applied, then paste its JSON "
+"result."
+msgstr "在应用任何候选项之前运行 Companion，然后粘贴其 JSON 结果。"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/benchmark.js:71
+msgid ""
+"The candidate is temporarily active and protected by commit-confirm. Run the "
+"same endpoint test now; Core will restore the original value before "
+"validating the result."
+msgstr ""
+"候选项当前临时生效并受提交确认保护。请立即运行相同端点测试；Core 会先恢复原"
+"值，再验证结果。"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/benchmark.js:75
+msgid "Benchmark session JSON"
+msgstr "基准测试会话 JSON"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/benchmark.js:79
+msgid "Starting…"
+msgstr "启动中…"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/benchmark.js:87
+msgid "Unable to start test"
+msgstr "无法启动测试"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/benchmark.js:87
+#, javascript-format
+msgid "Check the selected action and path, then try again: %s"
+msgstr "请检查所选操作和路径后重试：%s"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/benchmark.js:98
 msgid "No benchmark action is currently available for this device."
 msgstr "当前设备没有可用的基准测试操作。"
 
-msgid "Action failed: %s"
-msgstr "操作失败：%s"
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/benchmark.js:100
+msgid "Performance test"
+msgstr "性能测试"
 
-msgid "Advisory failed: %s"
-msgstr "建议执行失败：%s"
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/benchmark.js:100
+msgid ""
+"Run one explicit test at a time. Controlled A/B results require stable "
+"context, health checks, and verified rollback."
+msgstr ""
+"一次只运行一个明确启动的测试。受控 A/B 结果必须满足上下文稳定、健康检查通过且"
+"回滚已验证。"
 
-msgid "Confirmation failed: %s"
-msgstr "确认失败：%s"
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/benchmark.js:101
+msgid ""
+"Environment → Path → Compatibility → Locks/Failsafe → Baseline → Candidate → "
+"Commit-confirm → Result"
+msgstr "环境 → 路径 → 兼容性 → 锁/故障保护 → 基线 → 候选项 → 提交确认 → 结果"
 
-msgid "Rollback failed: %s"
-msgstr "回滚失败：%s"
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/benchmark.js:102
+msgid "Unavailable benchmark providers"
+msgstr "不可用的基准测试提供方"
 
-msgid "Test could not start"
-msgstr "测试无法启动"
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/benchmark.js:102
+msgid "Why benchmark actions are unavailable"
+msgstr "基准测试操作不可用的原因"
 
-msgid "Working…"
-msgstr "处理中…"
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/optimize.js:13
+msgid "Smart policy"
+msgstr "智能策略"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/optimize.js:14
+msgid "Automatic action paused"
+msgstr "自动操作已暂停"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/optimize.js:14
+msgid "Eligible for automatic action"
+msgstr "符合自动操作条件"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/optimize.js:16
+msgid "Core recommendation"
+msgstr "Core 建议"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/optimize.js:16
+msgid "Deterministic fallback"
+msgstr "确定性回退"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/optimize.js:16
+msgid "Policy reason"
+msgstr "策略原因"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/optimize.js:19
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/optimize.js:52
+msgid "Rill recommends keeping the current configuration."
+msgstr "Rill 建议保持当前配置。"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/optimize.js:20
+msgid ""
+"Performance drift detected. Automatic Rill decisions are temporarily paused."
+msgstr "检测到性能漂移，Rill 自动决策已暂时暂停。"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/optimize.js:21
+msgid "No conservative changes are needed right now."
+msgstr "当前无需进行保守变更。"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/optimize.js:23
+msgid "Apply safely"
+msgstr "安全应用"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/optimize.js:25
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/optimize.js:43
+msgid "Applying…"
+msgstr "应用中…"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/optimize.js:27
+msgid "Action committed after verification."
+msgstr "操作已提交，验证通过。"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/optimize.js:27
+msgid "Action was not committed. Check the transaction details and try again."
+msgstr "操作未提交。请检查事务详情后重试。"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/optimize.js:29
+#, javascript-format
+msgid ""
+"Unable to apply action: %s. Check the transaction details and try again."
+msgstr "无法应用操作：%s。请检查事务详情后重试。"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/optimize.js:33
+msgid "Applies to"
+msgstr "应用对象"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/optimize.js:33
+msgid "Affected targets"
+msgstr "受影响目标"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/optimize.js:33
+msgid "Evaluation paths"
+msgstr "评估路径"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/optimize.js:33
+msgid "Risk"
+msgstr "风险"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/optimize.js:33
+msgid "Reason"
+msgstr "原因"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/optimize.js:39
+msgid "Authority"
+msgstr "执行权"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/optimize.js:39
+msgid "none"
+msgstr "无"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/optimize.js:39
+msgid "Execution path"
+msgstr "执行路径"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/optimize.js:39
+msgid "Controlled benchmark"
+msgstr "受控基准测试"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/optimize.js:39
+msgid "No mutation"
+msgstr "不修改配置"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/optimize.js:39
+msgid "Safe direct apply"
+msgstr "安全直接应用"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/optimize.js:41
+msgid "Apply this Rill recommendation"
+msgstr "应用此 Rill 建议"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/optimize.js:45
+msgid "Rill recommendation applied and verified."
+msgstr "Rill 建议已应用并验证通过。"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/optimize.js:45
+msgid ""
+"Rill recommendation was not applied. The decision binding was rejected or "
+"the safety check failed; review the safety state and try again."
+msgstr ""
+"Rill 建议未应用。决策绑定被拒绝或安全检查未通过；请检查安全状态后重试。"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/optimize.js:47
+#, javascript-format
+msgid ""
+"Unable to apply Rill recommendation: %s. Review the safety state and try "
+"again."
+msgstr "无法应用 Rill 建议：%s。请检查安全状态后重试。"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/optimize.js:54
+msgid ""
+"This recommendation is for benchmark tests only. Open Performance test and "
+"complete both Companion evidence phases; it cannot be applied directly."
+msgstr "此建议仅用于基准测试。请打开“性能测试”并完成 Companion 的两个证据阶段；不能直接应用。"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/optimize.js:56
+#, javascript-format
+msgid "Rill recommendation: %s"
+msgstr "Rill 建议：%s"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/optimize.js:58
+msgid "Smart optimization"
+msgstr "智能优化"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/optimize.js:58
+msgid ""
+"Review supported actions and apply them only after Core safety checks. "
+"Existing user and external settings are preserved."
+msgstr ""
+"查看受支持的操作，并仅在核心安全检查通过后应用。现有用户设置和外部设置会保"
+"留。"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/advanced.js:11
+msgid "Advanced"
+msgstr "高级"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/advanced.js:11
+msgid ""
+"Inspect the read-only contracts and resource state behind the supported "
+"views."
+msgstr "查看受支持视图背后的只读契约和资源状态。"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/advanced.js:13
+msgid "Profile contract"
+msgstr "配置方案契约"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/advanced.js:13
+msgid "Profile status JSON"
+msgstr "配置方案状态 JSON"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/advanced.js:14
+msgid "Build recommendations"
+msgstr "构建建议"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/advanced.js:14
+msgid "Build and provider recommendations"
+msgstr "构建与提供方建议"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/advanced.js:15
+msgid "Hidden capabilities"
+msgstr "隐藏的能力"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/advanced.js:15
+msgid "Unavailable capability JSON"
+msgstr "不可用能力 JSON"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/advanced.js:16
+msgid "Raw topology contract"
+msgstr "原始拓扑契约"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/advanced.js:18
+msgid "Transactions"
+msgstr "事务"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/advanced.js:18
+msgid "Transactions JSON"
+msgstr "事务 JSON"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/advanced.js:19
+msgid "Resource usage"
+msgstr "资源使用情况"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/advanced.js:19
+msgid "Resource usage JSON"
+msgstr "资源使用 JSON"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/advanced.js:20
+msgid "Diagnostics JSON"
+msgstr "诊断 JSON"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/performance-manager/ui.js:57
+msgid "Raw JSON"
+msgstr "原始 JSON"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/performance-manager/ui.js:174
+msgid "Project"
+msgstr "项目"
+
+#: package/luci-app-performance-manager/root/usr/share/luci/menu.d/luci-app-performance-manager.json:13
+msgid "Overview"
+msgstr "概览"
+
+#: package/luci-app-performance-manager/root/usr/share/luci/menu.d/luci-app-performance-manager.json:47
+msgid "Rill intelligence"
+msgstr "Rill 智能决策"

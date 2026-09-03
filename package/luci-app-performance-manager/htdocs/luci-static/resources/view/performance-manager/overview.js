@@ -15,16 +15,16 @@ return view.extend({
 			pu.badge(_('Automation: %s').format(s.automation || '—')),
 			pu.badge(_('Goal: %s').format(s.goal || '—')),
 			pu.badge(rill.status || _('Rill Runtime · Collecting')),
-			pu.badge(s.telemetry ? _('Telemetry Active') : _('Telemetry Off'), s.telemetry ? 'success' : 'warning'),
-			pu.badge(s.failsafe ? _('Failsafe Ready') : _('Failsafe Off'), s.failsafe ? 'success' : 'warning'),
-			pu.badge(profile.healthy ? _('Profile Healthy') : _('Profile Degraded'), profile.healthy ? 'success' : 'warning')
+			pu.badge(s.telemetry ? _('Telemetry enabled') : _('Telemetry disabled'), s.telemetry ? 'success' : 'warning'),
+			pu.badge(s.failsafe ? _('Failsafe enabled') : _('Failsafe disabled'), s.failsafe ? 'success' : 'warning'),
+			pu.badge(profile.healthy ? _('Profile healthy') : _('Profile degraded'), profile.healthy ? 'success' : 'warning')
 		]);
 		const recentTx = txs[0] || {};
-		return pu.page(_('Performance Manager'), _('Capability-first, topology-aware and transactional performance control plane.'), [
+		return pu.page(_('Performance Manager'), _('See system health, active safeguards, and the latest verified action.'), [
 			status,
 			pu.grid([
 				pu.card(_('System health guard'), E('div', {}, [
-					pu.badge(guard.pass ? _('Guard passed') : _('Guard blocked'), guard.pass ? 'success' : 'warning'),
+					pu.badge(guard.pass ? _('Health guard passed') : _('Blocked by health guard'), guard.pass ? 'success' : 'warning'),
 					pu.kv([
 						[_('Reasons'), (guard.reasons || []).join(', ') || _('None')],
 						[_('Topology generation'), s.topologyGeneration],

@@ -13,23 +13,23 @@ return view.extend({
 			const restore = pu.setBusy(refresh, _('Refreshing…'));
 			pm.rillRefresh().then(function(result) {
 				if (result && result.ok === false)
-					throw new Error(result.reason || result.state || 'rill-refresh-failed');
+					throw new Error(result.reason || result.state || _('Unable to refresh Rill.'));
 				if (typeof window !== 'undefined') window.location.reload();
 			}).catch(function(error) {
-				ui.addNotification(null, E('p', {}, [ _('Rill refresh failed: %s').format(error.message) ]), 'error');
+				ui.addNotification(null, E('p', {}, [ _('Unable to refresh Rill: %s. Try again.').format(error.message || error) ]), 'error');
 			}).finally(restore);
 		});
 		const ranking = (s.ranking || []).slice(0, 5);
 		const rows = ranking.length ? ranking.map(function(row, i) {
 				const blocked = (s.blockedReasons || []).find(function(item) { return item.actionId === row.actionId; });
 				return E('tr', { 'aria-current': row.actionId === s.selectedCandidateId ? 'true' : 'false' }, [ E('td', {}, [ String(i + 1) ]), E('td', {}, [ row.actionId || '—' ]), E('td', {}, [ row.score == null ? '—' : String(row.score) ]), E('td', {}, [ row.actionId === s.selectedCandidateId ? _('Selected') : (blocked ? (blocked.reason || _('Blocked')) : _('Eligible')) ]), E('td', {}, [ blocked && blocked.cooldownRemaining ? String(blocked.cooldownRemaining) : '—' ]) ]);
-			}) : [ E('tr', {}, [ E('td', { 'colspan': '5' }, [ _('No ranking is available yet.') ]) ]) ];
+			}) : [ E('tr', {}, [ E('td', { 'colspan': '5' }, [ _('No ranking is available yet. Refresh the decision or wait for the next evaluation.') ]) ]) ];
 		const table = E('table', { 'class': 'table pm-ranking-table' }, [ E('caption', { 'class': 'pm-visually-hidden' }, [ _('Top ranking') ]), E('thead', {}, [ E('tr', {}, [ E('th', {}, [ _('Rank') ]), E('th', {}, [ _('Candidate') ]), E('th', {}, [ _('Score') ]), E('th', {}, [ _('Eligibility') ]), E('th', {}, [ _('Cooldown') ]) ]) ]), E('tbody', {}, rows) ]);
 		const context = s.context || {};
 		const feedback = (history.history || []).filter(function(row) { return /^rill\.outcome\.(accepted|reconciled)/.test(row.event || ''); }).slice(-5).reverse();
 		const feedbackRows = feedback.length ? feedback.map(function(row) { const d = row.data || {}; return E('tr', {}, [ E('td', {}, [ d.actionId || '—' ]), E('td', {}, [ d.goal || s.goal || '—' ]), E('td', {}, [ d.reward == null ? '—' : String(d.reward) ]), E('td', {}, [ d.measurementQuality || 'controlled_ab' ]), E('td', {}, [ d.accepted === true ? _('Accepted') : _('Reconciled') ]) ]); }) : [ E('tr', {}, [ E('td', { 'colspan': '5' }, [ _('No validated feedback yet.') ]) ]) ];
 		const feedbackTable = E('table', { 'class': 'table pm-ranking-table' }, [ E('caption', { 'class': 'pm-visually-hidden' }, [ _('Recent feedback') ]), E('thead', {}, [ E('tr', {}, [ E('th', {}, [ _('Candidate') ]), E('th', {}, [ _('Goal') ]), E('th', {}, [ _('Reward') ]), E('th', {}, [ _('Quality') ]), E('th', {}, [ _('Result') ]) ]) ]), E('tbody', {}, feedbackRows) ]);
-		return pu.page(_('RillML (Rill) Intelligence'), _('Rill ranks legal actions while Core keeps the final execution authority.'), [
+		return pu.page(_('RillML (Rill) intelligence'), _('Rill ranks Core-approved actions; Core keeps final authority to execute them.'), [
 			pu.card(_('Runtime status'), pu.kv([
 				[_('State'), r.status || _('Runtime · Collecting')], [_('Version'), r.rillVersion || r.resolvedRillVersion || '—'], [_('Transport'), r.transport || '—'], [_('Runtime contract'), r.protocolVersion == null ? '—' : 'Runtime v' + r.protocolVersion], [_('Last decision'), s.decisionId || '—'], [_('Selected action'), s.selectedActionId || '—'], [_('Selected candidate'), s.selectedCandidateId || '—'], [_('Last outcome'), s.lastOutcome ? JSON.stringify(s.lastOutcome) : '—']
 			]), 'hero'),
@@ -49,7 +49,7 @@ return view.extend({
 				pu.card(_('Recent feedback'), pu.tableWrap(feedbackTable))
 			], 'pm-card-grid--primary'),
 			(s.drifted ? pu.note(_('Performance drift detected. Rill Auto temporarily paused.'), 'warning') : null),
-			pu.note(_('Rill cannot write UCI, sysctl or firewall state, cannot execute arbitrary shell, and cannot apply Actions.'), 'info'),
+			pu.note(_('Rill provides observation and recommendations only. It cannot write UCI, sysctl, or firewall state, execute arbitrary shell commands, or apply actions.'), 'info'),
 			pu.card(_('Rill details'), pu.jsonBox({ runtime: r, selection: s, advisory: rec.learnedAdvisory || [] }, _('Raw Rill contract')), 'muted')
 		]);
 	}

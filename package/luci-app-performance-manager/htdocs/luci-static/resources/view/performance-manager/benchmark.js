@@ -6,7 +6,7 @@
 
 function parseEvidence(text) {
 	try { return JSON.parse(text); }
-	catch (e) { throw new Error(_('Evidence must be valid JSON.')); }
+	catch (e) { throw new Error(_('Unable to read evidence. Paste valid JSON and try again.')); }
 }
 
 function stageRow(stage, active) {
@@ -37,12 +37,12 @@ return view.extend({
 			E('option', { value: 'passive_before_after' }, [ _('Passive before/after') ]),
 			E('option', { value: 'health_only' }, [ _('Health only') ])
 		]);
-		const start = E('button', { 'class': 'btn cbi-button cbi-button-action', type: 'button' }, [ _('Start explicit test') ]);
+		const start = E('button', { 'class': 'btn cbi-button cbi-button-action', type: 'button' }, [ _('Start test') ]);
 		const output = E('div');
 
 		function renderSession(res) {
 			output.replaceChildren();
-			if (!res || !res.ok) { output.appendChild(pu.inset(_('Blocked result'), pu.jsonBox(res || {}, _('Details')), 'warning')); return; }
+			if (!res || !res.ok) { output.appendChild(pu.inset(_('Test blocked'), pu.jsonBox(res || {}, _('Details')), 'warning')); return; }
 			const s = res.session || {};
 			const stages = E('ol', { 'class': 'pm-stage-list' }, [
 				stageRow(_('Environment'), true), stageRow(_('Path'), true), stageRow(_('Compatibility'), true), stageRow(_('Locks / Failsafe'), s.state !== 'awaiting_control'),
@@ -57,14 +57,14 @@ return view.extend({
 					' --session-id ' + s.sessionId + ' --phase ' + phase + ' --action-id ' + s.actionId + ' --path-id ' + s.evaluationPath +
 					' --topology-generation ' + meta.topologyGeneration + ' --route-identity ' + meta.routeIdentity + ' --capability-hash ' + meta.capabilityHash;
 				const evidenceBox = E('textarea', { class: 'cbi-input-textarea', rows: 9, placeholder: _('Paste Companion JSON evidence') });
-				const submitEvidence = E('button', { class: 'btn cbi-button cbi-button-positive', type: 'button' }, [ phase === 'control' ? _('Apply candidate after validating baseline') : _('Validate candidate and restore original state') ]);
+				const submitEvidence = E('button', { class: 'btn cbi-button cbi-button-positive', type: 'button' }, [ phase === 'control' ? _('Validate baseline and apply candidate') : _('Validate candidate and restore original state') ]);
 				submitEvidence.addEventListener('click', function() {
 					let evidence;
 					try { evidence = parseEvidence(evidenceBox.value); } catch (e) { ui.addNotification(null, E('p', {}, [ e.message ])); return; }
 					const restore = pu.setBusy(submitEvidence, _('Working…'));
 					pm.benchmarkStart(s.actionId, s.evaluationPath, 'controlled_ab', phase, s.sessionId, evidence)
 						.then(renderSession)
-						.catch(function(error) { ui.addNotification(null, E('p', {}, [ error.message || error ])); })
+						.catch(function(error) { ui.addNotification(null, E('p', {}, [ _('Unable to submit evidence: %s. Check the evidence and try again.').format(error.message || error) ]), 'error'); })
 						.finally(restore);
 				});
 				output.appendChild(pu.inset(phase === 'control' ? _('Baseline evidence') : _('Candidate evidence'), E('div', {}, [
@@ -84,7 +84,7 @@ return view.extend({
 				selectedAdvisory && measurement.value === 'controlled_ab' ? 'benchmark-rill' : 'manual',
 				selectedAdvisory && measurement.value === 'controlled_ab' ? selectedAdvisory.decisionId : null)
 				.then(renderSession)
-				.catch(function(error) { output.replaceChildren(pu.inset(_('Test could not start'), pu.note(error.message || error, 'warning'))); })
+				.catch(function(error) { output.replaceChildren(pu.inset(_('Unable to start test'), pu.note(_('Check the selected action and path, then try again: %s').format(error.message || error), 'warning'))); })
 				.finally(restore);
 		});
 
@@ -97,9 +97,9 @@ return view.extend({
 		]));
 		if (!actions.length) root.appendChild(pu.note(_('No benchmark action is currently available for this device.'), 'warning'));
 		root.appendChild(output);
-		return pu.page(_('Performance Test'), _('Active tests are explicit, one-variable-at-a-time transactions. A controlled A/B result is validated only after context stability, health checks and verified rollback.'), [
+		return pu.page(_('Performance test'), _('Run one explicit test at a time. Controlled A/B results require stable context, health checks, and verified rollback.'), [
 			pu.card(_('Environment → Path → Compatibility → Locks/Failsafe → Baseline → Candidate → Commit-confirm → Result'), root),
-			pu.card(_('Blocked providers'), pu.jsonBox(((rec && rec.benchmarkActions) || []).filter(function(a){ return a.status === 'blocked'; }), _('Why some benchmark actions are unavailable')), 'muted')
+			pu.card(_('Unavailable benchmark providers'), pu.jsonBox(((rec && rec.benchmarkActions) || []).filter(function(a){ return a.status === 'blocked'; }), _('Why benchmark actions are unavailable')), 'muted')
 		]);
 	}
 });
