@@ -24,6 +24,9 @@ class ResourceBudgetTests(unittest.TestCase):
         self.assertIn("rill-runtime-v3:", workflow)
         self.assertIn("rill_runtime_v3_integration.py", workflow)
         self.assertIn("check_rill_dependency.py --package-dir", workflow)
+        self.assertIn("actions/download-artifact@v8", workflow)
+        self.assertIn("rill-runtime-input/rill-runtime", workflow)
+        self.assertNotIn("Build the exact pinned Runtime binary", workflow)
 
     def test_resource_budget_requires_target_and_soak_evidence(self):
         script = (ROOT / "scripts/resource_budget.py").read_text()
@@ -113,7 +116,7 @@ class ContractTests(unittest.TestCase):
 
         self.assertEqual(ci.count(cache_action), 0)
         self.assertIn("git -C rill-ml fetch --depth=1 origin \"$commit\"", ci)
-        self.assertIn("cargo build --locked --release --manifest-path rill-ml/Cargo.toml -p rill-runtime", ci)
+        self.assertIn("cargo build --locked --release --target x86_64-unknown-linux-musl --manifest-path rill-ml/Cargo.toml -p rill-runtime", ci)
         self.assertIn("openwrt-sdk-${{ runner.os }}-${{ runner.arch }}", build)
         self.assertIn("openwrt-feeds-${{ runner.os }}-${{ runner.arch }}", build)
         self.assertIn("$SDK_ARCHIVE_SHA256\" \"$archive\" | sha256sum -c -", build)

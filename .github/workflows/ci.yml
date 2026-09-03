@@ -47,6 +47,11 @@ jobs:
     needs: static
     steps:
       - uses: actions/checkout@v7
+      - name: Install musl toolchain for OpenWrt-compatible Runtime
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y musl-tools
+          rustup target add x86_64-unknown-linux-musl
       - name: Resolve exact upstream source identity
         id: contract
         shell: bash
@@ -63,14 +68,14 @@ jobs:
           git -C rill-ml checkout --detach "$commit"
           test "$(git -C rill-ml rev-parse HEAD)" = "$commit"
           echo "version=$version" >> "$GITHUB_OUTPUT"
-      - name: Build exact generic Runtime binary
-        run: cargo build --locked --release --manifest-path rill-ml/Cargo.toml -p rill-runtime
+      - name: Build exact OpenWrt-compatible Runtime binary
+        run: cargo build --locked --release --target x86_64-unknown-linux-musl --manifest-path rill-ml/Cargo.toml -p rill-runtime
       - name: Run real v3 subprocess lifecycle
         run: |
           set -euo pipefail
           mkdir -p rill-evidence
           python3 scripts/rill_runtime_v3_integration.py \
-            --binary rill-ml/target/release/rill-runtime \
+            --binary rill-ml/target/x86_64-unknown-linux-musl/release/rill-runtime \
             --out rill-evidence/runtime-v3.json
           runtime_sha=$(jq -r '.runtimeSha256' rill-evidence/runtime-v3.json)
           jq --arg commit "$GITHUB_SHA" --arg version "$(jq -r '.resolved.version' contracts/rill-runtime.json)" \
@@ -84,6 +89,8 @@ jobs:
             > rill-evidence/rill-provenance.json
           python3 scripts/aggregate_final_evidence.py --evidence-dir rill-evidence --scope rill-runtime \
             --expected-commit "$GITHUB_SHA" --out rill-evidence/final-release-evidence.json
+          cp rill-ml/target/x86_64-unknown-linux-musl/release/rill-runtime rill-evidence/rill-runtime
+          chmod 0755 rill-evidence/rill-runtime
       - name: Verify package contract against exact package commit
         shell: bash
         run: |
@@ -106,21 +113,13 @@ jobs:
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@v7
-      - name: Install musl toolchain for OpenWrt-compatible Runtime
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y musl-tools
-          rustup target add x86_64-unknown-linux-musl
-      - name: Build the exact pinned Runtime binary
-        shell: bash
-        run: |
-          set -euo pipefail
-          commit=$(jq -r '.preview.commit // .resolved.upstreamCommit' contracts/rill-runtime.json)
-          git clone --filter=blob:none https://github.com/hello-yunshu/rill-ml.git rill-ml
-          git -C rill-ml fetch --depth=1 origin "$commit"
-          git -C rill-ml checkout --detach "$commit"
-          test "$(git -C rill-ml rev-parse HEAD)" = "$commit"
-          cargo build --locked --release --target x86_64-unknown-linux-musl --manifest-path rill-ml/Cargo.toml -p rill-runtime
+      - name: Download exact Runtime binary artifact
+        uses: actions/download-artifact@v8
+        with:
+          name: rill-runtime-v3-evidence
+          path: rill-runtime-input
+      - name: Verify exact Runtime binary artifact
+        run: test -x rill-runtime-input/rill-runtime
       - name: Prepare official OpenWrt ucode image with the exact Runtime
         shell: bash
         run: |
@@ -138,7 +137,7 @@ jobs:
           sudo rm -f .portable-rootfs/etc/resolv.conf
           sudo cp /etc/resolv.conf .portable-rootfs/etc/resolv.conf
           sudo chroot .portable-rootfs /bin/sh -c 'apk update --no-check-certificate && apk add --no-check-certificate ucode ucode-mod-fs ucode-mod-ubus ucode-mod-uci ucode-mod-rtnl ucode-mod-uloop ucode-mod-socket ucode-mod-log coreutils-timeout'
-          sudo install -D -m 0755 rill-ml/target/x86_64-unknown-linux-musl/release/rill-runtime .portable-rootfs/usr/bin/rill-runtime
+          sudo install -D -m 0755 rill-runtime-input/rill-runtime .portable-rootfs/usr/bin/rill-runtime
           sudo install -D -m 0644 package/performance-manager/files/usr/share/performance-manager/contracts.uc .portable-rootfs/usr/share/performance-manager/contracts.uc
           sudo chown -R "$(id -u):$(id -g)" .portable-rootfs
           docker build --file tools/docker-validate/Dockerfile.local --tag pm-production-ucode:ci .
@@ -149,7 +148,7 @@ jobs:
           python3 tools/docker-validate/harness/build-harness.py "$RUNNER_TEMP/production_core_rill_test.uc" tools/docker-validate/harness/production_core_rill_test.uc.frag
           mkdir -p production-evidence
           python3 scripts/production_core_rill_integration.py \
-            --binary rill-ml/target/x86_64-unknown-linux-musl/release/rill-runtime \
+            --binary rill-runtime-input/rill-runtime \
             --docker-image pm-production-ucode:ci \
             --harness "$RUNNER_TEMP/production_core_rill_test.uc" \
             --expected-commit "$GITHUB_SHA" \
