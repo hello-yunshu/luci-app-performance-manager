@@ -255,7 +255,8 @@ class LocalValidationTests(unittest.TestCase):
             names = ('performance-manager', 'luci-app-performance-manager', 'performance-manager-rill', 'rill-runtime', 'luci-app-performance-manager-all')
             packages = {}
             for name in names:
-                path = root / f'{name}-mock.apk'
+                path = root / ('nested-sdk/base' if name == 'rill-runtime' else '') / f'{name}-mock.apk'
+                path.parent.mkdir(parents=True, exist_ok=True)
                 path.write_bytes(name.encode())
                 digest = hashlib.sha256(path.read_bytes()).hexdigest()
                 packages[name] = {'status': 'ok', 'apkFilename': path.name, 'apkSha256': digest, 'pkgver': '1', 'installedPayload': {}}

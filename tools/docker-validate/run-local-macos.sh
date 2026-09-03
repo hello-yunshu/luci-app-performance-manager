@@ -270,7 +270,18 @@ print('PASS: same-SHA metadata and physical APK identities')
 PY
             then artifact_verdict=PASS; else artifact_verdict=FAIL; reason='same-SHA APK artifact identity failed'; fi
             if [ "$artifact_verdict" = PASS ]; then
-                rill_apk=$("$PY" -c "import json; r=json.load(open('$ARTIFACTS/build-metadata.json')); print(r['packages']['rill-runtime']['apkFilename'])")
+                rill_apk=$("$PY" - "$ARTIFACTS" <<'PY'
+import json, sys
+from pathlib import Path
+sys.path.insert(0, str(Path.cwd() / 'scripts'))
+from artifact_identity import resolve_artifact
+root = Path(sys.argv[1]).resolve()
+build = json.loads((root / 'build-metadata.json').read_text())
+item = build['packages']['rill-runtime']
+identity = resolve_artifact('rill-runtime', item['apkSha256'], [root], item.get('apkFilename'))
+print(Path(identity['canonicalPath']).relative_to(root))
+PY
+                )
                 if [ ! -f "$ARTIFACTS/$rill_apk" ]; then artifact_verdict=FAIL; reason='exact rill-runtime APK filename is missing'; fi
             fi
         fi
