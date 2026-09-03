@@ -56,6 +56,8 @@ class AllInOnePackageTests(unittest.TestCase):
         self.assertIn('SPLIT', gate)
         self.assertIn('ALL_IN_ONE', gate)
         self.assertIn('apk add', gate)
+        self.assertIn('PM_APK_REPOSITORY_TRANSPORT=http-fallback', gate)
+        self.assertIn('downloads.openwrt.org', gate)
         self.assertIn('pmCommitSha', gate)
 
     def test_package_composition_names_prefer_specific_bundle(self):
