@@ -735,3 +735,72 @@ msgstr "候选回滚次数"
 
 msgid "Cooldown reason"
 msgstr "冷却原因"
+
+msgid "System status"
+msgstr "系统状态"
+
+msgid "Guard passed"
+msgstr "保护已通过"
+
+msgid "Guard blocked"
+msgstr "保护已阻止"
+
+msgid "Recent transaction"
+msgstr "最近事务"
+
+msgid "Auto paused"
+msgstr "自动化已暂停"
+
+msgid "Auto eligible"
+msgstr "符合自动化条件"
+
+msgid "Applying…"
+msgstr "应用中…"
+
+msgid "Starting…"
+msgstr "启动中…"
+
+msgid "Refreshing…"
+msgstr "刷新中…"
+
+msgid "Confirming…"
+msgstr "确认中…"
+
+msgid "Rolling back…"
+msgstr "回滚中…"
+
+msgid "Complete"
+msgstr "已完成"
+
+msgid "Pending"
+msgstr "待处理"
+
+msgid "Unknown"
+msgstr "未知"
+
+msgid "Configuration"
+msgstr "配置"
+
+msgid "Details"
+msgstr "详情"
+
+msgid "No benchmark action is currently available for this device."
+msgstr "当前设备没有可用的基准测试操作。"
+
+msgid "Action failed: %s"
+msgstr "操作失败：%s"
+
+msgid "Advisory failed: %s"
+msgstr "建议执行失败：%s"
+
+msgid "Confirmation failed: %s"
+msgstr "确认失败：%s"
+
+msgid "Rollback failed: %s"
+msgstr "回滚失败：%s"
+
+msgid "Test could not start"
+msgstr "测试无法启动"
+
+msgid "Working…"
+msgstr "处理中…"

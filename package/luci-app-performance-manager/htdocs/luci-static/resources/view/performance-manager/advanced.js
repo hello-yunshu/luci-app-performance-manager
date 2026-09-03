@@ -18,7 +18,7 @@ return view.extend({
 			pu.card(_('Transactions'), pu.jsonBox(tx, _('Transactions JSON'))),
 			pu.card(_('Resource usage'), pu.jsonBox(d.resources || {}, _('Resource usage JSON'))),
 			pu.card(_('Diagnostics'), pu.jsonBox(d, _('Diagnostics JSON')))
-			])
+			], 'pm-card-grid--dense')
 		]);
 	}
 });
