@@ -38,14 +38,14 @@
       "name": "resource-budget",
       "evidenceClass": "source",
       "status": "PASS",
-      "outputTail": "{\n  \"schemaVersion\": 2,\n  \"areas\": {\n    \"core\": {\n      \"files\": 41,\n      \"sourceBytes\": 300206,\n      \"knownStaticPayloadBytes\": 297006\n    },\n    \"luci\": {\n      \"files\": 15,\n      \"sourceBytes\": 66287,\n      \"knownStaticPayloadBytes\": 65419\n    },\n    \"rill\": {\n      \"files\": 2,\n      \"sourceBytes\": 1424,\n      \"knownStaticPayloadBytes\": 31\n    },\n    \"allInOne\": {\n      \"files\": 1,\n      \"sourceBytes\": 4495,\n      \"knownStaticPayloadBytes\": 0\n    }\n  },\n  \"persistentWritePolicy\": {\n    \"core\": \"event-only transaction/history/policy intents; fast/deep telemetry remains tmpfs\",\n    \"rill\": \"External Runtime v3 state and PM Smart Decision v2 state are bounded/compacted; only validated controlled-A/B outcomes update learning.\",\n    \"idleInvariant\": \"Periodic Core telemetry never calls Observe. With no UI/API refresh, benchmark, or configuration/topology event, rillObserveAccepted and expectedAdapterPersistenceEvents must remain unchanged.\",\n    \"accounting\": \"Core exposes logical counters inferred from the Runtime contract; these are not physical flash-block write measurements.\"\n  },\n  \"limits\": {\n    \"rillMaxMessageBytes\": 65536,\n    \"rillRequestsPerSecond\": 20,\n    \"rillCoreTimeoutMs\": 1000,\n    \"historyReadTailLines\": 512,\n    \"rillValidatedOutcomeLines\": 2048,\n    \"rillDecisionLedgerLines\": 4096,\n    \"rillStateFileMaxBytes\": 4194304,\n    \"rillBindingCacheEntries\": 64,\n    \"rillExecutionJournalMaxFiles\": 128,\n    \"rillExecutionJournalMaxBytes\": 2097152,\n    \"retiredExecutionRetentionMax\": 64,\n    \"fastTelemetryMinimumSeconds\": 30,\n    \"deepTelemetryMinimumSeconds\": 300\n  },\n  \"precommittedStableBudgets\": {\n    \"minimumElapsedSeconds\": 86400,\n    \"coreMaxRssKiB\": 65536,\n    \"rillMaxRssKiB\": 98304,\n    \"coreMeanCpuPercent\": 5.0,\n    \"rillMeanCpuPercent\": 5.0,\n    \"coreRestartCount\": 0,\n    \"rillRestartCount\": 0,\n    \"pmPersistentWritesPerDay\": 32,\n    \"idleRillObserveAcceptedDelta\": 0,\n    \"idleExpectedAdapterPersistenceEventsDelta\": 0,\n    \"rillStateFileMaxBytes\": 4194304,\n    \"rillExecutionJournalMaxFiles\": 128,\n    \"rillExecutionJournalMaxBytes\": 2097152,\n    \"retiredExecutionRetentionMax\": 64,\n    \"bindingHighWater\": 64,\n    \"persistentHistoryGrowthBytes\": 262144\n  },\n  \"targetRuntimeMetrics\": {\n    \"coreRssKiB\": null,\n    \"rillRssKiB\": null,\n    \"coreMeanCpuPercent\": null,\n    \"rillMeanCpuPercent\": null,\n    \"pmPersistentWritesPerDay\": null,\n    \"bootStartMilliseconds\": null,\n    \"status\": \"external-runtime-gate\",\n    \"requiredScripts\": [\n      \"scripts/openwrt-target-gate.sh\",\n      \"scripts/openwrt-resource-soak.sh\"\n    ],\n    \"note\": \"These values require a booted OpenWrt x86_64 target with Rill installed. Missing measurements are BLOCKED/measurementUnavailable, never converted to zero.\"\n  }\n}\n"
+      "outputTail": "{\n  \"schemaVersion\": 2,\n  \"areas\": {\n    \"core\": {\n      \"files\": 41,\n      \"sourceBytes\": 301138,\n      \"knownStaticPayloadBytes\": 297938\n    },\n    \"luci\": {\n      \"files\": 15,\n      \"sourceBytes\": 66287,\n      \"knownStaticPayloadBytes\": 65419\n    },\n    \"rill\": {\n      \"files\": 2,\n      \"sourceBytes\": 1424,\n      \"knownStaticPayloadBytes\": 31\n    },\n    \"allInOne\": {\n      \"files\": 1,\n      \"sourceBytes\": 4495,\n      \"knownStaticPayloadBytes\": 0\n    }\n  },\n  \"persistentWritePolicy\": {\n    \"core\": \"event-only transaction/history/policy intents; fast/deep telemetry remains tmpfs\",\n    \"rill\": \"External Runtime v3 state and PM Smart Decision v2 state are bounded/compacted; only validated controlled-A/B outcomes update learning.\",\n    \"idleInvariant\": \"Periodic Core telemetry never calls Observe. With no UI/API refresh, benchmark, or configuration/topology event, rillObserveAccepted and expectedRuntimePersistenceEvents must remain unchanged.\",\n    \"accounting\": \"Core exposes logical counters inferred from the Runtime contract; these are not physical flash-block write measurements.\"\n  },\n  \"limits\": {\n    \"rillMaxMessageBytes\": 65536,\n    \"rillRequestsPerSecond\": 20,\n    \"rillCoreTimeoutMs\": 1000,\n    \"historyReadTailLines\": 512,\n    \"rillValidatedOutcomeLines\": 2048,\n    \"rillDecisionLedgerLines\": 4096,\n    \"runtimeStateFileMaxBytes\": 4194304,\n    \"rillBindingCacheEntries\": 64,\n    \"rillExecutionJournalMaxFiles\": 128,\n    \"rillExecutionJournalMaxBytes\": 2097152,\n    \"retiredExecutionRetentionMax\": 64,\n    \"fastTelemetryMinimumSeconds\": 30,\n    \"deepTelemetryMinimumSeconds\": 300\n  },\n  \"precommittedStableBudgets\": {\n    \"minimumElapsedSeconds\": 86400,\n    \"coreMaxRssKiB\": 65536,\n    \"coreMeanCpuPercent\": 5.0,\n    \"coreRestartCount\": 0,\n    \"pmPersistentWritesPerDay\": 32,\n    \"runtimeInvocationFailureCount\": 0,\n    \"runtimeTimeoutCount\": 0,\n    \"runtimeMalformedResponseCount\": 0,\n    \"runtimeNonZeroExitCount\": 0,\n    \"idleRillObserveAcceptedDelta\": 0,\n    \"idleExpectedRuntimePersistenceEventsDelta\": 0,\n    \"runtimeStateMaxBytes\": 4194304,\n    \"rillExecutionJournalMaxFiles\": 128,\n    \"rillExecutionJournalMaxBytes\": 2097152,\n    \"retiredExecutionRetentionMax\": 64,\n    \"bindingHighWater\": 64,\n    \"persistentHistoryGrowthBytes\": 262144\n  },\n  \"targetRuntimeMetrics\": {\n    \"coreRssKiB\": null,\n    \"coreMeanCpuPercent\": null,\n    \"corePersistentWritesPerDay\": null,\n    \"pmPersistentWritesPerDay\": null,\n    \"runtimeInvocationFailureCount\": null,\n    \"runtimeTimeoutCount\": null,\n    \"runtimeMalformedResponseCount\": null,\n    \"runtimeNonZeroExitCount\": null,\n    \"runtimeStateMaxBytes\": null,\n    \"bootStartMilliseconds\": null,\n    \"status\": \"external-runtime-gate\",\n    \"requiredScripts\": [\n      \"scripts/openwrt-target-gate.sh\",\n      \"scripts/openwrt-resource-soak.sh\"\n    ],\n    \"note\": \"Core RSS/CPU and Runtime subprocess lifecycle/state metrics require a booted OpenWrt x86_64 target with Rill installed. Missing measurements are BLOCKED, never converted to zero.\"\n  }\n}\n"
     }
   ],
   "localEvidence": {
     "unitAndContractTests": {
       "status": "PASS",
-      "count": 148,
-      "outputTail": "AIL\",\n  \"rcVerdict\": \"PASS\",\n  \"evidenceChainVerdict\": \"FAIL\",\n  \"apkPackagesBuildVerdict\": \"OUT_OF_SCOPE\",\n  \"apkExactVerificationVerdict\": \"OUT_OF_SCOPE\",\n  \"rillArtifactProvenanceVerdict\": \"PASS\",\n  \"rillRuntimeCompatibilityVerdict\": \"PASS\",\n  \"rillFunctionalIntegrationVerdict\": \"PASS\",\n  \"evidenceCommits\": {\n    \"rill-provenance.json\": \"9ba659a\",\n    \"rill-runtime.json\": \"<missing>\",\n    \"rill-core-integration.json\": \"9ba659a\"\n  },\n  \"missingEvidence\": [],\n  \"errors\": [\n    \"evidence file(s) carry no PM commit SHA: rill-runtime.json\"\n  ],\n  \"output\": \"/var/folders/ng/57pdwsd97zl6qbjwh_sqrts80000gn/T/tmpeszmvpar/final.json\"\n}\n{\n  \"scope\": \"rill\",\n  \"overallVerdict\": \"FAIL\",\n  \"rcVerdict\": \"BLOCKED\",\n  \"evidenceChainVerdict\": \"FAIL\",\n  \"apkPackagesBuildVerdict\": \"OUT_OF_SCOPE\",\n  \"apkExactVerificationVerdict\": \"OUT_OF_SCOPE\",\n  \"rillArtifactProvenanceVerdict\": \"PASS\",\n  \"rillRuntimeCompatibilityVerdict\": \"PASS\",\n  \"rillFunctionalIntegrationVerdict\": \"BLOCKED\",\n  \"evidenceCommits\": {\n    \"rill-provenance.json\": \"9ba659a\",\n    \"rill-runtime.json\": \"9ba659a\"\n  },\n  \"missingEvidence\": [\n    \"rill-core-integration.json\"\n  ],\n  \"errors\": [\n    \"missing required per-job evidence: rill-core-integration.json\"\n  ],\n  \"output\": \"/var/folders/ng/57pdwsd97zl6qbjwh_sqrts80000gn/T/tmp7nmn57f_/final.json\"\n}\n{\n  \"scope\": \"rill-runtime\",\n  \"overallVerdict\": \"PASS\",\n  \"rcVerdict\": \"PASS\",\n  \"evidenceChainVerdict\": \"PASS\",\n  \"apkPackagesBuildVerdict\": \"OUT_OF_SCOPE\",\n  \"apkExactVerificationVerdict\": \"OUT_OF_SCOPE\",\n  \"rillArtifactProvenanceVerdict\": \"PASS\",\n  \"rillRuntimeCompatibilityVerdict\": \"PASS\",\n  \"rillFunctionalIntegrationVerdict\": \"PASS\",\n  \"evidenceCommits\": {\n    \"rill-provenance.json\": \"9ba659a\",\n    \"rill-runtime.json\": \"9ba659a\"\n  },\n  \"missingEvidence\": [],\n  \"errors\": [],\n  \"output\": \"/var/folders/ng/57pdwsd97zl6qbjwh_sqrts80000gn/T/tmpwedwx0xw/final.json\"\n}\n{\n  \"scope\": \"rill\",\n  \"overallVerdict\": \"PASS\",\n  \"rcVerdict\": \"PASS\",\n  \"evidenceChainVerdict\": \"PASS\",\n  \"apkPackagesBuildVerdict\": \"OUT_OF_SCOPE\",\n  \"apkExactVerificationVerdict\": \"OUT_OF_SCOPE\",\n  \"rillArtifactProvenanceVerdict\": \"PASS\",\n  \"rillRuntimeCompatibilityVerdict\": \"PASS\",\n  \"rillFunctionalIntegrationVerdict\": \"PASS\",\n  \"evidenceCommits\": {\n    \"rill-provenance.json\": \"9ba659a\",\n    \"rill-runtime.json\": \"9ba659a\",\n    \"rill-core-integration.json\": \"9ba659a\"\n  },\n  \"missingEvidence\": [],\n  \"errors\": [],\n  \"output\": \"/var/folders/ng/57pdwsd97zl6qbjwh_sqrts80000gn/T/tmpknekenv4/final.json\"\n}\n{\n  \"scope\": \"build\",\n  \"overallVerdict\": \"PASS\",\n  \"rcVerdict\": \"PASS\",\n  \"evidenceChainVerdict\": \"PASS\",\n  \"apkPackagesBuildVerdict\": \"PASS\",\n  \"apkExactVerificationVerdict\": \"PASS\",\n  \"rillArtifactProvenanceVerdict\": \"OUT_OF_SCOPE\",\n  \"rillRuntimeCompatibilityVerdict\": \"OUT_OF_SCOPE\",\n  \"rillFunctionalIntegrationVerdict\": \"OUT_OF_SCOPE\",\n  \"evidenceCommits\": {\n    \"build-metadata.json\": \"9ba659a\",\n    \"apk-verification.json\": \"9ba659a\"\n  },\n  \"missingEvidence\": [],\n  \"errors\": [],\n  \"output\": \"/var/folders/ng/57pdwsd97zl6qbjwh_sqrts80000gn/T/tmp0njr0jhv/final.json\"\n}\n{\n  \"scope\": \"rill\",\n  \"overallVerdict\": \"FAIL\",\n  \"rcVerdict\": \"FAIL\",\n  \"evidenceChainVerdict\": \"PASS\",\n  \"apkPackagesBuildVerdict\": \"OUT_OF_SCOPE\",\n  \"apkExactVerificationVerdict\": \"OUT_OF_SCOPE\",\n  \"rillArtifactProvenanceVerdict\": \"PASS\",\n  \"rillRuntimeCompatibilityVerdict\": \"PASS\",\n  \"rillFunctionalIntegrationVerdict\": \"FAIL\",\n  \"evidenceCommits\": {\n    \"rill-provenance.json\": \"9ba659a\",\n    \"rill-runtime.json\": \"9ba659a\",\n    \"rill-core-integration.json\": \"9ba659a\"\n  },\n  \"missingEvidence\": [],\n  \"errors\": [],\n  \"output\": \"/var/folders/ng/57pdwsd97zl6qbjwh_sqrts80000gn/T/tmpq4f_9bbd/final.json\"\n}\n{\n  \"overallVerdict\": \"PASS\",\n  \"pmCommitSha\": \"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\n  \"runtimeSha256\": \"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\",\n  \"blocked\": [],\n  \"failed\": [],\n  \"output\": \"/var/folders/ng/57pdwsd97zl6qbjwh_sqrts80000gn/T/tmp75pdmaz3/final-stable-evidence.json\"\n}\n"
+      "count": 156,
+      "outputTail": "AIL\",\n  \"rcVerdict\": \"PASS\",\n  \"evidenceChainVerdict\": \"FAIL\",\n  \"apkPackagesBuildVerdict\": \"OUT_OF_SCOPE\",\n  \"apkExactVerificationVerdict\": \"OUT_OF_SCOPE\",\n  \"rillArtifactProvenanceVerdict\": \"PASS\",\n  \"rillRuntimeCompatibilityVerdict\": \"PASS\",\n  \"rillFunctionalIntegrationVerdict\": \"PASS\",\n  \"evidenceCommits\": {\n    \"rill-provenance.json\": \"9ba659a\",\n    \"rill-runtime.json\": \"<missing>\",\n    \"rill-core-integration.json\": \"9ba659a\"\n  },\n  \"missingEvidence\": [],\n  \"errors\": [\n    \"evidence file(s) carry no PM commit SHA: rill-runtime.json\"\n  ],\n  \"output\": \"/var/folders/ng/57pdwsd97zl6qbjwh_sqrts80000gn/T/tmpt6mfti6q/final.json\"\n}\n{\n  \"scope\": \"rill\",\n  \"overallVerdict\": \"FAIL\",\n  \"rcVerdict\": \"BLOCKED\",\n  \"evidenceChainVerdict\": \"FAIL\",\n  \"apkPackagesBuildVerdict\": \"OUT_OF_SCOPE\",\n  \"apkExactVerificationVerdict\": \"OUT_OF_SCOPE\",\n  \"rillArtifactProvenanceVerdict\": \"PASS\",\n  \"rillRuntimeCompatibilityVerdict\": \"PASS\",\n  \"rillFunctionalIntegrationVerdict\": \"BLOCKED\",\n  \"evidenceCommits\": {\n    \"rill-provenance.json\": \"9ba659a\",\n    \"rill-runtime.json\": \"9ba659a\"\n  },\n  \"missingEvidence\": [\n    \"rill-core-integration.json\"\n  ],\n  \"errors\": [\n    \"missing required per-job evidence: rill-core-integration.json\"\n  ],\n  \"output\": \"/var/folders/ng/57pdwsd97zl6qbjwh_sqrts80000gn/T/tmpetcpqit8/final.json\"\n}\n{\n  \"scope\": \"rill-runtime\",\n  \"overallVerdict\": \"PASS\",\n  \"rcVerdict\": \"PASS\",\n  \"evidenceChainVerdict\": \"PASS\",\n  \"apkPackagesBuildVerdict\": \"OUT_OF_SCOPE\",\n  \"apkExactVerificationVerdict\": \"OUT_OF_SCOPE\",\n  \"rillArtifactProvenanceVerdict\": \"PASS\",\n  \"rillRuntimeCompatibilityVerdict\": \"PASS\",\n  \"rillFunctionalIntegrationVerdict\": \"PASS\",\n  \"evidenceCommits\": {\n    \"rill-provenance.json\": \"9ba659a\",\n    \"rill-runtime.json\": \"9ba659a\"\n  },\n  \"missingEvidence\": [],\n  \"errors\": [],\n  \"output\": \"/var/folders/ng/57pdwsd97zl6qbjwh_sqrts80000gn/T/tmp0c66jsca/final.json\"\n}\n{\n  \"scope\": \"rill\",\n  \"overallVerdict\": \"PASS\",\n  \"rcVerdict\": \"PASS\",\n  \"evidenceChainVerdict\": \"PASS\",\n  \"apkPackagesBuildVerdict\": \"OUT_OF_SCOPE\",\n  \"apkExactVerificationVerdict\": \"OUT_OF_SCOPE\",\n  \"rillArtifactProvenanceVerdict\": \"PASS\",\n  \"rillRuntimeCompatibilityVerdict\": \"PASS\",\n  \"rillFunctionalIntegrationVerdict\": \"PASS\",\n  \"evidenceCommits\": {\n    \"rill-provenance.json\": \"9ba659a\",\n    \"rill-runtime.json\": \"9ba659a\",\n    \"rill-core-integration.json\": \"9ba659a\"\n  },\n  \"missingEvidence\": [],\n  \"errors\": [],\n  \"output\": \"/var/folders/ng/57pdwsd97zl6qbjwh_sqrts80000gn/T/tmpf6b185ow/final.json\"\n}\n{\n  \"scope\": \"build\",\n  \"overallVerdict\": \"PASS\",\n  \"rcVerdict\": \"PASS\",\n  \"evidenceChainVerdict\": \"PASS\",\n  \"apkPackagesBuildVerdict\": \"PASS\",\n  \"apkExactVerificationVerdict\": \"PASS\",\n  \"rillArtifactProvenanceVerdict\": \"OUT_OF_SCOPE\",\n  \"rillRuntimeCompatibilityVerdict\": \"OUT_OF_SCOPE\",\n  \"rillFunctionalIntegrationVerdict\": \"OUT_OF_SCOPE\",\n  \"evidenceCommits\": {\n    \"build-metadata.json\": \"9ba659a\",\n    \"apk-verification.json\": \"9ba659a\"\n  },\n  \"missingEvidence\": [],\n  \"errors\": [],\n  \"output\": \"/var/folders/ng/57pdwsd97zl6qbjwh_sqrts80000gn/T/tmpsusx947z/final.json\"\n}\n{\n  \"scope\": \"rill\",\n  \"overallVerdict\": \"FAIL\",\n  \"rcVerdict\": \"FAIL\",\n  \"evidenceChainVerdict\": \"PASS\",\n  \"apkPackagesBuildVerdict\": \"OUT_OF_SCOPE\",\n  \"apkExactVerificationVerdict\": \"OUT_OF_SCOPE\",\n  \"rillArtifactProvenanceVerdict\": \"PASS\",\n  \"rillRuntimeCompatibilityVerdict\": \"PASS\",\n  \"rillFunctionalIntegrationVerdict\": \"FAIL\",\n  \"evidenceCommits\": {\n    \"rill-provenance.json\": \"9ba659a\",\n    \"rill-runtime.json\": \"9ba659a\",\n    \"rill-core-integration.json\": \"9ba659a\"\n  },\n  \"missingEvidence\": [],\n  \"errors\": [],\n  \"output\": \"/var/folders/ng/57pdwsd97zl6qbjwh_sqrts80000gn/T/tmp75_s2ius/final.json\"\n}\n{\n  \"overallVerdict\": \"PASS\",\n  \"pmCommitSha\": \"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\n  \"runtimeSha256\": \"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\",\n  \"blocked\": [],\n  \"failed\": [],\n  \"output\": \"/var/folders/ng/57pdwsd97zl6qbjwh_sqrts80000gn/T/tmp5bx5wdfs/final-stable-evidence.json\"\n}\n"
     },
     "hostSyntaxChecks": {
       "status": "PASS",
@@ -186,8 +186,8 @@
       "areas": {
         "core": {
           "files": 41,
-          "sourceBytes": 300206,
-          "knownStaticPayloadBytes": 297006
+          "sourceBytes": 301138,
+          "knownStaticPayloadBytes": 297938
         },
         "luci": {
           "files": 15,
@@ -208,7 +208,7 @@
       "persistentWritePolicy": {
         "core": "event-only transaction/history/policy intents; fast/deep telemetry remains tmpfs",
         "rill": "External Runtime v3 state and PM Smart Decision v2 state are bounded/compacted; only validated controlled-A/B outcomes update learning.",
-        "idleInvariant": "Periodic Core telemetry never calls Observe. With no UI/API refresh, benchmark, or configuration/topology event, rillObserveAccepted and expectedAdapterPersistenceEvents must remain unchanged.",
+        "idleInvariant": "Periodic Core telemetry never calls Observe. With no UI/API refresh, benchmark, or configuration/topology event, rillObserveAccepted and expectedRuntimePersistenceEvents must remain unchanged.",
         "accounting": "Core exposes logical counters inferred from the Runtime contract; these are not physical flash-block write measurements."
       },
       "limits": {
@@ -218,7 +218,7 @@
         "historyReadTailLines": 512,
         "rillValidatedOutcomeLines": 2048,
         "rillDecisionLedgerLines": 4096,
-        "rillStateFileMaxBytes": 4194304,
+        "runtimeStateFileMaxBytes": 4194304,
         "rillBindingCacheEntries": 64,
         "rillExecutionJournalMaxFiles": 128,
         "rillExecutionJournalMaxBytes": 2097152,
@@ -229,15 +229,16 @@
       "precommittedStableBudgets": {
         "minimumElapsedSeconds": 86400,
         "coreMaxRssKiB": 65536,
-        "rillMaxRssKiB": 98304,
         "coreMeanCpuPercent": 5.0,
-        "rillMeanCpuPercent": 5.0,
         "coreRestartCount": 0,
-        "rillRestartCount": 0,
         "pmPersistentWritesPerDay": 32,
+        "runtimeInvocationFailureCount": 0,
+        "runtimeTimeoutCount": 0,
+        "runtimeMalformedResponseCount": 0,
+        "runtimeNonZeroExitCount": 0,
         "idleRillObserveAcceptedDelta": 0,
-        "idleExpectedAdapterPersistenceEventsDelta": 0,
-        "rillStateFileMaxBytes": 4194304,
+        "idleExpectedRuntimePersistenceEventsDelta": 0,
+        "runtimeStateMaxBytes": 4194304,
         "rillExecutionJournalMaxFiles": 128,
         "rillExecutionJournalMaxBytes": 2097152,
         "retiredExecutionRetentionMax": 64,
@@ -246,17 +247,21 @@
       },
       "targetRuntimeMetrics": {
         "coreRssKiB": null,
-        "rillRssKiB": null,
         "coreMeanCpuPercent": null,
-        "rillMeanCpuPercent": null,
+        "corePersistentWritesPerDay": null,
         "pmPersistentWritesPerDay": null,
+        "runtimeInvocationFailureCount": null,
+        "runtimeTimeoutCount": null,
+        "runtimeMalformedResponseCount": null,
+        "runtimeNonZeroExitCount": null,
+        "runtimeStateMaxBytes": null,
         "bootStartMilliseconds": null,
         "status": "external-runtime-gate",
         "requiredScripts": [
           "scripts/openwrt-target-gate.sh",
           "scripts/openwrt-resource-soak.sh"
         ],
-        "note": "These values require a booted OpenWrt x86_64 target with Rill installed. Missing measurements are BLOCKED/measurementUnavailable, never converted to zero."
+        "note": "Core RSS/CPU and Runtime subprocess lifecycle/state metrics require a booted OpenWrt x86_64 target with Rill installed. Missing measurements are BLOCKED, never converted to zero."
       }
     },
     "rillStatic": {
@@ -395,7 +400,7 @@
   "packages": {
     "performance-manager": {
       "files": 41,
-      "bytes": 300206,
+      "bytes": 301138,
       "makefileSha256": "c14a50f91dfd2347efb57442f6387da65cfef6a80ffec5fee0c84cb64bac8dbe"
     },
     "luci-app-performance-manager": {

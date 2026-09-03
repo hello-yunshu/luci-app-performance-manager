@@ -15,7 +15,9 @@ Required target evidence:
 2. Booted OpenWrt 25.12.x x86_64 VM: `scripts/openwrt-target-gate.sh`.
 3. Hyper-V and KVM/Proxmox guest hotplug/TargetRef/replay/rollback fixtures.
 4. Explicit LAN→Router→WAN and router-local controlled A/B sessions where the action semantics require them.
-5. Sysupgrade preservation via `scripts/openwrt-sysupgrade-gate.sh prepare` before the upgrade and `verify` after reboot, plus `scripts/openwrt-resource-soak.sh` for 24h or longer.
+5. Sysupgrade preservation via `scripts/openwrt-sysupgrade-gate.sh prepare` before the upgrade and `verify` after reboot, plus `scripts/openwrt-resource-soak.sh` for 24h or longer. Resource Soak uses Core-resident metrics and bounded Runtime subprocess lifecycle/state counters; it does not require a fictional long-running Runtime daemon metric.
+
+The direct `scripts/openwrt-resource-soak.sh` output is a standalone target measurement report and is not itself Stable authorization. The Hardware workflow's repository-owned controller wraps transport `rawFacts`, applies the canonical schema/evaluator, and is the only path that emits the install/build-bound gate evidence consumed by Stable aggregation.
 
 The hardware matrix remains available as the `hardware` profile. It is not silently substituted into `portable-docker`, and portable publication must disclose the narrower coverage in its release evidence and notes.
 

@@ -35,8 +35,9 @@ GATE_CHECKS = {
                    "policyPreserved", "firmwareUpgradeProven", "exactRuntimeAfterUpgrade", "noUnsafePendingMutation", "coreStartedClean"],
     "lifecycle": ["install", "serviceStart", "restart", "upgradeReinstall", "configPreserved",
                   "rillOptional", "uninstallCleanup", "reinstall", "noStaleState"],
-    "resource-soak": ["exactPackagesInstalled", "rillPresent", "sampledResources", "noCoreRestart", "noRillRestart",
+    "resource-soak": ["exactPackagesInstalled", "rillPresent", "sampledResources", "noCoreRestart",
                       "idleObserveZero", "idleRuntimePersistenceZero", "idleJournalWritesZero",
+                      "runtimeInvocationHealthy", "runtimeFailureZero", "runtimeStateBounded",
                       "journalMeasured", "stateBoundsPass", "historyBoundsPass"],
 }
 RILL_GATES = set(GATE_CHECKS) - {"target-core-only"}
@@ -53,9 +54,9 @@ ALL_IN_ONE_PAYLOAD = CORE_PAYLOAD + (
 )
 
 RESOURCE_METRICS = (
-    "coreRssKiB", "rillRssKiB", "bindingHighWater", "interventionRequiredCount",
+    "coreRssKiB", "coreMeanCpuPercent", "corePersistentWritesPerDay", "bindingHighWater", "interventionRequiredCount",
     "persistentHistoryGrowthBytes", "executionJournalFileCount", "executionJournalBytes",
-    "retiredExecutionCount", "activeExecutionCount", "executingExecutionCount",
+    "retiredExecutionCount", "activeExecutionCount", "executingExecutionCount", "runtimeStateMaxBytes",
 )
 
 
@@ -292,13 +293,22 @@ def evaluate_raw_facts(raw: dict[str, Any], gate: str) -> dict[str, bool]:
             "rillPresent": soak.get("rillPresent") is True,
             "sampledResources": soak.get("sampleCount", 0) > 0 and metrics_valid,
             "noCoreRestart": soak.get("coreRestartCount") == 0,
-            "noRillRestart": soak.get("rillRestartCount") == 0,
             "idleObserveZero": soak.get("idleRillObserveAcceptedDelta") == 0,
             "idleRuntimePersistenceZero": soak.get("idleExpectedRuntimePersistenceEventsDelta") == 0,
             "idleJournalWritesZero": soak.get("idlePendingOutcomeJournalWrites") == 0 and soak.get("executingJournalDelta") == 0,
+            "runtimeInvocationHealthy": soak.get("runtimeInvocationCount", 0) > 0
+                and soak.get("runtimeSuccessfulInvocationCount", 0) > 0
+                and soak.get("runtimeSuccessfulInvocationCount", 0) <= soak.get("runtimeInvocationCount", -1),
+            "runtimeFailureZero": soak.get("runtimeInvocationFailureCount") == 0
+                and soak.get("runtimeTimeoutCount") == 0
+                and soak.get("runtimeMalformedResponseCount") == 0
+                and soak.get("runtimeNonZeroExitCount") == 0,
+            "runtimeStateBounded": metrics_valid and resources["runtimeStateMaxBytes"] <= 4194304,
             "journalMeasured": metrics_valid and resources["executionJournalFileCount"] <= 128
                 and resources["executionJournalBytes"] <= 2097152 and resources["retiredExecutionCount"] <= 64,
-            "stateBoundsPass": metrics_valid and resources["coreRssKiB"] <= 65536 and resources["rillRssKiB"] <= 98304
+            "stateBoundsPass": metrics_valid and resources["coreRssKiB"] <= 65536
+                and resources["coreMeanCpuPercent"] <= 5.0
+                and resources["corePersistentWritesPerDay"] <= 32
                 and resources["bindingHighWater"] <= 64 and resources["interventionRequiredCount"] == 0
                 and resources["activeExecutionCount"] >= resources["executingExecutionCount"],
             "historyBoundsPass": metrics_valid and resources["persistentHistoryGrowthBytes"] <= 262144,
@@ -501,7 +511,8 @@ def validate_evidence(data: Any, gate: str, expected_commit: str, *, require_ril
         errors.append(f"schema missing for {gate}")
     else:
         errors.extend(_schema_errors(data, json.loads(schema_path.read_text()), schema_path.parent))
-    if data.get("schemaVersion") != 1 or data.get("gate") != gate:
+    expected_schema_version = 2 if gate == "resource-soak" else 1
+    if data.get("schemaVersion") != expected_schema_version or data.get("gate") != gate:
         errors.append(f"schemaVersion/gate mismatch ({data.get('schemaVersion')!r}, {data.get('gate')!r})")
     if data.get("pmCommitSha") != expected_commit:
         errors.append(f"pmCommitSha={data.get('pmCommitSha')!r}")
@@ -569,6 +580,9 @@ def validate_evidence(data: Any, gate: str, expected_commit: str, *, require_ril
         if int(data.get("durationSeconds", 0)) < 86400 or int(soak.get("sampleCount", 0)) <= 0:
             errors.append("24h soak duration/sample evidence invalid")
         for key in ("idleRillObserveAcceptedDelta", "idleExpectedRuntimePersistenceEventsDelta", "idlePendingOutcomeJournalWrites"):
+            if soak.get(key) != 0:
+                errors.append(f"soak {key} must be zero")
+        for key in ("runtimeInvocationFailureCount", "runtimeTimeoutCount", "runtimeMalformedResponseCount", "runtimeNonZeroExitCount"):
             if soak.get(key) != 0:
                 errors.append(f"soak {key} must be zero")
     return errors

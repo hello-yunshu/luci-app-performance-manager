@@ -83,7 +83,13 @@ let rill_runtime_counters = {
 	rillOutcomeSentUnknown: 0,
 	rillOutcomeRecoveredAfterCoreRestart: 0,
 	rillOutcomeRecoveredAfterBoot: 0,
-	rillBindingHighWater: 0
+	rillBindingHighWater: 0,
+	runtimeInvocationCount: 0,
+	runtimeSuccessfulInvocationCount: 0,
+	runtimeInvocationFailureCount: 0,
+	runtimeTimeoutCount: 0,
+	runtimeMalformedResponseCount: 0,
+	runtimeNonZeroExitCount: 0
 };
 let conn = ubusmod.connect();
 if (!conn) {
@@ -2022,24 +2028,32 @@ function rill_runtime_call(request, binary) {
 	/* The generic Runtime is a bounded stdin/stdout subprocess.  A fresh
 	 * process per request keeps the package-owned state file as the single
 	 * durable ledger and avoids a PM-owned socket daemon or protocol shim. */
+	rill_runtime_counters.runtimeInvocationCount++;
 	let state = rill_state_path(), parent = join('/', slice(split(state, '/'), 0, -1));
 	ensure_dir(parent);
 	let wire = sprintf('%J\n', request);
 	let max_msg = min(262144, max(4096, int_cfg('runtime.max_message', 65536)));
-	if (length(wire) > max_msg)
+	if (length(wire) > max_msg) {
+		rill_runtime_counters.runtimeInvocationFailureCount++;
 		return { ok: false, state: 'oversized-local-context', connected: false, fullySent: false, responseReceived: false };
+	}
 	let timeout = min(5000, max(100, int_cfg('runtime.timeout_ms', 1000)));
 	let command = sprintf("printf '%%s\\n' %s | timeout %ds %s preview-serve --state %s --feature-schema-hash %s --model-generation %d",
 		shell_quote(trimstr(wire)), max(1, int((timeout + 999) / 1000)), shell_quote(binary), shell_quote(state), shell_quote(RILL_FEATURE_SCHEMA_HASH), RILL_MODEL_GENERATION);
 	let p = fs.popen(command, 'r');
-	if (!p) return { ok: false, state: 'runtime-spawn-failed', connected: false, fullySent: false, responseReceived: false };
+	if (!p) { rill_runtime_counters.runtimeInvocationFailureCount++; return { ok: false, state: 'runtime-spawn-failed', connected: false, fullySent: false, responseReceived: false }; }
 	let output = p.read('all') ?? '', rc = p.close() ?? 127;
-	if (rc != 0) return { ok: false, state: `runtime-exit-${rc}`, connected: true, fullySent: true, responseReceived: false };
+	if (rc != 0) {
+		rill_runtime_counters.runtimeInvocationFailureCount++; rill_runtime_counters.runtimeNonZeroExitCount++;
+		if (rc == 124) rill_runtime_counters.runtimeTimeoutCount++;
+		return { ok: false, state: `runtime-exit-${rc}`, connected: true, fullySent: true, responseReceived: false };
+	}
 	let line = trimstr(split(output, '\n')[0] ?? '');
-	if (!length(line)) return { ok: false, state: 'empty-response', connected: true, fullySent: true, responseReceived: false };
+	if (!length(line)) { rill_runtime_counters.runtimeInvocationFailureCount++; rill_runtime_counters.runtimeMalformedResponseCount++; return { ok: false, state: 'empty-response', connected: true, fullySent: true, responseReceived: false }; }
 	let response = null;
-	try { response = json(line); } catch (e) { return { ok: false, state: 'bad-response', connected: true, fullySent: true, responseReceived: true }; }
-	if (response == null) return { ok: false, state: 'bad-response', connected: true, fullySent: true, responseReceived: true };
+	try { response = json(line); } catch (e) { rill_runtime_counters.runtimeInvocationFailureCount++; rill_runtime_counters.runtimeMalformedResponseCount++; return { ok: false, state: 'bad-response', connected: true, fullySent: true, responseReceived: true }; }
+	if (response == null) { rill_runtime_counters.runtimeInvocationFailureCount++; rill_runtime_counters.runtimeMalformedResponseCount++; return { ok: false, state: 'bad-response', connected: true, fullySent: true, responseReceived: true }; }
+	rill_runtime_counters.runtimeSuccessfulInvocationCount++;
 	return { ok: true, response: response, connected: true, fullySent: true, responseReceived: true };
 }
 
@@ -4223,7 +4237,7 @@ function resource_usage() {
 	counters.pmPersistentWrites = persistent_write_count;
 	counters.expectedRuntimePersistenceEvents = rill_runtime_counters.rillObserveAccepted + rill_runtime_counters.rillOutcomeAccepted + rill_runtime_counters.rillOutcomeReconciled;
 	counters.persistenceAccounting = 'logical/inferred-from-pinned-rill-contract';
-	return {corePid:pid,coreVmRssKiB:vmrss,coreVmSizeKiB:vmsize,corePersistentWritesSinceStart:persistent_write_count,corePersistentWriteBytesSinceStart:persistent_write_bytes,persistentHistoryBytes:hs?.size ?? 0,rillOutcomeBytes:outcomes?.size ?? 0,rillLedgerBytes:ledger?.size ?? 0,historyLineLimit:MAX_HISTORY_LINES,rillCounters:counters,rillBounds:{adapterStateFileBytes:4194304,bindingCacheEntries:RILL_BINDINGS_MAX,executionJournalMaxFiles:RILL_EXECUTION_JOURNAL_MAX_FILES,executionJournalMaxBytes:RILL_EXECUTION_JOURNAL_MAX_BYTES,retiredExecutionRetentionMax:RETIRED_EXECUTION_RETENTION_MAX},rillExecutionHealth:{interventionRequired:intervention > 0,interventionRequiredCount:intervention,active:active,executing:executing,retired:retired,journalFileCount:journal_files,journalBytes:journal_bytes}};
+	return {corePid:pid,coreVmRssKiB:vmrss,coreVmSizeKiB:vmsize,corePersistentWritesSinceStart:persistent_write_count,corePersistentWriteBytesSinceStart:persistent_write_bytes,persistentHistoryBytes:hs?.size ?? 0,rillOutcomeBytes:outcomes?.size ?? 0,rillLedgerBytes:ledger?.size ?? 0,historyLineLimit:MAX_HISTORY_LINES,rillCounters:counters,rillBounds:{runtimeStateFileBytes:4194304,bindingCacheEntries:RILL_BINDINGS_MAX,executionJournalMaxFiles:RILL_EXECUTION_JOURNAL_MAX_FILES,executionJournalMaxBytes:RILL_EXECUTION_JOURNAL_MAX_BYTES,retiredExecutionRetentionMax:RETIRED_EXECUTION_RETENTION_MAX},rillExecutionHealth:{interventionRequired:intervention > 0,interventionRequiredCount:intervention,active:active,executing:executing,retired:retired,journalFileCount:journal_files,journalBytes:journal_bytes}};
 }
 
 function diagnostics() {

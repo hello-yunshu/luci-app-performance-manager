@@ -108,7 +108,7 @@ jobs:
 
   linux-gates:
     runs-on: [self-hosted, "${{ matrix.runner }}"]
-    timeout-minutes: 1440
+    timeout-minutes: ${{ matrix.timeout }}
     strategy:
       fail-fast: false
       matrix:
@@ -117,38 +117,47 @@ jobs:
             entrypoint: run-core-only.sh
             output: target-core-only.json
             runner: pm-generic
+            timeout: 1440
           - gate: target-full
             entrypoint: run-full.sh
             output: target-full.json
             runner: pm-generic
+            timeout: 1440
           - gate: target-mutation
             entrypoint: run-mutation.sh
             output: target-mutation.json
             runner: pm-generic
+            timeout: 1440
           - gate: kvm
             entrypoint: run-kvm.sh
             output: kvm.json
             runner: pm-kvm
+            timeout: 1440
           - gate: lan-wan-ab
             entrypoint: run-lan-wan-ab.sh
             output: lan-wan-ab.json
             runner: pm-lan-wan
+            timeout: 1440
           - gate: router-local-ab
             entrypoint: run-router-local-ab.sh
             output: router-local-ab.json
             runner: pm-router-local
+            timeout: 1440
           - gate: sysupgrade
             entrypoint: run-sysupgrade.sh
             output: sysupgrade.json
             runner: pm-sysupgrade
+            timeout: 1440
           - gate: lifecycle
             entrypoint: run-lifecycle.sh
             output: lifecycle.json
             runner: pm-lifecycle
+            timeout: 1440
           - gate: resource-soak
             entrypoint: run-resource-soak.sh
             output: resource-soak.json
             runner: pm-soak
+            timeout: 1800
     steps:
       - uses: actions/checkout@v7
         with:

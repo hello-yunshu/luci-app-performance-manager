@@ -40,6 +40,8 @@ class ResourceBudgetTests(unittest.TestCase):
         self.assertIn('"passed": $within', script)
         self.assertIn('[ "$stable" = true ] || within=false', script)
         self.assertIn('measurementUnavailable', script)
+        self.assertIn('[ "$runtime_failures" -eq 0 ]', script)
+        self.assertNotIn('deliberately does not invent', script)
 
     def test_resource_soak_never_zero_fills_missing_rill_measurements(self):
         script = (ROOT / "scripts/openwrt-resource-soak.sh").read_text()
@@ -52,17 +54,31 @@ class ResourceBudgetTests(unittest.TestCase):
         script = (ROOT / "scripts/openwrt-resource-soak.sh").read_text()
         expected = {
             "coreMaxRssKiB": "B_CORE_RSS",
-            "rillMaxRssKiB": "B_RILL_RSS",
             "coreMeanCpuPercent": "B_CORE_CPU",
-            "rillMeanCpuPercent": "B_RILL_CPU",
             "pmPersistentWritesPerDay": "B_PM_WRITES_DAY",
-            "rillStateFileMaxBytes": "B_RILL_STATE_BYTES",
+            "runtimeStateMaxBytes": "B_RUNTIME_STATE_BYTES",
             "bindingHighWater": "B_BINDINGS",
             "persistentHistoryGrowthBytes": "B_HISTORY_GROWTH",
         }
         for key, variable in expected.items():
             with self.subTest(key=key):
                 self.assertIn(f"{variable}={budget[key]}", script)
+
+    def test_resource_soak_contract_uses_runtime_names_only(self):
+        schema = (ROOT / "contracts/evidence/resource-soak.schema.json").read_text()
+        evaluator = (ROOT / "scripts/validate_external_evidence.py").read_text()
+        for text in (schema, evaluator):
+            self.assertIn("idleExpectedRuntimePersistenceEventsDelta", text)
+            self.assertNotIn("idleExpectedAdapterPersistenceEventsDelta", text)
+            self.assertNotIn("idleAdapterPersistenceZero", text)
+        self.assertNotIn("rillRssKiB", schema + evaluator)
+        self.assertNotIn("rillRestartCount", schema + evaluator)
+
+    def test_resource_soak_has_its_own_timeout_budget(self):
+        workflow = (ROOT / ".github/workflows/hardware-validation.yml").read_text()
+        self.assertIn("timeout-minutes: ${{ matrix.timeout }}", workflow)
+        self.assertIn("runner: pm-soak\n            timeout: 1800", workflow)
+        self.assertIn("runner: pm-generic\n            timeout: 1440", workflow)
 
 
 

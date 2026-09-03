@@ -1,0 +1,82 @@
+{
+  "schemaVersion": 2,
+  "gate": "resource-soak",
+  "pmCommitSha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "buildRunId": "build-123",
+  "runtimeSha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+  "controller": {
+    "source": "repository",
+    "path": "tools/stable-testbed/run-resource-soak.sh",
+    "sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+  },
+  "buildArtifacts": {
+    "performance-manager": {"apkSha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd", "version": "1.0.4", "filename": "performance-manager.apk"},
+    "luci-app-performance-manager": {"apkSha256": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee", "version": "1.0.4", "filename": "luci-app-performance-manager.apk"},
+    "performance-manager-rill": {"apkSha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff", "version": "1.0.4", "filename": "performance-manager-rill.apk"},
+    "rill-runtime": {"apkSha256": "1111111111111111111111111111111111111111111111111111111111111111", "version": "1.5.6", "filename": "rill-runtime.apk"},
+    "luci-app-performance-manager-all": {"apkSha256": "2222222222222222222222222222222222222222222222222222222222222222", "version": "1.0.4", "filename": "luci-app-performance-manager-all.apk"}
+  },
+  "installedArtifacts": {
+    "performance-manager": {"apkSha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd", "version": "1.0.4", "installedPayload": {"/usr/sbin/performance-manager.uc": "3333333333333333333333333333333333333333333333333333333333333333", "/usr/share/performance-manager/contracts.uc": "4444444444444444444444444444444444444444444444444444444444444444"}},
+    "luci-app-performance-manager": {"apkSha256": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee", "version": "1.0.4"},
+    "performance-manager-rill": {"apkSha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff", "version": "1.0.4"},
+    "rill-runtime": {"apkSha256": "1111111111111111111111111111111111111111111111111111111111111111", "version": "1.5.6"},
+    "luci-app-performance-manager-all": {"apkSha256": "2222222222222222222222222222222222222222222222222222222222222222", "version": "1.0.4", "installedPayload": {"/usr/sbin/performance-manager.uc": "3333333333333333333333333333333333333333333333333333333333333333", "/usr/share/performance-manager/contracts.uc": "4444444444444444444444444444444444444444444444444444444444444444", "/etc/init.d/performance-manager": "5555555555555555555555555555555555555555555555555555555555555555", "/usr/share/rpcd/acl.d/luci-app-performance-manager.json": "6666666666666666666666666666666666666666666666666666666666666666", "/usr/share/luci/menu.d/luci-app-performance-manager.json": "7777777777777777777777777777777777777777777777777777777777777777", "/www/luci-static/resources/view/performance-manager/overview.js": "8888888888888888888888888888888888888888888888888888888888888888", "/usr/lib/lua/luci/i18n/performance-manager.zh-cn.lmo": "9999999999999999999999999999999999999999999999999999999999999999"}}
+  },
+  "subchecks": {
+    "exactPackagesInstalled": true,
+    "rillPresent": true,
+    "sampledResources": true,
+    "noCoreRestart": true,
+    "idleObserveZero": true,
+    "idleRuntimePersistenceZero": true,
+    "idleJournalWritesZero": true,
+    "runtimeInvocationHealthy": true,
+    "runtimeFailureZero": true,
+    "runtimeStateBounded": true,
+    "journalMeasured": true,
+    "stateBoundsPass": true,
+    "historyBoundsPass": true
+  },
+  "rawFacts": {
+    "installedPackages": {
+      "luci-app-performance-manager-all": {"version": "1.0.4"},
+      "rill-runtime": {"version": "1.5.6"}
+    },
+    "durationSeconds": 86400,
+    "soak": {
+      "rillPresent": true,
+      "sampleCount": 1440,
+      "coreRestartCount": 0,
+      "idleRillObserveAcceptedDelta": 0,
+      "idleExpectedRuntimePersistenceEventsDelta": 0,
+      "idlePendingOutcomeJournalWrites": 0,
+      "executingJournalDelta": 0,
+      "runtimeInvocationCount": 2880,
+      "runtimeSuccessfulInvocationCount": 2880,
+      "runtimeInvocationFailureCount": 0,
+      "runtimeTimeoutCount": 0,
+      "runtimeMalformedResponseCount": 0,
+      "runtimeNonZeroExitCount": 0,
+      "resources": {
+        "coreRssKiB": 8192,
+        "coreMeanCpuPercent": 1.5,
+        "corePersistentWritesPerDay": 1.0,
+        "bindingHighWater": 4,
+        "interventionRequiredCount": 0,
+        "persistentHistoryGrowthBytes": 1024,
+        "executionJournalFileCount": 0,
+        "executionJournalBytes": 0,
+        "retiredExecutionCount": 0,
+        "activeExecutionCount": 0,
+        "executingExecutionCount": 0,
+        "runtimeStateMaxBytes": 4096
+      }
+    }
+  },
+  "durationSeconds": 86400,
+  "primaryPackage": "luci-app-performance-manager-all",
+  "primaryPackageSha256": "2222222222222222222222222222222222222222222222222222222222222222",
+  "verdict": "PASS",
+  "passed": true
+}

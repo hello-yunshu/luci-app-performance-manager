@@ -43,7 +43,7 @@ Runtime v3 integration additionally exercises strict envelope parsing, bounded r
 
 `scripts/openwrt-target-gate.sh` produces machine-readable target evidence. It checks OpenWrt/x86_64 identity, Core startup/ubus, Analyzer/Topology/Packet Steering, Core survival with Rill stopped and stale locks. `PM_ALLOW_MUTATION=1` explicitly enables the conservative Hyper-V ring apply/manual-rollback and ownership-cleanup tests when a legal candidate exists.
 
-`scripts/openwrt-resource-soak.sh` defaults to the frozen 24h gate and reports maximum Core RSS, approximate mean CPU and Core/Rill logical persistent writes per day. A shortened duration is development evidence only.
+`scripts/openwrt-resource-soak.sh` defaults to the frozen 24h gate and reports maximum Core RSS, approximate mean CPU, bounded Runtime state, Runtime invocation/failure/timeout counters, and Core logical persistent writes per day. Runtime is a bounded subprocess per request, so no daemon RSS/CPU/restart metric is invented. A shortened duration is development evidence only.
 
 ## Testbed-only gates
 

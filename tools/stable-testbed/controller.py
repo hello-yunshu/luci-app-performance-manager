@@ -108,9 +108,10 @@ def main(argv=None):
         }
         for name, record in (build.get("packages") or {}).items()
     }
+    evidence_schema_version = 2 if args.gate == "resource-soak" else 1
     evidence = {
         "rawFacts": facts,
-        "schemaVersion": 1, "gate": args.gate, "pmCommitSha": expected_sha,
+        "schemaVersion": evidence_schema_version, "gate": args.gate, "pmCommitSha": expected_sha,
         "buildRunId": str(build.get("workflowRunId")), "runtimeSha256": None if args.gate == "target-core-only" else (build.get("externalRuntime") or {}).get("sha256"),
         "controller": {"source": "repository", "path": args.controller_path, "sha256": sha256(controller)},
         "subchecks": evaluate_raw_facts(raw, args.gate),
