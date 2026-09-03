@@ -54,7 +54,9 @@ REQUIRED_DEPENDS = {
     'luci-app-performance-manager': {
         'luci-base', 'rpcd', 'performance-manager', 'luci-i18n-base-zh-cn',
     },
-    'performance-manager-rill': {'performance-manager', 'rill-runtime'},
+    # The glue consumes the shared virtual capability so either the split Core
+    # package or the physical all-in-one package can satisfy the same graph.
+    'performance-manager-rill': {'performance-manager-core', 'rill-runtime'},
     'rill-runtime': {'libc'},
     ALL_IN_ONE: {
         'luci-base', 'rpcd', 'luci-i18n-base-zh-cn', 'ubus', 'uci', 'ucode',
