@@ -1,13 +1,22 @@
 # 1.0 Stable Release Checklist
 
-## Portable Docker release profile
+## Historical public v1.0.3
 
-The current public `1.0.3` release uses `portable-docker`. It requires the
-same-commit CI/Rill chain, official SDK/APK identity, hosted Action tests, and
-the real Core ucode harness executed inside Docker. It must disclose that
+The public `v1.0.3` release is a historical `portable-docker`-verified release.
+It requires the same-commit CI/Rill chain, official SDK/APK identity, hosted
+Action tests, and the real Core ucode harness executed inside Docker. It is not
+Hardware Stable under the current policy and must disclose that
 Hyper-V, KVM hotplug, real-router A/B, firmware sysupgrade reboot, and 24-hour
 hardware soak are **NOT_EVALUATED**. The checklist below remains the separate
 `hardware` profile and must not be represented as passed by portable evidence.
+
+## Current Stable policy for v1.0.4 and later
+
+The current source candidate is `1.0.4`. A Stable release may use only the
+`hardware` profile: every hardware gate below must be `PASS` in a same-commit
+aggregate. Portable evidence can authorize a portable/prerelease result only;
+it always leaves `stableReleaseVerdict=NOT_EVALUATED`,
+`stableReleaseAuthorized=false`, and `hardwareCoverage=NOT_EVALUATED`.
 
 ## Build / package
 

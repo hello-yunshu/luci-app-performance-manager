@@ -86,13 +86,13 @@ make package/luci-app-performance-manager-all/compile V=s
 
 ### 推荐：单 APK 安装
 
-从 GitHub Release 下载 `luci-app-performance-manager-all-1.0.3-r1.apk`；如启用 Smart Decision，再下载 `performance-manager-rill` glue 包和同一架构的外部 `rill-runtime` 包。
+从 GitHub Release 下载 `luci-app-performance-manager-all-1.0.4-r1.apk`；如启用 Smart Decision，再下载 `performance-manager-rill` glue 包和同一架构的外部 `rill-runtime` 包。
 
 仓库的官方 OpenWrt SDK 编译会编译并校验所有拆分包以及实体一体化包；公开 Release 提供一份 arch-independent all-in-one 和一份 `performance-manager-rill` glue 包。`rill-runtime` 由 `hello-yunshu/rill-openwrt-packages` 独立提供，必须按设备架构和精确资格证据安装。
 
 ```sh
-apk add --allow-untrusted /tmp/luci-app-performance-manager-all-1.0.3-r1.apk
-apk add --allow-untrusted /tmp/performance-manager-rill-1.0.3-r1.apk
+apk add --allow-untrusted /tmp/luci-app-performance-manager-all-1.0.4-r1.apk
+apk add --allow-untrusted /tmp/performance-manager-rill-1.0.4-r1.apk
 # 另外安装外部 feed 提供的、与设备架构匹配的 rill-runtime 包。
 ```
 
@@ -104,7 +104,7 @@ apk add --allow-untrusted /tmp/performance-manager-rill-1.0.3-r1.apk
 |---|---|
 | 推荐包名 | `luci-app-performance-manager-all`（单 APK） |
 | 目标 | OpenWrt 25.12.x / x86_64、aarch64_generic、aarch64_cortex-a53（包级）；运行时证据为 x86_64 |
-| 当前源码候选 | `1.0.3` |
+| 当前源码候选 | `1.0.4` |
 | 服务脚本 | `/etc/init.d/performance-manager` |
 | UCI 配置 | `/etc/config/performance-manager` |
 | 核心程序 | `/usr/sbin/performance-manager.uc` |
@@ -288,7 +288,7 @@ make package        # 生成发布包
 - 资源 / 写入 soak：`scripts/openwrt-resource-soak.sh`
 - 外部验证证据：`docs/EXTERNAL_VALIDATION.md`
 
-> `1.0.3` 的 portable-docker profile 不宣称 Hyper-V、真实路由器 A/B、firmware sysupgrade 或 24 小时 soak 覆盖；这些仍需单独的 `hardware` profile 证据。Runtime v3 Preview 也不等同于 Stable 发布资格。
+> 历史公开 `1.0.3` 的 portable-docker profile 不宣称 Hyper-V、真实路由器 A/B、firmware sysupgrade 或 24 小时 soak 覆盖；这些仍需单独的 `hardware` profile 证据。当前 `1.0.4` 及以后 Stable 只接受所有 hardware gates 为 PASS 的证据；Runtime v3 Preview 也不等同于 Stable 发布资格。
 
 ## 文档
 

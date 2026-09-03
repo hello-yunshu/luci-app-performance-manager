@@ -175,6 +175,10 @@
       "status": "pass"
     },
     {
+      "name": "YAML parse hardware-validation.yml",
+      "status": "pass"
+    },
+    {
       "name": "YAML parse prerelease.yml",
       "status": "pass"
     },

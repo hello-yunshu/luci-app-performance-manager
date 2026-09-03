@@ -146,10 +146,10 @@ jobs:
             gh release upload "$tag" release-assets/* --clobber
           else
             gh release create "$tag" release-assets/* --draft --verify-tag \
-              --title "OpenWrt Performance Manager $tag (Docker-verified)" \
+              --title "OpenWrt Performance Manager $tag (Hardware-validated)" \
               --notes-file release-assets/FINAL_AUDIT.md
           fi
-          gh release edit "$tag" --draft=false --title "OpenWrt Performance Manager $tag (Docker-verified)" \
+          gh release edit "$tag" --draft=false --title "OpenWrt Performance Manager $tag (Hardware-validated)" \
             --notes-file release-assets/FINAL_AUDIT.md
       - name: Re-download published assets and verify checksums
         shell: bash

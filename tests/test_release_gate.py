@@ -76,3 +76,22 @@ class ReleaseGateSourceTests(unittest.TestCase):
         self.assertEqual(report["stableReleaseVerdict"], "NOT_EVALUATED")
         self.assertEqual(report["hardwareCoverage"], "NOT_EVALUATED")
         self.assertFalse(report["stableReleaseAuthorized"])
+
+    def test_stable_profile_routing_accepts_only_matching_target_workflow(self):
+        aggregate = (ROOT / ".github/workflows/stable-aggregate.yml").read_text()
+        self.assertIn('inputs.profile', aggregate)
+        self.assertIn('portable-docker', aggregate)
+        self.assertIn("target_workflow='Portable validation matrix'", aggregate)
+        self.assertIn('hardware', aggregate)
+        self.assertIn("target_workflow='Hardware validation matrix'", aggregate)
+        self.assertIn("unsupported evidence profile", aggregate)
+        self.assertIn("target_workflow_path='.github/workflows/stable-target-matrix.yml'", aggregate)
+        self.assertIn("target_workflow_path='.github/workflows/hardware-validation.yml'", aggregate)
+
+    def test_public_release_is_immutable_and_new_version_is_selected_from_source(self):
+        release = (ROOT / ".github/workflows/stable-release.yml").read_text()
+        self.assertIn("remote_tag=", release)
+        self.assertIn("exists and is public; refusing mutation", release)
+        self.assertIn("gh release upload \"$tag\" release-assets/* --clobber", release)
+        self.assertIn("Hardware-validated", release)
+        self.assertEqual((ROOT / "VERSION").read_text().strip(), "1.0.4")

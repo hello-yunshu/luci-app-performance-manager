@@ -1,7 +1,7 @@
 {
   "requestId": "decide-example",
   "apiVersion": 3,
-  "clientIdentity": {"name": "performance-manager", "version": "1.0.3"},
+  "clientIdentity": {"name": "performance-manager", "version": "1.0.4"},
   "capability": "org.rill.preview.decide",
   "featureSchemaHash": "925778554fc142043e49e3097ed94baa9fa4b2de251493ba62b96ea55c176557",
   "modelGeneration": 2,

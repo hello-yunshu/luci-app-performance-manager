@@ -11,17 +11,29 @@ never receives an actuator or router-mutation authority.
 Core sends a generic Runtime v3 envelope over a bounded stdin/stdout subprocess call. The decide
 payload contains a ContextKey, goal, current health/topology evidence and the
 legal action candidates. Every candidate carries a fixed 20-dimensional
-feature vector defined by `contracts/rill-feature-schema.json`; missing values
-are neutral zeroes, and the schema hash plus model generation are bound into
-the request. The action list always contains `pm.noop`. Runtime IDs include a
-bounded digest of the stable target and evaluation paths, so equal business
-Action IDs cannot collide across NICs or WAN paths.
+feature vector defined by `contracts/rill-feature-schema.json`. Its dimensions,
+in order, are:
+
+`is_noop`, `is_safe_direct`, `is_benchmark`, `risk_level`, `action_available`,
+`action_delta_normalized`, `affects_nic`, `affects_network_stack`,
+`affects_cpu`, `affects_fastpath`, `traffic_utilization`, `pps_pressure`,
+`drop_error_pressure`, `cpu_load`, `softirq_pressure`, `queue_pressure`,
+`memory_pressure`, `recent_reward_mean`, `recent_success_rate`, and
+`negative_streak`.
+
+Missing values are neutral zeroes, and the schema hash plus model generation are
+bound into the request. The action list always contains `pm.noop`. Runtime IDs
+include a bounded digest of the stable target and evaluation paths, so equal
+business Action IDs cannot collide across NICs or WAN paths.
 
 The feature vector is deterministic and includes interval-derived byte rate,
 packet rate, drop/error ratio, CPU busy, softirq pressure and bounded memory
-pressure, plus health, topology/path, workload, integration, target and
-action-family signals. The first telemetry snapshot is neutral; cumulative
-boot counters are never treated as live utilization. An invalid or missing
+pressure. ContextKey/contextual metadata carries topology, route identity,
+workload class, integration fingerprint and goal; those are not additional
+feature-vector dimensions. Candidate identity carries the business action,
+stable target and evaluation path; those are not feature-vector dimensions
+either. The first telemetry snapshot is neutral; cumulative boot counters are
+never treated as live utilization. An invalid or missing
 CPU counter window is represented as `cpuBusyInterval=null` with
 `cpuWindowValid=false` and remains neutral in the feature vector; it is never
 treated as measured zero. Raw interface names, shell commands and mutable
@@ -53,8 +65,9 @@ displayed as benchmark-only and require an explicit controlled session.
 Each bounded ContextKey tracks validated samples, reward history and the
 environment-level rolling reward distribution. Each candidate independently
 tracks attempt/success/failure/rollback counts, bounded reward history, last
-execution and cooldown. Candidate keys include the business action, stable
-target and evaluation path. Stages are:
+execution and cooldown. Candidate identity remains separate from the feature
+vector and includes the business action, stable target and evaluation path.
+Stages are:
 
 - `cold`: fewer than 3 validated samples; no Rill influence.
 - `warming`: 3–7 validated samples; advisory ranking only.

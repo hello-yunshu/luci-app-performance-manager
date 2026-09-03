@@ -82,16 +82,16 @@ The Rill package is an external-runtime integration boundary; this repository do
 
 ### Recommended: one-APK installation
 
-Download `luci-app-performance-manager-all-1.0.3-r1.apk` and `performance-manager-rill-1.0.3-r1.apk` from the GitHub Release, plus the matching external `rill-runtime` package from the Rill OpenWrt feed. The Runtime package is not built or copied by this repository.
+Download `luci-app-performance-manager-all-1.0.4-r1.apk` and `performance-manager-rill-1.0.4-r1.apk` from the GitHub Release, plus the matching external `rill-runtime` package from the Rill OpenWrt feed. The Runtime package is not built or copied by this repository.
 
 ```text
-performance-manager-rill-1.0.3-r1.apk
+performance-manager-rill-1.0.4-r1.apk
 rill-runtime-<matching-target>.apk
 ```
 
 ```sh
-apk add --allow-untrusted /tmp/luci-app-performance-manager-all-1.0.3-r1.apk
-apk add --allow-untrusted /tmp/performance-manager-rill-1.0.3-r1.apk
+apk add --allow-untrusted /tmp/luci-app-performance-manager-all-1.0.4-r1.apk
+apk add --allow-untrusted /tmp/performance-manager-rill-1.0.4-r1.apk
 apk add --allow-untrusted /tmp/rill-runtime-<matching-target>.apk
 ```
 
@@ -103,7 +103,7 @@ OpenWrt still resolves system runtime libraries such as `luci-base`, `rpcd` and 
 |---|---|
 | Recommended package | `luci-app-performance-manager-all` (one APK) |
 | Target | OpenWrt 25.12.5 / x86_64, aarch64_generic, aarch64_cortex-a53 (package-level); runtime evidence is x86_64 |
-| Current source candidate | `1.0.3` |
+| Current source candidate | `1.0.4` |
 | Service script | `/etc/init.d/performance-manager` |
 | UCI config | `/etc/config/performance-manager` |
 | Core binary | `/usr/sbin/performance-manager.uc` |
@@ -284,7 +284,7 @@ make package        # build release artifacts
 - Resource / write soak: `scripts/openwrt-resource-soak.sh`
 - External validation evidence: `docs/EXTERNAL_VALIDATION.md`
 
-> `1.0.3` uses the explicit `portable-docker` release profile: same-commit official SDK/APKs, exact Runtime evidence, hosted Actions, and the Docker Core ucode harness must pass before publishing the verified all-in-one and integration APKs. The external `rill-runtime` package is qualified and published by its own feed. This profile does not claim Hyper-V, real-router A/B, firmware sysupgrade, or 24-hour soak coverage; those require the separate `hardware` profile.
+> Historical public `1.0.3` uses the explicit `portable-docker` release profile and does not claim Hyper-V, real-router A/B, firmware sysupgrade, or 24-hour soak coverage. Current `1.0.4` and later Stable releases require every `hardware` gate to pass; the external `rill-runtime` package is qualified and published by its own feed.
 
 ## Documentation
 

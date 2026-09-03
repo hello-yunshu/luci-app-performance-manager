@@ -119,6 +119,7 @@ report = {
     "sourceCandidateVerdict": "PASS" if local_pass else "FAIL",
     "functionalIntegrationVerdict": "NOT_EVALUATED",
     "stableReleaseVerdict": "NOT_EVALUATED",
+    "testEvidenceScope": "checked-in source-audit snapshot; current same-SHA CI artifacts are authoritative",
     "promotionPolicy": "This report is non-promotable. Runtime and Stable PASS are exclusively owned by final_release_audit.py with same-commit external evidence.",
     "orchestrationSteps": steps,
     "localEvidence": {
@@ -179,7 +180,8 @@ artifacts and cannot claim functional-integration or Stable-release PASS.
 
 {step_lines}
 
-- Executable unit/contract tests: **{tests['count']}**, status **{tests['status']}**.
+- Executable unit/contract tests in this checked-in source-audit snapshot: **{tests['count']}**, status **{tests['status']}**.
+- Current test counts and conclusions come from the same-SHA CI artifacts, not this historical/generated snapshot.
 - Rill static contract: **{rill_static.get('staticContractVerdict')}**.
 - Rill release-pin structure: **{rill_static.get('releasePinStructureVerdict')}**.
 - Rill functional integration: **NOT_EVALUATED** in this report.
