@@ -177,6 +177,8 @@ if chroot .portable-rootfs /bin/sh -c "command -v apk >/dev/null 2>&1"; then
 else
   chroot .portable-rootfs /bin/sh -c "opkg update && opkg install ucode ucode-mod-fs ucode-mod-ubus ucode-mod-uci ucode-mod-rtnl ucode-mod-uloop ucode-mod-socket ucode-mod-log"
 fi
+install -D -m 0644 package/performance-manager/files/usr/share/performance-manager/contracts.uc \
+  .portable-rootfs/usr/share/performance-manager/contracts.uc
 chown -R "$PM_HOST_UID:$PM_HOST_GID" .portable-rootfs local-evidence/docker/openwrt-rootfs-sha256.json'
 
 if ! run_logged "$DOCKER/rootfs-prepare.log" docker run --rm --platform "$DOCKER_PLATFORM" \
