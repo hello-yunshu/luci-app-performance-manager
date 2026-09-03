@@ -137,6 +137,9 @@ jobs:
             --rootfs .portable-rootfs \
             --packages "$selected_root" \
             --expected-commit "${{ inputs.expected_sha }}" \
+            --openwrt-version "$OPENWRT_VERSION" \
+            --target "$OPENWRT_TARGET" \
+            --package-arch x86_64 \
             --out stable-output/package-composition.json
 
       - name: Upload portable evidence

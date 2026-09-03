@@ -51,7 +51,8 @@ def run(rootfs: Path, command: list[str]) -> subprocess.CompletedProcess[str]:
                           text=True, capture_output=True)
 
 
-def execute(rootfs: Path, packages: dict[str, Path], names: tuple[str, ...]) -> dict:
+def execute(rootfs: Path, packages: dict[str, Path], names: tuple[str, ...],
+            openwrt_version: str, target: str, package_arch: str) -> dict:
     with tempfile.TemporaryDirectory(prefix="pm-composition-") as staging:
         staging = Path(staging)
         guest = rootfs / "tmp/pm-composition"
@@ -72,8 +73,15 @@ def execute(rootfs: Path, packages: dict[str, Path], names: tuple[str, ...]) -> 
                 "if apk add --allow-untrusted --no-cache " + " ".join(staged) + "; then "
                 "echo PM_APK_REPOSITORY_TRANSPORT=https; "
                 "else "
-                "sed 's#^https://downloads.openwrt.org/#http://downloads.openwrt.org/#' "
-                "/etc/apk/repositories > /tmp/pm-repositories-http; "
+                "printf '%s\\n' "
+                f"'http://downloads.openwrt.org/releases/{openwrt_version}/targets/{target}/packages' "
+                f"'http://downloads.openwrt.org/releases/{openwrt_version}/packages/{package_arch}/base' "
+                f"'http://downloads.openwrt.org/releases/{openwrt_version}/packages/{package_arch}/luci' "
+                f"'http://downloads.openwrt.org/releases/{openwrt_version}/packages/{package_arch}/packages' "
+                f"'http://downloads.openwrt.org/releases/{openwrt_version}/packages/{package_arch}/routing' "
+                f"'http://downloads.openwrt.org/releases/{openwrt_version}/packages/{package_arch}/telephony' "
+                f"'http://downloads.openwrt.org/releases/{openwrt_version}/packages/{package_arch}/video' "
+                "> /tmp/pm-repositories-http; "
                 "apk --repositories-file /tmp/pm-repositories-http "
                 "add --allow-untrusted --no-cache " + " ".join(staged) + "; "
                 "echo PM_APK_REPOSITORY_TRANSPORT=http-fallback; "
@@ -110,6 +118,9 @@ def main(argv=None) -> int:
     parser.add_argument("--rootfs", required=True, type=Path)
     parser.add_argument("--packages", required=True, type=Path)
     parser.add_argument("--expected-commit", required=True)
+    parser.add_argument("--openwrt-version", required=True)
+    parser.add_argument("--target", required=True)
+    parser.add_argument("--package-arch", required=True)
     parser.add_argument("--out", required=True, type=Path)
     args = parser.parse_args(argv)
     if not re.fullmatch(r"[0-9a-f]{40}", args.expected_commit):
@@ -124,7 +135,8 @@ def main(argv=None) -> int:
         for label, names in (("split", SPLIT), ("all-in-one", ALL_IN_ONE)):
             clone = Path(temp) / label
             shutil.copytree(args.rootfs, clone, symlinks=True)
-            results[label] = execute(clone, packages, names)
+            results[label] = execute(clone, packages, names, args.openwrt_version,
+                                     args.target, args.package_arch)
     report = {"schemaVersion": 1, "gate": "package-composition",
               "pmCommitSha": args.expected_commit,
               "verdict": "PASS" if all(x["status"] == "PASS" for x in results.values()) else "FAIL",
