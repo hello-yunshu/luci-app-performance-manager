@@ -64,7 +64,8 @@ class AllInOnePackageTests(unittest.TestCase):
         self.assertIn('pmCommitSha', gate)
         for token in ('PM_SERVICE_SMOKE=PASS', 'PM_UBUS_STATUS=PASS',
                       'PM_RILL_STATUS=PASS', 'PM_RILL_REMOVAL_SMOKE=PASS',
-                      'installedPayloadExact', 'ubus call performance-manager status',
+                      'installedPayloadExact', 'consumedByInstall', '/var/lock',
+                      'sleep 1', 'ubus call performance-manager status',
                       'ubus call performance-manager rill_status'):
             self.assertIn(token, gate)
         collector = (ROOT / 'scripts/collect_stable_evidence.py').read_text()

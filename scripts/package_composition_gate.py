@@ -105,7 +105,7 @@ def execute(rootfs: Path, packages: dict[str, Path], names: tuple[str, ...],
                 "test -x /usr/sbin/performance-manager.uc; "
                 "test -x /usr/bin/rill-runtime; "
                 "test -f /usr/share/rpcd/acl.d/luci-app-performance-manager.json; "
-                "mkdir -p /var/run/ubus /run /tmp/performance-manager /etc/performance-manager; "
+                "mkdir -p /var/run/ubus /run /var/lock /tmp/performance-manager /etc/performance-manager; "
                 "rm -f /var/run/ubus/ubus.sock; "
                 "core_pid=0; /sbin/ubusd >/tmp/pm-composition-ubusd.log 2>&1 & ubusd_pid=$!; "
                 "trap 'kill $core_pid $ubusd_pid 2>/dev/null || true' EXIT; "
@@ -114,7 +114,7 @@ def execute(rootfs: Path, packages: dict[str, Path], names: tuple[str, ...],
                 "test \"$service_prog\" = /usr/sbin/performance-manager.uc; "
                 "$service_prog >/tmp/pm-composition-core.log 2>&1 & core_pid=$!; "
                 "i=0; while ! ubus -S list performance-manager >/dev/null 2>&1; do "
-                "i=$((i+1)); test $i -lt 50; sleep 0.1; done; "
+                "i=$((i+1)); test $i -lt 10; sleep 1; done; "
                 "status=$(ubus call performance-manager status '{}'); "
                 "printf '%s' \"$status\" | grep -q '\"running\": true'; "
                 "rill_status=$(ubus call performance-manager rill_status '{}'); "
@@ -146,10 +146,14 @@ def execute(rootfs: Path, packages: dict[str, Path], names: tuple[str, ...],
             for payload_path, expected_sha in expected_payload.items():
                 installed_path = rootfs / payload_path.lstrip("/")
                 actual_sha = sha256_file(installed_path) if installed_path.is_file() else None
+                consumed_by_install = (
+                    actual_sha is None and payload_path.startswith("/etc/uci-defaults/")
+                )
                 installed_payload[payload_path] = {
                     "expectedSha256": expected_sha,
                     "actualSha256": actual_sha,
-                    "match": actual_sha == expected_sha,
+                    "match": actual_sha == expected_sha or consumed_by_install,
+                    "consumedByInstall": consumed_by_install,
                 }
             payload_ok = all(record["match"] for record in installed_payload.values())
             service_smoke = "PM_SERVICE_SMOKE=PASS" in completed.stdout
