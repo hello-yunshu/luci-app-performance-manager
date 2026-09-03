@@ -127,7 +127,7 @@ The UI is Simplified-Chinese-first and automatically follows the OpenWrt/LuCI sy
 | Smart Optimization | recommended actions and safe apply |
 | Performance Test | Phase-7 controlled benchmark orchestration |
 | Capabilities | capability / topology / TargetRef views |
-| Rill Intelligence | shadow learning model and decision ledger |
+| Rill Intelligence | Runtime advisory model and decision ledger |
 | History & Rollback | history and rollback |
 | Settings / Advanced | configuration |
 
@@ -237,13 +237,13 @@ package/luci-app-performance-manager-all/Makefile  # merges all owned runtime co
 | `health_dns_name` | string | openwrt.org | health-check DNS target |
 | `oom_window_seconds` / `max_load_per_cpu` / `max_cpu_steal_percent` / `max_thermal_millicelsius` | integer | 600 / 2 / 20 / 90000 | health gate thresholds |
 
-### rill section (shadow)
+### rill section (Runtime v3)
 
 | Option | Type | Default | Description |
 |---|---|---|---|
 | `enabled` | boolean | 1 | enable external Runtime |
-| `mode` | enum | shadow | advisory ranking only, no apply authority |
-| `socket` | string | /run/performance-manager/rill.sock | UDS path |
+| `mode` | fixed semantic | advisory | advisory ranking only, no apply authority; legacy `shadow` is read once by upgrade migration |
+| `binary` | string | (empty) | external Runtime path; empty uses `/usr/bin/rill-runtime` |
 | `max_message` | integer | 65536 | max message bytes |
 | `timeout_ms` | integer | 1000 | call timeout |
 | `state_dir` | string | /etc/performance-manager/rill | Rill persistent state |

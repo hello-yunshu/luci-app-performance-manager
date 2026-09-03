@@ -244,7 +244,7 @@ package/luci-app-performance-manager-all/Makefile  # 将上述自有运行内容
 | 选项 | 类型 | 默认值 | 说明 |
 |---|---|---|---|
 | `enabled` | boolean | 1 | 启用外部 Runtime |
-| `mode` | enum | shadow | Runtime 只返回 advisory，无 Apply 权限 |
+| `mode` | 固定语义 | advisory | Runtime 只返回 advisory，无 Apply 权限；旧 `shadow` section 仅在升级迁移时读取一次 |
 | `binary` | string | (空) | 外部 Runtime 路径；空值使用 `/usr/bin/rill-runtime`，缺失或不兼容时集成 fail-closed / 阻塞 |
 | `max_message` | integer | 65536 | 最大消息字节 |
 | `timeout_ms` | integer | 1000 | 调用超时 |

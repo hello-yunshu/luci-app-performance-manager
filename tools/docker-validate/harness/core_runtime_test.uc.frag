@@ -257,7 +257,7 @@ check(!r1.ok && r1.state == 'not-provisioned' && r1.connected === false && r1.fu
 print('== [8] Exact Rill decision reservation: single production owner ==\n');
 read=_core_read;
 let _decision='0123456789abcdef0123456789abcdef';
-rill_bindings[_decision]={schemaVersion:RILL_BINDINGS_SCHEMA_VERSION,decisionId:_decision,actionId:'nic.ring.floor',contextKey:'ctx-v1:harness',goal:'balanced',modelGeneration:2,advisory:true,confidence:0.8,executionAuthority:'safe-direct',bootId:boot_id(),atMs:monotonic_ms()};
+rill_bindings[_decision]={schemaVersion:RILL_BINDINGS_SCHEMA_VERSION,decisionId:_decision,actionId:'nic.ring.floor',candidateId:'nic.ring.floor',businessActionId:'nic.ring.floor',contextKey:'ctx-v1:harness',goal:'balanced',modelGeneration:2,advisory:true,confidence:0.8,executionAuthority:'safe-direct',bootId:boot_id(),atMs:monotonic_ms()};
 let reserved=rill_binding_reserve(_decision,'nic.ring.floor','safe-direct','transaction','tx-harness-a');
 check(reserved != null && reserved.ownerId == 'tx-harness-a', 'first exact decision reservation succeeds', reserved);
 let duplicate=rill_binding_reserve(_decision,'nic.ring.floor','safe-direct','transaction','tx-harness-b');

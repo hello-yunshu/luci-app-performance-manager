@@ -38,7 +38,7 @@ with tempfile.TemporaryDirectory() as pycache:
 # walk when git is unavailable.
 try:
     _out = subprocess.run(['git', 'ls-files', '-z'], cwd=ROOT, capture_output=True, text=True)
-    _tracked = [ROOT / p for p in _out.stdout.split('\0') if p]
+    _tracked = [ROOT / p for p in _out.stdout.split('\0') if p and (ROOT / p).is_file()]
 except Exception:
     _tracked = [p for p in ROOT.rglob('*') if p.is_file() and '__pycache__' not in p.parts and '.git' not in p.parts]
 for p in sorted(x for x in _tracked if x.suffix == '.json'):

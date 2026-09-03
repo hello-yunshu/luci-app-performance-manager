@@ -72,7 +72,7 @@ if [ "$rill_present" = true ]; then
   RS=$(ubus call performance-manager rill_status '{}' 2>/dev/null || printf '{}')
   rstate=$(jget "$RS" '@.state')
   case "$rstate" in available|learning) pass rill-root-core-connect;; *) fail rill-root-core-connect;; esac
-  [ "$(jget "$RS" '@.mode')" = "shadow" ] && pass rill-shadow || fail rill-shadow
+  [ "$(jget "$RS" '@.mode')" = "advisory" ] && pass rill-runtime-mode || fail rill-runtime-mode
   effective_binary=$(jget "$RS" '@.binary.effective')
   if [ -n "$effective_binary" ] && [ -r "$effective_binary" ]; then
     runtime_sha=$(sha256sum "$effective_binary" | awk '{print $1}')

@@ -29,7 +29,9 @@ def main(argv=None) -> int:
     if build.get("repositoryCommitSha") != args.expected_commit:
         raise RuntimeError("build metadata commit mismatch")
     if not args.dry_run:
-        if final is None or final.get("pmCommitSha") != args.expected_commit or final.get("overallVerdict") != "PASS" \
+        if final is None or final.get("pmCommitSha") != args.expected_commit \
+                or final.get("releaseProfile") != "hardware" \
+                or final.get("stableReleaseVerdict") != "PASS" \
                 or final.get("stableReleaseAuthorized") is not True:
             raise RuntimeError("Stable evidence is not authorized for the expected commit")
     primary_records = ((build.get("packages") or {}).get(PACKAGE) or {}).get("targets") or []

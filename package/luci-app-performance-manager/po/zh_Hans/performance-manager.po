@@ -346,8 +346,11 @@ msgstr "Rill 智能"
 msgid "RillML (Rill) Intelligence"
 msgstr "RillML（Rill）智能"
 
+msgid "Rill Runtime"
+msgstr "Rill Runtime"
+
 msgid "Rill Shadow"
-msgstr "Rill Shadow"
+msgstr "Rill Shadow（历史名称）"
 
 msgid "Rill Shadow · Collecting"
 msgstr "Rill Shadow · 收集中"

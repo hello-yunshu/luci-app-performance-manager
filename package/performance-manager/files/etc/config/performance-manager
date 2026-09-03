@@ -29,11 +29,10 @@ config core 'main'
 	option max_cpu_steal_percent '20'
 	option max_thermal_millicelsius '90000'
 
-config rill 'shadow'
+config rill 'runtime'
 	option enabled '1'
 	option binary ''
-	option mode 'shadow'
-	# Empty uses the package-owned generic Runtime at /usr/bin/rill-runtime;
+	# Empty uses the external generic Runtime at /usr/bin/rill-runtime;
 	# an explicit absolute executable is an opt-in override and never falls back.
 	option max_message '65536'
 	option timeout_ms '1000'
