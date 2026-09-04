@@ -31,8 +31,14 @@ class LocalValidationTests(unittest.TestCase):
         self.assertIn("DOCKER_PLATFORM=linux/amd64", text)
         self.assertIn("sha256sums", text)
         self.assertIn("sha256sum -c", text)
+        self.assertIn('grep -Eq "^[0-9a-f]{64}$"', text)
         self.assertIn("openwrt-25.12.5-x86-64-rootfs.tar.gz", text)
         self.assertIn(r"r'Ran (\d+) tests?'", text)
+
+    def test_source_audit_normalizes_nondeterministic_temp_paths(self):
+        text = (ROOT / "scripts/final_audit.py").read_text()
+        self.assertIn("stable_output_tail", text)
+        self.assertIn("<temporary-path>", text)
 
     def test_mac_validation_reuses_existing_gates_and_exact_artifact_identity(self):
         text = SCRIPT.read_text()
