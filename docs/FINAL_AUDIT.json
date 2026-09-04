@@ -2,7 +2,7 @@
   "schemaVersion": 3,
   "project": "OpenWrt Performance Manager",
   "version": "1.0.4",
-  "pmCommitSha": "0181c34bcf4aa05f0d3b62314d648dd7ca55708b",
+  "pmCommitSha": "bf664e6c05b53534de99cf0afa927520b4e70f82",
   "scope": "source-only",
   "sourceCandidateVerdict": "PASS",
   "functionalIntegrationVerdict": "NOT_EVALUATED",
