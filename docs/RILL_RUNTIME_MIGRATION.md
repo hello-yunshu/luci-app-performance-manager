@@ -5,8 +5,9 @@ package-owned generic `rill-runtime` at `/usr/bin/rill-runtime` through the
 exact contract in `contracts/rill-runtime.json` (currently version 1.5.6 and
 the pinned qualified upstream commit recorded there).
 
-The all-in-one package contains Core, LuCI, ACL/menu and translations only.
-The `performance-manager-rill` package is integration glue: it depends on
+The all-in-one package contains Core, LuCI, ACL/menu, translations, integration
+glue, keep rules, notices, and the exact qualified Runtime executable. The
+`performance-manager-rill` package is the retained split integration path: it depends on
 `performance-manager` and the external `rill-runtime` package from
 `hello-yunshu/rill-openwrt-packages`. This repository does not contain or
 restore a PM-owned adapter, a legacy shadow protocol, or a second Runtime
