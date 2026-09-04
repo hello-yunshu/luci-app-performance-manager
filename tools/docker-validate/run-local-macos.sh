@@ -158,8 +158,8 @@ if [ ! -f "$rootfs" ]; then
   fi
 fi
 rootfs_sha=$(awk -v f="*$rootfs" '\''$2 == f {print $1}'\'' sha256sums)
-if [ -z "$rootfs_sha" ]; then
-  echo FAIL: OpenWrt rootfs is absent from sha256sums
+if ! printf "%s" "$rootfs_sha" | grep -Eq "^[0-9a-f]{64}$"; then
+  echo FAIL: OpenWrt rootfs SHA256 is absent or invalid in sha256sums
   exit 1
 fi
 if ! printf "%s *%s\n" "$rootfs_sha" "$rootfs" | sha256sum -c -; then
