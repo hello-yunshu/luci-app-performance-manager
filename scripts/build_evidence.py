@@ -205,8 +205,9 @@ def main(argv):
     pm_build_verdict = 'PASS' if (apk_report is not None and all(produced[n] for n in packages)) else 'FAIL'
     apk_exact_verdict = 'PASS' if (apk_report or {}).get('verdict') == 'PASS' else 'FAIL'
 
-    # The generic Runtime package is qualified in its canonical feed; PM does
-    # not publish a duplicate executable.
+    # The generic Runtime source/package is still qualified in its canonical
+    # feed; the full package embeds the exact target binary but PM does not
+    # publish a second standalone Runtime release asset.
     if _prov_job:
         rill_checksum = _prov_job.get('runtimeSha256')
     rill_provenance = combine_required(_prov_verdicts())
@@ -267,6 +268,8 @@ def main(argv):
                     for path, payload in rec['installedPayload'].items()
                     if payload.get('status') in ('match', 'compiled')
                 }
+            if name == 'luci-app-performance-manager-all' and rec.get('runtimeBinary'):
+                entry['runtimeBinary'] = rec['runtimeBinary']
         packages_meta[name] = entry
 
     metadata = {
@@ -303,6 +306,19 @@ def main(argv):
             'qualificationArtifact': 'qualification-evidence',
             'qualificationRequired': True,
             'publicReleaseIncluded': False,
+            'bundledInFullAllInOne': True,
+        },
+        'fullPackage': {
+            'package': 'luci-app-performance-manager-all',
+            'filename': (packages_meta.get('luci-app-performance-manager-all') or {}).get('apkFilename'),
+            'sha256': (packages_meta.get('luci-app-performance-manager-all') or {}).get('apkSha256'),
+            'packageArch': arch,
+            'target': target,
+            'runtimeVersion': rill_version,
+            'runtimeSourceRepository': 'hello-yunshu/rill-openwrt-packages',
+            'runtimeSourceCommit': env('RILL_OPENWRT_PACKAGE_COMMIT'),
+            'runtimeSha256': ((packages_meta.get('luci-app-performance-manager-all') or {}).get('runtimeBinary') or {}).get('sha256'),
+            'runtimeBundled': ((packages_meta.get('luci-app-performance-manager-all') or {}).get('runtimeBinary') or {}).get('matchesSplitRuntime') is True,
         },
         'rillArtifactProvenanceReason': rill_provenance_reason,
         'evidenceSources': {

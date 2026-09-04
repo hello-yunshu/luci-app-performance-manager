@@ -55,7 +55,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          mkdir -p release-input release-assets
+          mkdir -p release-input release-public release-evidence
           gh run download "$BUILD_RUN_ID" --dir release-input
       - name: Verify and assemble the single-APK release inventory
         shell: bash
@@ -66,10 +66,11 @@ jobs:
           python3 scripts/make_release.py
           python3 scripts/assemble_prerelease.py \
             --input release-input \
-            --out release-assets \
+            --out release-public \
             --expected-sha "$EXPECTED_SHA" \
-            --source-dist dist \
             --version "$(cat VERSION)"
+          python3 scripts/verify_public_release_assets.py \
+            --assets release-public --version "$(cat VERSION)"
       - name: Refuse an existing prerelease identity
         shell: bash
         env:
@@ -97,14 +98,11 @@ jobs:
           python3 - "$version" <<'PY'
           import pathlib, sys
           version=sys.argv[1]
-          lines=pathlib.Path('CHANGELOG.md').read_text().splitlines()
-          start=next(i for i,line in enumerate(lines) if line.startswith(f'## {version} '))
-          end=next((i for i in range(start+1,len(lines)) if lines[i].startswith('## ')),len(lines))
-          pathlib.Path('release-notes.md').write_text('\n'.join(lines[start+1:end]).strip()+'\n')
+          pathlib.Path('release-notes.md').write_text(f'''## 下载\n\n每台设备只需要下载并安装一个 APK。该安装包已包含 Performance Manager Core、LuCI、简体中文、Rill 集成和 exact qualified Runtime；无需另外下载 `rill-runtime` 或 `performance-manager-rill`。\n\n- x86_64：`performance-manager-all-v{version}-x86_64.apk`\n- ARM64 通用：`performance-manager-all-v{version}-aarch64_generic.apk`\n- Filogic / MT7981 / MT7986：`performance-manager-all-v{version}-aarch64_cortex-a53.apk`\n\n当前状态：Portable validated；Hardware Stable not yet qualified。\n''')
           PY
-          gh release create "$tag" release-assets/* \
+          gh release create "$tag" release-public/* \
             --verify-tag --prerelease \
-            --title "OpenWrt Performance Manager $version · all-in-one APK" \
+            --title "OpenWrt Performance Manager $version-rc" \
             --notes-file release-notes.md
       - name: Re-download and verify published assets
         shell: bash
@@ -114,4 +112,5 @@ jobs:
           set -euo pipefail
           mkdir published
           gh release download "v$(cat VERSION)" --dir published
-          (cd published && sha256sum -c release-checksums.txt)
+          (cd published && sha256sum -c SHA256SUMS.txt)
+          python3 scripts/verify_public_release_assets.py --assets published --version "$(cat VERSION)"

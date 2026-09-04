@@ -6,6 +6,11 @@ PKG_RELEASE:=1
 PKG_LICENSE:=GPL-3.0-only
 PKG_MAINTAINER:=OpenWrt Performance Manager contributors
 PKG_BUILD_DEPENDS:=luci-base/host
+# The build workflow stages this file from the exact, qualified canonical
+# rill-runtime APK before compiling this package.  A missing binary is a hard
+# build error; the full package must never silently degrade to Core + LuCI.
+RILL_RUNTIME_BINARY?=$(CURDIR)/files/usr/bin/rill-runtime
+THIRD_PARTY_NOTICES_SOURCE?=$(CURDIR)/../../THIRD_PARTY_NOTICES
 
 include $(INCLUDE_DIR)/package.mk
 
@@ -16,18 +21,15 @@ define Package/luci-app-performance-manager-all
   TITLE:=OpenWrt 性能管理器全功能单包 / Performance Manager all-in-one APK
   PROVIDES:=performance-manager-core
   DEPENDS:=+luci-base +rpcd +luci-i18n-base-zh-cn +ubus +uci +ucode +ucode-mod-fs +ucode-mod-ubus +ucode-mod-uci +ucode-mod-rtnl +ucode-mod-uloop +ucode-mod-socket +ucode-mod-log
-  CONFLICTS:=performance-manager luci-app-performance-manager luci-i18n-performance-manager-zh-cn
-  PKGARCH:=all
+  CONFLICTS:=performance-manager luci-app-performance-manager performance-manager-rill rill-runtime luci-i18n-performance-manager-zh-cn
 endef
 
 define Package/luci-app-performance-manager-all/description
- 一个可直接安装的 APK，物理包含 Performance Manager Core 后端、LuCI、
- rpcd ACL/menu 与简体中文翻译。Rill integration 是独立可选包，安装
- performance-manager-rill 时由依赖解析通用 rill-runtime。
- / Core, LuCI, ACL/menu and translations only. Rill integration is optional
- / and is provided by performance-manager-rill plus the generic rill-runtime.
- / This arch-independent APK intentionally contains no Rill service glue or
- / native Runtime; install the optional integration package when needed.
+ 一个按目标架构构建的完整单包，物理包含 Core、LuCI、ACL/menu、简体中文、
+ Rill glue、升级保留规则和已资格验证的 exact Runtime。
+ / Architecture-specific full package containing Core, LuCI, ACL/menu,
+ / Simplified Chinese, Rill glue, upgrade keep rules and the exact qualified
+ / Runtime binary. It has no external rill-runtime dependency.
 endef
 
 define Package/luci-app-performance-manager-all/conffiles
@@ -57,13 +59,14 @@ endef
 
 define Build/Compile
 	$(INSTALL_DIR) $(PKG_BUILD_DIR)
+	test -x $(RILL_RUNTIME_BINARY)
 	po2lmo $(CURDIR)/../luci-app-performance-manager/po/zh_Hans/performance-manager.po \
 		$(PKG_BUILD_DIR)/performance-manager.zh-cn.lmo
 endef
 
 define Package/luci-app-performance-manager-all/install
 	$(INSTALL_DIR) $(1)/etc/init.d $(1)/etc/config $(1)/etc/uci-defaults
-	$(INSTALL_DIR) $(1)/usr/sbin $(1)/usr/share/performance-manager/profiles
+	$(INSTALL_DIR) $(1)/usr/sbin $(1)/usr/bin $(1)/usr/share/performance-manager/profiles $(1)/usr/share/licenses/performance-manager
 	$(INSTALL_DIR) $(1)/usr/share/performance-manager/schemas $(1)/lib/upgrade/keep.d
 	$(INSTALL_BIN) $(CURDIR)/../performance-manager/files/etc/init.d/performance-manager $(1)/etc/init.d/performance-manager
 	$(INSTALL_CONF) $(CURDIR)/../performance-manager/files/etc/config/performance-manager $(1)/etc/config/performance-manager
@@ -73,6 +76,9 @@ define Package/luci-app-performance-manager-all/install
 	$(CP) $(CURDIR)/../performance-manager/files/usr/share/performance-manager/profiles/* $(1)/usr/share/performance-manager/profiles/
 	$(CP) $(CURDIR)/../performance-manager/files/usr/share/performance-manager/schemas/* $(1)/usr/share/performance-manager/schemas/
 	$(INSTALL_DATA) $(CURDIR)/../performance-manager/files/lib/upgrade/keep.d/performance-manager $(1)/lib/upgrade/keep.d/performance-manager
+	$(INSTALL_DATA) $(CURDIR)/../performance-manager-rill/files/lib/upgrade/keep.d/performance-manager-rill $(1)/lib/upgrade/keep.d/performance-manager-rill
+	$(INSTALL_BIN) $(RILL_RUNTIME_BINARY) $(1)/usr/bin/rill-runtime
+	$(INSTALL_DATA) $(THIRD_PARTY_NOTICES_SOURCE) $(1)/usr/share/licenses/performance-manager/THIRD_PARTY_NOTICES
 
 	$(INSTALL_DIR) $(1)/www $(1)/usr/share/luci $(1)/usr/share/rpcd
 	cp -pR $(CURDIR)/../luci-app-performance-manager/htdocs/* $(1)/www/

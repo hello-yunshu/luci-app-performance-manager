@@ -100,10 +100,14 @@ def main(argv: list[str] | None = None) -> int:
                 "apkSha256": built.get("apkSha256") or verified.get("sha256"),
                 "pkgver": verified.get("pkgver"),
                 "arch": verified.get("arch"),
+                "runtimeBinary": verified.get("runtimeBinary"),
+                "installedPayload": verified.get("installedPayload", {}),
                 "sourceMetadata": str(metadata_path),
                 "sourceVerification": str(verification_path),
             })
         package_matrix[name] = {"status": "ok", "targets": targets}
+        if name == "luci-app-performance-manager-all":
+            package_matrix[name]["runtimeBundled"] = True
 
     first = pairs[0][2]
     target_records = [{

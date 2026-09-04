@@ -1,13 +1,17 @@
 Performance Manager generic Rill Runtime
 ========================================
 
-Performance Manager does not vendor or build a Rill adapter. The optional
-`performance-manager-rill` package consumes the separately owned
-`rill-runtime` package, which installs `/usr/bin/rill-runtime`. The exact
-Runtime source, package, license and transitive dependency notices are owned
-and published by `hello-yunshu/rill-openwrt-packages` and its upstream RillML
-release. This repository records only the pinned dependency and qualification
-identity in `contracts/rill-runtime.json`.
+The full All-in-One package redistributes the exact `/usr/bin/rill-runtime`
+payload built from the qualified `rill-runtime` recipe in
+`hello-yunshu/rill-openwrt-packages`. Runtime source ownership, MIT license and
+transitive dependency notices remain with that repository and its upstream
+RillML release. This repository records the immutable source and qualification
+identity in `contracts/rill-runtime.json`; it does not vendor Runtime source or
+build a private adapter.
+
+The split `performance-manager-rill` package continues to consume the same
+external package independently. In both forms Runtime only ranks/reports;
+Performance Manager Core validates and executes actions.
 
 Historical adapter snapshots, where retained under `contracts/upstream/` or
 `docs/history/`, are audit fixtures only and are not active package payloads.

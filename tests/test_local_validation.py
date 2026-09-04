@@ -143,6 +143,9 @@ class LocalValidationTests(unittest.TestCase):
                     "ubusStatusSmoke": True,
                     "rillStatusSmoke": True,
                     "rillRemovalSmoke": True,
+                    "fullRuntimeFaultSmoke": True,
+                    "fullUninstallSmoke": True,
+                    "packageConflictSmoke": True,
                     "installedPayloadExact": True,
                 }
                 for label in ("split", "all-in-one")
@@ -266,9 +269,16 @@ class LocalValidationTests(unittest.TestCase):
                 path.write_bytes(name.encode())
                 digest = hashlib.sha256(path.read_bytes()).hexdigest()
                 packages[name] = {'status': 'ok', 'apkFilename': path.name, 'apkSha256': digest, 'pkgver': '1', 'installedPayload': {}}
-            (root / 'build-metadata.json').write_text(json.dumps({'verdict': 'PASS', 'repositoryCommitSha': commit, 'packages': packages}))
-            verified = {name: {'status': 'ok', 'sha256': item['apkSha256']} for name, item in packages.items()}
-            (root / 'docs/apk-verification.json').write_text(json.dumps({'verdict': 'PASS', 'pmCommitSha': commit, 'packages': verified}))
+            packages['luci-app-performance-manager-all'].update({'arch': 'x86_64'})
+            packages['luci-app-performance-manager-all']['runtimeBinary'] = {'status': 'present', 'matchesSplitRuntime': True, 'sha256': 'a' * 64}
+            build = {'verdict': 'PASS', 'repositoryCommitSha': commit, 'architecture': 'x86_64',
+                     'target': 'x86/64', 'rillConsumedVersion': '1.5.6',
+                     'externalRuntime': {'commit': 'b' * 40}, 'fullPackage': {'runtimeBundled': True},
+                     'packages': packages}
+            (root / 'build-metadata.json').write_text(json.dumps(build))
+            verified = {name: {'status': 'ok', 'sha256': item['apkSha256'], 'arch': 'x86_64' if name == 'luci-app-performance-manager-all' else 'noarch'} for name, item in packages.items()}
+            verified['luci-app-performance-manager-all']['runtimeBinary'] = packages['luci-app-performance-manager-all']['runtimeBinary']
+            (root / 'docs/apk-verification.json').write_text(json.dumps({'verdict': 'PASS', 'pmCommitSha': commit, 'arch': 'x86_64', 'packages': verified}))
             PY
               else
                 printf '{"expectedCommitSha":"%s","overallVerdict":"PASS"}\\n' "$sha" > "$out/final-release-evidence.json"

@@ -184,12 +184,16 @@ for token in ['po2lmo','/usr/sbin/performance-manager.uc','luci-app-performance-
 bundle_pkg=re.search(r'define Package/luci-app-performance-manager-all\n(.*?)\nendef',bundle,re.S)
 if not bundle_pkg: fail('all-in-one package definition missing')
 else:
-    for forbidden in ['+performance-manager ', '+luci-app-performance-manager', '+performance-manager-rill']:
+    for forbidden in ['+performance-manager ', '+luci-app-performance-manager', '+performance-manager-rill', '+rill-runtime']:
         if forbidden in bundle_pkg.group(1): fail(f'all-in-one meta dependency forbidden: {forbidden}')
     for conflict in ['performance-manager','luci-app-performance-manager',
+                     'performance-manager-rill', 'rill-runtime',
                      'luci-i18n-performance-manager-zh-cn']:
         if conflict not in bundle_pkg.group(1): fail(f'all-in-one split-owner conflict missing: {conflict}')
-    if 'performance-manager-rill' in bundle_pkg.group(1): fail('all-in-one must not own the temporary Rill compatibility bridge')
+    if re.search(r'^\s*PKGARCH:=all\s*$', bundle, re.M): fail('all-in-one must be architecture-specific')
+    for token in ['RILL_RUNTIME_BINARY', '/usr/bin/rill-runtime',
+                  'performance-manager-rill/files/lib/upgrade/keep.d/performance-manager-rill']:
+        if token not in bundle: fail(f'all-in-one bundled Runtime mechanism missing: {token}')
 if 'PROVIDES:=performance-manager-core' not in bundle: fail('all-in-one virtual core capability missing')
 if re.search(r'^\s*PROVIDES:=performance-manager\s*$', bundle, re.M) or re.search(r'^\s*PROVIDES:=luci-app-performance-manager\s*$', bundle, re.M):
     fail('all-in-one must not alias split package names through APK PROVIDES')

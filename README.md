@@ -26,7 +26,7 @@
 - **Telemetry + Health Guard**：evidence/confidence Analyzer、baseline-relative 健康门禁、资源锁、持久 pending marker、verified rollback 与真实 monotonic commit-confirm 引擎
 - **Phase-7 Benchmark 编排**：irqbalance、backlog/budget、buffers、busy poll、tx queue、coalescing、CC、qdisc、SFO/HFO/SFE、CPU governor；只有存在精确可逆契约时才执行 provider
 - **受控 A/B 真值**：持久 control evidence → 单变量事务 candidate → candidate evidence → 验证后回滚 → 结果持久化 → 可选 Rill outcome；缺失 / 无效 evidence 永远不会变成 `validated=true`
-- **Rill Runtime v3 Smart Decision**：PM 通过独立 `rill-runtime` 包进行特征排序与 advisory；Core 统一执行 Conservative/Assisted selector，保留安全 allowlist、NO_OP、置信度、漂移和冷却门禁。PM 不拥有 Runtime 二进制。
+- **Rill Runtime v3 Smart Decision**：源码与 canonical package 仍由外部 Rill feed 拥有；full APK 内置 exact target Runtime，Core 统一执行 Conservative/Assisted selector，保留安全 allowlist、NO_OP、置信度、漂移和冷却门禁。
 - **Assisted Auto**：默认关闭，必须显式选择 + 维护窗口 + 低流量门禁 + 安全 allowlist
 - **多平台指导**：Generic x86、Hyper-V、KVM（含 Proxmox VE guest 建议）
 - **Companion Agent**：显式 LAN/WAN iperf3 端点工具，不拥有路由器修改权限
@@ -49,9 +49,9 @@
 |---|---|
 | `performance-manager` | procd 管理的 ucode/ubus Core：contracts、discovery、telemetry、事务引擎与安全动作 |
 | `luci-app-performance-manager` | Supported-first LuCI 界面（简体中文） |
-| `performance-manager-rill` | 可选 PM 集成服务 glue；通过依赖消费外部 `rill-runtime` |
-| `rill-runtime` | 外部、精确提交绑定的通用 Runtime；拥有 `/usr/bin/rill-runtime` |
-| `luci-app-performance-manager-all` | 推荐的一体化 APK：物理包含 Core、LuCI、rpcd ACL/menu、简体中文翻译；不包含 Rill glue 或兼容桥，Rill glue 由独立 `performance-manager-rill` 包提供 |
+| `performance-manager-rill` | Developer / split package 的 Rill glue；通过依赖消费外部 `rill-runtime` |
+| `rill-runtime` | Canonical external Runtime source/package；full APK 内置其 exact target binary |
+| `luci-app-performance-manager-all` | 用户推荐的 architecture-specific full APK：包含 Core、LuCI、ACL/menu、简体中文、Rill glue、keep rules 与 Runtime |
 
 ## 安装
 
@@ -63,7 +63,7 @@
 ### 源码构建（OpenWrt SDK / buildroot）
 
 ```sh
-# 1. 从外部 Rill OpenWrt feed 提供通用 Runtime；本仓库只构建 PM 集成包
+# 1. Runtime 仍由 canonical Rill OpenWrt feed 构建；full 包只接收其 exact binary payload
 cd /path/to/openwrt-performance-manager
 
 # 2. 再进入 OpenWrt SDK
@@ -77,34 +77,36 @@ make package/rill-runtime/compile V=s
 make package/performance-manager/compile V=s
 make package/luci-app-performance-manager/compile V=s
 make package/performance-manager-rill/compile V=s
+mkdir -p package/openwrt-performance-manager/luci-app-performance-manager-all/files/usr/bin
+# 将已资格验证的 rill-runtime APK 解出的 /usr/bin/rill-runtime 放入上面的临时路径
 make package/luci-app-performance-manager-all/compile V=s
 ```
 
-随后 SDK 会按顺序构建并校验 Core、LuCI、Rill 集成 glue 与 all-in-one 包。推荐安装 `luci-app-performance-manager-all`；需要 Smart Decision 时，再安装同一架构的外部 `rill-runtime`。
+随后 SDK 会按顺序构建并校验 split packages 与包含 exact Runtime 的 full 包。生产构建推荐直接使用 GitHub Actions 的官方 SDK workflow。
 
 > 也可以直接依赖 GitHub Actions 的 `build-openwrt.yml` → `openwrt-sdk-build` job 产出构建结果，无需本地 SDK。
 
-### 推荐：单 APK 安装
+### 推荐：每台设备一个 APK
 
-从 GitHub Release 下载 `luci-app-performance-manager-all-1.0.4-r1.apk`；如启用 Smart Decision，再下载 `performance-manager-rill` glue 包和同一架构的外部 `rill-runtime` 包。
+从 [GitHub Releases](https://github.com/hello-yunshu/luci-app-performance-manager/releases) 根据设备架构只下载一个 `performance-manager-all-v<VERSION>-<package-arch>.apk`。
 
-仓库的官方 OpenWrt SDK 编译会编译并校验所有拆分包以及实体一体化包；公开 Release 提供一份 arch-independent all-in-one 和一份 `performance-manager-rill` glue 包。`rill-runtime` 由 `hello-yunshu/rill-openwrt-packages` 独立提供，必须按设备架构和精确资格证据安装。
+每台设备只需安装一个 All-in-One APK。该安装包已包含 Performance Manager Core、LuCI、简体中文、Rill 集成与 exact qualified Runtime；无需另外下载 `rill-runtime` 或 `performance-manager-rill`。
 
 ```sh
-apk add --allow-untrusted /tmp/luci-app-performance-manager-all-1.0.4-r1.apk
-apk add --allow-untrusted /tmp/rill-runtime-1.5.6-r1.apk /tmp/performance-manager-rill-1.0.4-r1.apk
+apk --print-arch
+apk add --allow-untrusted /tmp/performance-manager-all-v<VERSION>-x86_64.apk
 ```
 
-必须先安装同一架构、已资格验证的外部 `rill-runtime`，再安装 `performance-manager-rill` glue；如果使用包管理器依赖解析，也必须保持这个依赖顺序。缺少 Runtime 时 PM 集成保持 fail-closed。
+架构映射：`x86_64` → `x86_64`；`aarch64_generic` → ARM64 通用；`aarch64_cortex-a53` → Filogic / MT7981 / MT7986。将命令中的文件名替换为对应架构的唯一 APK。
 
-它仍会通过 OpenWrt 软件源解析 `luci-base`、`rpcd`、`ucode` 等系统运行库；“单 APK”只表示 Performance Manager 自有的 Core、LuCI、后端和翻译位于一个文件内。它与三个 Core/LuCI 拆分包互斥；Rill 集成包是可选的独立所有者。已有拆分版设备应先备份 `/etc/config/performance-manager`，再在维护窗口切换包形态。
+Full APK 仍会从 OpenWrt 软件源解析 `luci-base`、`rpcd`、`ucode` 等系统运行库；它与所有 split owners（包括 `performance-manager-rill` 和 `rill-runtime`）互斥。已有 split 版设备应先备份 `/etc/config/performance-manager`，再在维护窗口切换包形态。
 
 ### 包信息
 
 | 项目 | 值 |
 |---|---|
-| 推荐包名 | `luci-app-performance-manager-all`（单 APK） |
-| 目标 | OpenWrt 25.12.x / x86_64、aarch64_generic、aarch64_cortex-a53（包级）；运行时证据为 x86_64 |
+| 推荐包名 | `performance-manager-all-v<VERSION>-<package-arch>.apk`（单 APK） |
+| 目标 | OpenWrt 25.12.5 / x86_64、aarch64_generic、aarch64_cortex-a53（包级）；运行时证据为 x86_64 |
 | 当前源码候选 | `1.0.4` |
 | 服务脚本 | `/etc/init.d/performance-manager` |
 | UCI 配置 | `/etc/config/performance-manager` |
@@ -205,12 +207,12 @@ package/luci-app-performance-manager-all/Makefile  # 将上述自有运行内容
                           └───────────┬────────────┘
                                       │ generic Runtime v3 / stdin/stdout
                           ┌───────────▼────────────┐
-                          │ external rill-runtime   │
+                          │ bundled exact Runtime  │
                           │ ranking, no actuator    │
                           └────────────────────────┘
 ```
 
-> **所有权边界。** `/usr/bin/rill-runtime` 由外部 Rill Runtime OpenWrt 包拥有；PM 只拥有 Core、调用 glue、策略状态与 UI。Runtime v3 只返回排序/反馈结果，没有设备执行权；缺失、不兼容或状态恢复失败时 fail-closed。
+> **所有权边界。** Rill Runtime 源码与 canonical package 仍由 `hello-yunshu/rill-openwrt-packages` 拥有；full APK 只重新分发已资格验证的 exact binary，并在包内拥有 `/usr/bin/rill-runtime`。Runtime v3 只返回排序/反馈结果，没有设备执行权；缺失、不兼容或状态恢复失败时 fail-closed。
 
 ## MacBook + Docker 本地 Portable 验证
 
@@ -289,7 +291,9 @@ Smart Decision 默认使用 8 个已验证样本进入 `ready`，Conservative/As
 - **openwrt-ucode**：官方 OpenWrt 25.12.5 rootfs 中编译校验 Core ucode
 
 **`build-openwrt.yml`（远程官方 SDK 构建）**
-- **openwrt-sdk-build**：官方 SDK 构建三个拆分包及一体化 APK，并产出 `build-metadata.json`、`checksums.txt` 与审计证据 artifact
+- **openwrt-sdk-build**：官方 SDK 构建四个 split packages 与三个架构 full APK，并产出 `build-metadata.json`、Runtime provenance 与审计证据 artifact
+
+Public release staging 只输出三个架构 full APK 与 `SHA256SUMS.txt`；JSON、MD、ZIP、split APK 和 standalone Runtime 全部留在 Actions artifacts。
 
 > Runtime v3 的主机子进程 job 证明通用 Runtime 行为；PM Core-to-Runtime 的 OpenWrt 生产 roundtrip 仍是独立门禁，未完成时证据保持 `NOT_EVALUATED`/`BLOCKED`，不会被脚本升级成 PASS。
 
