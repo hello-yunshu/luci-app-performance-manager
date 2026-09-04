@@ -298,6 +298,8 @@ class LocalValidationTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             repo, bin_dir = self._mock_repo(Path(directory))
             env = os.environ.copy()
+            for key in ("PM_BUILD_RUN_ID", "PM_CI_RUN_ID", "PM_EXPECTED_SHA"):
+                env.pop(key, None)
             env.update({
                 "PATH": f"{bin_dir}:{env['PATH']}",
                 "PM_VALIDATION_PYTHON": sys.executable,
@@ -333,6 +335,8 @@ class LocalValidationTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             repo, bin_dir = self._mock_repo(Path(directory))
             env = os.environ.copy()
+            for key in ("PM_BUILD_RUN_ID", "PM_CI_RUN_ID", "PM_EXPECTED_SHA"):
+                env.pop(key, None)
             env.update({
                 "PATH": f"{bin_dir}:{env['PATH']}",
                 "PM_VALIDATION_PYTHON": sys.executable,
@@ -375,6 +379,8 @@ class LocalValidationTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             repo, bin_dir = self._mock_repo(Path(directory))
             env = os.environ.copy()
+            for key in ("PM_BUILD_RUN_ID", "PM_CI_RUN_ID", "PM_EXPECTED_SHA"):
+                env.pop(key, None)
             env.update({"PATH": f"{bin_dir}:{env['PATH']}", "PM_VALIDATION_PYTHON": sys.executable,
                         "PM_ORCHESTRATOR_TEST": "1"})
             mismatch = subprocess.run([str(repo / "tools/docker-validate/run-local-macos.sh")],
