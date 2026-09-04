@@ -20,11 +20,10 @@ it always leaves `stableReleaseVerdict=NOT_EVALUATED`,
 
 ## Build / package
 
-- [ ] Official OpenWrt 25.12.x x86_64 SDK builds `performance-manager`.
-- [ ] SDK builds `luci-app-performance-manager`.
-- [ ] SDK builds `performance-manager-rill` as an integration/meta package (no Rust build; fail-closed init guard and `lib/upgrade/keep.d` packaged).
-- [ ] SDK builds `luci-app-performance-manager-all` and `performance-manager-rill`; exact APK verification proves all repository-owned Core/LuCI/rpcd source files match and the compiled zh-cn LMO is present. The generic Runtime remains an external package.
-- [ ] Public assembly includes exactly one `luci-app-performance-manager-all` and one `performance-manager-rill` APK; `rill-runtime` remains an external package from `rill-openwrt-packages` and is verified by its own provenance/compatibility chain.
+- [ ] Official OpenWrt 25.12.5 SDK builds `performance-manager`, `luci-app-performance-manager`, and split `performance-manager-rill`.
+- [ ] The SDK builds one architecture-specific `luci-app-performance-manager-all` APK per target, physically containing Core, LuCI, zh-cn, glue, keep rules, notices, and the exact qualified Runtime binary.
+- [ ] Exact APK verification proves the full package has no `+rill-runtime` dependency and conflicts with every split owner; split packages remain independently buildable.
+- [ ] Public assembly includes exactly three normalized full APKs (`x86_64`, `aarch64_generic`, `aarch64_cortex-a53`) plus `SHA256SUMS.txt`; Runtime, glue, source, and evidence remain private inputs.
 - [ ] Official OpenWrt rootfs compiles Core ucode with all declared modules.
 
 ## Runtime / topology / ownership

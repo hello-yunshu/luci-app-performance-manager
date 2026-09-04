@@ -37,7 +37,7 @@ class AllInOnePackageTests(unittest.TestCase):
 
     def test_split_rill_still_consumes_external_runtime(self):
         rill = (ROOT / "package/performance-manager-rill/Makefile").read_text()
-        self.assertIn("DEPENDS:=+performance-manager-core +rill-runtime", rill)
+        self.assertIn("DEPENDS:=+performance-manager +rill-runtime", rill)
         self.assertNotIn("cargo", rill.lower())
 
     def test_full_payload_map_includes_glue_keep_rule(self):

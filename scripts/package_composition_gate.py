@@ -284,7 +284,7 @@ def main(argv=None) -> int:
               "matrices": results,
               "upgradeSemantics": "NOT_EVALUATED",
               "dependencyGraph": {
-                  "performance-manager-rill": ["performance-manager-core", "rill-runtime"],
+                  "performance-manager-rill": ["performance-manager", "rill-runtime"],
                   "performance-manager": ["performance-manager-core"],
                   "luci-app-performance-manager-all": ["provides:performance-manager-core"],
               }}
