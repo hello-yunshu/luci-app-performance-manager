@@ -60,6 +60,29 @@ def run(rootfs: Path, command: str) -> subprocess.CompletedProcess[str]:
                           text=True, capture_output=True)
 
 
+def clone_rootfs(source: Path, destination: Path) -> None:
+    """Clone a rootfs without dereferencing its absolute symlinks.
+
+    Docker Desktop shared mounts can make Python's copytree fail while
+    copying dangling absolute symlinks from an OpenWrt rootfs.  Tar preserves
+    those links exactly and matches the filesystem semantics used by the
+    package-manager gate.
+    """
+    destination.mkdir(parents=True, exist_ok=True)
+    source = source.resolve()
+    with subprocess.Popen(["tar", "-cf", "-", "-C", str(source), "."],
+                          stdout=subprocess.PIPE) as producer:
+        assert producer.stdout is not None
+        consumer = subprocess.run(["tar", "-xf", "-", "-C", str(destination)],
+                                   stdin=producer.stdout, capture_output=True,
+                                   text=True)
+        producer.stdout.close()
+        producer_returncode = producer.wait()
+    if consumer.returncode != 0 or producer_returncode != 0:
+        detail = consumer.stderr.strip() or f"tar producer exited {producer_returncode}"
+        raise RuntimeError(f"could not clone rootfs: {detail}")
+
+
 def execute(rootfs: Path, packages: dict[str, Path], names: tuple[str, ...],
             build: dict, openwrt_version: str, target: str, package_arch: str) -> dict:
     with tempfile.TemporaryDirectory(prefix="pm-composition-") as staging:
@@ -208,7 +231,7 @@ def main(argv=None) -> int:
     with tempfile.TemporaryDirectory(prefix="pm-composition-rootfs-") as temp:
         for label, names in (("split", SPLIT), ("all-in-one", ALL_IN_ONE)):
             clone = Path(temp) / label
-            shutil.copytree(args.rootfs, clone, symlinks=True)
+            clone_rootfs(args.rootfs, clone)
             results[label] = execute(clone, packages, names, build, args.openwrt_version,
                                      args.target, args.package_arch)
     report = {"schemaVersion": 1, "gate": "package-composition",
