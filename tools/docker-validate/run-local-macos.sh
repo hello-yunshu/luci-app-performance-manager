@@ -173,9 +173,15 @@ tar -xzf "$rootfs" -C .portable-rootfs
 rm -f .portable-rootfs/etc/resolv.conf
 cp /etc/resolv.conf .portable-rootfs/etc/resolv.conf
 if chroot .portable-rootfs /bin/sh -c "command -v apk >/dev/null 2>&1"; then
-  chroot .portable-rootfs /bin/sh -c "apk update --no-check-certificate && apk add --no-check-certificate ucode ucode-mod-fs ucode-mod-ubus ucode-mod-uci ucode-mod-rtnl ucode-mod-uloop ucode-mod-socket ucode-mod-log coreutils-timeout"
+  if ! chroot .portable-rootfs /bin/sh -c "apk update --no-check-certificate && apk add --no-check-certificate ucode ucode-mod-fs ucode-mod-ubus ucode-mod-uci ucode-mod-rtnl ucode-mod-uloop ucode-mod-socket ucode-mod-log coreutils-timeout"; then
+    echo BLOCKED: OpenWrt package indexes unavailable
+    exit 2
+  fi
 else
-  chroot .portable-rootfs /bin/sh -c "opkg update && opkg install ucode ucode-mod-fs ucode-mod-ubus ucode-mod-uci ucode-mod-rtnl ucode-mod-uloop ucode-mod-socket ucode-mod-log"
+  if ! chroot .portable-rootfs /bin/sh -c "opkg update && opkg install ucode ucode-mod-fs ucode-mod-ubus ucode-mod-uci ucode-mod-rtnl ucode-mod-uloop ucode-mod-socket ucode-mod-log"; then
+    echo BLOCKED: OpenWrt package indexes unavailable
+    exit 2
+  fi
 fi
 install -D -m 0644 package/performance-manager/files/usr/share/performance-manager/contracts.uc \
   .portable-rootfs/usr/share/performance-manager/contracts.uc
