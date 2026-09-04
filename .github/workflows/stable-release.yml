@@ -59,7 +59,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          mkdir -p release-input/build release-input/stable release-assets
+          mkdir -p release-input/build release-input/stable release-public release-evidence
           gh run download "${{ inputs.build_run_id }}" --dir release-input/build
           gh run download "${{ inputs.aggregate_run_id }}" --dir release-input/stable
           mapfile -t evidence_files < <(find release-input/stable -name final-stable-evidence.json -type f -print)
@@ -87,27 +87,31 @@ jobs:
           second=$(sha256sum "dist/openwrt-performance-manager-$(cat VERSION).zip" | awk '{print $1}')
           test "$first" = "$second"
           cmp /tmp/source-first.zip "dist/openwrt-performance-manager-$(cat VERSION).zip"
-      - name: Assemble exact release inventory and manifest
+      - name: Assemble exact public inventory and private evidence
         shell: bash
         run: |
           set -euo pipefail
-          # The shared resolver accepts identical dedicated/full copies and
-          # rejects conflicting identities before staging the all-in-one and
-          # integration APKs. The generic Runtime package is external.
           python3 scripts/assemble_public_release.py \
-            --input release-input/build --out release-assets \
-            --expected-commit '${{ inputs.expected_sha }}'
+            --input release-input/build --out release-public \
+            --expected-commit '${{ inputs.expected_sha }}' --version "$(cat VERSION)"
           for name in final-stable-evidence.json FINAL_AUDIT.json FINAL_AUDIT.md; do
             mapfile -t files < <(find release-input/stable -name "$name" -type f -print)
             test "${#files[@]}" = 1
             file="${files[0]}"
-            cp "$file" release-assets/
+            cp "$file" release-evidence/
           done
-          cp "dist/openwrt-performance-manager-$(cat VERSION).zip" release-assets/
-          cp "dist/openwrt-performance-manager-$(cat VERSION).manifest.json" release-assets/source-manifest.json
-          python3 scripts/build_release_manifest.py --assets release-assets \
+          cp "dist/openwrt-performance-manager-$(cat VERSION).zip" release-evidence/
+          cp "dist/openwrt-performance-manager-$(cat VERSION).manifest.json" release-evidence/source-manifest.json
+          python3 scripts/build_release_manifest.py --assets release-public \
+              --input release-input/build --evidence-dir release-evidence \
               --expected-commit '${{ inputs.expected_sha }}' --version "$(cat VERSION)"
-          (cd release-assets && sha256sum ./* > release-checksums.txt)
+          python3 scripts/verify_public_release_assets.py \
+            --assets release-public --version "$(cat VERSION)"
+          python3 - <<'PY'
+          import pathlib
+          version = pathlib.Path('VERSION').read_text().strip()
+          pathlib.Path('release-notes.md').write_text(f'''## 下载\n\n每台设备只需要下载并安装一个 APK。该安装包已包含 Performance Manager Core、LuCI、简体中文、Rill 集成和 exact qualified Runtime；无需另外下载 `rill-runtime` 或 `performance-manager-rill`。\n\n- x86_64：`performance-manager-all-v{version}-x86_64.apk`\n- ARM64 通用：`performance-manager-all-v{version}-aarch64_generic.apk`\n- Filogic / MT7981 / MT7986：`performance-manager-all-v{version}-aarch64_cortex-a53.apk`\n\n安装示例：\n\n```sh\napk add --allow-untrusted /tmp/performance-manager-all-v{version}-<package-arch>.apk\n```\n\nRuntime provenance、构建证据和硬件资格保留在 Actions；本次 Stable 仅在 hardware gate 全部通过后发布。\n''')
+          PY
       - name: Verify or create immutable tag identity and resumable draft
         shell: bash
         run: |
@@ -143,14 +147,14 @@ jobs:
           version=$(cat VERSION)
           tag="v$version"
           if gh release view "$tag" >/dev/null 2>&1; then
-            gh release upload "$tag" release-assets/* --clobber
+            gh release upload "$tag" release-public/* --clobber
           else
-            gh release create "$tag" release-assets/* --draft --verify-tag \
-              --title "OpenWrt Performance Manager $tag (Hardware-validated)" \
-              --notes-file release-assets/FINAL_AUDIT.md
+            gh release create "$tag" release-public/* --draft --verify-tag \
+              --title "OpenWrt Performance Manager $tag" \
+              --notes-file release-notes.md
           fi
-          gh release edit "$tag" --draft=false --title "OpenWrt Performance Manager $tag (Hardware-validated)" \
-            --notes-file release-assets/FINAL_AUDIT.md
+          gh release edit "$tag" --draft=false --title "OpenWrt Performance Manager $tag" \
+            --notes-file release-notes.md
       - name: Re-download published assets and verify checksums
         shell: bash
         env:
@@ -159,4 +163,5 @@ jobs:
           set -euo pipefail
           mkdir published
           gh release download "v$(cat VERSION)" --dir published
-          (cd published && sha256sum -c release-checksums.txt)
+          (cd published && sha256sum -c SHA256SUMS.txt)
+          python3 scripts/verify_public_release_assets.py --assets published --version "$(cat VERSION)"

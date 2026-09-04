@@ -2,9 +2,9 @@
 """Exercise the published PM APK graph in a real OpenWrt rootfs.
 
 The package verifier proves each APK's metadata and payload. This gate proves
-the user-facing install combinations as a package manager sees them, including
-the virtual ``performance-manager-core`` capability used by the optional Rill
-glue package.
+both the developer split install and the user-facing one-file full install as
+the package manager sees them. The full matrix deliberately installs one APK:
+the bundled Runtime is not an external dependency.
 """
 from __future__ import annotations
 
@@ -20,8 +20,7 @@ from pathlib import Path
 
 SPLIT = ("performance-manager", "luci-app-performance-manager",
          "performance-manager-rill", "rill-runtime")
-ALL_IN_ONE = ("luci-app-performance-manager-all", "performance-manager-rill",
-              "rill-runtime")
+ALL_IN_ONE = ("luci-app-performance-manager-all",)
 
 
 def package_name(path: Path) -> str:
@@ -102,7 +101,52 @@ def execute(rootfs: Path, packages: dict[str, Path], names: tuple[str, ...],
                 dst = guest / src.name
                 shutil.copy2(src, dst)
                 staged.append(f"/tmp/pm-composition/{src.name}")
+            conflict_staged = []
+            for conflict_name in SPLIT:
+                if conflict_name not in names:
+                    conflict_src = packages[conflict_name]
+                    conflict_dst = guest / conflict_src.name
+                    shutil.copy2(conflict_src, conflict_dst)
+                    conflict_staged.append(f"/tmp/pm-composition/{conflict_src.name}")
+            if names != ALL_IN_ONE:
+                full_src = packages[ALL_IN_ONE[0]]
+                full_dst = guest / full_src.name
+                shutil.copy2(full_src, full_dst)
+                full_staged = f"/tmp/pm-composition/{full_src.name}"
+            expected_payload = {}
+            for name in names:
+                expected_payload.update(
+                    (build.get("packages", {}).get(name, {}).get("installedPayload") or {})
+                )
+            snapshot_commands = ["mkdir -p /tmp/pm-composition-snapshot"]
+            for payload_path in expected_payload:
+                snapshot_path = f"/tmp/pm-composition-snapshot{payload_path}"
+                snapshot_commands.append(
+                    f"if [ -e '{payload_path}' ]; then mkdir -p '{Path(snapshot_path).parent}'; "
+                    f"cp -a '{payload_path}' '{snapshot_path}'; fi"
+                )
+            snapshot_command = "; ".join(snapshot_commands) + "; "
             suffix = ".apk" if any(path.suffix == ".apk" for path in packages.values()) else ".ipk"
+            post_apk_install = (
+                "mv /usr/bin/rill-runtime /tmp/rill-runtime.full-fault; "
+                "fault_status=$(ubus call performance-manager rill_status '{}'); "
+                "printf '%s' \"$fault_status\" | jsonfilter -e '@.state' | grep -Eq 'not-provisioned|unavailable|blocked|error'; "
+                "mv /tmp/rill-runtime.full-fault /usr/bin/rill-runtime; "
+                "echo PM_FULL_RILL_FAULT_SMOKE=PASS; "
+                "apk del luci-app-performance-manager-all; "
+                "test ! -x /usr/sbin/performance-manager.uc; "
+                "test ! -f /usr/share/rpcd/acl.d/luci-app-performance-manager.json; "
+                "echo PM_FULL_UNINSTALL_SMOKE=PASS; "
+                if names == ALL_IN_ONE else
+                "apk del performance-manager-rill rill-runtime; "
+                "test -x /usr/sbin/performance-manager.uc; "
+                "status_after=$(ubus call performance-manager status '{}'); "
+                "printf '%s' \"$status_after\" | grep -q '\"running\": true'; "
+                "rill_after=$(ubus call performance-manager rill_status '{}'); "
+                "printf '%s' \"$rill_after\" | jsonfilter -e '@.mode' | grep -qx advisory; "
+                "printf '%s' \"$rill_after\" | jsonfilter -e '@.state' | grep -qx not-provisioned; "
+                "echo PM_RILL_REMOVAL_SMOKE=PASS; "
+            )
             command = (
                 "set -eu; "
                 "command -v apk >/dev/null 2>&1 || command -v opkg >/dev/null 2>&1; "
@@ -128,6 +172,7 @@ def execute(rootfs: Path, packages: dict[str, Path], names: tuple[str, ...],
                 "test -x /usr/sbin/performance-manager.uc; "
                 "test -x /usr/bin/rill-runtime; "
                 "test -f /usr/share/rpcd/acl.d/luci-app-performance-manager.json; "
+                "test -f /lib/upgrade/keep.d/performance-manager-rill; "
                 "mkdir -p /var/run/ubus /run /var/lock /tmp/performance-manager /etc/performance-manager; "
                 "rm -f /var/run/ubus/ubus.sock; "
                 "core_pid=0; /sbin/ubusd >/tmp/pm-composition-ubusd.log 2>&1 & ubusd_pid=$!; "
@@ -145,15 +190,12 @@ def execute(rootfs: Path, packages: dict[str, Path], names: tuple[str, ...],
                 "printf '%s' \"$rill_status\" | jsonfilter -e '@.protocolVersion' | grep -Eq '^[0-9]+$'; "
                 "printf '%s' \"$rill_status\" | jsonfilter -e '@.state' | grep -q .; "
                 "echo PM_SERVICE_SMOKE=PASS; echo PM_UBUS_STATUS=PASS; echo PM_RILL_STATUS=PASS; "
-                "apk del performance-manager-rill rill-runtime; "
-                "test -x /usr/sbin/performance-manager.uc; "
-                "status_after=$(ubus call performance-manager status '{}'); "
-                "printf '%s' \"$status_after\" | grep -q '\"running\": true'; "
-                "rill_after=$(ubus call performance-manager rill_status '{}'); "
-                "printf '%s' \"$rill_after\" | jsonfilter -e '@.mode' | grep -qx advisory; "
-                "printf '%s' \"$rill_after\" | jsonfilter -e '@.state' | grep -qx not-provisioned; "
-                "echo PM_RILL_REMOVAL_SMOKE=PASS; "
-                "else "
+                + snapshot_command
+                + ("if apk add --allow-untrusted --no-cache " + " ".join(conflict_staged)
+                   + "; then exit 1; fi; echo PM_FULL_CONFLICT_SMOKE=PASS; "
+                   if names == ALL_IN_ONE else
+                   f"if apk add --allow-untrusted --no-cache {full_staged}; then exit 1; fi; echo PM_SPLIT_FULL_CONFLICT_SMOKE=PASS; ")
+                + post_apk_install + "else "
                 f"test '{suffix}' = '.ipk'; "
                 "opkg install " + " ".join(staged) + "; "
                 "test -x /usr/sbin/performance-manager.uc; "
@@ -161,13 +203,8 @@ def execute(rootfs: Path, packages: dict[str, Path], names: tuple[str, ...],
             )
             completed = run(rootfs, command)
             installed_payload = {}
-            expected_payload = {}
-            for name in names:
-                expected_payload.update(
-                    (build.get("packages", {}).get(name, {}).get("installedPayload") or {})
-                )
             for payload_path, expected_sha in expected_payload.items():
-                installed_path = rootfs / payload_path.lstrip("/")
+                installed_path = rootfs / "tmp/pm-composition-snapshot" / payload_path.lstrip("/")
                 actual_sha = sha256_file(installed_path) if installed_path.is_file() else None
                 consumed_by_install = (
                     actual_sha is None and payload_path.startswith("/etc/uci-defaults/")
@@ -193,6 +230,13 @@ def execute(rootfs: Path, packages: dict[str, Path], names: tuple[str, ...],
                 "ubusStatusSmoke": ubus_status_smoke,
                 "rillStatusSmoke": rill_status_smoke,
                 "rillRemovalSmoke": rill_removal_smoke,
+                "fullRuntimeFaultSmoke": "PM_FULL_RILL_FAULT_SMOKE=PASS" in completed.stdout,
+                "fullUninstallSmoke": "PM_FULL_UNINSTALL_SMOKE=PASS" in completed.stdout,
+                "packageConflictSmoke": ("PM_FULL_CONFLICT_SMOKE=PASS" in completed.stdout or
+                                         "PM_SPLIT_FULL_CONFLICT_SMOKE=PASS" in completed.stdout),
+                # Upgrade semantics require a real N -> N+1 package-manager run
+                # on each target; do not infer that from install/uninstall.
+                "upgradeSemantics": "NOT_EVALUATED",
                 "installedPayload": installed_payload,
                 "installedPayloadExact": payload_ok,
                 "repositoryTransport": (
@@ -238,6 +282,7 @@ def main(argv=None) -> int:
               "pmCommitSha": args.expected_commit,
               "verdict": "PASS" if all(x["status"] == "PASS" for x in results.values()) else "FAIL",
               "matrices": results,
+              "upgradeSemantics": "NOT_EVALUATED",
               "dependencyGraph": {
                   "performance-manager-rill": ["performance-manager-core", "rill-runtime"],
                   "performance-manager": ["performance-manager-core"],

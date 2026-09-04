@@ -15,6 +15,7 @@ CFG=(ROOT/'package/performance-manager/files/etc/config/performance-manager').re
 CONTRACTS=(ROOT/'package/performance-manager/files/usr/share/performance-manager/contracts.uc').read_text()
 RILL_MAKE=(ROOT/'package/performance-manager-rill/Makefile').read_text()
 RILL_SCHEMA=(ROOT/'contracts/rill-ipc.schema.json').read_text()
+BUNDLE_MAKE=(ROOT/'package/luci-app-performance-manager-all/Makefile').read_text()
 
 def all_tokens(text,tokens): return all(t in text for t in tokens)
 def gate(name, checks):
@@ -63,7 +64,12 @@ phases['0']=gate('Contract Freeze',[
  ('full transaction states',all_tokens((ROOT/'contracts/transaction.schema.json').read_text(),['planned','locked','snapshotted','awaiting_confirm','rolled_back']))])
 phases['0'].update({'evidence':'structural: schema files + frozen contract fields present'})
 phases['1']=gate('Bootstrap',[(f'package {x}',(ROOT/'package'/x/'Makefile').exists()) for x in ['performance-manager','luci-app-performance-manager','performance-manager-rill','luci-app-performance-manager-all']]+[
- ('Core ubus daemon wiring','ubusmod.connect()' in CORE and 'conn.publish' in CORE and '{ call: function' in CORE)])
+ ('Core ubus daemon wiring','ubusmod.connect()' in CORE and 'conn.publish' in CORE and '{ call: function' in CORE),
+ ('full package is architecture-specific','PKGARCH:=all' not in BUNDLE_MAKE),
+ ('full package embeds qualified Runtime','RILL_RUNTIME_BINARY' in BUNDLE_MAKE and '/usr/bin/rill-runtime' in BUNDLE_MAKE),
+ ('full package has no Runtime dependency','+rill-runtime' not in BUNDLE_MAKE),
+ ('full package conflicts with split owners',all_tokens(BUNDLE_MAKE,['CONFLICTS:=','performance-manager-rill','rill-runtime','luci-i18n-performance-manager-zh-cn'])),
+ ('full package carries Rill keep rule','performance-manager-rill/files/lib/upgrade/keep.d/performance-manager-rill' in BUNDLE_MAKE)])
 phases['1'].update({'evidence':'structural: package Makefiles + Core service wiring present'})
 phases['2']=gate('Capability / Topology / Target / Event',[
  ('stable TargetRef functions defined',all_tokens(CORE,['function stable_target(','function target_refs(','topology_generation'])),

@@ -11,10 +11,10 @@ permissions:
 jobs:
   # Official OpenWrt SDK build for the packages this repository OWNS:
   # performance-manager (Core), luci-app-performance-manager (UI), the
-  # performance-manager-rill integration package, plus the physical all-in-one
-  # APK. The generic rill-runtime package
-  # is staged from the independent pinned OpenWrt feed and owns
-  # /usr/bin/rill-runtime.
+  # performance-manager-rill integration package, plus the physical,
+  # architecture-specific full all-in-one APK. The generic rill-runtime
+  # package is built from the independent pinned OpenWrt feed and its exact
+  # executable payload is embedded once into the full package.
   # Real build evidence comes from this remote Action — never a local mock.
   openwrt-sdk-build:
     runs-on: ubuntu-latest
@@ -204,7 +204,34 @@ jobs:
           bash "$GITHUB_WORKSPACE/scripts/openwrt-build-diagnostic.sh" package/rill-runtime/compile
       - name: Build Rill integration package (glue only, never compiles Rill)
         run: cd "$SDKDIR" && bash "$GITHUB_WORKSPACE/scripts/openwrt-build-diagnostic.sh" package/performance-manager-rill/compile
-      - name: Build all-in-one APK (Core + LuCI + rpcd + zh-cn)
+      - name: Stage exact Runtime payload into the full package workspace
+        shell: bash
+        run: |
+          set -euo pipefail
+          runtime_apk=$(find "$SDKDIR/bin" -type f -name 'rill-runtime-*.apk' -print -quit)
+          test -n "$runtime_apk"
+          runtime_version=$(sed -n 's/^PKG_VERSION:=//p' "$GITHUB_WORKSPACE/rill-openwrt-packages/package/rill-runtime/Makefile")
+          runtime_sha=$(python3 - "$runtime_apk" <<'PY'
+          import hashlib, sys
+          from pathlib import Path
+          sys.path.insert(0, 'scripts')
+          from verify_apks import apk_file_content
+          payload = apk_file_content(Path(sys.argv[1]), '/usr/bin/rill-runtime')
+          if not payload:
+              raise SystemExit('rill-runtime APK lacks /usr/bin/rill-runtime')
+          print(hashlib.sha256(payload).hexdigest())
+          PY
+          )
+          full_dir="$SDKDIR/package/openwrt-performance-manager/luci-app-performance-manager-all"
+          python3 "$GITHUB_WORKSPACE/scripts/stage_bundled_runtime.py" \
+            --apk "$runtime_apk" --runtime-version "$runtime_version" \
+            --package-arch "$PACKAGE_ARCH" --sha256 "$runtime_sha" \
+            --out "$full_dir/files/usr/bin/rill-runtime"
+          # The source notice is copied beside the temporary package tree so
+          # the full package can install it without vendoring Runtime source.
+          cp "$GITHUB_WORKSPACE/THIRD_PARTY_NOTICES" "$SDKDIR/package/THIRD_PARTY_NOTICES"
+          echo "RILL_BUNDLED_BINARY_SHA256=$runtime_sha" >> "$GITHUB_ENV"
+      - name: Build full architecture-specific All-in-One APK
         run: cd "$SDKDIR" && bash "$GITHUB_WORKSPACE/scripts/openwrt-build-diagnostic.sh" package/luci-app-performance-manager-all/compile
       - name: Assert expected packages present (exact APK metadata match)
         shell: bash
@@ -215,7 +242,7 @@ jobs:
           # Version part of the APK pkgver is derived from VERSION.
           apk_version="$(sed -E 's/-rc\./_rc/' "$GITHUB_WORKSPACE/VERSION")"
           rill_runtime_version="$(sed -n 's/^PKG_VERSION:=//p' "$GITHUB_WORKSPACE/rill-openwrt-packages/package/rill-runtime/Makefile")"
-          # Exact verification reads .PKGINFO (pkgname/pkgver/arch/deps) instead
+          # Exact verification reads package metadata (pkgname/pkgver/arch/deps) instead
           # of filename prefix, so performance-manager and performance-manager-rill
           # can never be confused and a stale rc.3 artifact can never pass.
           # $SDKDIR is a RELATIVE path, so after `cd "$SDKDIR"` above it would
@@ -355,20 +382,23 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          mkdir -p release-assets
+          mkdir -p release-public release-evidence
           python3 scripts/assemble_public_release.py \
-            --input release-input --out release-assets \
-            --expected-commit "$GITHUB_SHA"
+            --input release-input --out release-public \
+            --expected-commit "$GITHUB_SHA" --version "$(cat VERSION)"
           python3 scripts/build_release_manifest.py \
-            --assets release-assets --expected-commit "$GITHUB_SHA" \
+            --assets release-public --input release-input \
+            --evidence-dir release-evidence --expected-commit "$GITHUB_SHA" \
             --version "$(cat VERSION)" --dry-run
+          python3 scripts/verify_public_release_assets.py \
+            --assets release-public --version "$(cat VERSION)"
           python3 scripts/verify_release_inventory.py \
-            --assets release-assets --expected-commit "$GITHUB_SHA" \
-            --expected-arch x86_64 --expected-arch aarch64_generic \
-            --expected-arch aarch64_cortex-a53
-          (cd release-assets && sha256sum ./* > dry-run-checksums.txt)
+            --assets release-public --version "$(cat VERSION)" \
+            --expected-commit "$GITHUB_SHA"
       - uses: actions/upload-artifact@v7
         with:
           name: release-assembly-dry-run
-          path: release-assets/
+          path: |
+            release-public/
+            release-evidence/
           if-no-files-found: error

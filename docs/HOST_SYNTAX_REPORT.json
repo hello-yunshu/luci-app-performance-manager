@@ -147,6 +147,10 @@
       "status": "pass"
     },
     {
+      "name": "py_compile scripts/stage_bundled_runtime.py",
+      "status": "pass"
+    },
+    {
       "name": "py_compile scripts/validate_contracts.py",
       "status": "pass"
     },
@@ -164,6 +168,10 @@
     },
     {
       "name": "py_compile scripts/verify_historical_rill_release.py",
+      "status": "pass"
+    },
+    {
+      "name": "py_compile scripts/verify_public_release_assets.py",
       "status": "pass"
     },
     {

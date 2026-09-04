@@ -51,6 +51,8 @@ ALL_IN_ONE_PAYLOAD = CORE_PAYLOAD + (
     "/usr/share/luci/menu.d/luci-app-performance-manager.json",
     "/www/luci-static/resources/view/performance-manager/overview.js",
     "/usr/lib/lua/luci/i18n/performance-manager.zh-cn.lmo",
+    "/usr/bin/rill-runtime",
+    "/lib/upgrade/keep.d/performance-manager-rill",
 )
 
 RESOURCE_METRICS = (
@@ -158,7 +160,10 @@ def _package_layout_ok(packages: dict[str, Any], gate: str) -> bool:
         return present == {"performance-manager"}
     if gate == "lifecycle":
         return True
-    return present == {PRIMARY_PACKAGE, RUNTIME_PACKAGE}
+    # The full package owns the Runtime binary, so a hardware run may install
+    # only the user-facing APK. Keep accepting the split layout for legacy
+    # evidence and developer migration runs.
+    return present in ({PRIMARY_PACKAGE}, {PRIMARY_PACKAGE, RUNTIME_PACKAGE})
 
 
 def evaluate_raw_facts(raw: dict[str, Any], gate: str) -> dict[str, bool]:
@@ -275,12 +280,12 @@ def evaluate_raw_facts(raw: dict[str, Any], gate: str) -> dict[str, bool]:
             "serviceStart": _nonempty_string(split_runtime.get("corePid")) or (isinstance(split_runtime.get("corePid"), int) and split_runtime.get("corePid") > 0),
             "restart": _nonempty_string(bundle_runtime.get("corePid")) or (isinstance(bundle_runtime.get("corePid"), int) and bundle_runtime.get("corePid") > 0),
             "upgradeReinstall": _exit_ok(migration.get("removeExitCode")) and _exit_ok(migration.get("installBundleExitCode"))
-                and bundle_names == {PRIMARY_PACKAGE, RUNTIME_PACKAGE},
+                and bundle_names in ({PRIMARY_PACKAGE}, {PRIMARY_PACKAGE, RUNTIME_PACKAGE}),
             "configPreserved": _sha(split.get("configSha256")) and _sha(bundle_runtime.get("configSha256"))
                 and split.get("configSha256") == bundle_runtime.get("configSha256"),
             "rillOptional": split_runtime.get("ubusReady") is True and bundle_runtime.get("ubusReady") is True,
             "uninstallCleanup": _exit_ok(uninstall.get("exitCode")) and uninstall.get("remainingOwnedPaths") == [],
-            "reinstall": _exit_ok(reinstall.get("exitCode")) and _dict(reinstall.get("installedPackages")).keys() == {PRIMARY_PACKAGE, RUNTIME_PACKAGE}
+            "reinstall": _exit_ok(reinstall.get("exitCode")) and set(_dict(reinstall.get("installedPackages")).keys()) in ({PRIMARY_PACKAGE}, {PRIMARY_PACKAGE, RUNTIME_PACKAGE})
                 and reinstall.get("ubusReady") is True,
             "noStaleState": uninstall.get("staleLocks") == 0 and uninstall.get("stalePending") == 0
                 and uninstall.get("staleSockets") == 0,
@@ -420,6 +425,10 @@ def _sha(value: Any) -> bool:
 def _artifact_errors(data: dict[str, Any], gate: str, build: dict[str, Any] | None,
                      apk_report: dict[str, Any] | None) -> list[str]:
     errors: list[str] = []
+    full_build = (build or {}).get("fullPackage") or {}
+    full_report = ((apk_report or {}).get("packages") or {}).get(PRIMARY_PACKAGE) or {}
+    bundled_runtime = full_build.get("runtimeBundled") is True or \
+        (full_report.get("runtimeBinary") or {}).get("matchesSplitRuntime") is True
     build_artifacts = data.get("buildArtifacts")
     installed_artifacts = data.get("installedArtifacts")
     if not isinstance(build_artifacts, dict):
@@ -442,8 +451,10 @@ def _artifact_errors(data: dict[str, Any], gate: str, build: dict[str, Any] | No
             elif gate != "lifecycle" and name not in {PRIMARY_PACKAGE, RUNTIME_PACKAGE}:
                 if rec not in (None, "not-installed"):
                     errors.append(f"installedArtifacts.{name} must be absent")
-            elif gate != "lifecycle" and name == RUNTIME_PACKAGE:
+            elif gate != "lifecycle" and name == RUNTIME_PACKAGE and not bundled_runtime:
                 errors.append(f"installedArtifacts.{name} missing")
+            elif gate != "lifecycle" and name == RUNTIME_PACKAGE and bundled_runtime:
+                pass
             elif gate != "lifecycle":
                 errors.append(f"installedArtifacts.{name} missing")
             continue

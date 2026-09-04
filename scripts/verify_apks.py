@@ -16,9 +16,11 @@ package, an exact match on:
 For the `performance-manager` Core package it additionally extracts the shipped
 daemon `/usr/sbin/performance-manager.uc` from the APK's ADB data blocks and
 asserts it is byte-for-byte identical (SHA256) to the repo source that the
-runtime harness and startup smoke execute.  The all-in-one APK is checked even
-more strictly: every repository-owned Core, LuCI, rpcd and Rill-glue file must
-match its source, and the compiled Simplified Chinese LMO must be present.
+runtime harness and startup smoke execute.  The architecture-specific
+all-in-one APK is checked even more strictly: every repository-owned Core,
+LuCI, rpcd and Rill-glue file must match its source, the compiled Simplified
+Chinese LMO must be present, and its bundled Runtime must be the exact same
+target ELF as the split canonical Runtime package.
 
 It fails closed (exit != 0) if any expected package is absent, duplicated, of
 the wrong arch, a stray old-version artifact, or if the APK's Core file does not
@@ -44,7 +46,6 @@ ARCH_INDEPENDENT = {
     'performance-manager',
     'luci-app-performance-manager',
     'performance-manager-rill',
-    ALL_IN_ONE,
 }
 REQUIRED_DEPENDS = {
     'performance-manager': {
@@ -64,6 +65,7 @@ REQUIRED_DEPENDS = {
         'ucode-mod-uloop', 'ucode-mod-socket', 'ucode-mod-log',
     },
 }
+ELF_MACHINES = {'x86_64': 62, 'aarch64_generic': 183, 'aarch64_cortex-a53': 183}
 
 # The shipped Core daemon path inside the package; its bytes must equal the
 # repo source the runtime harness / startup smoke run verbatim.
@@ -84,6 +86,7 @@ def bundle_source_payloads():
         (ROOT / 'package/performance-manager/files', Path('/')),
         (ROOT / 'package/luci-app-performance-manager/htdocs', Path('/www')),
         (ROOT / 'package/luci-app-performance-manager/root', Path('/')),
+        (ROOT / 'package/performance-manager-rill/files', Path('/')),
     )
     payloads = {}
     for source_root, install_root in roots:
@@ -460,13 +463,14 @@ def main(argv):
             continue
         by_name.setdefault(name, []).append((apk, meta))
 
-    report = {'schemaVersion': 1, 'contract': 'apk-exact-verification',
+    report = {'schemaVersion': 2, 'contract': 'apk-exact-verification',
               'pmCommitSha': _pm_commit(),
               'expectedVersion': expected_version,
               'rillRuntimeVersion': rill_runtime_version,
               'arch': arch, 'packages': {}}
     failures = []
 
+    split_runtime_sha = None
     for name in EXPECTED:
         found = by_name.get(name, [])
         if not found:
@@ -489,9 +493,8 @@ def main(argv):
         # version (e.g. 1.0.0_rc10) so a stale candidate can never pass.
         ver_part = pkgver.split('-r')[0]
         package_version = rill_runtime_version if name == 'rill-runtime' else expected_version
-        # Architecture-independent packages (LuCI apps, translations) are built
-        # as `noarch`/`all`, which matches ANY target; only a concrete, differing
-        # arch is a mismatch.
+        # Core/LuCI/glue remain noarch split packages. The full package is
+        # intentionally target-specific because it owns a native Runtime ELF.
         arch_ok = (pkgarch in ('noarch', 'all') if name in ARCH_INDEPENDENT else pkgarch == arch)
         if ver_part != package_version:
             failures.append(f'{name}: pkgver {pkgver!r} != expected {package_version!r}')
@@ -568,12 +571,41 @@ def main(argv):
             report['packages'][name]['core'] = installed_payload[CORE_PATH]
         if name == 'rill-runtime':
             runtime_payload = apk_file_content(apk, '/usr/bin/rill-runtime')
+            split_runtime_sha = hashlib.sha256(runtime_payload).hexdigest() if runtime_payload else None
             report['packages'][name]['runtimeBinary'] = {
                 'path': '/usr/bin/rill-runtime',
                 'status': 'present' if runtime_payload is not None else 'missing',
+                'sha256': split_runtime_sha,
             }
             if runtime_payload is None:
                 failures.append('rill-runtime: /usr/bin/rill-runtime not found inside APK')
+            elif runtime_payload[:4] != b'\x7fELF' or len(runtime_payload) < 20 \
+                    or int.from_bytes(runtime_payload[18:20], 'little') != ELF_MACHINES.get(arch):
+                failures.append(f'rill-runtime: ELF machine does not match {arch}')
+        if name == ALL_IN_ONE:
+            bundled = apk_file_content(apk, '/usr/bin/rill-runtime')
+            bundled_sha = hashlib.sha256(bundled).hexdigest() if bundled else None
+            installed_payload = report['packages'][name].setdefault('installedPayload', {})
+            installed_payload['/usr/bin/rill-runtime'] = {
+                'path': '/usr/bin/rill-runtime',
+                'status': 'match' if bundled_sha == split_runtime_sha and bundled_sha else 'mismatch',
+                'sha256': bundled_sha,
+                'expectedSha256': split_runtime_sha,
+            }
+            report['packages'][name]['runtimeBinary'] = {
+                'path': '/usr/bin/rill-runtime',
+                'status': 'present' if bundled else 'missing',
+                'sha256': bundled_sha,
+                'matchesSplitRuntime': bundled_sha == split_runtime_sha and bundled_sha is not None,
+                'elfMachine': int.from_bytes(bundled[18:20], 'little') if bundled and len(bundled) >= 20 else None,
+            }
+            if not bundled:
+                failures.append(f'{name}: bundled /usr/bin/rill-runtime is missing or empty')
+            elif bundled_sha != split_runtime_sha:
+                failures.append(f'{name}: bundled Runtime SHA differs from canonical split Runtime')
+            elif bundled[:4] != b'\x7fELF' or len(bundled) < 20 \
+                    or int.from_bytes(bundled[18:20], 'little') != ELF_MACHINES.get(arch):
+                failures.append(f'{name}: bundled Runtime ELF machine does not match {arch}')
         print(f"OK {name}: {apk.name} pkgver={pkgver} arch={pkgarch} sha256={report['packages'][name]['sha256']}")
 
     # Reject any stray APK that is not one of the expected packages but

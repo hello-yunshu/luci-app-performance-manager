@@ -48,20 +48,22 @@
 |---|---|
 | `performance-manager` | procd-managed ucode/ubus Core: contracts, discovery, telemetry, transaction engine and safe actions |
 | `luci-app-performance-manager` | Supported-first LuCI UI (Simplified Chinese) |
-| `performance-manager-rill` | External Runtime integration glue; the Rill Runtime package owns `/usr/bin/rill-runtime` |
-| `luci-app-performance-manager-all` | Recommended all-in-one APK: physically contains Core, LuCI, rpcd ACL/menu and Simplified Chinese translation |
+| `performance-manager-rill` | Developer / split-package Rill glue; consumes the external `rill-runtime` package |
+| `rill-runtime` | Canonical external Runtime source/package; the full APK embeds its exact target binary |
+| `luci-app-performance-manager-all` | User-facing architecture-specific full APK containing Core, LuCI, ACL/menu, Simplified Chinese, Rill glue, keep rules and Runtime |
 
 ## Installation
 
 ### Prerequisites
 
-- OpenWrt 25.12.x / x86_64, aarch64_generic, or aarch64_cortex-a53; current real runtime gates remain x86_64-scoped
+- OpenWrt 25.12.5 / x86_64, aarch64_generic, or aarch64_cortex-a53; current real runtime gates remain x86_64-scoped
 - An OpenWrt SDK or buildroot environment (for source builds)
 
 ### Build from source (OpenWrt SDK / buildroot)
 
 ```sh
-# 1. Provide the external Rill Runtime from the Rill OpenWrt feed
+# 1. Build the canonical Runtime from the Rill OpenWrt feed; the full package
+#    receives only its exact verified binary payload
 cd /path/to/openwrt-performance-manager
 # 2. Then enter the OpenWrt SDK
 cd /path/to/openwrt-sdk
@@ -73,36 +75,35 @@ make defconfig
 make package/performance-manager/compile V=s
 make package/luci-app-performance-manager/compile V=s
 make package/performance-manager-rill/compile V=s
+mkdir -p package/openwrt-performance-manager/luci-app-performance-manager-all/files/usr/bin
+# Place the exact /usr/bin/rill-runtime extracted from the qualified Runtime APK there.
 make package/luci-app-performance-manager-all/compile V=s
 ```
 
-The Rill package is an external-runtime integration boundary; this repository does not build or vendor Rust Runtime source. Install the matching external `/usr/bin/rill-runtime` package together with `luci-app-performance-manager-all`.
+The SDK builds the split packages and the architecture-specific full package. The production path is the official GitHub Actions SDK workflow, which stages and verifies the exact Runtime binary automatically.
 
 > You can also rely on the GitHub Actions `build-openwrt.yml` → `openwrt-sdk-build` job to produce the build instead of using a local SDK.
 
-### Recommended: one-APK installation
+### Recommended: one APK per device
 
-Download `luci-app-performance-manager-all-1.0.4-r1.apk` and `performance-manager-rill-1.0.4-r1.apk` from the GitHub Release, plus the matching external `rill-runtime` package from the Rill OpenWrt feed. The Runtime package is not built or copied by this repository.
+From [GitHub Releases](https://github.com/hello-yunshu/luci-app-performance-manager/releases), download exactly one `performance-manager-all-v<VERSION>-<package-arch>.apk` for the device architecture.
 
-```text
-performance-manager-rill-1.0.4-r1.apk
-rill-runtime-<matching-target>.apk
-```
+Every device needs only one All-in-One APK. It contains Performance Manager Core, LuCI, Simplified Chinese, Rill integration and the exact qualified Runtime; do not download `rill-runtime` or `performance-manager-rill` separately.
 
 ```sh
-apk add --allow-untrusted /tmp/luci-app-performance-manager-all-1.0.4-r1.apk
-apk add --allow-untrusted /tmp/rill-runtime-1.5.6-r1.apk /tmp/performance-manager-rill-1.0.4-r1.apk
+apk --print-arch
+apk add --allow-untrusted /tmp/performance-manager-all-v<VERSION>-x86_64.apk
 ```
 
-Install the qualified external `rill-runtime` for the device architecture before the `performance-manager-rill` glue package. If the package manager resolves dependencies, it must preserve the same Runtime-before-glue requirement; a missing Runtime remains fail-closed.
+Architecture mapping: `x86_64` → `x86_64`; `aarch64_generic` → generic ARM64; `aarch64_cortex-a53` → Filogic / MT7981 / MT7986. Replace the filename in the command with the one matching your architecture.
 
-OpenWrt still resolves system runtime libraries such as `luci-base`, `rpcd` and `ucode` from its configured repositories. The all-in-one APK contains the Core, LuCI, backend and translation payloads; the external Runtime owns `/usr/bin/rill-runtime`, while the small `performance-manager-rill` package owns only integration glue. Back up `/etc/config/performance-manager` and switch package forms only during a maintenance window.
+OpenWrt still resolves system libraries such as `luci-base`, `rpcd` and `ucode` from configured repositories. The full APK conflicts with every split owner, including `performance-manager-rill` and `rill-runtime`. Back up `/etc/config/performance-manager` before switching package forms during a maintenance window.
 
 ### Package info
 
 | Item | Value |
 |---|---|
-| Recommended package | `luci-app-performance-manager-all` (one APK) |
+| Recommended package | `performance-manager-all-v<VERSION>-<package-arch>.apk` (one APK) |
 | Target | OpenWrt 25.12.5 / x86_64, aarch64_generic, aarch64_cortex-a53 (package-level); runtime evidence is x86_64 |
 | Current source candidate | `1.0.4` |
 | Service script | `/etc/init.d/performance-manager` |
@@ -204,12 +205,12 @@ package/luci-app-performance-manager-all/Makefile  # merges all owned runtime co
                           └───────────┬────────────┘
                                       │ generic Runtime v3
                           ┌───────────▼────────────┐
-                          │ external rill-runtime     │
+                          │ bundled exact Runtime    │
                           │ ranking, no actuator      │
                           └────────────────────────┘
 ```
 
-> **Consumer ownership boundary.** Performance Manager owns the Core selector, feature mapping, Smart v2 state and UI. The external Rill Runtime owns only generic ranking/learning and its binary; it cannot apply router changes. Core remains fail-closed when the Runtime is missing or incompatible.
+> **Consumer ownership boundary.** Rill Runtime source and the canonical package remain owned by `hello-yunshu/rill-openwrt-packages`; the full APK redistributes only its qualified exact binary and owns `/usr/bin/rill-runtime` inside the package. Runtime only ranks/reports and cannot apply router changes. Core remains fail-closed when Runtime is missing or incompatible.
 
 ## MacBook + Docker local Portable validation
 
@@ -285,7 +286,9 @@ This project is built and verified automatically with GitHub Actions, triggered 
 - **openwrt-ucode**: compiles and validates Core ucode inside the official OpenWrt 25.12.5 rootfs
 
 **`build-openwrt.yml` (remote official SDK build)**
-- **openwrt-sdk-build**: builds the split Core/LuCI/glue packages plus the all-in-one APK with the official SDK, and emits `build-metadata.json`, `checksums.txt` and audit-evidence artifacts
+- **openwrt-sdk-build**: builds the four split packages plus three architecture-specific full APKs with the official SDK, and emits Runtime provenance and audit-evidence artifacts
+
+Public release staging emits only three full APKs and `SHA256SUMS.txt`; JSON, MD, ZIP, split APK and standalone Runtime artifacts remain private Actions artifacts.
 
 > The generic Runtime binary is intentionally external. This repository validates the Runtime v3 boundary and does not build, vendor or release a PM-owned Rust adapter.
 

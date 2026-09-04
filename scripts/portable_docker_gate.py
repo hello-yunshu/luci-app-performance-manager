@@ -73,8 +73,8 @@ def main(argv=None) -> int:
         raise RuntimeError("build metadata lacks the exact all-in-one APK filename")
     apk_path = identical_artifact(build_root, apk_filename)
     actual_sha = sha256(apk_path)
-    runtime = (build.get("packages") or {}).get("rill-runtime") or {}
-    runtime_verified = (apk.get("packages") or {}).get("rill-runtime") or {}
+    full_meta = build.get("fullPackage") or {}
+    full_runtime = (verified.get("runtimeBinary") or {})
 
     final_evidence = read_json(ci_root, "final-release-evidence.json")
     final_commit = final_evidence.get("expectedCommitSha") or final_evidence.get("pmCommitSha") or final_evidence.get("commit")
@@ -86,9 +86,10 @@ def main(argv=None) -> int:
             apk.get("pmCommitSha") == args.expected_commit
             and apk.get("verdict") == "PASS"
             and verified.get("sha256") == built.get("apkSha256") == actual_sha
-            and runtime.get("status") == "ok"
-            and runtime_verified.get("status") == "ok"
-            and runtime.get("apkSha256") == runtime_verified.get("sha256")
+            and verified.get("arch") == build.get("architecture")
+            and full_runtime.get("status") == "present"
+            and full_runtime.get("matchesSplitRuntime") is True
+            and full_meta.get("runtimeBundled") is True
         ),
         "rillCiChain": final_commit == args.expected_commit and final_verdict == "PASS",
         "dockerCoreRuntime": "PORTABLE_DOCKER_PASS" in docker_log,
@@ -115,9 +116,10 @@ def main(argv=None) -> int:
         "passed": not errors,
         "checks": checks,
         "apk": {"filename": apk_path.name, "sha256": actual_sha, "version": verified.get("expectedVersion")},
-        "externalRuntime": {"package": "rill-runtime",
-                             "version": runtime.get("pkgver"),
-                             "sha256": runtime.get("apkSha256")},
+        "bundledRuntime": {"package": "rill-runtime",
+                            "version": build.get("rillConsumedVersion"),
+                            "sourceCommit": (build.get("externalRuntime") or {}).get("commit"),
+                            "sha256": full_runtime.get("sha256")},
         "hardwareCoverage": "NOT_EVALUATED",
         "unsupportedHardwareGates": [
             "Hyper-V/vmbus/hv_netvsc", "KVM hotplug", "LAN-WAN A/B hardware",
