@@ -61,7 +61,10 @@ def main(argv: list[str] | None = None) -> int:
         # Runtime identity observably different from the current build.
         (sdk / RUNTIME).write_bytes(backups[sdk / RUNTIME] + b"\n")
         (sdk / NOTICES).write_bytes(backups[sdk / NOTICES] + f"\n{marker}\n".encode())
-        run(["make", f"package/{PACKAGE}/clean"], sdk)
+        # Keep the SDK's already-qualified dependency closure warm.  Cleaning
+        # this package also forces unrelated feed sources back through their
+        # fallback download path on cold runners, where upstream tarball hashes
+        # can legitimately be unavailable.
         run([
             "make", f"package/{PACKAGE}/compile", "V=s",
             f"PKG_VERSION={args.version}", f"PKG_RELEASE={args.release}",
