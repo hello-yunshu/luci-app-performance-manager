@@ -48,6 +48,14 @@ class AllInOnePackageTests(unittest.TestCase):
             self.assertFalse(ok)
             self.assertEqual(missing, ["coreutils-timeout"])
 
+    def test_build_evidence_preserves_runtime_sha_in_installed_payload(self):
+        sys.path.insert(0, str(ROOT / "scripts"))
+        from build_evidence import payload_digest
+
+        runtime_sha = "a" * 64
+        self.assertEqual(payload_digest({"sha256": runtime_sha}), runtime_sha)
+        self.assertEqual(payload_digest({"apkSha256": runtime_sha}), runtime_sha)
+
     def test_bundle_conflicts_with_every_split_owner(self):
         makefile = BUNDLE.read_text()
         conflicts = next(line.split(":=", 1)[1].split() for line in makefile.splitlines()

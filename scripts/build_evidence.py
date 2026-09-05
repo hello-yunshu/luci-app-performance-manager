@@ -51,6 +51,11 @@ def sdk_digest(sdk_dir):
     return None
 
 
+def payload_digest(payload):
+    """Normalize source payload records and Runtime records to one SHA field."""
+    return payload.get('apkSha256') or payload.get('sha256')
+
+
 def feeds_commits(sdk_dir):
     """Record the pinned feed commit from each feed directory's .git origin, if
     the SDK retains feed metadata (fresh SDKs do)."""
@@ -264,7 +269,7 @@ def main(argv):
                 entry['core'] = rec['core']
             if name in ('performance-manager', 'luci-app-performance-manager-all') and 'installedPayload' in rec:
                 entry['installedPayload'] = {
-                    path: payload.get('apkSha256')
+                    path: payload_digest(payload)
                     for path, payload in rec['installedPayload'].items()
                     if payload.get('status') in ('match', 'compiled')
                 }
