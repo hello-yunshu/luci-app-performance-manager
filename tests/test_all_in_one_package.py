@@ -8,6 +8,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 BUNDLE = ROOT / "package/luci-app-performance-manager-all/Makefile"
+CORE = ROOT / "package/performance-manager/Makefile"
 
 
 class AllInOnePackageTests(unittest.TestCase):
@@ -24,6 +25,28 @@ class AllInOnePackageTests(unittest.TestCase):
         self.assertNotIn("PKGARCH:=all", makefile)
         self.assertNotIn("+rill-runtime", makefile)
         self.assertIn("exact qualified", makefile)
+
+    def test_split_and_full_packages_declare_timeout_dependency(self):
+        self.assertIn("+coreutils-timeout", CORE.read_text())
+        self.assertIn("+coreutils-timeout", BUNDLE.read_text())
+
+    def test_verifier_requires_timeout_for_split_and_full_packages(self):
+        sys.path.insert(0, str(ROOT / "scripts"))
+        import verify_apks
+
+        for name in ("performance-manager", verify_apks.ALL_IN_ONE):
+            self.assertIn("coreutils-timeout", verify_apks.REQUIRED_DEPENDS[name])
+
+    def test_missing_timeout_metadata_fails_real_verifier_dependency_gate(self):
+        sys.path.insert(0, str(ROOT / "scripts"))
+        import verify_apks
+
+        for name in ("performance-manager", verify_apks.ALL_IN_ONE):
+            dependencies = set(verify_apks.REQUIRED_DEPENDS[name])
+            dependencies.remove("coreutils-timeout")
+            ok, missing = verify_apks.dependency_check(name, dependencies)
+            self.assertFalse(ok)
+            self.assertEqual(missing, ["coreutils-timeout"])
 
     def test_bundle_conflicts_with_every_split_owner(self):
         makefile = BUNDLE.read_text()
@@ -131,16 +154,27 @@ class AllInOnePackageTests(unittest.TestCase):
         gate = (ROOT / "scripts/package_composition_gate.py").read_text()
         for token in (
             'ALL_IN_ONE = ("luci-app-performance-manager-all",)',
+            "command -v timeout",
+            "apk info -e coreutils-timeout",
+            "PM_DEPENDENCY_CLOSURE=PASS",
             "PM_FULL_RILL_FAULT_SMOKE=PASS", "PM_FULL_UNINSTALL_SMOKE=PASS",
-            "PM_FULL_CONFLICT_SMOKE=PASS", "apk del luci-app-performance-manager-all",
+            "PM_FULL_RUNTIME_IDENTITY=PASS", "PM_FULL_CONFLICT_SMOKE=PASS",
+            "apk del luci-app-performance-manager-all", "test ! -e /usr/bin/rill-runtime",
+            '"upgradeSemantics": "BLOCKED"', "no prior full APK fixture was supplied",
         ):
             self.assertIn(token, gate)
+
+    def test_prerelease_title_does_not_duplicate_rc_suffix(self):
+        workflow = (ROOT / ".github/workflows/prerelease.yml").read_text()
+        self.assertIn('--title "OpenWrt Performance Manager $version"', workflow)
+        self.assertNotIn('--title "OpenWrt Performance Manager $version-rc"', workflow)
 
     def test_portable_mac_installs_full_apk_once(self):
         script = (ROOT / "tools/docker-validate/run-local-macos.sh").read_text()
         self.assertIn("PM_FULL_APK", script)
         self.assertIn("one-file-installed bundled Rill Runtime v3 integration", script)
         self.assertNotIn("PM_RILL_APK", script)
+        self.assertNotIn("apk add --no-check-certificate ucode ucode-mod-fs ucode-mod-ubus ucode-mod-uci ucode-mod-rtnl ucode-mod-uloop ucode-mod-socket ucode-mod-log coreutils-timeout", script)
 
 
 if __name__ == "__main__":

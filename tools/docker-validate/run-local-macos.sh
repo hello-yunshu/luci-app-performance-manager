@@ -173,7 +173,7 @@ tar -xzf "$rootfs" -C .portable-rootfs
 rm -f .portable-rootfs/etc/resolv.conf
 cp /etc/resolv.conf .portable-rootfs/etc/resolv.conf
 if chroot .portable-rootfs /bin/sh -c "command -v apk >/dev/null 2>&1"; then
-  if ! chroot .portable-rootfs /bin/sh -c "apk update --no-check-certificate && apk add --no-check-certificate ucode ucode-mod-fs ucode-mod-ubus ucode-mod-uci ucode-mod-rtnl ucode-mod-uloop ucode-mod-socket ucode-mod-log coreutils-timeout"; then
+  if ! chroot .portable-rootfs /bin/sh -c "apk update --no-check-certificate && apk add --no-check-certificate ucode ucode-mod-fs ucode-mod-ubus ucode-mod-uci ucode-mod-rtnl ucode-mod-uloop ucode-mod-socket ucode-mod-log"; then
     echo BLOCKED: OpenWrt package indexes unavailable
     exit 2
   fi
@@ -326,8 +326,13 @@ matrices = list((r.get("matrices") or {}).values())
 ok = bool(matrices) and r.get("verdict") == "PASS"
 for label, item in (r.get("matrices") or {}).items():
     required = ["serviceSmoke", "ubusStatusSmoke", "installedPayloadExact", "packageConflictSmoke"]
-    required += ["fullRuntimeFaultSmoke", "fullUninstallSmoke"] if label == "all-in-one" else ["rillStatusSmoke", "rillRemovalSmoke"]
+    required += ["fullRuntimeFaultSmoke", "fullUninstallSmoke", "fullRuntimeIdentity"] if label == "all-in-one" else ["rillStatusSmoke", "rillRemovalSmoke"]
+    dependency = item.get("dependencyClosure") or {}
     ok = ok and item.get("status") == "PASS" and all(item.get(field) is True for field in required)
+    ok = ok and dependency.get("timeoutPresentBeforeInstall") is False
+    ok = ok and dependency.get("timeoutPresentAfterInstall") is True
+    ok = ok and dependency.get("coreutilsTimeoutInstalled") is True
+    ok = ok and dependency.get("resolvedByPackageManager") is True
 print("PASS" if ok else "FAIL")
 PY
 )

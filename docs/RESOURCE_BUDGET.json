@@ -13,12 +13,12 @@
     },
     "rill": {
       "files": 2,
-      "sourceBytes": 1424,
+      "sourceBytes": 1562,
       "knownStaticPayloadBytes": 31
     },
     "allInOne": {
       "files": 1,
-      "sourceBytes": 5083,
+      "sourceBytes": 5146,
       "knownStaticPayloadBytes": 0
     }
   },

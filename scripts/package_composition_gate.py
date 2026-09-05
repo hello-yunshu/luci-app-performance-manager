@@ -11,6 +11,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import shlex
 import re
 import shutil
 import subprocess
@@ -127,6 +128,30 @@ def execute(rootfs: Path, packages: dict[str, Path], names: tuple[str, ...],
                 )
             snapshot_command = "; ".join(snapshot_commands) + "; "
             suffix = ".apk" if any(path.suffix == ".apk" for path in packages.values()) else ".ipk"
+            preinstall_dependency_check = (
+                "timeout_before=$(command -v timeout 2>/dev/null || true); "
+                "if [ -n \"$timeout_before\" ]; then echo PM_TIMEOUT_BEFORE=present; "
+                "else echo PM_TIMEOUT_BEFORE=absent; fi; "
+                "test -z \"$timeout_before\"; "
+            )
+            expected_runtime_sha = (((build.get("packages", {}).get(ALL_IN_ONE[0]) or {})
+                                      .get("runtimeBinary") or {}).get("sha256"))
+            runtime_identity_check = ""
+            if names == ALL_IN_ONE:
+                if not isinstance(expected_runtime_sha, str) or not re.fullmatch(r"[0-9a-f]{64}", expected_runtime_sha):
+                    raise RuntimeError("all-in-one build metadata lacks a valid bundled Runtime SHA256")
+                runtime_identity_check = (
+                    "test -x /usr/bin/rill-runtime; "
+                    f"test \"$(sha256sum /usr/bin/rill-runtime | awk '{{print $1}}')\" = {shlex.quote(expected_runtime_sha)}; "
+                    "echo PM_FULL_RUNTIME_IDENTITY=PASS; "
+                )
+            dependency_check = (
+                "timeout_after=$(command -v timeout 2>/dev/null || true); "
+                "test -n \"$timeout_after\"; "
+                "apk info -e coreutils-timeout >/dev/null 2>&1; "
+                "echo PM_TIMEOUT_AFTER=present; echo PM_COREUTILS_TIMEOUT_INSTALLED=PASS; "
+                "echo PM_DEPENDENCY_CLOSURE=PASS; "
+            )
             post_apk_install = (
                 "mv /usr/bin/rill-runtime /tmp/rill-runtime.full-fault; "
                 "fault_status=$(ubus call performance-manager rill_status '{}'); "
@@ -135,7 +160,12 @@ def execute(rootfs: Path, packages: dict[str, Path], names: tuple[str, ...],
                 "echo PM_FULL_RILL_FAULT_SMOKE=PASS; "
                 "apk del luci-app-performance-manager-all; "
                 "test ! -x /usr/sbin/performance-manager.uc; "
-                "test ! -f /usr/share/rpcd/acl.d/luci-app-performance-manager.json; "
+                "test ! -e /usr/bin/rill-runtime; "
+                "test ! -e /www/luci-static/resources/view/performance-manager/overview.js; "
+                "test ! -e /usr/share/luci/menu.d/luci-app-performance-manager.json; "
+                "test ! -e /usr/share/rpcd/acl.d/luci-app-performance-manager.json; "
+                "test ! -e /lib/upgrade/keep.d/performance-manager; "
+                "test ! -e /lib/upgrade/keep.d/performance-manager-rill; "
                 "echo PM_FULL_UNINSTALL_SMOKE=PASS; "
                 if names == ALL_IN_ONE else
                 "apk del performance-manager-rill rill-runtime; "
@@ -150,7 +180,8 @@ def execute(rootfs: Path, packages: dict[str, Path], names: tuple[str, ...],
             command = (
                 "set -eu; "
                 "command -v apk >/dev/null 2>&1 || command -v opkg >/dev/null 2>&1; "
-                "if command -v apk >/dev/null 2>&1; then "
+                + preinstall_dependency_check
+                + "if command -v apk >/dev/null 2>&1; then "
                 f"test '{suffix}' = '.apk'; "
                 "if apk add --allow-untrusted --no-cache " + " ".join(staged) + "; then "
                 "echo PM_APK_REPOSITORY_TRANSPORT=https; "
@@ -168,28 +199,30 @@ def execute(rootfs: Path, packages: dict[str, Path], names: tuple[str, ...],
                 "add --allow-untrusted --no-cache " + " ".join(staged) + "; "
                 "echo PM_APK_REPOSITORY_TRANSPORT=http-fallback; "
                 "fi; "
-                "test -x /etc/init.d/performance-manager; "
-                "test -x /usr/sbin/performance-manager.uc; "
-                "test -x /usr/bin/rill-runtime; "
-                "test -f /usr/share/rpcd/acl.d/luci-app-performance-manager.json; "
-                "test -f /lib/upgrade/keep.d/performance-manager-rill; "
-                "mkdir -p /var/run/ubus /run /var/lock /tmp/performance-manager /etc/performance-manager; "
-                "rm -f /var/run/ubus/ubus.sock; "
-                "core_pid=0; /sbin/ubusd >/tmp/pm-composition-ubusd.log 2>&1 & ubusd_pid=$!; "
-                "trap 'kill $core_pid $ubusd_pid 2>/dev/null || true' EXIT; "
-                "sleep 1; kill -0 $ubusd_pid; "
-                "service_prog=$(sed -n 's/^PROG=//p' /etc/init.d/performance-manager); "
-                "test \"$service_prog\" = /usr/sbin/performance-manager.uc; "
-                "$service_prog >/tmp/pm-composition-core.log 2>&1 & core_pid=$!; "
-                "i=0; while ! ubus -S list performance-manager >/dev/null 2>&1; do "
-                "i=$((i+1)); test $i -lt 10; sleep 1; done; "
-                "status=$(ubus call performance-manager status '{}'); "
-                "printf '%s' \"$status\" | grep -q '\"running\": true'; "
-                "rill_status=$(ubus call performance-manager rill_status '{}'); "
-                "printf '%s' \"$rill_status\" | jsonfilter -e '@.mode' | grep -qx advisory; "
-                "printf '%s' \"$rill_status\" | jsonfilter -e '@.protocolVersion' | grep -Eq '^[0-9]+$'; "
-                "printf '%s' \"$rill_status\" | jsonfilter -e '@.state' | grep -q .; "
-                "echo PM_SERVICE_SMOKE=PASS; echo PM_UBUS_STATUS=PASS; echo PM_RILL_STATUS=PASS; "
+                + dependency_check
+                + runtime_identity_check
+                + "test -x /etc/init.d/performance-manager; "
+                + "test -x /usr/sbin/performance-manager.uc; "
+                + "test -x /usr/bin/rill-runtime; "
+                + "test -f /usr/share/rpcd/acl.d/luci-app-performance-manager.json; "
+                + "test -f /lib/upgrade/keep.d/performance-manager-rill; "
+                + "mkdir -p /var/run/ubus /run /var/lock /tmp/performance-manager /etc/performance-manager; "
+                + "rm -f /var/run/ubus/ubus.sock; "
+                + "core_pid=0; /sbin/ubusd >/tmp/pm-composition-ubusd.log 2>&1 & ubusd_pid=$!; "
+                + "trap 'kill $core_pid $ubusd_pid 2>/dev/null || true' EXIT; "
+                + "sleep 1; kill -0 $ubusd_pid; "
+                + "service_prog=$(sed -n 's/^PROG=//p' /etc/init.d/performance-manager); "
+                + "test \"$service_prog\" = /usr/sbin/performance-manager.uc; "
+                + "$service_prog >/tmp/pm-composition-core.log 2>&1 & core_pid=$!; "
+                + "i=0; while ! ubus -S list performance-manager >/dev/null 2>&1; do "
+                + "i=$((i+1)); test $i -lt 10; sleep 1; done; "
+                + "status=$(ubus call performance-manager status '{}'); "
+                + "printf '%s' \"$status\" | grep -q '\"running\": true'; "
+                + "rill_status=$(ubus call performance-manager rill_status '{}'); "
+                + "printf '%s' \"$rill_status\" | jsonfilter -e '@.mode' | grep -qx advisory; "
+                + "printf '%s' \"$rill_status\" | jsonfilter -e '@.protocolVersion' | grep -qx 3; "
+                + "printf '%s' \"$rill_status\" | jsonfilter -e '@.state' | grep -q .; "
+                + "echo PM_SERVICE_SMOKE=PASS; echo PM_UBUS_STATUS=PASS; echo PM_RILL_STATUS=PASS; "
                 + snapshot_command
                 + ("if apk add --allow-untrusted --no-cache " + " ".join(conflict_staged)
                    + "; then exit 1; fi; echo PM_FULL_CONFLICT_SMOKE=PASS; "
@@ -198,8 +231,12 @@ def execute(rootfs: Path, packages: dict[str, Path], names: tuple[str, ...],
                 + post_apk_install + "else "
                 f"test '{suffix}' = '.ipk'; "
                 "opkg install " + " ".join(staged) + "; "
-                "test -x /usr/sbin/performance-manager.uc; "
-                "fi"
+                "timeout_after=$(command -v timeout 2>/dev/null || true); test -n \"$timeout_after\"; "
+                "opkg status coreutils-timeout 2>/dev/null | grep -q 'Status: install'; "
+                "echo PM_TIMEOUT_AFTER=present; echo PM_COREUTILS_TIMEOUT_INSTALLED=PASS; echo PM_DEPENDENCY_CLOSURE=PASS; "
+                + "test -x /usr/sbin/performance-manager.uc; "
+                + runtime_identity_check
+                + "fi"
             )
             completed = run(rootfs, command)
             installed_payload = {}
@@ -220,8 +257,33 @@ def execute(rootfs: Path, packages: dict[str, Path], names: tuple[str, ...],
             ubus_status_smoke = "PM_UBUS_STATUS=PASS" in completed.stdout
             rill_status_smoke = "PM_RILL_STATUS=PASS" in completed.stdout
             rill_removal_smoke = "PM_RILL_REMOVAL_SMOKE=PASS" in completed.stdout
+            full_runtime_fault_smoke = "PM_FULL_RILL_FAULT_SMOKE=PASS" in completed.stdout
+            full_uninstall_smoke = "PM_FULL_UNINSTALL_SMOKE=PASS" in completed.stdout
+            full_runtime_identity = "PM_FULL_RUNTIME_IDENTITY=PASS" in completed.stdout
+            package_conflict_smoke = (
+                "PM_FULL_CONFLICT_SMOKE=PASS" in completed.stdout or
+                "PM_SPLIT_FULL_CONFLICT_SMOKE=PASS" in completed.stdout
+            )
+            dependency_closure = {
+                "timeoutPresentBeforeInstall": "PM_TIMEOUT_BEFORE=present" in completed.stdout,
+                "timeoutPresentAfterInstall": "PM_TIMEOUT_AFTER=present" in completed.stdout,
+                "coreutilsTimeoutInstalled": "PM_COREUTILS_TIMEOUT_INSTALLED=PASS" in completed.stdout,
+                "resolvedByPackageManager": "PM_DEPENDENCY_CLOSURE=PASS" in completed.stdout,
+            }
+            runtime_smokes = (
+                full_runtime_fault_smoke and full_uninstall_smoke and full_runtime_identity
+                if names == ALL_IN_ONE else rill_removal_smoke
+            )
+            required_smokes = (
+                service_smoke and ubus_status_smoke and rill_status_smoke and package_conflict_smoke
+                and not dependency_closure["timeoutPresentBeforeInstall"]
+                and dependency_closure["timeoutPresentAfterInstall"]
+                and dependency_closure["coreutilsTimeoutInstalled"]
+                and dependency_closure["resolvedByPackageManager"]
+                and runtime_smokes
+            )
             return {
-                "status": "PASS" if completed.returncode == 0 and payload_ok else "FAIL",
+                "status": "PASS" if completed.returncode == 0 and payload_ok and required_smokes else "FAIL",
                 "packages": list(names),
                 "returncode": completed.returncode,
                 "stdout": completed.stdout[-4000:],
@@ -230,13 +292,17 @@ def execute(rootfs: Path, packages: dict[str, Path], names: tuple[str, ...],
                 "ubusStatusSmoke": ubus_status_smoke,
                 "rillStatusSmoke": rill_status_smoke,
                 "rillRemovalSmoke": rill_removal_smoke,
-                "fullRuntimeFaultSmoke": "PM_FULL_RILL_FAULT_SMOKE=PASS" in completed.stdout,
-                "fullUninstallSmoke": "PM_FULL_UNINSTALL_SMOKE=PASS" in completed.stdout,
-                "packageConflictSmoke": ("PM_FULL_CONFLICT_SMOKE=PASS" in completed.stdout or
-                                         "PM_SPLIT_FULL_CONFLICT_SMOKE=PASS" in completed.stdout),
-                # Upgrade semantics require a real N -> N+1 package-manager run
-                # on each target; do not infer that from install/uninstall.
-                "upgradeSemantics": "NOT_EVALUATED",
+                "fullRuntimeFaultSmoke": full_runtime_fault_smoke,
+                "fullUninstallSmoke": full_uninstall_smoke,
+                "fullRuntimeIdentity": full_runtime_identity,
+                "packageConflictSmoke": package_conflict_smoke,
+                "dependencyClosure": dependency_closure,
+                # Upgrade semantics require two real APKs and a package-manager
+                # N -> N+1 run. This gate receives only the current build, so it
+                # stays explicitly blocked rather than inferring upgrade safety
+                # from install/uninstall or static conffile checks.
+                "upgradeSemantics": "BLOCKED",
+                "upgradeReason": "no prior full APK fixture was supplied; install/uninstall is not an upgrade proof",
                 "installedPayload": installed_payload,
                 "installedPayloadExact": payload_ok,
                 "repositoryTransport": (
@@ -282,7 +348,8 @@ def main(argv=None) -> int:
               "pmCommitSha": args.expected_commit,
               "verdict": "PASS" if all(x["status"] == "PASS" for x in results.values()) else "FAIL",
               "matrices": results,
-              "upgradeSemantics": "NOT_EVALUATED",
+              "upgradeSemantics": "BLOCKED",
+              "upgradeReason": "no prior full APK fixture was supplied; install/uninstall is not an upgrade proof",
               "dependencyGraph": {
                   "performance-manager-rill": ["performance-manager", "rill-runtime"],
                   "performance-manager": ["performance-manager-core"],
