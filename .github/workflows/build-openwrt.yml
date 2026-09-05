@@ -288,7 +288,8 @@ jobs:
           python3 scripts/build_synthetic_prior_fixture.py \
             --sdk-dir "$SDKDIR" \
             --out full-upgrade-prior/synthetic-prior \
-            --version 1.0.3 --release 1 --commit "$GITHUB_SHA"
+            --version 1.0.3 --release 1 --package-arch "$PACKAGE_ARCH" \
+            --commit "$GITHUB_SHA"
       - name: Upload exact all-in-one prerelease asset
         uses: actions/upload-artifact@v7
         with:
