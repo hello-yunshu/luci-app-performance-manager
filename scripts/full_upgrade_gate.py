@@ -107,7 +107,10 @@ def transport_status(completed: subprocess.CompletedProcess[str]) -> str:
     output = f"{completed.stdout}\n{completed.stderr}".lower()
     if completed.returncode == 0:
         return "https"
-    if any(token in output for token in ("certificate", "x509", "tls", "ssl", "bad signature")):
+    if any(token in output for token in (
+        "certificate", "x509", "certificate verify failed", "tls handshake",
+        "handshake failure", "wrong version number", "bad signature",
+    )):
         return "tls-failure"
     return "unavailable"
 
