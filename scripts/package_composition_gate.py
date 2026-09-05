@@ -11,6 +11,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import os
 import shlex
 import re
 import shutil
@@ -18,10 +19,22 @@ import subprocess
 import tempfile
 from pathlib import Path
 
+from full_upgrade_gate import execute as execute_full_upgrade
+
 
 SPLIT = ("performance-manager", "luci-app-performance-manager",
          "performance-manager-rill", "rill-runtime")
 ALL_IN_ONE = ("luci-app-performance-manager-all",)
+PM_OWNED_PATHS = (
+    "/usr/sbin/performance-manager.uc",
+    "/usr/bin/rill-runtime",
+    "/usr/share/performance-manager",
+    "/www/luci-static/resources/view/performance-manager",
+    "/usr/share/luci/menu.d/luci-app-performance-manager.json",
+    "/usr/share/rpcd/acl.d/luci-app-performance-manager.json",
+    "/lib/upgrade/keep.d/performance-manager",
+    "/lib/upgrade/keep.d/performance-manager-rill",
+)
 
 
 def package_name(path: Path) -> str:
@@ -33,9 +46,11 @@ def package_name(path: Path) -> str:
     return ""
 
 
-def locate_packages(root: Path) -> dict[str, Path]:
+def locate_packages(root: Path, excluded_parts: tuple[str, ...] = ()) -> dict[str, Path]:
     found: dict[str, list[Path]] = {}
     for path in sorted(root.rglob("*.apk")) + sorted(root.rglob("*.ipk")):
+        if any(part in path.parts for part in excluded_parts):
+            continue
         name = package_name(path)
         if name:
             found.setdefault(name, []).append(path)
@@ -45,6 +60,13 @@ def locate_packages(root: Path) -> dict[str, Path]:
             raise RuntimeError(f"expected one {name} artifact, found {paths}")
         result[name] = paths[0]
     return result
+
+
+def pristine_payload(rootfs: Path) -> dict[str, object]:
+    present = [path for path in PM_OWNED_PATHS
+               if os.path.lexists(str(rootfs / path.lstrip("/")))]
+    return {"checkedPaths": list(PM_OWNED_PATHS), "presentPaths": present,
+            "pristineBeforeInstall": not present}
 
 
 def sha256_file(path: Path) -> str:
@@ -185,20 +207,7 @@ def execute(rootfs: Path, packages: dict[str, Path], names: tuple[str, ...],
                 f"test '{suffix}' = '.apk'; "
                 "if apk add --allow-untrusted --no-cache " + " ".join(staged) + "; then "
                 "echo PM_APK_REPOSITORY_TRANSPORT=https; "
-                "else "
-                "printf '%s\\n' "
-                f"'http://downloads.openwrt.org/releases/{openwrt_version}/targets/{target}/packages/packages.adb' "
-                f"'http://downloads.openwrt.org/releases/{openwrt_version}/packages/{package_arch}/base/packages.adb' "
-                f"'http://downloads.openwrt.org/releases/{openwrt_version}/packages/{package_arch}/luci/packages.adb' "
-                f"'http://downloads.openwrt.org/releases/{openwrt_version}/packages/{package_arch}/packages/packages.adb' "
-                f"'http://downloads.openwrt.org/releases/{openwrt_version}/packages/{package_arch}/routing/packages.adb' "
-                f"'http://downloads.openwrt.org/releases/{openwrt_version}/packages/{package_arch}/telephony/packages.adb' "
-                f"'http://downloads.openwrt.org/releases/{openwrt_version}/packages/{package_arch}/video/packages.adb' "
-                "> /tmp/pm-repositories-http; "
-                "apk --repositories-file /tmp/pm-repositories-http "
-                "add --allow-untrusted --no-cache " + " ".join(staged) + "; "
-                "echo PM_APK_REPOSITORY_TRANSPORT=http-fallback; "
-                "fi; "
+                "else echo PM_APK_REPOSITORY_TRANSPORT=unavailable; exit 2; fi; "
                 + dependency_check
                 + runtime_identity_check
                 + "test -x /etc/init.d/performance-manager; "
@@ -282,8 +291,16 @@ def execute(rootfs: Path, packages: dict[str, Path], names: tuple[str, ...],
                 and dependency_closure["resolvedByPackageManager"]
                 and runtime_smokes
             )
+            transport = (
+                "https" if "PM_APK_REPOSITORY_TRANSPORT=https" in completed.stdout else
+                "unavailable" if "PM_APK_REPOSITORY_TRANSPORT=unavailable" in completed.stdout else
+                "not-evaluated"
+            )
+            status = "PASS" if completed.returncode == 0 and payload_ok and required_smokes and transport == "https" else (
+                "BLOCKED" if transport == "unavailable" and completed.returncode == 2 else "FAIL"
+            )
             return {
-                "status": "PASS" if completed.returncode == 0 and payload_ok and required_smokes else "FAIL",
+                "status": status,
                 "packages": list(names),
                 "returncode": completed.returncode,
                 "stdout": completed.stdout[-4000:],
@@ -297,18 +314,11 @@ def execute(rootfs: Path, packages: dict[str, Path], names: tuple[str, ...],
                 "fullRuntimeIdentity": full_runtime_identity,
                 "packageConflictSmoke": package_conflict_smoke,
                 "dependencyClosure": dependency_closure,
-                # Upgrade semantics require two real APKs and a package-manager
-                # N -> N+1 run. This gate receives only the current build, so it
-                # stays explicitly blocked rather than inferring upgrade safety
-                # from install/uninstall or static conffile checks.
-                "upgradeSemantics": "BLOCKED",
-                "upgradeReason": "no prior full APK fixture was supplied; install/uninstall is not an upgrade proof",
+                "upgradeSemantics": "NOT_APPLICABLE",
                 "installedPayload": installed_payload,
                 "installedPayloadExact": payload_ok,
-                "repositoryTransport": (
-                    "http-fallback" if "PM_APK_REPOSITORY_TRANSPORT=http-fallback" in completed.stdout
-                    else "https"
-                ),
+                "repositoryTransport": transport,
+                "transportVerdict": "PASS" if transport == "https" else "BLOCKED" if transport == "unavailable" else "FAIL",
             }
         finally:
             shutil.rmtree(guest, ignore_errors=True)
@@ -322,6 +332,8 @@ def main(argv=None) -> int:
     parser.add_argument("--openwrt-version", required=True)
     parser.add_argument("--target", required=True)
     parser.add_argument("--package-arch", required=True)
+    parser.add_argument("--prior-full", type=Path)
+    parser.add_argument("--prior-metadata", type=Path)
     parser.add_argument("--out", required=True, type=Path)
     args = parser.parse_args(argv)
     if not re.fullmatch(r"[0-9a-f]{40}", args.expected_commit):
@@ -332,11 +344,27 @@ def main(argv=None) -> int:
     build = json.loads(metadata[0].read_text())
     if build.get("repositoryCommitSha") != args.expected_commit:
         raise SystemExit("build metadata commit does not match --expected-commit")
-    packages = locate_packages(args.packages)
+    packages = locate_packages(args.packages, ("synthetic-prior",))
     missing = sorted(set(SPLIT + ALL_IN_ONE) - set(packages))
     if missing:
         raise SystemExit(f"missing package artifacts: {', '.join(missing)}")
 
+    pristine = pristine_payload(args.rootfs)
+    if not pristine["pristineBeforeInstall"]:
+        report = {
+            "schemaVersion": 1, "gate": "package-composition",
+            "pmCommitSha": args.expected_commit, "verdict": "FAIL",
+            "matrices": {}, "pristineRootfs": pristine,
+            "fullUpgrade": {"schemaVersion": 1, "gate": "full-upgrade",
+                             "verdict": "NOT_EVALUATED", "errors": ["rootfs is not pristine"]},
+            "upgradeSemantics": "NOT_EVALUATED",
+            "upgradeReason": "package-composition rootfs contains PM-owned files before install",
+            "repositoryTransport": "NOT_EVALUATED",
+        }
+        args.out.parent.mkdir(parents=True, exist_ok=True)
+        args.out.write_text(json.dumps(report, ensure_ascii=False, indent=2) + "\n")
+        print(json.dumps({"verdict": "FAIL", "reason": report["upgradeReason"]}))
+        return 1
     results = {}
     with tempfile.TemporaryDirectory(prefix="pm-composition-rootfs-") as temp:
         for label, names in (("split", SPLIT), ("all-in-one", ALL_IN_ONE)):
@@ -344,12 +372,40 @@ def main(argv=None) -> int:
             clone_rootfs(args.rootfs, clone)
             results[label] = execute(clone, packages, names, build, args.openwrt_version,
                                      args.target, args.package_arch)
+        prior_apk = args.prior_full
+        prior_metadata_path = args.prior_metadata
+        if prior_apk is None:
+            candidates = sorted(path for path in args.packages.rglob("*.apk")
+                                if "synthetic-prior" in path.parts)
+            prior_apk = candidates[0] if len(candidates) == 1 else None
+        if prior_metadata_path is None:
+            candidates = sorted(path for path in args.packages.rglob("full-upgrade-prior.json")
+                                if "synthetic-prior" in path.parts or "full-upgrade-prior" in path.parts)
+            prior_metadata_path = candidates[0] if len(candidates) == 1 else None
+        if prior_apk is not None and prior_metadata_path is not None and pristine["pristineBeforeInstall"]:
+            upgrade_clone = Path(temp) / "full-upgrade"
+            clone_rootfs(args.rootfs, upgrade_clone)
+            upgrade = execute_full_upgrade(
+                upgrade_clone, prior_apk.resolve(), packages[ALL_IN_ONE[0]].resolve(),
+                json.loads(prior_metadata_path.read_text()), build, args.expected_commit,
+            )
+        else:
+            upgrade = {
+                "schemaVersion": 1, "gate": "full-upgrade", "verdict": "BLOCKED",
+                "pmCommitSha": args.expected_commit,
+                "errors": ["synthetic prior APK and metadata are required for real N->N+1 proof"],
+                "syntheticPriorFixture": False,
+            }
     report = {"schemaVersion": 1, "gate": "package-composition",
               "pmCommitSha": args.expected_commit,
-              "verdict": "PASS" if all(x["status"] == "PASS" for x in results.values()) else "FAIL",
+              "verdict": "PASS" if pristine["pristineBeforeInstall"] and all(x["status"] == "PASS" for x in results.values()) and upgrade["verdict"] == "PASS" else
+                         "BLOCKED" if any(x["status"] == "BLOCKED" for x in results.values()) or upgrade["verdict"] == "BLOCKED" else "FAIL",
               "matrices": results,
-              "upgradeSemantics": "BLOCKED",
-              "upgradeReason": "no prior full APK fixture was supplied; install/uninstall is not an upgrade proof",
+              "pristineRootfs": pristine,
+              "fullUpgrade": upgrade,
+              "upgradeSemantics": upgrade["verdict"],
+              "upgradeReason": (upgrade.get("errors") or [None])[0],
+              "repositoryTransport": "https" if all(x.get("transportVerdict") == "PASS" for x in results.values()) else "BLOCKED",
               "dependencyGraph": {
                   "performance-manager-rill": ["performance-manager", "rill-runtime"],
                   "performance-manager": ["performance-manager-core"],
@@ -358,7 +414,7 @@ def main(argv=None) -> int:
     args.out.parent.mkdir(parents=True, exist_ok=True)
     args.out.write_text(json.dumps(report, ensure_ascii=False, indent=2) + "\n")
     print(json.dumps({"verdict": report["verdict"], "matrices": {k: v["status"] for k, v in results.items()}}, indent=2))
-    return 0 if report["verdict"] == "PASS" else 1
+    return 0 if report["verdict"] == "PASS" else 2 if report["verdict"] == "BLOCKED" else 1
 
 
 if __name__ == "__main__":

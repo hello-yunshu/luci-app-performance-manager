@@ -57,6 +57,7 @@ def main(argv=None) -> int:
     parser.add_argument("--ci-root", required=True)
     parser.add_argument("--docker-log", required=True)
     parser.add_argument("--test-report", required=True)
+    parser.add_argument("--package-report")
     parser.add_argument("--out", required=True)
     args = parser.parse_args(argv)
 
@@ -66,6 +67,7 @@ def main(argv=None) -> int:
     apk = read_json(build_root, "apk-verification.json")
     test_report = json.loads(Path(args.test_report).read_text())
     docker_log = Path(args.docker_log).read_text()
+    package_report = json.loads(Path(args.package_report).read_text()) if args.package_report else None
     built = (build.get("packages") or {}).get(PACKAGE) or {}
     verified = (apk.get("packages") or {}).get(PACKAGE) or {}
     apk_filename = built.get("apkFilename")
@@ -94,6 +96,16 @@ def main(argv=None) -> int:
         "rillCiChain": final_commit == args.expected_commit and final_verdict == "PASS",
         "dockerCoreRuntime": "PORTABLE_DOCKER_PASS" in docker_log,
     }
+    if package_report is not None:
+        full_upgrade = package_report.get("fullUpgrade") or {}
+        pristine = package_report.get("pristineRootfs") or {}
+        checks.update({
+            "packageComposition": package_report.get("verdict") == "PASS",
+            "pristineRootfs": pristine.get("pristineBeforeInstall") is True,
+            "fullUpgrade": full_upgrade.get("verdict") == "PASS",
+            "httpsTransport": package_report.get("repositoryTransport") == "https" and
+                              full_upgrade.get("transportVerdict") == "PASS",
+        })
     errors = []
     if build.get("repositoryCommitSha") != args.expected_commit:
         errors.append("build metadata commit mismatch")
@@ -121,6 +133,12 @@ def main(argv=None) -> int:
                             "sourceCommit": (build.get("externalRuntime") or {}).get("commit"),
                             "sha256": full_runtime.get("sha256")},
         "hardwareCoverage": "NOT_EVALUATED",
+        "stableReleaseAuthorized": False,
+        "packageComposition": package_report.get("verdict") if package_report else "NOT_EVALUATED",
+        "fullUpgrade": (package_report.get("fullUpgrade") or {}).get("verdict") if package_report else "NOT_EVALUATED",
+        "pristineRootfs": (package_report.get("pristineRootfs") or {}).get("pristineBeforeInstall") if package_report else False,
+        "repositoryTransport": package_report.get("repositoryTransport") if package_report else "NOT_EVALUATED",
+        "transportVerdict": (package_report.get("fullUpgrade") or {}).get("transportVerdict") if package_report else "NOT_EVALUATED",
         "unsupportedHardwareGates": [
             "Hyper-V/vmbus/hv_netvsc", "KVM hotplug", "LAN-WAN A/B hardware",
             "router-local A/B hardware", "firmware sysupgrade reboot", "24-hour soak",

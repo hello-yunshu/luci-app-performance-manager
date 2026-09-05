@@ -88,16 +88,19 @@ jobs:
           sudo rm -f .portable-rootfs/etc/resolv.conf
           sudo cp /etc/resolv.conf .portable-rootfs/etc/resolv.conf
           if sudo chroot .portable-rootfs /bin/sh -c 'command -v apk >/dev/null 2>&1'; then
-            sudo chroot .portable-rootfs /bin/sh -c 'apk update --no-check-certificate && apk add --no-check-certificate ucode ucode-mod-fs ucode-mod-ubus ucode-mod-uci ucode-mod-rtnl ucode-mod-uloop ucode-mod-socket ucode-mod-log'
+            sudo chroot .portable-rootfs /bin/sh -c 'apk update && apk add ca-bundle ucode ucode-mod-fs ucode-mod-ubus ucode-mod-uci ucode-mod-rtnl ucode-mod-uloop ucode-mod-socket ucode-mod-log'
           else
             sudo chroot .portable-rootfs /bin/sh -c 'opkg update && opkg install ucode ucode-mod-fs ucode-mod-ubus ucode-mod-uci ucode-mod-rtnl ucode-mod-uloop ucode-mod-socket ucode-mod-log'
           fi
+          sudo rm -rf .portable-core-rootfs
+          sudo mkdir -p .portable-core-rootfs
+          sudo tar -cf - -C .portable-rootfs . | sudo tar -xf - -C .portable-core-rootfs
           sudo install -D -m 0644 \
             package/performance-manager/files/usr/share/performance-manager/contracts.uc \
-            .portable-rootfs/usr/share/performance-manager/contracts.uc
+            .portable-core-rootfs/usr/share/performance-manager/contracts.uc
           # tar/chroot preparation runs as root; Docker's context sender runs
           # as the hosted runner and must be able to read every rootfs entry.
-          sudo chown -R "$(id -u):$(id -g)" .portable-rootfs
+          sudo chown -R "$(id -u):$(id -g)" .portable-rootfs .portable-core-rootfs
           docker build --file tools/docker-validate/Dockerfile.local --tag pm-portable-ucode:ci . > stable-output/docker-build.log 2>&1
           docker run --rm \
             --volume "$RUNNER_TEMP/core_runtime_test.uc:/tmp/core_runtime_test.uc:ro" \
@@ -126,13 +129,6 @@ jobs:
           selected_root="$RUNNER_TEMP/portable-x86-build"
           mkdir -p "$selected_root"
           cp -a "$(dirname "$selected_build")/." "$selected_root/"
-          python3 scripts/portable_docker_gate.py \
-            --expected-commit "${{ inputs.expected_sha }}" \
-            --build-root "$selected_root" \
-            --ci-root stable-input/ci \
-            --docker-log stable-output/docker-runtime.log \
-            --test-report stable-output/test-report.json \
-            --out stable-output/portable-docker.json
           sudo python3 scripts/package_composition_gate.py \
             --rootfs .portable-rootfs \
             --packages "$selected_root" \
@@ -141,6 +137,14 @@ jobs:
             --target "$OPENWRT_TARGET" \
             --package-arch x86_64 \
             --out stable-output/package-composition.json
+          python3 scripts/portable_docker_gate.py \
+            --expected-commit "${{ inputs.expected_sha }}" \
+            --build-root "$selected_root" \
+            --ci-root stable-input/ci \
+            --docker-log stable-output/docker-runtime.log \
+            --test-report stable-output/test-report.json \
+            --package-report stable-output/package-composition.json \
+            --out stable-output/portable-docker.json
 
       - name: Upload portable evidence
         if: always()

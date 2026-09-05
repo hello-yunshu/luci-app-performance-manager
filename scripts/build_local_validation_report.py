@@ -13,7 +13,8 @@ import jsonschema
 
 PASS_FIELDS = (
     "sourceTests", "coreRuntime", "runtimeV3", "packageComposition",
-    "serviceSmoke", "ubusSmoke", "rillRemovalSmoke",
+    "serviceSmoke", "ubusSmoke", "rillRemovalSmoke", "fullUpgrade",
+    "pristineRootfs", "transportVerdict",
 )
 SHA256 = re.compile(r"^[0-9a-f]{64}$")
 
@@ -30,6 +31,8 @@ def validate_report(report: dict) -> None:
         raise ValueError("portable PASS requires artifact.identityVerdict=PASS")
     if not SHA256.fullmatch(report["openwrt"]["rootfsSha256"] or ""):
         raise ValueError("portable PASS requires a valid OpenWrt rootfs SHA256")
+    if report["repositoryTransport"] != "https":
+        raise ValueError("portable PASS requires HTTPS repository transport")
 
 
 def main() -> int:
@@ -48,6 +51,10 @@ def main() -> int:
     parser.add_argument("--removal", required=True)
     parser.add_argument("--portable", required=True)
     parser.add_argument("--artifact-identity", required=True)
+    parser.add_argument("--full-upgrade", default="NOT_EVALUATED")
+    parser.add_argument("--pristine-rootfs", default="NOT_EVALUATED")
+    parser.add_argument("--repository-transport", default="NOT_EVALUATED")
+    parser.add_argument("--transport-verdict", default="NOT_EVALUATED")
     parser.add_argument("--reason", default="all local gates completed")
     args = parser.parse_args()
 
@@ -66,6 +73,10 @@ def main() -> int:
         "serviceSmoke": args.service,
         "ubusSmoke": args.ubus,
         "rillRemovalSmoke": args.removal,
+        "fullUpgrade": args.full_upgrade,
+        "pristineRootfs": args.pristine_rootfs,
+        "repositoryTransport": args.repository_transport,
+        "transportVerdict": args.transport_verdict,
         "portableVerdict": args.portable,
         "hardwareCoverage": "NOT_EVALUATED",
         "stableReleaseAuthorized": False,

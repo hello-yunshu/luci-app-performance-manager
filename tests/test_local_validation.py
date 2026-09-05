@@ -68,6 +68,8 @@ class LocalValidationTests(unittest.TestCase):
             "sourceTests": "PASS", "coreRuntime": "BLOCKED", "runtimeV3": "BLOCKED",
             "packageComposition": "BLOCKED", "serviceSmoke": "BLOCKED", "ubusSmoke": "BLOCKED",
             "rillRemovalSmoke": "BLOCKED", "portableVerdict": "BLOCKED",
+            "fullUpgrade": "BLOCKED", "pristineRootfs": "BLOCKED",
+            "repositoryTransport": "NOT_EVALUATED", "transportVerdict": "BLOCKED",
             "hardwareCoverage": "NOT_EVALUATED", "stableReleaseAuthorized": False,
             "reason": "docker-unavailable", "artifact": {"identityVerdict": "NOT_EVALUATED"},
         }
@@ -114,6 +116,13 @@ class LocalValidationTests(unittest.TestCase):
             "scripts/build_local_validation_report.py",
             "contracts/evidence/portable-macos-docker.schema.json",
             "package/performance-manager/files/usr/share/performance-manager/schemas/portable-macos-docker.schema.json",
+            "tests/test_all_in_one_package.py",
+            "tests/test_local_validation.py",
+            "tests/test_full_upgrade_gate.py",
+            "scripts/package_composition_gate.py",
+            "scripts/full_upgrade_gate.py",
+            "scripts/portable_docker_gate.py",
+            "scripts/build_synthetic_prior_fixture.py",
         ):
             destination = repo / relative
             destination.parent.mkdir(parents=True, exist_ok=True)
@@ -123,6 +132,13 @@ class LocalValidationTests(unittest.TestCase):
             "scripts/build_local_validation_report.py",
             "contracts/evidence/portable-macos-docker.schema.json",
             "package/performance-manager/files/usr/share/performance-manager/schemas/portable-macos-docker.schema.json",
+            "tests/test_all_in_one_package.py",
+            "tests/test_local_validation.py",
+            "tests/test_full_upgrade_gate.py",
+            "scripts/package_composition_gate.py",
+            "scripts/full_upgrade_gate.py",
+            "scripts/portable_docker_gate.py",
+            "scripts/build_synthetic_prior_fixture.py",
         ], cwd=repo, check=True, capture_output=True, text=True)
         subprocess.run(["git", "-c", "user.name=portable-test", "-c",
                         "user.email=portable-test@example.invalid", "commit", "-m",
@@ -157,6 +173,9 @@ class LocalValidationTests(unittest.TestCase):
                 }
                 for label in ("split", "all-in-one")
             },
+            "pristineRootfs": {"pristineBeforeInstall": True},
+            "repositoryTransport": "https",
+            "fullUpgrade": {"verdict": "PASS", "transportVerdict": "PASS"},
         }
         docker = textwrap.dedent(f"""\
             #!/bin/sh

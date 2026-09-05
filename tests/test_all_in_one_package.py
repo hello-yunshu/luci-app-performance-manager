@@ -168,9 +168,10 @@ class AllInOnePackageTests(unittest.TestCase):
             "PM_FULL_RILL_FAULT_SMOKE=PASS", "PM_FULL_UNINSTALL_SMOKE=PASS",
             "PM_FULL_RUNTIME_IDENTITY=PASS", "PM_FULL_CONFLICT_SMOKE=PASS",
             "apk del luci-app-performance-manager-all", "test ! -e /usr/bin/rill-runtime",
-            '"upgradeSemantics": "BLOCKED"', "no prior full APK fixture was supplied",
+            "PM_APK_REPOSITORY_TRANSPORT=https", "full_upgrade_gate",
         ):
             self.assertIn(token, gate)
+        self.assertNotIn("http://downloads.openwrt.org", gate)
 
     def test_prerelease_title_does_not_duplicate_rc_suffix(self):
         workflow = (ROOT / ".github/workflows/prerelease.yml").read_text()
