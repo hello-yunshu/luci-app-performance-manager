@@ -102,7 +102,7 @@ jobs:
           PY
           gh release create "$tag" release-public/* \
             --verify-tag --prerelease \
-            --title "OpenWrt Performance Manager $version-rc" \
+            --title "OpenWrt Performance Manager $version" \
             --notes-file release-notes.md
       - name: Re-download and verify published assets
         shell: bash

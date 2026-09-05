@@ -51,6 +51,7 @@ REQUIRED_DEPENDS = {
     'performance-manager': {
         'ubus', 'uci', 'ucode', 'ucode-mod-fs', 'ucode-mod-ubus', 'ucode-mod-uci',
         'ucode-mod-rtnl', 'ucode-mod-uloop', 'ucode-mod-socket', 'ucode-mod-log',
+        'coreutils-timeout',
     },
     'luci-app-performance-manager': {
         'luci-base', 'rpcd', 'performance-manager', 'luci-i18n-base-zh-cn',
@@ -62,7 +63,7 @@ REQUIRED_DEPENDS = {
     ALL_IN_ONE: {
         'luci-base', 'rpcd', 'luci-i18n-base-zh-cn', 'ubus', 'uci', 'ucode',
         'ucode-mod-fs', 'ucode-mod-ubus', 'ucode-mod-uci', 'ucode-mod-rtnl',
-        'ucode-mod-uloop', 'ucode-mod-socket', 'ucode-mod-log',
+        'ucode-mod-uloop', 'ucode-mod-socket', 'ucode-mod-log', 'coreutils-timeout',
     },
 }
 ELF_MACHINES = {'x86_64': 62, 'aarch64_generic': 183, 'aarch64_cortex-a53': 183}
@@ -78,6 +79,13 @@ TRANSLATION_DEFAULT_PATH = '/etc/uci-defaults/luci-i18n-performance-manager-zh-c
 TRANSLATION_DEFAULT = (
     "uci set luci.languages.zh_cn='简体中文 (Simplified Chinese)'; uci commit luci\n"
 ).encode()
+
+
+def dependency_check(package_name, dependencies):
+    """Return (ok, missing) for the package's required runtime dependencies."""
+    actual = set(dependencies if isinstance(dependencies, (list, tuple, set)) else [dependencies])
+    missing = sorted(REQUIRED_DEPENDS[package_name] - actual)
+    return not missing, missing
 
 
 def bundle_source_payloads():
@@ -488,7 +496,7 @@ def main(argv):
         deps = meta.get('depend', [])
         if not isinstance(deps, list):
             deps = [deps]
-        missing_deps = sorted(REQUIRED_DEPENDS[name] - set(deps))
+        _, missing_deps = dependency_check(name, deps)
         # pkgver is "<version>-r<release>"; the version part must equal the repo
         # version (e.g. 1.0.0_rc10) so a stale candidate can never pass.
         ver_part = pkgver.split('-r')[0]

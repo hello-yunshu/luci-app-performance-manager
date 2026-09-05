@@ -15,7 +15,7 @@ artifacts and cannot claim functional-integration or Stable-release PASS.
 - rill-static-contract: **PASS** (source)
 - resource-budget: **PASS** (source)
 
-- Executable unit/contract tests in this checked-in source-audit snapshot: **165**, status **PASS**.
+- Executable unit/contract tests in this checked-in source-audit snapshot: **169**, status **PASS**.
 - Current test counts and conclusions come from the same-SHA CI artifacts, not this historical/generated snapshot.
 - Rill static contract: **PASS**.
 - Rill release-pin structure: **None**.

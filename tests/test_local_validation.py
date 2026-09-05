@@ -145,8 +145,15 @@ class LocalValidationTests(unittest.TestCase):
                     "rillRemovalSmoke": True,
                     "fullRuntimeFaultSmoke": True,
                     "fullUninstallSmoke": True,
+                    "fullRuntimeIdentity": True,
                     "packageConflictSmoke": True,
                     "installedPayloadExact": True,
+                    "dependencyClosure": {
+                        "timeoutPresentBeforeInstall": False,
+                        "timeoutPresentAfterInstall": True,
+                        "coreutilsTimeoutInstalled": True,
+                        "resolvedByPackageManager": True,
+                    },
                 }
                 for label in ("split", "all-in-one")
             },

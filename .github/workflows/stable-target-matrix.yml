@@ -88,7 +88,7 @@ jobs:
           sudo rm -f .portable-rootfs/etc/resolv.conf
           sudo cp /etc/resolv.conf .portable-rootfs/etc/resolv.conf
           if sudo chroot .portable-rootfs /bin/sh -c 'command -v apk >/dev/null 2>&1'; then
-            sudo chroot .portable-rootfs /bin/sh -c 'apk update --no-check-certificate && apk add --no-check-certificate ucode ucode-mod-fs ucode-mod-ubus ucode-mod-uci ucode-mod-rtnl ucode-mod-uloop ucode-mod-socket ucode-mod-log coreutils-timeout'
+            sudo chroot .portable-rootfs /bin/sh -c 'apk update --no-check-certificate && apk add --no-check-certificate ucode ucode-mod-fs ucode-mod-ubus ucode-mod-uci ucode-mod-rtnl ucode-mod-uloop ucode-mod-socket ucode-mod-log'
           else
             sudo chroot .portable-rootfs /bin/sh -c 'opkg update && opkg install ucode ucode-mod-fs ucode-mod-ubus ucode-mod-uci ucode-mod-rtnl ucode-mod-uloop ucode-mod-socket ucode-mod-log'
           fi
