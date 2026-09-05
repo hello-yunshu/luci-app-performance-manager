@@ -396,6 +396,12 @@ def main(argv=None) -> int:
                 "errors": ["synthetic prior APK and metadata are required for real N->N+1 proof"],
                 "syntheticPriorFixture": False,
             }
+    transport_verdicts = [item.get("transportVerdict") for item in results.values()]
+    transport_verdicts.append(upgrade.get("transportVerdict"))
+    transport_verdict = (
+        "PASS" if all(value == "PASS" for value in transport_verdicts) else
+        "FAIL" if any(value == "FAIL" for value in transport_verdicts) else "BLOCKED"
+    )
     report = {"schemaVersion": 1, "gate": "package-composition",
               "pmCommitSha": args.expected_commit,
               "verdict": "PASS" if pristine["pristineBeforeInstall"] and all(x["status"] == "PASS" for x in results.values()) and upgrade["verdict"] == "PASS" else
@@ -405,7 +411,8 @@ def main(argv=None) -> int:
               "fullUpgrade": upgrade,
               "upgradeSemantics": upgrade["verdict"],
               "upgradeReason": (upgrade.get("errors") or [None])[0],
-              "repositoryTransport": "https" if all(x.get("transportVerdict") == "PASS" for x in results.values()) else "BLOCKED",
+              "repositoryTransport": "https" if transport_verdict == "PASS" else "NOT_EVALUATED",
+              "transportVerdict": transport_verdict,
               "dependencyGraph": {
                   "performance-manager-rill": ["performance-manager", "rill-runtime"],
                   "performance-manager": ["performance-manager-core"],

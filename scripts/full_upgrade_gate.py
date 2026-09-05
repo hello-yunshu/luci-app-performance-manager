@@ -11,7 +11,6 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
-import os
 import re
 import shlex
 import subprocess
@@ -102,11 +101,6 @@ def current_payload(build: dict) -> dict[str, str]:
 
 def rootfs_path(rootfs: Path, absolute: str) -> Path:
     return rootfs / absolute.lstrip("/")
-
-
-def path_sha(rootfs: Path, absolute: str) -> str | None:
-    path = rootfs_path(rootfs, absolute)
-    return sha256_file(path) if path.is_file() else None
 
 
 def transport_status(completed: subprocess.CompletedProcess[str]) -> str:
@@ -274,7 +268,6 @@ def execute(
     result["postUpgradeUninstall"] = "PASS" if "PM_POST_UPGRADE_UNINSTALL=PASS" in output else "FAIL"
 
     prior_payload = prior.get("payload") or {}
-    before = {path: path_sha(rootfs, path) for path in expected}
     # The rootfs is intentionally observed after the command: package removal
     # removes the payload, so the command's explicit current hashes are the
     # authoritative installed-state check captured before uninstall below.
@@ -282,6 +275,7 @@ def execute(
     installed_identity = rootfs_path(rootfs, "/tmp/pm-full-upgrade/installed-payload-sha256")
     prior_text = prior_identity.read_text() if prior_identity.is_file() else ""
     identity = installed_identity.read_text() if installed_identity.is_file() else ""
+    result["installedPayload"] = {}
     if not identity:
         result["installedPayloadExact"] = False
     else:
