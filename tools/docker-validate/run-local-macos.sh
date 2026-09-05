@@ -31,6 +31,10 @@ service_verdict=NOT_EVALUATED
 ubus_verdict=NOT_EVALUATED
 removal_verdict=NOT_EVALUATED
 artifact_verdict=NOT_EVALUATED
+full_upgrade_verdict=NOT_EVALUATED
+pristine_rootfs_verdict=NOT_EVALUATED
+repository_transport=NOT_EVALUATED
+transport_verdict=NOT_EVALUATED
 portable_verdict=BLOCKED
 portable_gate_verdict=NOT_EVALUATED
 rootfs_sha=
@@ -53,6 +57,8 @@ report() {
         --runtime "$runtime_verdict" --package "$package_verdict" \
         --service "$service_verdict" --ubus "$ubus_verdict" --removal "$removal_verdict" \
         --portable "$portable_verdict" --artifact-identity "$artifact_verdict" \
+        --full-upgrade "$full_upgrade_verdict" --pristine-rootfs "$pristine_rootfs_verdict" \
+        --repository-transport "$repository_transport" --transport-verdict "$transport_verdict" \
         --reason "$report_reason"
 }
 
@@ -173,7 +179,7 @@ tar -xzf "$rootfs" -C .portable-rootfs
 rm -f .portable-rootfs/etc/resolv.conf
 cp /etc/resolv.conf .portable-rootfs/etc/resolv.conf
 if chroot .portable-rootfs /bin/sh -c "command -v apk >/dev/null 2>&1"; then
-  if ! chroot .portable-rootfs /bin/sh -c "apk update --no-check-certificate && apk add --no-check-certificate ucode ucode-mod-fs ucode-mod-ubus ucode-mod-uci ucode-mod-rtnl ucode-mod-uloop ucode-mod-socket ucode-mod-log"; then
+  if ! chroot .portable-rootfs /bin/sh -c "apk update && apk add ca-bundle ucode ucode-mod-fs ucode-mod-ubus ucode-mod-uci ucode-mod-rtnl ucode-mod-uloop ucode-mod-socket ucode-mod-log"; then
     echo BLOCKED: OpenWrt package indexes unavailable
     exit 2
   fi
@@ -183,9 +189,12 @@ else
     exit 2
   fi
 fi
+rm -rf .portable-core-rootfs
+mkdir -p .portable-core-rootfs
+tar -cf - -C .portable-rootfs . | tar -xf - -C .portable-core-rootfs
 install -D -m 0644 package/performance-manager/files/usr/share/performance-manager/contracts.uc \
-  .portable-rootfs/usr/share/performance-manager/contracts.uc
-chown -R "$PM_HOST_UID:$PM_HOST_GID" .portable-rootfs local-evidence/docker/openwrt-rootfs-sha256.json'
+  .portable-core-rootfs/usr/share/performance-manager/contracts.uc
+chown -R "$PM_HOST_UID:$PM_HOST_GID" .portable-rootfs .portable-core-rootfs local-evidence/docker/openwrt-rootfs-sha256.json'
 
 if ! run_logged "$DOCKER/rootfs-prepare.log" docker run --rm --platform "$DOCKER_PLATFORM" \
     -e PM_HOST_UID="$(id -u)" -e PM_HOST_GID="$(id -g)" \
@@ -300,16 +309,6 @@ if [ "$artifact_verdict" != PASS ]; then
     report "$reason"; echo "BLOCKED: $reason"; exit 2
 fi
 
-if run_logged "$PORTABLE/portable-docker-gate.log" "$PY" scripts/portable_docker_gate.py \
-    --expected-commit "$EXPECTED_SHA" --build-root "$ARTIFACTS" --ci-root "$INPUT/ci" \
-    --docker-log "$DOCKER/core-runtime.log" --test-report "$SOURCE/test-report.json" \
-    --out "$PORTABLE/portable-docker.json"; then
-    portable_gate_verdict=PASS
-else
-    portable_gate_verdict=FAIL
-    reason='existing portable_docker_gate.py failed same-SHA evidence checks'
-fi
-
 if run_logged "$DOCKER/runtime-v3.log" docker run --rm --privileged --platform "$DOCKER_PLATFORM" \
     -e PM_FULL_APK="/workspace/local-artifacts/x86_64/$full_apk" \
     -v "$ROOT:/workspace" -w /workspace ubuntu:24.04 bash -lc \
@@ -322,9 +321,12 @@ if [ "$runtime_verdict" = PASS ] && run_logged "$PACKAGE/package-composition.log
     package_verdict=$("$PY" - "$PACKAGE/package-composition.json" <<'PY'
 import json, sys
 r = json.loads(open(sys.argv[1]).read())
-matrices = list((r.get("matrices") or {}).values())
-ok = bool(matrices) and r.get("verdict") == "PASS"
-for label, item in (r.get("matrices") or {}).items():
+matrices = r.get("matrices") or {}
+if r.get("verdict") == "BLOCKED":
+    print("BLOCKED")
+    raise SystemExit(0)
+ok = r.get("verdict") == "PASS" and bool(matrices)
+for label, item in matrices.items():
     required = ["serviceSmoke", "ubusStatusSmoke", "installedPayloadExact", "packageConflictSmoke"]
     required += ["fullRuntimeFaultSmoke", "fullUninstallSmoke", "fullRuntimeIdentity"] if label == "all-in-one" else ["rillStatusSmoke", "rillRemovalSmoke"]
     dependency = item.get("dependencyClosure") or {}
@@ -359,8 +361,62 @@ else
     [ "$runtime_verdict" = PASS ] && reason='package composition or service smoke failed'
 fi
 
-if [ "$portable_gate_verdict" = PASS ] && [ "$runtime_verdict" = PASS ] && [ "$package_verdict" = PASS ] && [ "$service_verdict" = PASS ] && [ "$ubus_verdict" = PASS ] && [ "$removal_verdict" = PASS ]; then portable_verdict=PASS; else portable_verdict=FAIL; fi
+if [ -f "$PACKAGE/package-composition.json" ]; then
+    package_report_verdict=$("$PY" - "$PACKAGE/package-composition.json" <<'PY'
+import json, sys
+print(json.load(open(sys.argv[1])).get("verdict", "FAIL"))
+PY
+)
+    [ "$package_report_verdict" = BLOCKED ] && package_verdict=BLOCKED
+    full_upgrade_verdict=$("$PY" - "$PACKAGE/package-composition.json" <<'PY'
+import json, sys
+r=json.loads(open(sys.argv[1]).read())
+print((r.get("fullUpgrade") or {}).get("verdict", "BLOCKED"))
+PY
+)
+    pristine_rootfs_verdict=$("$PY" - "$PACKAGE/package-composition.json" <<'PY'
+import json, sys
+r=json.loads(open(sys.argv[1]).read())
+print("PASS" if (r.get("pristineRootfs") or {}).get("pristineBeforeInstall") is True else "FAIL")
+PY
+)
+    repository_transport=$("$PY" - "$PACKAGE/package-composition.json" <<'PY'
+import json, sys
+print(json.load(open(sys.argv[1])).get("repositoryTransport", "NOT_EVALUATED"))
+PY
+)
+    transport_verdict=$("$PY" - "$PACKAGE/package-composition.json" <<'PY'
+import json, sys
+r=json.load(open(sys.argv[1]))
+print((r.get("fullUpgrade") or {}).get("transportVerdict", "NOT_EVALUATED"))
+PY
+)
+fi
+
+if [ "$package_verdict" = BLOCKED ]; then
+    service_verdict=BLOCKED; ubus_verdict=BLOCKED; removal_verdict=BLOCKED
+fi
+
+if run_logged "$PORTABLE/portable-docker-gate.log" "$PY" scripts/portable_docker_gate.py \
+    --expected-commit "$EXPECTED_SHA" --build-root "$ARTIFACTS" --ci-root "$INPUT/ci" \
+    --docker-log "$DOCKER/core-runtime.log" --test-report "$SOURCE/test-report.json" \
+    --package-report "$PACKAGE/package-composition.json" \
+    --out "$PORTABLE/portable-docker.json"; then
+    portable_gate_verdict=PASS
+else
+    portable_gate_verdict=FAIL
+    [ -z "$reason" ] && reason='portable_docker_gate.py failed same-SHA or package evidence checks'
+fi
+
+if [ "$package_verdict" = BLOCKED ] || [ "$full_upgrade_verdict" = BLOCKED ] || [ "$transport_verdict" = BLOCKED ]; then
+    portable_verdict=BLOCKED
+elif [ "$portable_gate_verdict" = PASS ] && [ "$runtime_verdict" = PASS ] && [ "$package_verdict" = PASS ] && [ "$service_verdict" = PASS ] && [ "$ubus_verdict" = PASS ] && [ "$removal_verdict" = PASS ]; then
+    portable_verdict=PASS
+else
+    portable_verdict=FAIL
+fi
 report "${reason:-all local gates completed}"
 
 if [ "$portable_verdict" = PASS ]; then echo 'PASS: MacBook + Docker portable validation'; exit 0; fi
+if [ "$portable_verdict" = BLOCKED ]; then echo "BLOCKED: ${reason:-portable validation blocked}"; exit 2; fi
 echo "FAIL: ${reason:-portable validation failed}"; exit 1

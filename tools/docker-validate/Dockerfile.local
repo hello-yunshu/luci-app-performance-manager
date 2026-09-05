@@ -3,7 +3,7 @@
 # x86_64 rootfs and installs the exact OpenWrt ucode modules before this image
 # is built. Alpine does not ship OpenWrt's ucode-mod-* packages.
 FROM scratch
-ADD .portable-rootfs/ /
+ADD .portable-core-rootfs/ /
 ENV PATH=/usr/sbin:/usr/bin:/sbin:/bin \
     LD_LIBRARY_PATH=/lib:/usr/lib
 WORKDIR /work

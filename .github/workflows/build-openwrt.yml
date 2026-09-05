@@ -278,6 +278,17 @@ jobs:
             --sdk-dir "$SDKDIR" \
             --verification docs/apk-verification.json \
             --out all-in-one-release
+      - name: Build private synthetic prior Full APK fixture
+        shell: bash
+        run: |
+          set -euo pipefail
+          # This is a real lower-version APK built by the same official SDK.
+          # It is private test input only and is never passed to a release
+          # assembly or public asset staging step.
+          python3 scripts/build_synthetic_prior_fixture.py \
+            --sdk-dir "$SDKDIR" \
+            --out full-upgrade-prior/synthetic-prior \
+            --version 1.0.3 --release 1 --commit "$GITHUB_SHA"
       - name: Upload exact all-in-one prerelease asset
         uses: actions/upload-artifact@v7
         with:
@@ -304,6 +315,7 @@ jobs:
             docs/RESOURCE_BUDGET.json
             docs/rill-integration-status.json
             docs/apk-verification.json
+            full-upgrade-prior/
           if-no-files-found: error
 
   # Final build evidence aggregation (rc.7 prompt 29/43): gates this workflow on
