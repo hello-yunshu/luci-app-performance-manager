@@ -332,6 +332,7 @@ class LocalValidationTests(unittest.TestCase):
         for relative in (
             "docs/FINAL_AUDIT.json", "docs/FINAL_AUDIT.md", "docs/HOST_SYNTAX_REPORT.json",
             "docs/RESOURCE_BUDGET.json", "docs/source-audit.json",
+            "docs/rill-integration-status.json",
         ):
             original = subprocess.check_output(["git", "show", f"HEAD:{relative}"], cwd=repo)
             (repo / relative).write_bytes(original)
