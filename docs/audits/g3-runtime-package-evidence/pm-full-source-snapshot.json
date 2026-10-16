@@ -1,0 +1,25 @@
+{
+  "scope": "immutable local source snapshot; no hosted qualification or publication",
+  "sourceBase": "09e5f0f3fd3f18b4eaa153896a6b76895d9a78b5",
+  "localSourceCommit": "9cbb90d4779b03b205e73d6d69fcc0da909fe896",
+  "dirtySourceHashes": {
+    "scripts/prepare_runtime_test_rootfs.sh": "de82d124a59e0e9123164c00509f45a252495b0eb6305debaa6d383b59efcf77",
+    "scripts/runtime_test_command.py": "cc4e86e0276a189e27c03ca4ef4d77d7e8bbd83c93e9cff58269de3ec9f49760",
+    "tests/fixtures/apk-negative-dependency.apk": "129768dccc69da46750aab55ddb5e6b56224e005faad9f6ab68cc2bf32e04bae",
+    "tests/fixtures/apk-negative-dependency.md": "6b0f93754dfeae5387d0784b7e29dffd586bcdbf603ff5b3fac2ef006588d1cd",
+    ".github/workflows/build-openwrt.yml": "a2065bde05abfb76625f484e39427d16760a0501875ba3cf2f56da180ff98c37",
+    ".github/workflows/ci.yml": "8a57dc8c542043f354e9570a975d249c0b989b251725760e7944b03a028b5f75",
+    ".github/workflows/sync-rill.yml": "cfb2745344f6fbda3a7045173d1ef5fba7571e41aa4873147d7c0d755338102d",
+    "THIRD_PARTY_NOTICES": "e9e56e2ec9c2afc337a52479b26459b7e1deb083240bdd3bb24fce4125ec6ba9",
+    "package/luci-app-performance-manager-all/Makefile": "8ceee6815049d5f15b145b4d40540978e94666f3e45b1900866a742b78ba383d",
+    "scripts/check_rill_dependency.py": "4f5d51bef8bfcfe99bdb18e1bc523e7f97b9af2f9e1eb2718e26f420781695ba",
+    "scripts/production_core_rill_integration.py": "5a8873cc33c25025d60493720f69aa6838a19748c55a01e2e836e95ea0dd178b",
+    "scripts/rill_runtime_v3_integration.py": "81313e372b40b40721a713eec12993f9b29497c9b109681ba9b5b8712a120212",
+    "scripts/validate_contracts.py": "518ca69b7f81f079712c5ff8d1aaa372508926d0e36aa213d5aeb53e0183c2ce",
+    "scripts/verify_apks.py": "9b8befaa0870b98888e46b4f55f2bfc73606fc7ea5764206cd42a3267ea6334c",
+    "tests/test_all_in_one_package.py": "03e284296c0750891ce4cd15d8f3849e2697f4c4b67c9e3d914613bc4d204868",
+    "tests/test_contracts.py": "5ff1f9a65429d40169aa441f29c061295385bf06c9bcea90759a80764da4ba1e",
+    "tests/test_local_validation.py": "7e6a98c9251d7521b6959bb4ca9826482eb5c1e9275e7b050943085aca0ba621",
+    "tests/test_sync_rill.py": "1757ce0226e1a0c1505d4587b391fb229c1bc1991419d20d460680204076bb41"
+  }
+}

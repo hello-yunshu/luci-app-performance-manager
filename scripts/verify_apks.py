@@ -64,6 +64,9 @@ REQUIRED_DEPENDS = {
         'luci-base', 'rpcd', 'luci-i18n-base-zh-cn', 'ubus', 'uci', 'ucode',
         'ucode-mod-fs', 'ucode-mod-ubus', 'ucode-mod-uci', 'ucode-mod-rtnl',
         'ucode-mod-uloop', 'ucode-mod-socket', 'ucode-mod-log', 'coreutils-timeout',
+        '!performance-manager>=0', '!luci-app-performance-manager>=0',
+        '!performance-manager-rill>=0', '!rill-runtime>=0', '!rill-runtime-preview>=0',
+        '!luci-i18n-performance-manager-zh-cn>=0',
     },
 }
 ELF_MACHINES = {'x86_64': 62, 'aarch64_generic': 183, 'aarch64_cortex-a53': 183}
@@ -226,7 +229,7 @@ def _adb_body(raw):
             return zstd.ZstdDecompressor().decompress(raw[6:])
         return None
     if comp == 0x2e:  # '.' -> not compressed
-        return raw[4:]
+        return raw
     return None
 
 
@@ -295,7 +298,19 @@ def _adb_pkginfo_meta(adb):
                     if dslots:
                         nb = _blob(adb, dslots[0])  # dep NAME (ID 1)
                         if nb:
-                            deps.append(nb.decode('utf-8', 'replace'))
+                            name = nb.decode('utf-8', 'replace')
+                            match = _uint(adb, dslots[2]) if len(dslots) > 2 else 0
+                            # APK_VERSION_CONFLICT is bit 16; ADBI_DEP_MATCH is
+                            # field 3 (apk-tools v3.0.5 apk_version.h/apk_adb.h).
+                            # A negative dependency must never satisfy a required
+                            # positive dependency merely because names match.
+                            if match & 16:
+                                version_blob = _blob(adb, dslots[1]) if len(dslots) > 1 else None
+                                version = version_blob.decode('utf-8', 'replace') if version_blob else ''
+                                op = {1:'=', 2:'<', 3:'<=', 4:'>', 5:'>=', 7:''}.get(match & 15, '?')
+                                deps.append('!' + name + (op + version if version else ''))
+                            else:
+                                deps.append(name)
     return {'pkgname': slot_str(0), 'pkgver': slot_str(1),
             'arch': slot_str(4), 'depend': deps}
 
