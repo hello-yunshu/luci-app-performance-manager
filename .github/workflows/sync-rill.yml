@@ -10,6 +10,7 @@ on:
 permissions:
   contents: read
   pull-requests: read
+  actions: read
 
 jobs:
   sync:
@@ -27,6 +28,7 @@ jobs:
       - name: Resolve latest qualified Stable 1.x
         env:
           GITHUB_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ github.token }}
         run: python3 scripts/check_rill_dependency.py --sync --package-dir rill-openwrt-packages
       - name: Verify no contract drift
         shell: bash

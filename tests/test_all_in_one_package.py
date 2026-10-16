@@ -59,12 +59,36 @@ class AllInOnePackageTests(unittest.TestCase):
     def test_bundle_conflicts_with_every_split_owner(self):
         makefile = BUNDLE.read_text()
         conflicts = next(line.split(":=", 1)[1].split() for line in makefile.splitlines()
-                         if line.strip().startswith("CONFLICTS:=") )
+                         if line.strip().startswith("PM_ALL_CONFLICTS:=") )
         self.assertEqual(set(conflicts), {
             "performance-manager", "luci-app-performance-manager",
-            "performance-manager-rill", "rill-runtime",
+            "performance-manager-rill", "rill-runtime", "rill-runtime-preview",
             "luci-i18n-performance-manager-zh-cn",
         })
+        self.assertIn('CONFLICTS:=$(PM_ALL_CONFLICTS)', makefile)
+        self.assertIn('EXTRA_DEPENDS:=$(if $(CONFIG_USE_APK),$(foreach conflict,$(PM_ALL_CONFLICTS),!$(conflict) (>=0)$(comma)))', makefile)
+
+    def test_actual_sdk_negative_dependency_is_not_a_positive_dependency(self):
+        sys.path.insert(0, str(ROOT / 'scripts'))
+        from verify_apks import apk_pkginfo, dependency_check
+        # Real unsigned metadata fixture built with official SDK apk mkpkg;
+        # it contains no Runtime payload and is not qualification evidence.
+        metadata = apk_pkginfo(ROOT / 'tests/fixtures/apk-negative-dependency.apk')
+        self.assertEqual(metadata['depend'], ['!rill-runtime>=0'])
+        ok, missing = dependency_check('rill-runtime', ['!libc>=0'])
+        self.assertFalse(ok)
+        self.assertEqual(missing, ['libc'])
+
+    def test_full_verifier_requires_each_declared_negative_dependency(self):
+        sys.path.insert(0, str(ROOT / 'scripts'))
+        from verify_apks import dependency_check, REQUIRED_DEPENDS, ALL_IN_ONE
+        required = REQUIRED_DEPENDS[ALL_IN_ONE]
+        self.assertEqual(len([item for item in required if item.startswith('!')]), 6)
+        for conflict in [item for item in required if item.startswith('!')]:
+            with self.subTest(conflict=conflict):
+                ok, missing = dependency_check(ALL_IN_ONE, required - {conflict})
+                self.assertFalse(ok)
+                self.assertEqual(missing, [conflict])
 
     def test_split_rill_still_consumes_external_runtime(self):
         rill = (ROOT / "package/performance-manager-rill/Makefile").read_text()
