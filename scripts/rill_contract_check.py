@@ -4,9 +4,9 @@
 from __future__ import annotations
 
 import json
-import re
 import sys
 from pathlib import Path
+from check_rill_dependency import check_data
 
 ROOT = Path(__file__).resolve().parents[1]
 CORE = (ROOT / "package/performance-manager/files/usr/sbin/performance-manager.uc").read_text()
@@ -27,19 +27,11 @@ def main() -> int:
     package = contract.get("openwrtPackage", {})
     qualification = contract.get("qualification", {})
     version = resolved.get("version", "")
+    contract_errors = check_data(contract, None)
+    for error in contract_errors:
+        print(f"FAIL: pinned Runtime contract: {error}")
     checks = [
-        ("schemaVersion", contract.get("schemaVersion") == 1),
-        ("stable policy", contract.get("policy") == {"major": 1, "track": "latest-qualified-stable"}),
-        ("resolved semver", bool(re.fullmatch(r"1\.[0-9]+\.[0-9]+", version))),
-        ("resolved tag", resolved.get("tag") == f"v{version}"),
-        ("resolved commit", bool(re.fullmatch(r"[0-9a-f]{40}", resolved.get("upstreamCommit", "")))),
-        ("resolved archive hash", bool(re.fullmatch(r"[0-9a-f]{64}", resolved.get("sourceArchiveSha256", "")))),
-        ("package repository", package.get("repository") == "hello-yunshu/rill-openwrt-packages"),
-        ("package commit", bool(re.fullmatch(r"[0-9a-f]{40}", package.get("commit", "")))),
-        ("package identity", package.get("package") == "rill-runtime" and package.get("packageVersion") == version and package.get("packageRelease") == 1),
-        ("canonical binary", package.get("binary") == "/usr/bin/rill-runtime"),
-        ("qualification required", qualification.get("required") is True and qualification.get("verdict") == "PASS"),
-        ("qualification run", bool(re.fullmatch(r"[0-9]+", str(qualification.get("runId", ""))))),
+        ("canonical pinned Runtime contract", not contract_errors),
         ("consumer dependency", "+rill-runtime" in RILL_MAKE and "performance-manager-rill-adapter" not in RILL_MAKE),
         ("core v3", "const RILL_RUNTIME_API_VERSION = 3" in CORE and "/usr/bin/rill-runtime" in CORE),
         ("core exact version", f"const RILL_RESOLVED_VERSION = '{version}'" in CORE),
