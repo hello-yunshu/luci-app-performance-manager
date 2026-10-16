@@ -13,10 +13,13 @@ jobs:
   # performance-manager (Core), luci-app-performance-manager (UI), the
   # performance-manager-rill integration package, plus the physical,
   # architecture-specific full all-in-one APK. The generic rill-runtime
-  # package is built from the independent pinned OpenWrt feed and its exact
+  # package is downloaded from one exact qualified run/attempt and its exact
   # executable payload is embedded once into the full package.
   # Real build evidence comes from this remote Action — never a local mock.
   openwrt-sdk-build:
+    permissions:
+      contents: read
+      actions: read
     runs-on: ubuntu-latest
     timeout-minutes: 120
     strategy:
@@ -154,15 +157,16 @@ jobs:
             echo 'OpenWrt Rust feed still enables CI LLVM downloads' >&2
             exit 1
           fi
+          rill_toolchain=$(python3 "$GITHUB_WORKSPACE/rill-openwrt-packages/scripts/build_toolchain.py")
           (
             cd "$GITHUB_WORKSPACE/rill-openwrt-packages"
             GITHUB_WORKSPACE="$GITHUB_WORKSPACE/rill-openwrt-packages" \
-              RUST_TOOLCHAIN=1.94.0 RUST_TARGET="$RUST_TARGET" \
+              RUST_TOOLCHAIN="$rill_toolchain" RUST_TARGET="$RUST_TARGET" \
               RUSTUP_HOME="$RUNNER_TEMP/rustup" CARGO_HOME="$RUNNER_TEMP/cargo" \
               RUST_STAGING_DIR="$SDKDIR/staging_dir/host" \
               ./scripts/prepare_rust_toolchain.sh
           )
-          "$SDKDIR/staging_dir/host/bin/rustc" --version | grep -F 'rustc 1.94.0'
+          "$SDKDIR/staging_dir/host/bin/rustc" --version | grep -F "rustc $rill_toolchain "
           mkdir -p package/openwrt-performance-manager
           cp -a "$GITHUB_WORKSPACE"/package/* package/openwrt-performance-manager/
           cp -a "$GITHUB_WORKSPACE"/rill-openwrt-packages/package/rill-runtime package/rill-runtime
@@ -171,45 +175,40 @@ jobs:
         run: cd "$SDKDIR" && bash "$GITHUB_WORKSPACE/scripts/openwrt-build-diagnostic.sh" package/performance-manager/compile
       - name: Build LuCI
         run: cd "$SDKDIR" && bash "$GITHUB_WORKSPACE/scripts/openwrt-build-diagnostic.sh" package/luci-app-performance-manager/compile
-      - name: Build canonical generic Rill Runtime package
+      - name: Download exact qualified Stable Runtime package
         env:
           GH_TOKEN: ${{ github.token }}
         shell: bash
         run: |
           set -euo pipefail
-          package_commit="$(git -C "$GITHUB_WORKSPACE/rill-openwrt-packages" rev-parse HEAD)"
-          rill_runtime_version="$(sed -n 's/^PKG_VERSION:=//p' "$GITHUB_WORKSPACE/rill-openwrt-packages/package/rill-runtime/Makefile")"
-          echo "RILL_OPENWRT_PACKAGE_COMMIT=$package_commit" >> "$GITHUB_ENV"
-          qualification_run="$(gh api "repos/hello-yunshu/rill-openwrt-packages/actions/workflows/qualify.yml/runs?head_sha=${package_commit}&status=completed&per_page=100" --jq '[.workflow_runs[] | select(.conclusion=="success") | .id][0] // empty')"
-          test -n "$qualification_run"
-          qualification_artifact_name="$(gh api "repos/hello-yunshu/rill-openwrt-packages/actions/runs/${qualification_run}/artifacts" --jq '[.artifacts[] | select((.name|startswith("qualification-evidence-")) and .expired==false) | .name][0] // empty')"
-          test -n "$qualification_artifact_name"
-          qualification_dir="$RUNNER_TEMP/rill-qualification"
-          mkdir -p "$qualification_dir"
-          gh run download "$qualification_run" --repo hello-yunshu/rill-openwrt-packages --name "$qualification_artifact_name" --dir "$qualification_dir"
-          qualification_file=$(find "$qualification_dir" -type f -name qualification.json -print -quit)
-          test -n "$qualification_file"
-          python3 "$GITHUB_WORKSPACE/rill-openwrt-packages/scripts/verify_qualification.py" "$qualification_file" \
-            --package-commit "$package_commit" \
-            --version "$rill_runtime_version" \
-            --release "$(sed -n 's/^PKG_RELEASE:=//p' "$GITHUB_WORKSPACE/rill-openwrt-packages/package/rill-runtime/Makefile")" \
-            --upstream-repository hello-yunshu/rill-ml \
-            --upstream-tag "v${rill_runtime_version}" \
-            --upstream-commit "$(jq -r '.upstream.commit' "$GITHUB_WORKSPACE/rill-openwrt-packages/metadata/rill-runtime.json")" \
-            --openwrt-version "$OPENWRT_VERSION" \
-            --package-arch "$PACKAGE_ARCH" \
-            --pkgtype apk
-          cd "$SDKDIR"
-          unset CI
-          bash "$GITHUB_WORKSPACE/scripts/openwrt-build-diagnostic.sh" package/rill-runtime/compile
-      - name: Build Rill integration package (glue only, never compiles Rill)
+          package_commit=$(git -C "$GITHUB_WORKSPACE/rill-openwrt-packages" rev-parse HEAD)
+          python3 scripts/check_rill_dependency.py --package-dir rill-openwrt-packages
+          python3 rill-openwrt-packages/scripts/qualified_runtime_artifacts.py \
+            --channel stable --contract "$GITHUB_WORKSPACE/contracts/rill-runtime.json" \
+            --package-dir "$GITHUB_WORKSPACE/rill-openwrt-packages" \
+            --openwrt-version "$OPENWRT_VERSION" --architecture "$PACKAGE_ARCH" --pkgtype apk \
+            --apk "$SDKDIR/staging_dir/host/bin/apk" --output "$RUNNER_TEMP/qualified-rill" \
+            > "$RUNNER_TEMP/qualified-rill-selection.json"
+          {
+            echo "RILL_OPENWRT_PACKAGE_COMMIT=$package_commit"
+            echo "RILL_QUALIFIED_PACKAGE=$(jq -r .package "$RUNNER_TEMP/qualified-rill-selection.json")"
+            echo "RILL_QUALIFIED_BINARY_SHA256=$(jq -r .qualifiedTarget.binarySha256 "$RUNNER_TEMP/qualified-rill-selection.json")"
+          } >> "$GITHUB_ENV"
+      - name: Build Rill integration package (glue payload only)
         run: cd "$SDKDIR" && bash "$GITHUB_WORKSPACE/scripts/openwrt-build-diagnostic.sh" package/performance-manager-rill/compile
       - name: Stage exact Runtime payload into the full package workspace
         shell: bash
         run: |
           set -euo pipefail
-          runtime_apk=$(find "$SDKDIR/bin" -type f -name 'rill-runtime-*.apk' -print -quit)
-          test -n "$runtime_apk"
+          runtime_apk="$RILL_QUALIFIED_PACKAGE"
+          test -f "$runtime_apk"
+          # Incidental SDK dependency rebuilds are diagnostic bytes, never inherited qualification.
+          mkdir -p "$RUNNER_TEMP/unqualified-runtime-builds" "$SDKDIR/bin/qualified-rill"
+          while IFS= read -r rebuilt; do
+            digest=$(sha256sum "$rebuilt" | awk '{print $1}')
+            mv "$rebuilt" "$RUNNER_TEMP/unqualified-runtime-builds/$digest-$(basename "$rebuilt")"
+          done < <(find "$SDKDIR/bin" -type f -name 'rill-runtime-*.apk')
+          cp "$runtime_apk" "$SDKDIR/bin/qualified-rill/$(basename "$runtime_apk")"
           runtime_version=$(sed -n 's/^PKG_VERSION:=//p' "$GITHUB_WORKSPACE/rill-openwrt-packages/package/rill-runtime/Makefile")
           runtime_sha=$(python3 - "$runtime_apk" <<'PY'
           import hashlib, sys
@@ -222,6 +221,7 @@ jobs:
           print(hashlib.sha256(payload).hexdigest())
           PY
           )
+          test "$runtime_sha" = "$RILL_QUALIFIED_BINARY_SHA256"
           full_dir="$SDKDIR/package/openwrt-performance-manager/luci-app-performance-manager-all"
           python3 "$GITHUB_WORKSPACE/scripts/stage_bundled_runtime.py" \
             --apk "$runtime_apk" --runtime-version "$runtime_version" \
@@ -252,6 +252,63 @@ jobs:
           # zstd, so verify_apks.py needs the zstandard module.
           python3 -m pip install --disable-pip-version-check zstandard
           python3 "$GITHUB_WORKSPACE/scripts/verify_apks.py" "$PWD" "$apk_version" "$PACKAGE_ARCH" "$rill_runtime_version"
+      - name: Download same-qualified Preview for ownership rejection only
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -B scripts/download_conflict_preview.py \
+            --contract contracts/rill-runtime.json \
+            --qualified-manifest "$RUNNER_TEMP/qualified-rill/qualification.json" \
+            --package-dir rill-openwrt-packages \
+            --openwrt-version "$OPENWRT_VERSION" --architecture "$PACKAGE_ARCH" \
+            --apk "$SDKDIR/staging_dir/host/bin/apk" \
+            --output "$RUNNER_TEMP/preview-conflict-fixture" \
+            > "$RUNNER_TEMP/preview-conflict-selection.json"
+          echo "RILL_CONFLICT_PREVIEW_PACKAGE=$(jq -r .package "$RUNNER_TEMP/preview-conflict-selection.json")" >> "$GITHUB_ENV"
+      - name: Verify real Full, split and Runtime package ownership
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import os, subprocess, sys
+          from pathlib import Path
+          sys.path.insert(0, 'scripts')
+          from verify_apks import apk_pkginfo
+          sdk = Path(os.environ['SDKDIR']).resolve()
+          wanted = {'full':'luci-app-performance-manager-all', 'core':'performance-manager',
+                    'luci':'luci-app-performance-manager', 'glue':'performance-manager-rill'}
+          found = {role:[] for role in wanted}
+          for path in sdk.joinpath('bin').rglob('*.apk'):
+              metadata = apk_pkginfo(path)
+              if not metadata:
+                  continue
+              for role, name in wanted.items():
+                  if metadata['pkgname'] == name:
+                      found[role].append(path)
+          if any(len(paths) != 1 for paths in found.values()):
+              raise SystemExit('ownership input packages must resolve exactly once')
+          command = ['sudo', 'python3', '-B', 'scripts/verify_runtime_package_ownership.py',
+                     '--apk', str(sdk/'staging_dir/host/bin/apk'), '--sdk', str(sdk),
+                     '--stable', os.environ['RILL_QUALIFIED_PACKAGE'],
+                     '--preview', os.environ['RILL_CONFLICT_PREVIEW_PACKAGE'],
+                     '--runtime-sha256', os.environ['RILL_QUALIFIED_BINARY_SHA256'],
+                     '--output', str(Path(os.environ['RUNNER_TEMP'])/'runtime-ownership')]
+          for role, paths in found.items():
+              command += ['--'+role, str(paths[0])]
+          subprocess.run(command, check=True)
+          PY
+          cp "$RUNNER_TEMP/runtime-ownership/results.json" docs/runtime-ownership.json
+      - name: Preserve Runtime ownership evidence, including failures
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: runtime-ownership-${{ matrix.package_arch }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            ${{ runner.temp }}/runtime-ownership/results.json
+            ${{ runner.temp }}/runtime-ownership/*-then-*/commands.jsonl
+          if-no-files-found: warn
       - name: Generate build metadata (auditable evidence)
         shell: bash
         run: |
@@ -316,6 +373,7 @@ jobs:
             docs/RESOURCE_BUDGET.json
             docs/rill-integration-status.json
             docs/apk-verification.json
+            docs/runtime-ownership.json
             full-upgrade-prior/
           if-no-files-found: error
 

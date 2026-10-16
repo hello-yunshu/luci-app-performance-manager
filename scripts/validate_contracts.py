@@ -186,10 +186,16 @@ if not bundle_pkg: fail('all-in-one package definition missing')
 else:
     for forbidden in ['+performance-manager ', '+luci-app-performance-manager', '+performance-manager-rill', '+rill-runtime']:
         if forbidden in bundle_pkg.group(1): fail(f'all-in-one meta dependency forbidden: {forbidden}')
+    owner_source=re.search(r'^PM_ALL_CONFLICTS:=(.*)$',bundle,re.M)
+    owners=set(owner_source.group(1).split()) if owner_source else set()
     for conflict in ['performance-manager','luci-app-performance-manager',
-                     'performance-manager-rill', 'rill-runtime',
+                     'performance-manager-rill', 'rill-runtime', 'rill-runtime-preview',
                      'luci-i18n-performance-manager-zh-cn']:
-        if conflict not in bundle_pkg.group(1): fail(f'all-in-one split-owner conflict missing: {conflict}')
+        if conflict not in owners: fail(f'all-in-one split-owner conflict missing: {conflict}')
+    if 'CONFLICTS:=$(PM_ALL_CONFLICTS)' not in bundle_pkg.group(1):
+        fail('all-in-one IPK conflicts must consume the single owner source')
+    if 'EXTRA_DEPENDS:=$(if $(CONFIG_USE_APK),$(foreach conflict,$(PM_ALL_CONFLICTS),!$(conflict) (>=0)$(comma)))' not in bundle_pkg.group(1):
+        fail('all-in-one APK negative dependencies must consume the same owner source')
     if re.search(r'^\s*PKGARCH:=all\s*$', bundle, re.M): fail('all-in-one must be architecture-specific')
     for token in ['RILL_RUNTIME_BINARY', '/usr/bin/rill-runtime',
                   'performance-manager-rill/files/lib/upgrade/keep.d/performance-manager-rill']:
