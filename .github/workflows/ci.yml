@@ -29,6 +29,7 @@ jobs:
           done
           node scripts/luci_render_smoke.js
       - name: Upload static audit evidence
+        if: always()
         uses: actions/upload-artifact@v7
         with:
           name: source-audit-evidence
