@@ -29,11 +29,15 @@ permissions:
   actions: read
   contents: read
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
   aggregate:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           ref: ${{ inputs.expected_sha }}
       - name: Verify exact checkout
@@ -67,7 +71,7 @@ jobs:
           cp docs/FINAL_AUDIT.md stable-evidence/
       - name: Upload authoritative Stable evidence
         if: always()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: final-stable-evidence-${{ inputs.expected_sha }}
           path: |
