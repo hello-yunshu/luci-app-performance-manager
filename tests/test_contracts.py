@@ -16,8 +16,12 @@ PAIRS={
 class ResourceBudgetTests(unittest.TestCase):
     def test_source_audit_uses_exact_workflow_head_identity(self):
         audit = (ROOT / "scripts/final_audit.py").read_text()
-        self.assertIn('os.environ.get("GITHUB_SHA", "")', audit)
-        self.assertIn('re.fullmatch(r"[0-9a-f]{40}", workflow_sha)', audit)
+        self.assertIn('def head_sha()', audit)
+        self.assertIn('git_output(["rev-parse", "HEAD"])', audit)
+        self.assertIn('SOURCE_COMMIT = source_commit(HEAD_SHA)', audit)
+        self.assertIn('dirty_source_paths()', audit)
+        self.assertIn('GENERATED_EVIDENCE_PATHS', audit)
+        self.assertNotIn('WORKTREE_UNCOMMITTED', audit)
 
     def test_ci_aggregator_resolves_unique_artifact_layouts(self):
         workflow = (ROOT / ".github/workflows/ci.yml").read_text()
