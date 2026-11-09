@@ -71,6 +71,10 @@
       "status": "pass"
     },
     {
+      "name": "py_compile scripts/build_synthetic_prior_fixture.py",
+      "status": "pass"
+    },
+    {
       "name": "py_compile scripts/check_action_refs.py",
       "status": "pass"
     },
@@ -87,11 +91,19 @@
       "status": "pass"
     },
     {
+      "name": "py_compile scripts/download_conflict_preview.py",
+      "status": "pass"
+    },
+    {
       "name": "py_compile scripts/final_audit.py",
       "status": "pass"
     },
     {
       "name": "py_compile scripts/final_release_audit.py",
+      "status": "pass"
+    },
+    {
+      "name": "py_compile scripts/full_upgrade_gate.py",
       "status": "pass"
     },
     {
@@ -132,6 +144,10 @@
     },
     {
       "name": "py_compile scripts/rill_runtime_v3_integration.py",
+      "status": "pass"
+    },
+    {
+      "name": "py_compile scripts/runtime_test_command.py",
       "status": "pass"
     },
     {
@@ -176,6 +192,10 @@
     },
     {
       "name": "py_compile scripts/verify_release_inventory.py",
+      "status": "pass"
+    },
+    {
+      "name": "py_compile scripts/verify_runtime_package_ownership.py",
       "status": "pass"
     },
     {
