@@ -59,4 +59,19 @@ class BenchmarkPersistenceTests(unittest.TestCase):
         self.assertIn("path_id=msg?.pathId ?? expected_path",body)
         self.assertNotIn("path_id='path:lan-to-wan'",body)
 
+    def test_benchmark_start_requires_explicit_action_id(self):
+        # An empty benchmark_start used to default actionId to 'observe' and run
+        # a full passive measurement.  The guard must run before system_guard()
+        # (and therefore before any session/telemetry work).
+        body=function_body(CORE,'benchmark_start')
+        guard=body.index("error:'benchmark-action-required'")
+        self.assertLess(guard, body.index('let guard=system_guard()'))
+        self.assertIn("missing:[ 'actionId' ]", body)
+        self.assertNotIn("msg?.actionId ?? 'observe'", body)
+
+    def test_history_limit_is_rejected_not_silently_clamped(self):
+        self.assertIn("error:'invalid-limit'", CORE)
+        self.assertNotIn('max(1, +(msg?.limit ?? 100))', CORE)
+        self.assertIn('clamped:clamped', CORE)
+
 if __name__=='__main__': unittest.main()
