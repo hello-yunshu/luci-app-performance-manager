@@ -38,6 +38,9 @@ build-metadata.json
 checksums.txt
 rill-consumed-manifest.json
 
+# Release/package staging (`make package`; regenerated, never committed)
+dist/
+
 # MacBook + Docker local validation outputs (run-specific, never release evidence)
 .venv/
 local-evidence/
