@@ -161,7 +161,7 @@ ubus call performance-manager rollback '{"transactionId":"<tx>"}'
 Benchmark lifecycle:
 
 ```sh
-ubus call performance-manager benchmark_start '{"measurementClass":"controlled_ab"}'
+ubus call performance-manager benchmark_start '{"actionId":"<actionId>","measurementClass":"controlled_ab"}'
 ubus call performance-manager benchmark_status '{"sessionId":"<session>"}'
 ubus call performance-manager benchmark_stop '{"sessionId":"<session>"}'
 ```

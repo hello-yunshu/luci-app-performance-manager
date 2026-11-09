@@ -80,9 +80,12 @@ return view.extend({
 			const selected = actions.find(function(a){ return a.id === action.value; });
 			const path = pathSelect.value || (selected && selected.evaluationPaths && selected.evaluationPaths[0]) || 'path:lan-to-wan';
 			const selectedAdvisory = advisories.find(function(a) { return a.kind === 'benchmark' && a.actionId === action.value; });
-			pm.benchmarkStart(measurement.value === 'controlled_ab' ? action.value : 'observe', path, measurement.value, 'begin', null, null,
+			/* Optional arguments must be `undefined`, never `null`: rpc.declare
+			 * forwards every declared key, and ubus rejects a null payload for a
+			 * typed signature with UBUS_STATUS_INVALID_ARGUMENT. */
+			pm.benchmarkStart(measurement.value === 'controlled_ab' ? action.value : 'observe', path, measurement.value, 'begin', undefined, undefined,
 				selectedAdvisory && measurement.value === 'controlled_ab' ? 'benchmark-rill' : 'manual',
-				selectedAdvisory && measurement.value === 'controlled_ab' ? selectedAdvisory.decisionId : null)
+				selectedAdvisory && measurement.value === 'controlled_ab' ? selectedAdvisory.decisionId : undefined)
 				.then(renderSession)
 				.catch(function(error) { output.replaceChildren(pu.inset(_('Unable to start test'), pu.note(_('Check the selected action and path, then try again: %s').format(error.message || error), 'warning'))); })
 				.finally(restore);

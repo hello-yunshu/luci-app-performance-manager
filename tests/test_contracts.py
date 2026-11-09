@@ -23,6 +23,17 @@ class ResourceBudgetTests(unittest.TestCase):
         self.assertIn('GENERATED_EVIDENCE_PATHS', audit)
         self.assertNotIn('WORKTREE_UNCOMMITTED', audit)
 
+    def test_core_reports_actionable_ubus_startup_failures(self):
+        core = (ROOT / "package/performance-manager/files/usr/sbin/performance-manager.uc").read_text()
+        for code in ("ubus-socket-unavailable", "ubus-permission-denied",
+                     "state-dir-not-writable", "ubus-publish-failed"):
+            with self.subTest(code=code):
+                self.assertIn(code, core)
+        self.assertNotIn("unable to connect to ubus", core)
+        self.assertLess(core.index("ensure_dir(`${persist_dir()}/rill-executions`)"),
+                        core.index("let dir_issue = runtime_dir_diagnosis()"))
+        self.assertLess(core.index("if (dir_issue)"), core.index("let obj = conn.publish("))
+
     def test_ci_aggregator_resolves_unique_artifact_layouts(self):
         workflow = (ROOT / ".github/workflows/ci.yml").read_text()
         self.assertIn("rill-runtime-v3:", workflow)
