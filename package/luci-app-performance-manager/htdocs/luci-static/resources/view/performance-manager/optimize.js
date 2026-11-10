@@ -40,7 +40,13 @@ return view.extend({
 			apply.addEventListener('click', function() {
 				const restore = pu.setBusy(apply, _('Applying...'));
 				pm.apply(a.id, a.applyTarget).then(function(res) {
-					ui.addNotification(null, E('p', {}, [ res && res.ok ? _('Action committed after verification.') : _('Action was not committed. Check the transaction details and try again.') ]));
+					if (res && res.ok)
+						ui.addNotification(null, E('p', {}, [ _('Action committed after verification.') ]));
+					else
+						ui.addNotification(null, E('div', {}, [
+							E('p', {}, [ _('Action was not committed: %s. Check the transaction details and try again.').format(labels.errorSummary(res)) ]),
+							res ? pu.jsonBox(res, _('Technical details')) : null
+						]), 'error');
 				}).catch(function(error) {
 					ui.addNotification(null, E('p', {}, [ _('Unable to apply action: %s. Check the transaction details and try again.').format(labels.errorSummary(error)) ]), 'error');
 				}).finally(restore);
@@ -71,7 +77,13 @@ return view.extend({
 				apply.addEventListener('click', function() {
 					const restore = pu.setBusy(apply, _('Applying...'));
 					pm.apply(a.actionId, a.applyTarget, 'rill-advisory', a.decisionId).then(function(res) {
-						ui.addNotification(null, E('p', {}, [ res && res.ok ? _('Rill recommendation applied and verified.') : _('Rill recommendation was not applied. The decision binding was rejected or the safety check failed; review the safety state and try again.') ]));
+						if (res && res.ok)
+							ui.addNotification(null, E('p', {}, [ _('Rill recommendation applied and verified.') ]));
+						else
+							ui.addNotification(null, E('div', {}, [
+								E('p', {}, [ _('Rill recommendation was not applied: %s. Review the safety state and try again.').format(labels.errorSummary(res)) ]),
+								res ? pu.jsonBox(res, _('Technical details')) : null
+							]), 'error');
 					}).catch(function(error) {
 						ui.addNotification(null, E('p', {}, [ _('Unable to apply Rill recommendation: %s. Review the safety state and try again.').format(labels.errorSummary(error)) ]), 'error');
 					}).finally(restore);
@@ -85,6 +97,6 @@ return view.extend({
 			body.appendChild(pu.jsonBox({ actionId: a.actionId, kind: a.kind, authority: a.authority, decisionId: a.decisionId }, _('Technical details')));
 			nodes.push(pu.card(_('Rill recommendation: %s').format(labels.actionName(a.actionId)), body));
 		});
-		return pu.page(_('Smart optimization'), _('Review supported actions and apply them only after the core recommendation safety checks. Existing user and external settings are preserved.'), [ smartCard, pu.grid(nodes, 'pm-card-grid--dense') ]);
+		return pu.page(_('Smart optimization'), _('Review supported actions and apply them only after Core safety checks. Existing user and external settings are preserved.'), [ smartCard, pu.grid(nodes, 'pm-card-grid--dense') ]);
 	}
 });

@@ -34,16 +34,15 @@ return view.extend({
 			? _('Reward %s · %s').format(labels.percent(s.lastOutcome.reward), labels.measurementQuality(s.lastOutcome.measurementQuality))
 			: '—';
 		const candidateHistory = s.candidateHistory || {};
-		return pu.page(_('Rill smart decisions'), _('Rill ranks actions that passed the core recommendation review; the core recommendation keeps the final authority to execute them. Confidence and scores are shown as percentages (0–1 maps to 0–100%).'), [
+		return pu.page(_('Rill smart decisions'), _('Rill ranks actions that passed the Core engine review; the Core engine keeps the final authority to execute them. Confidence and scores are shown as percentages (0–1 maps to 0–100%).'), [
 			pu.card(_('Runtime status'), E('div', {}, [
 				pu.kv([
-					[_('State'), labels.runtimeStatus(r.status || 'Runtime · Collecting')],
+					[_('State'), labels.runtimeStatus(r.status)],
 					[_('Version'), labels.fmt(r.rillVersion || r.resolvedRillVersion)],
 					[_('Transport'), labels.transport(r.transport)],
-					[_('Runtime contract'), r.protocolVersion == null ? '—' : _('Runtime protocol v%s').format(r.protocolVersion)],
-					[_('Last decision'), s.decisionId ? labels.shortId(s.decisionId) : '—'],
+					[_('Protocol'), r.protocolVersion == null ? '—' : _('Runtime protocol v%s').format(r.protocolVersion)],
+					[_('Last decision'), labels.reference(s.decisionId)],
 					[_('Selected action'), labels.actionName(s.selectedActionId)],
-					[_('Selected candidate'), labels.candidate(s.selectedCandidateId)],
 					[_('Last outcome'), outcomeText]
 				]),
 				pu.jsonBox({ runtime: r, decisionId: s.decisionId, selectedCandidateId: s.selectedCandidateId, lastOutcome: s.lastOutcome }, _('Technical details'))
@@ -64,13 +63,14 @@ return view.extend({
 				pu.card(_('Selected candidate details'), E('div', {}, [
 					pu.kv([
 						[_('Business action'), labels.actionName(s.selectedActionId)],
-						[_('Candidate ID'), labels.candidate(s.selectedCandidateId)],
+						[_('Candidate identifier'), labels.reference(s.selectedCandidateId)],
 						[_('Candidate reward mean'), labels.percent(candidateHistory.recentRewardMean)],
 						[_('Candidate successes'), labels.fmt(candidateHistory.successCount)],
 						[_('Candidate failures'), labels.fmt(candidateHistory.failureCount)],
 						[_('Candidate rollbacks'), labels.fmt(candidateHistory.rollbackCount)],
 						[_('Cooldown reason'), labels.smartReason(candidateHistory.cooldownReason)]
 					]),
+					E('p', { 'class': 'pm-control-help' }, [ _('Candidate identifiers are kept in technical details so long identifiers do not crowd the page.') ]),
 					pu.jsonBox({ candidateHistory: candidateHistory }, _('Technical details'))
 				]), 'muted'),
 				pu.card(_('Learning status'), E('div', {}, [

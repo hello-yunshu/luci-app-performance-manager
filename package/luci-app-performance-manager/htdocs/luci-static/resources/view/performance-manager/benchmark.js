@@ -43,7 +43,7 @@ return view.extend({
 
 		function renderSession(res) {
 			output.replaceChildren();
-			if (!res || !res.ok) { output.appendChild(pu.inset(_('Test blocked'), pu.jsonBox(res || {}, _('Details')), 'warning')); return; }
+			if (!res || !res.ok) { output.appendChild(pu.inset(_('Test blocked'), E('div', {}, [ E('p', {}, [ labels.errorSummary(res) ]), pu.jsonBox(res || {}, _('Details')) ]), 'warning')); return; }
 			const s = res.session || {};
 			const stages = E('ol', { 'class': 'pm-stage-list' }, [
 				stageRow(_('Environment'), true), stageRow(_('Path'), true), stageRow(_('Compatibility'), true), stageRow(_('Locks / Failsafe'), s.state !== 'awaiting_control'),
@@ -63,6 +63,7 @@ return view.extend({
 					E('summary', {}, [ _('Advanced: submit evidence manually') ]),
 					E('p', {}, [ _('The companion test tool runs on a separate client or on the router itself and produces the evidence JSON this page needs. Only use this path when you must validate a benchmark by hand; it is not required for normal use.') ]),
 					E('p', { 'class': 'pm-control-help' }, [ _('Required role: %s').format(labels.clientRole((s.companion && s.companion.requiredRole) || 'lan-client')) ]),
+					E('p', { 'class': 'pm-control-help' }, [ _('Replace <WAN_SERVER> with the router WAN address before running the command.') ]),
 					E('pre', {}, [ command ])
 				]);
 				submitEvidence.addEventListener('click', function() {
@@ -75,7 +76,7 @@ return view.extend({
 						.finally(restore);
 				});
 				output.appendChild(pu.inset(phase === 'control' ? _('Baseline evidence') : _('Candidate evidence'), E('div', {}, [
-					E('p', {}, [ phase === 'control' ? _('Run the companion test tool before any candidate is applied, then paste its JSON result.') : _('The candidate is temporarily active and protected by commit-confirm. Run the same endpoint test now; the core recommendation will restore the original value before validating the result.') ]),
+					E('p', {}, [ phase === 'control' ? _('Run the companion test tool before any candidate is applied, then paste its JSON result.') : _('The candidate is temporarily active and protected by commit-confirm. Run the same endpoint test now; the Core engine will restore the original value before validating the result.') ]),
 					evidenceBox, E('div', { 'class': 'pm-toolbar' }, [ submitEvidence ]), advanced
 				])));
 			}
