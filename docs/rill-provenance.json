@@ -1,5 +1,6 @@
 {
   "evidenceStatus": "historical-only",
+  "supersededBy": "contracts/rill-runtime.json",
   "schemaVersion": 1,
   "contract": "pm<->rill-release-provenance",
   "pmCommitSha": "e3135cb4d91ae6ed07b05e41e4afd1ad49e76757",

@@ -1,0 +1,605 @@
+{
+  "schemaVersion": 2,
+  "contract": "apk-exact-verification",
+  "pmCommitSha": "9cbb90d4779b03b205e73d6d69fcc0da909fe896",
+  "expectedVersion": "1.0.4",
+  "rillRuntimeVersion": "1.5.6",
+  "arch": "x86_64",
+  "packages": {
+    "performance-manager": {
+      "status": "ok",
+      "filename": "performance-manager-1.0.4-r1.apk",
+      "sha256": "e59fdb040f5e4423248692bf925cacd2af2f20cefc1571c785601ad0bc10f5c2",
+      "pkgname": "performance-manager",
+      "pkgver": "1.0.4-r1",
+      "arch": "noarch",
+      "depends": [
+        "coreutils-timeout",
+        "libc",
+        "ubus",
+        "uci",
+        "ucode",
+        "ucode-mod-fs",
+        "ucode-mod-log",
+        "ucode-mod-rtnl",
+        "ucode-mod-socket",
+        "ucode-mod-ubus",
+        "ucode-mod-uci",
+        "ucode-mod-uloop"
+      ],
+      "requiredDepends": [
+        "coreutils-timeout",
+        "ubus",
+        "uci",
+        "ucode",
+        "ucode-mod-fs",
+        "ucode-mod-log",
+        "ucode-mod-rtnl",
+        "ucode-mod-socket",
+        "ucode-mod-ubus",
+        "ucode-mod-uci",
+        "ucode-mod-uloop"
+      ],
+      "missingDepends": [],
+      "installedPayload": {
+        "/usr/sbin/performance-manager.uc": {
+          "path": "/usr/sbin/performance-manager.uc",
+          "status": "match",
+          "size": 249993,
+          "apkSha256": "f902258d4aa14d2775b38f599b90c39e98b02a297a9b3df0f28b00fc65f0094f",
+          "sourceSha256": "f902258d4aa14d2775b38f599b90c39e98b02a297a9b3df0f28b00fc65f0094f"
+        },
+        "/usr/share/performance-manager/contracts.uc": {
+          "path": "/usr/share/performance-manager/contracts.uc",
+          "status": "match",
+          "size": 1150,
+          "apkSha256": "45a89a054a252095c03075e3db13070db4c2d805a2a90f6c6e36b7d2b46f5238",
+          "sourceSha256": "45a89a054a252095c03075e3db13070db4c2d805a2a90f6c6e36b7d2b46f5238"
+        }
+      },
+      "core": {
+        "path": "/usr/sbin/performance-manager.uc",
+        "status": "match",
+        "size": 249993,
+        "apkSha256": "f902258d4aa14d2775b38f599b90c39e98b02a297a9b3df0f28b00fc65f0094f",
+        "sourceSha256": "f902258d4aa14d2775b38f599b90c39e98b02a297a9b3df0f28b00fc65f0094f"
+      }
+    },
+    "luci-app-performance-manager": {
+      "status": "ok",
+      "filename": "luci-app-performance-manager-1.0.4-r1.apk",
+      "sha256": "29215a3356f20fb656ea7e521929f67ed78197b77a366a355fafc4565f609ea3",
+      "pkgname": "luci-app-performance-manager",
+      "pkgver": "1.0.4-r1",
+      "arch": "noarch",
+      "depends": [
+        "libc",
+        "luci-base",
+        "luci-i18n-base-zh-cn",
+        "performance-manager",
+        "rpcd"
+      ],
+      "requiredDepends": [
+        "luci-base",
+        "luci-i18n-base-zh-cn",
+        "performance-manager",
+        "rpcd"
+      ],
+      "missingDepends": []
+    },
+    "performance-manager-rill": {
+      "status": "ok",
+      "filename": "performance-manager-rill-1.0.4-r1.apk",
+      "sha256": "25640c2e23d27a8e1c699cde17f1a20d3e7b7c6a178305c85bed0bd704894628",
+      "pkgname": "performance-manager-rill",
+      "pkgver": "1.0.4-r1",
+      "arch": "noarch",
+      "depends": [
+        "libc",
+        "performance-manager",
+        "rill-runtime"
+      ],
+      "requiredDepends": [
+        "performance-manager",
+        "rill-runtime"
+      ],
+      "missingDepends": []
+    },
+    "rill-runtime": {
+      "status": "ok",
+      "filename": "rill-runtime-v25.12.5-x86_64.apk",
+      "sha256": "37839a4703f08013ff986291974338f7993c75c6c83ee7d05b03883058a5efa5",
+      "pkgname": "rill-runtime",
+      "pkgver": "1.5.6-r2",
+      "arch": "x86_64",
+      "depends": [
+        "libc"
+      ],
+      "requiredDepends": [
+        "libc"
+      ],
+      "missingDepends": [],
+      "runtimeBinary": {
+        "path": "/usr/bin/rill-runtime",
+        "status": "present",
+        "sha256": "bcc587dbbeab6da71e6c3b1113db2037b69e7bec3e01f696e0e9a5d3cce1561b"
+      }
+    },
+    "luci-app-performance-manager-all": {
+      "status": "ok",
+      "filename": "luci-app-performance-manager-all-1.0.4-r2.apk",
+      "sha256": "0a616655880e00637e40a8b1c88a3fde00a4f8bd429860a39817a30035a343e9",
+      "pkgname": "luci-app-performance-manager-all",
+      "pkgver": "1.0.4-r2",
+      "arch": "x86_64",
+      "depends": [
+        "coreutils-timeout",
+        "libc",
+        "!luci-app-performance-manager>=0",
+        "luci-base",
+        "luci-i18n-base-zh-cn",
+        "!luci-i18n-performance-manager-zh-cn>=0",
+        "!performance-manager>=0",
+        "!performance-manager-rill>=0",
+        "!rill-runtime>=0",
+        "!rill-runtime-preview>=0",
+        "rpcd",
+        "ubus",
+        "uci",
+        "ucode",
+        "ucode-mod-fs",
+        "ucode-mod-log",
+        "ucode-mod-rtnl",
+        "ucode-mod-socket",
+        "ucode-mod-ubus",
+        "ucode-mod-uci",
+        "ucode-mod-uloop"
+      ],
+      "requiredDepends": [
+        "!luci-app-performance-manager>=0",
+        "!luci-i18n-performance-manager-zh-cn>=0",
+        "!performance-manager-rill>=0",
+        "!performance-manager>=0",
+        "!rill-runtime-preview>=0",
+        "!rill-runtime>=0",
+        "coreutils-timeout",
+        "luci-base",
+        "luci-i18n-base-zh-cn",
+        "rpcd",
+        "ubus",
+        "uci",
+        "ucode",
+        "ucode-mod-fs",
+        "ucode-mod-log",
+        "ucode-mod-rtnl",
+        "ucode-mod-socket",
+        "ucode-mod-ubus",
+        "ucode-mod-uci",
+        "ucode-mod-uloop"
+      ],
+      "missingDepends": [],
+      "installedPayload": {
+        "/etc/config/performance-manager": {
+          "path": "/etc/config/performance-manager",
+          "status": "match",
+          "size": 1587,
+          "apkSha256": "19bf0cd88577fca49e0902633d0fc8a38beb480ae1297d00433b888c1da1a505",
+          "sourceSha256": "19bf0cd88577fca49e0902633d0fc8a38beb480ae1297d00433b888c1da1a505"
+        },
+        "/etc/init.d/performance-manager": {
+          "path": "/etc/init.d/performance-manager",
+          "status": "match",
+          "size": 995,
+          "apkSha256": "6d2651bec1f36832f07915267fe2b25ab36740b226a1c266a746ca50c4f9cffc",
+          "sourceSha256": "6d2651bec1f36832f07915267fe2b25ab36740b226a1c266a746ca50c4f9cffc"
+        },
+        "/etc/uci-defaults/90-performance-manager": {
+          "path": "/etc/uci-defaults/90-performance-manager",
+          "status": "match",
+          "size": 953,
+          "apkSha256": "08acdeb87ba46bb77d0f3d52c01d430c70ca837b142d893671d6c8b506771816",
+          "sourceSha256": "08acdeb87ba46bb77d0f3d52c01d430c70ca837b142d893671d6c8b506771816"
+        },
+        "/lib/upgrade/keep.d/performance-manager": {
+          "path": "/lib/upgrade/keep.d/performance-manager",
+          "status": "match",
+          "size": 58,
+          "apkSha256": "94e34da180ab6fb40136e07b6b5c4071c58d428b3b8ef03244d2037128df191e",
+          "sourceSha256": "94e34da180ab6fb40136e07b6b5c4071c58d428b3b8ef03244d2037128df191e"
+        },
+        "/usr/sbin/performance-manager.uc": {
+          "path": "/usr/sbin/performance-manager.uc",
+          "status": "match",
+          "size": 249993,
+          "apkSha256": "f902258d4aa14d2775b38f599b90c39e98b02a297a9b3df0f28b00fc65f0094f",
+          "sourceSha256": "f902258d4aa14d2775b38f599b90c39e98b02a297a9b3df0f28b00fc65f0094f"
+        },
+        "/usr/share/performance-manager/contracts.uc": {
+          "path": "/usr/share/performance-manager/contracts.uc",
+          "status": "match",
+          "size": 1150,
+          "apkSha256": "45a89a054a252095c03075e3db13070db4c2d805a2a90f6c6e36b7d2b46f5238",
+          "sourceSha256": "45a89a054a252095c03075e3db13070db4c2d805a2a90f6c6e36b7d2b46f5238"
+        },
+        "/usr/share/performance-manager/profiles/diagnostics.json": {
+          "path": "/usr/share/performance-manager/profiles/diagnostics.json",
+          "status": "match",
+          "size": 286,
+          "apkSha256": "2444abdd4574dc7932337e601596c2375e8bd344fb57f8f7c81feef55bd9c078",
+          "sourceSha256": "2444abdd4574dc7932337e601596c2375e8bd344fb57f8f7c81feef55bd9c078"
+        },
+        "/usr/share/performance-manager/profiles/minimal.json": {
+          "path": "/usr/share/performance-manager/profiles/minimal.json",
+          "status": "match",
+          "size": 294,
+          "apkSha256": "72572f9039dda4b0c1c64d28dcdec7b8bdd84861dc7c7535a573b2b4374b1fbe",
+          "sourceSha256": "72572f9039dda4b0c1c64d28dcdec7b8bdd84861dc7c7535a573b2b4374b1fbe"
+        },
+        "/usr/share/performance-manager/profiles/performance-x86.json": {
+          "path": "/usr/share/performance-manager/profiles/performance-x86.json",
+          "status": "match",
+          "size": 521,
+          "apkSha256": "4d8d7d6b5982bb188e098c526af63f6075740a1e9ce94d534a62ac5dc2da50b2",
+          "sourceSha256": "4d8d7d6b5982bb188e098c526af63f6075740a1e9ce94d534a62ac5dc2da50b2"
+        },
+        "/usr/share/performance-manager/profiles/recommended.json": {
+          "path": "/usr/share/performance-manager/profiles/recommended.json",
+          "status": "match",
+          "size": 502,
+          "apkSha256": "22ef175692aaac3e24e88aba89548a310905e4ca96850b2d848a611b3538833b",
+          "sourceSha256": "22ef175692aaac3e24e88aba89548a310905e4ca96850b2d848a611b3538833b"
+        },
+        "/usr/share/performance-manager/profiles/wireless.json": {
+          "path": "/usr/share/performance-manager/profiles/wireless.json",
+          "status": "match",
+          "size": 303,
+          "apkSha256": "4d5a0ae1fcee70a00e4ed8f85987ee85bf10f9b28c1a8d9604958e583c9a8f73",
+          "sourceSha256": "4d5a0ae1fcee70a00e4ed8f85987ee85bf10f9b28c1a8d9604958e583c9a8f73"
+        },
+        "/usr/share/performance-manager/schemas/action.example.json": {
+          "path": "/usr/share/performance-manager/schemas/action.example.json",
+          "status": "match",
+          "size": 724,
+          "apkSha256": "73e6f3ea80314827878076ada326f0103ae6caf6c0e21f363fa6d5c5b8c12ee0",
+          "sourceSha256": "73e6f3ea80314827878076ada326f0103ae6caf6c0e21f363fa6d5c5b8c12ee0"
+        },
+        "/usr/share/performance-manager/schemas/action.schema.json": {
+          "path": "/usr/share/performance-manager/schemas/action.schema.json",
+          "status": "match",
+          "size": 2230,
+          "apkSha256": "5eeb78342e1f40298ba2b5adda15f859e655a91817d737b1395923831a1d4952",
+          "sourceSha256": "5eeb78342e1f40298ba2b5adda15f859e655a91817d737b1395923831a1d4952"
+        },
+        "/usr/share/performance-manager/schemas/benchmark-session.example.json": {
+          "path": "/usr/share/performance-manager/schemas/benchmark-session.example.json",
+          "status": "match",
+          "size": 606,
+          "apkSha256": "afea09bf22eba412c60f6f32be8473b9cc044e950ce60e741731d67f08a0eb44",
+          "sourceSha256": "afea09bf22eba412c60f6f32be8473b9cc044e950ce60e741731d67f08a0eb44"
+        },
+        "/usr/share/performance-manager/schemas/benchmark-session.schema.json": {
+          "path": "/usr/share/performance-manager/schemas/benchmark-session.schema.json",
+          "status": "match",
+          "size": 3710,
+          "apkSha256": "6a2e56b433b6a7ccf511dd08d35289757d9bef4f08153a266d8f7f51108a9785",
+          "sourceSha256": "6a2e56b433b6a7ccf511dd08d35289757d9bef4f08153a266d8f7f51108a9785"
+        },
+        "/usr/share/performance-manager/schemas/capability.example.json": {
+          "path": "/usr/share/performance-manager/schemas/capability.example.json",
+          "status": "match",
+          "size": 463,
+          "apkSha256": "5cb5af13204c0ccfa5e9daea5d43d475c7f75eee335bcf32e551c81761cde2a0",
+          "sourceSha256": "5cb5af13204c0ccfa5e9daea5d43d475c7f75eee335bcf32e551c81761cde2a0"
+        },
+        "/usr/share/performance-manager/schemas/capability.schema.json": {
+          "path": "/usr/share/performance-manager/schemas/capability.schema.json",
+          "status": "match",
+          "size": 1517,
+          "apkSha256": "7442b3552a55cf6bbe8f9b222f614cfb3a5e73a4174d355ce6614fb59a284a8d",
+          "sourceSha256": "7442b3552a55cf6bbe8f9b222f614cfb3a5e73a4174d355ce6614fb59a284a8d"
+        },
+        "/usr/share/performance-manager/schemas/companion-benchmark.schema.json": {
+          "path": "/usr/share/performance-manager/schemas/companion-benchmark.schema.json",
+          "status": "match",
+          "size": 1855,
+          "apkSha256": "a14263c9034296b2e0bae7eec89ce7b35635a5fa71f27866dea73e18bf6b6d43",
+          "sourceSha256": "a14263c9034296b2e0bae7eec89ce7b35635a5fa71f27866dea73e18bf6b6d43"
+        },
+        "/usr/share/performance-manager/schemas/companion-measurement.example.json": {
+          "path": "/usr/share/performance-manager/schemas/companion-measurement.example.json",
+          "status": "match",
+          "size": 331,
+          "apkSha256": "143c9cefe26bf8f215658aeef995b888a0bae25a2cf532744fdd292bcd85a408",
+          "sourceSha256": "143c9cefe26bf8f215658aeef995b888a0bae25a2cf532744fdd292bcd85a408"
+        },
+        "/usr/share/performance-manager/schemas/companion-measurement.schema.json": {
+          "path": "/usr/share/performance-manager/schemas/companion-measurement.schema.json",
+          "status": "match",
+          "size": 1434,
+          "apkSha256": "78faa13654b5f0fc650aad09987d94da9db6922d0f9b5343feae4b60461388c1",
+          "sourceSha256": "78faa13654b5f0fc650aad09987d94da9db6922d0f9b5343feae4b60461388c1"
+        },
+        "/usr/share/performance-manager/schemas/fastpath-action.example.json": {
+          "path": "/usr/share/performance-manager/schemas/fastpath-action.example.json",
+          "status": "match",
+          "size": 595,
+          "apkSha256": "e2b664b2ef5e6eea9846e1802e3f4394d11d827f4760f59e2ebc96a5b6956d66",
+          "sourceSha256": "e2b664b2ef5e6eea9846e1802e3f4394d11d827f4760f59e2ebc96a5b6956d66"
+        },
+        "/usr/share/performance-manager/schemas/health.example.json": {
+          "path": "/usr/share/performance-manager/schemas/health.example.json",
+          "status": "match",
+          "size": 496,
+          "apkSha256": "a8d5e1b8e44f6fa460dc278a389c785404fb476e93814dc8861736d162fbc332",
+          "sourceSha256": "a8d5e1b8e44f6fa460dc278a389c785404fb476e93814dc8861736d162fbc332"
+        },
+        "/usr/share/performance-manager/schemas/health.schema.json": {
+          "path": "/usr/share/performance-manager/schemas/health.schema.json",
+          "status": "match",
+          "size": 2425,
+          "apkSha256": "9c5290d68faca8bf1b1667c058b875254b9191b82a992f8e0ad55639c5906ed9",
+          "sourceSha256": "9c5290d68faca8bf1b1667c058b875254b9191b82a992f8e0ad55639c5906ed9"
+        },
+        "/usr/share/performance-manager/schemas/lock.example.json": {
+          "path": "/usr/share/performance-manager/schemas/lock.example.json",
+          "status": "match",
+          "size": 162,
+          "apkSha256": "d5fc2153d489fe4cf93714b332a5239b2ac01cf972e2fb4800a7f2c941cbc813",
+          "sourceSha256": "d5fc2153d489fe4cf93714b332a5239b2ac01cf972e2fb4800a7f2c941cbc813"
+        },
+        "/usr/share/performance-manager/schemas/lock.schema.json": {
+          "path": "/usr/share/performance-manager/schemas/lock.schema.json",
+          "status": "match",
+          "size": 696,
+          "apkSha256": "8af6e68dc49469fdf2dec182c090634b58fa0f151b3cd14a2d66c806bde519e7",
+          "sourceSha256": "8af6e68dc49469fdf2dec182c090634b58fa0f151b3cd14a2d66c806bde519e7"
+        },
+        "/usr/share/performance-manager/schemas/persistence.example.json": {
+          "path": "/usr/share/performance-manager/schemas/persistence.example.json",
+          "status": "match",
+          "size": 240,
+          "apkSha256": "075fcf42f641da41f8776d98785eac25c88fdf1aea27cac0fc50546ea2ce476d",
+          "sourceSha256": "075fcf42f641da41f8776d98785eac25c88fdf1aea27cac0fc50546ea2ce476d"
+        },
+        "/usr/share/performance-manager/schemas/persistence.schema.json": {
+          "path": "/usr/share/performance-manager/schemas/persistence.schema.json",
+          "status": "match",
+          "size": 1044,
+          "apkSha256": "982d62612c5e124d878b0fb032a6ef7fceba476637c9098196a7bf92190b5f0b",
+          "sourceSha256": "982d62612c5e124d878b0fb032a6ef7fceba476637c9098196a7bf92190b5f0b"
+        },
+        "/usr/share/performance-manager/schemas/portable-macos-docker.schema.json": {
+          "path": "/usr/share/performance-manager/schemas/portable-macos-docker.schema.json",
+          "status": "match",
+          "size": 3683,
+          "apkSha256": "29cf816e85b0a0859cf46ea81d7ac2d26b7c14cf30692db8b6f7933ed1298947",
+          "sourceSha256": "29cf816e85b0a0859cf46ea81d7ac2d26b7c14cf30692db8b6f7933ed1298947"
+        },
+        "/usr/share/performance-manager/schemas/profile.schema.example.json": {
+          "path": "/usr/share/performance-manager/schemas/profile.schema.example.json",
+          "status": "match",
+          "size": 521,
+          "apkSha256": "4d8d7d6b5982bb188e098c526af63f6075740a1e9ce94d534a62ac5dc2da50b2",
+          "sourceSha256": "4d8d7d6b5982bb188e098c526af63f6075740a1e9ce94d534a62ac5dc2da50b2"
+        },
+        "/usr/share/performance-manager/schemas/profile.schema.json": {
+          "path": "/usr/share/performance-manager/schemas/profile.schema.json",
+          "status": "match",
+          "size": 1776,
+          "apkSha256": "0479bd818287018a4ff480372f14afe2b544fdacd99b6e0b252729154aee2ec0",
+          "sourceSha256": "0479bd818287018a4ff480372f14afe2b544fdacd99b6e0b252729154aee2ec0"
+        },
+        "/usr/share/performance-manager/schemas/rill-execution.schema.json": {
+          "path": "/usr/share/performance-manager/schemas/rill-execution.schema.json",
+          "status": "match",
+          "size": 4125,
+          "apkSha256": "efc64dbd0e53c6bf0382a79937d92232c51a0ff8e5f7575a15dbfdd0a7ea98df",
+          "sourceSha256": "efc64dbd0e53c6bf0382a79937d92232c51a0ff8e5f7575a15dbfdd0a7ea98df"
+        },
+        "/usr/share/performance-manager/schemas/rill-feature-schema.json": {
+          "path": "/usr/share/performance-manager/schemas/rill-feature-schema.json",
+          "status": "match",
+          "size": 2986,
+          "apkSha256": "925778554fc142043e49e3097ed94baa9fa4b2de251493ba62b96ea55c176557",
+          "sourceSha256": "925778554fc142043e49e3097ed94baa9fa4b2de251493ba62b96ea55c176557"
+        },
+        "/usr/share/performance-manager/schemas/rill-ipc-response.schema.json": {
+          "path": "/usr/share/performance-manager/schemas/rill-ipc-response.schema.json",
+          "status": "match",
+          "size": 2329,
+          "apkSha256": "197e5687c9ef25bccda70ddaf136cc35782059ec2e97861e53b3ba9642be38cc",
+          "sourceSha256": "197e5687c9ef25bccda70ddaf136cc35782059ec2e97861e53b3ba9642be38cc"
+        },
+        "/usr/share/performance-manager/schemas/rill-ipc.example.json": {
+          "path": "/usr/share/performance-manager/schemas/rill-ipc.example.json",
+          "status": "match",
+          "size": 628,
+          "apkSha256": "3c9bf78fa72bbc75055f6e0b285fa33643a53bd5ac74a0db422aa0dd8702947e",
+          "sourceSha256": "3c9bf78fa72bbc75055f6e0b285fa33643a53bd5ac74a0db422aa0dd8702947e"
+        },
+        "/usr/share/performance-manager/schemas/rill-ipc.schema.json": {
+          "path": "/usr/share/performance-manager/schemas/rill-ipc.schema.json",
+          "status": "match",
+          "size": 2979,
+          "apkSha256": "a52e2021e6e23e4344ea54a86fe9c928742132d681e9daa0bc466c874fd2b6fe",
+          "sourceSha256": "a52e2021e6e23e4344ea54a86fe9c928742132d681e9daa0bc466c874fd2b6fe"
+        },
+        "/usr/share/performance-manager/schemas/target-ref.example.json": {
+          "path": "/usr/share/performance-manager/schemas/target-ref.example.json",
+          "status": "match",
+          "size": 261,
+          "apkSha256": "8535ad5a4f5767122cf2fe95c80da6b1ec9946f1ce4423e09ef3ef6955bae4bc",
+          "sourceSha256": "8535ad5a4f5767122cf2fe95c80da6b1ec9946f1ce4423e09ef3ef6955bae4bc"
+        },
+        "/usr/share/performance-manager/schemas/target-ref.schema.json": {
+          "path": "/usr/share/performance-manager/schemas/target-ref.schema.json",
+          "status": "match",
+          "size": 654,
+          "apkSha256": "04daccf9646cccaa273bf32f1672e2875022943dfeb73661b099666d995c71ca",
+          "sourceSha256": "04daccf9646cccaa273bf32f1672e2875022943dfeb73661b099666d995c71ca"
+        },
+        "/usr/share/performance-manager/schemas/topology-path.example.json": {
+          "path": "/usr/share/performance-manager/schemas/topology-path.example.json",
+          "status": "match",
+          "size": 1126,
+          "apkSha256": "1cf19ade2251fa562326152050691202b257f4560b0c9764e049fd53f331c6e5",
+          "sourceSha256": "1cf19ade2251fa562326152050691202b257f4560b0c9764e049fd53f331c6e5"
+        },
+        "/usr/share/performance-manager/schemas/topology-path.schema.json": {
+          "path": "/usr/share/performance-manager/schemas/topology-path.schema.json",
+          "status": "match",
+          "size": 1496,
+          "apkSha256": "7b958760515d2b28f921704326b89ab2a1e9b3f8341a7a654bb4ac3d7231d7c6",
+          "sourceSha256": "7b958760515d2b28f921704326b89ab2a1e9b3f8341a7a654bb4ac3d7231d7c6"
+        },
+        "/usr/share/performance-manager/schemas/transaction.example.json": {
+          "path": "/usr/share/performance-manager/schemas/transaction.example.json",
+          "status": "match",
+          "size": 846,
+          "apkSha256": "95b95db498eab6e71e6fcc0a8c97d71980934eeff26ef018b9789a56fd26b739",
+          "sourceSha256": "95b95db498eab6e71e6fcc0a8c97d71980934eeff26ef018b9789a56fd26b739"
+        },
+        "/usr/share/performance-manager/schemas/transaction.schema.json": {
+          "path": "/usr/share/performance-manager/schemas/transaction.schema.json",
+          "status": "match",
+          "size": 3041,
+          "apkSha256": "325d7c865107ce50a7f35df06b1dbec52b0a8616b4ba8eacd29ab10758ed33d5",
+          "sourceSha256": "325d7c865107ce50a7f35df06b1dbec52b0a8616b4ba8eacd29ab10758ed33d5"
+        },
+        "/www/luci-static/resources/performance-manager/api.js": {
+          "path": "/www/luci-static/resources/performance-manager/api.js",
+          "status": "match",
+          "size": 1884,
+          "apkSha256": "f8a0c94080f0c25d4bb2a7e0a2bc17a3375d0bce45ce92df13280684c3cc5a0a",
+          "sourceSha256": "f8a0c94080f0c25d4bb2a7e0a2bc17a3375d0bce45ce92df13280684c3cc5a0a"
+        },
+        "/www/luci-static/resources/performance-manager/ui.css": {
+          "path": "/www/luci-static/resources/performance-manager/ui.css",
+          "status": "match",
+          "size": 13912,
+          "apkSha256": "b651735e9bc554e2b31ffa1918a3157c1da892245efe3452c9a4c29664fe14cb",
+          "sourceSha256": "b651735e9bc554e2b31ffa1918a3157c1da892245efe3452c9a4c29664fe14cb"
+        },
+        "/www/luci-static/resources/performance-manager/ui.js": {
+          "path": "/www/luci-static/resources/performance-manager/ui.js",
+          "status": "match",
+          "size": 7094,
+          "apkSha256": "416711dce84dc1679b5dc33179a4248df95f51d6d1a85873240ba0e24566dfb2",
+          "sourceSha256": "416711dce84dc1679b5dc33179a4248df95f51d6d1a85873240ba0e24566dfb2"
+        },
+        "/www/luci-static/resources/view/performance-manager/advanced.js": {
+          "path": "/www/luci-static/resources/view/performance-manager/advanced.js",
+          "status": "match",
+          "size": 1626,
+          "apkSha256": "b5afe129b0c945819505abda529c681df86883db0222f2c18228a43a79ad48ef",
+          "sourceSha256": "b5afe129b0c945819505abda529c681df86883db0222f2c18228a43a79ad48ef"
+        },
+        "/www/luci-static/resources/view/performance-manager/benchmark.js": {
+          "path": "/www/luci-static/resources/view/performance-manager/benchmark.js",
+          "status": "match",
+          "size": 6864,
+          "apkSha256": "6d515f8595f67816ec494535c40b7df8fc61be55a0803212763daaae5159da25",
+          "sourceSha256": "6d515f8595f67816ec494535c40b7df8fc61be55a0803212763daaae5159da25"
+        },
+        "/www/luci-static/resources/view/performance-manager/capabilities.js": {
+          "path": "/www/luci-static/resources/view/performance-manager/capabilities.js",
+          "status": "match",
+          "size": 1309,
+          "apkSha256": "7e7d86309b4785cb8b119404dc4c01423889e1769dce45c2f80a35846f021e97",
+          "sourceSha256": "7e7d86309b4785cb8b119404dc4c01423889e1769dce45c2f80a35846f021e97"
+        },
+        "/www/luci-static/resources/view/performance-manager/history.js": {
+          "path": "/www/luci-static/resources/view/performance-manager/history.js",
+          "status": "match",
+          "size": 3002,
+          "apkSha256": "fc35a41afebe837bdd4b79ac145baa3edccad24859ff735564599fc24189f385",
+          "sourceSha256": "fc35a41afebe837bdd4b79ac145baa3edccad24859ff735564599fc24189f385"
+        },
+        "/www/luci-static/resources/view/performance-manager/optimize.js": {
+          "path": "/www/luci-static/resources/view/performance-manager/optimize.js",
+          "status": "match",
+          "size": 4701,
+          "apkSha256": "c78f021d6f5cc49430efffd8b514c6b64f0ea9208b6d59c7f4e3ea56c38b2835",
+          "sourceSha256": "c78f021d6f5cc49430efffd8b514c6b64f0ea9208b6d59c7f4e3ea56c38b2835"
+        },
+        "/www/luci-static/resources/view/performance-manager/overview.js": {
+          "path": "/www/luci-static/resources/view/performance-manager/overview.js",
+          "status": "match",
+          "size": 2901,
+          "apkSha256": "f0ca6cc4225081a454a41c60a481d7fbc6b161b30a4212cb4be2bbce4dfe1814",
+          "sourceSha256": "f0ca6cc4225081a454a41c60a481d7fbc6b161b30a4212cb4be2bbce4dfe1814"
+        },
+        "/www/luci-static/resources/view/performance-manager/rill.js": {
+          "path": "/www/luci-static/resources/view/performance-manager/rill.js",
+          "status": "match",
+          "size": 6736,
+          "apkSha256": "adc6ad7caa0030dc02d6d0dceeee0b7572a13f19845f784bae83ba41b6b7f0c3",
+          "sourceSha256": "adc6ad7caa0030dc02d6d0dceeee0b7572a13f19845f784bae83ba41b6b7f0c3"
+        },
+        "/www/luci-static/resources/view/performance-manager/settings.js": {
+          "path": "/www/luci-static/resources/view/performance-manager/settings.js",
+          "status": "match",
+          "size": 6131,
+          "apkSha256": "6ea45697052e16d8ce4c2b02f28be0234f67797c1496133e17a05435053dde4b",
+          "sourceSha256": "6ea45697052e16d8ce4c2b02f28be0234f67797c1496133e17a05435053dde4b"
+        },
+        "/usr/share/luci/menu.d/luci-app-performance-manager.json": {
+          "path": "/usr/share/luci/menu.d/luci-app-performance-manager.json",
+          "status": "match",
+          "size": 1768,
+          "apkSha256": "e75a112ef533f1af5de7c3782927a653acf8be8840a503414d70f45073018741",
+          "sourceSha256": "e75a112ef533f1af5de7c3782927a653acf8be8840a503414d70f45073018741"
+        },
+        "/usr/share/rpcd/acl.d/luci-app-performance-manager.json": {
+          "path": "/usr/share/rpcd/acl.d/luci-app-performance-manager.json",
+          "status": "match",
+          "size": 631,
+          "apkSha256": "d12ad4ec7ca3b6c74bc5caff68b4c39fe77bb078f627dcdd9af5ea7257414c13",
+          "sourceSha256": "d12ad4ec7ca3b6c74bc5caff68b4c39fe77bb078f627dcdd9af5ea7257414c13"
+        },
+        "/lib/upgrade/keep.d/performance-manager-rill": {
+          "path": "/lib/upgrade/keep.d/performance-manager-rill",
+          "status": "match",
+          "size": 31,
+          "apkSha256": "8c377dbb6b756ceb1b5e3ecdc218facb45c3753e83301e699c91f673d233edff",
+          "sourceSha256": "8c377dbb6b756ceb1b5e3ecdc218facb45c3753e83301e699c91f673d233edff"
+        },
+        "/etc/uci-defaults/luci-i18n-performance-manager-zh-cn": {
+          "path": "/etc/uci-defaults/luci-i18n-performance-manager-zh-cn",
+          "sourceSha256": "c272c8973a1bc727c9ad0607c3675dc9f8be3844eacee3dbc188248f6332c8f0",
+          "status": "match",
+          "size": 82,
+          "apkSha256": "c272c8973a1bc727c9ad0607c3675dc9f8be3844eacee3dbc188248f6332c8f0"
+        },
+        "/usr/lib/lua/luci/i18n/performance-manager.zh-cn.lmo": {
+          "path": "/usr/lib/lua/luci/i18n/performance-manager.zh-cn.lmo",
+          "status": "compiled",
+          "size": 11864,
+          "apkSha256": "72e5d1a0555a7c0ed0d3d9d06c8d601d15dfd3b5b8ec1ff25bef3a10b7c59097"
+        },
+        "/usr/bin/rill-runtime": {
+          "path": "/usr/bin/rill-runtime",
+          "status": "match",
+          "sha256": "bcc587dbbeab6da71e6c3b1113db2037b69e7bec3e01f696e0e9a5d3cce1561b",
+          "expectedSha256": "bcc587dbbeab6da71e6c3b1113db2037b69e7bec3e01f696e0e9a5d3cce1561b"
+        }
+      },
+      "core": {
+        "path": "/usr/sbin/performance-manager.uc",
+        "status": "match",
+        "size": 249993,
+        "apkSha256": "f902258d4aa14d2775b38f599b90c39e98b02a297a9b3df0f28b00fc65f0094f",
+        "sourceSha256": "f902258d4aa14d2775b38f599b90c39e98b02a297a9b3df0f28b00fc65f0094f"
+      },
+      "runtimeBinary": {
+        "path": "/usr/bin/rill-runtime",
+        "status": "present",
+        "sha256": "bcc587dbbeab6da71e6c3b1113db2037b69e7bec3e01f696e0e9a5d3cce1561b",
+        "matchesSplitRuntime": true,
+        "elfMachine": 62
+      }
+    }
+  },
+  "verdict": "PASS",
+  "failures": []
+}

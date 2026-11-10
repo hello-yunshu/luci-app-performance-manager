@@ -1,0 +1,54 @@
+{
+  "scope": "local actual SDK APK package ownership; no hosted or device qualification",
+  "releaseEligible": false,
+  "files": [
+    {
+      "path": "pm-full-final/verification.json",
+      "sha256": "1be923d4205239cd6a42bbe83402422e4955c32b607bc98154149df3dcdc533e"
+    },
+    {
+      "path": "pm-full-final/all-five-apk-verification.json",
+      "sha256": "86ea398469d1d533159f223e84024f6e6931b49cb84a8b086b4c8d50299f1fc1"
+    },
+    {
+      "path": "pm-full-source-snapshot.json",
+      "sha256": "ed4a32d08a81d753a562820926aeed6c60e8b0c3ec69cfae0133b7b64f8f4767"
+    },
+    {
+      "path": "pm-final-current-tests.log",
+      "sha256": "605a6ded0914202096f0d3e1415ba49910fe6146a92beefc91ddc093c10fae97"
+    },
+    {
+      "path": "pm-owner-driver-v2.log",
+      "sha256": "324456d2b74888ea73dcc713ca19b15fa33a5d6d66ed42c78ae487dd03f4d0ec"
+    },
+    {
+      "path": "pm-full-final/ownership/full-then-split.jsonl",
+      "sha256": "8ad2ca08534d07c27be972787048bdb81951553100cd927a4c5cef2568d56c96"
+    },
+    {
+      "path": "pm-full-final/ownership/full-then-preview.jsonl",
+      "sha256": "0f8354fca3d0d47632a8ae7ced5b511ffb44abf8594f83aa62815cdbe7387cce"
+    },
+    {
+      "path": "pm-full-final/ownership/preview-then-full.jsonl",
+      "sha256": "6662afb470a2c8788860228f89d2bdc29d5ce3a83945427c36ff733d10ba4c2b"
+    },
+    {
+      "path": "pm-full-final/ownership/split-then-full.jsonl",
+      "sha256": "f5cc34a8c9135eb278e868d3b475cdbdf1dccc650a248c464f3d1c622c5e86e7"
+    },
+    {
+      "path": "pm-full-final/ownership/results.json",
+      "sha256": "a7f5aeaa14a1e5b103fd4916359e76d0dbc971d674a559b8a68912ed1252ae2e"
+    },
+    {
+      "path": "pm-full-final/ownership/stable-then-full.jsonl",
+      "sha256": "c36d2b6cdf5c5eb42e3687d658a2d0c10967e48edd8a227d12398d6c480985e9"
+    },
+    {
+      "path": "pm-full-final/ownership/full-then-stable.jsonl",
+      "sha256": "e1b20c58cd1cf62c5ed6580e485635a8181cae93c599f818e87d7b9be32361a2"
+    }
+  ]
+}

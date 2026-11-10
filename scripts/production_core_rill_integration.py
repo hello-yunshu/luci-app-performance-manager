@@ -18,6 +18,8 @@ import subprocess
 import tempfile
 from pathlib import Path
 
+from runtime_test_command import runtime_command
+
 ROOT = Path(__file__).resolve().parents[1]
 sys_path = ROOT / "scripts"
 import sys
@@ -41,7 +43,7 @@ def runtime_call(binary: Path, state: Path, request_id: str, request: dict,
     if capability:
         wire["capability"] = capability
     proc = subprocess.run(
-        [str(binary), "preview-serve", "--state", str(state),
+        [*runtime_command(binary), "preview-serve", "--state", str(state),
          "--feature-schema-hash", schema_hash, "--model-generation", "2"],
         input=json.dumps(wire) + "\n", text=True, capture_output=True, check=False,
     )

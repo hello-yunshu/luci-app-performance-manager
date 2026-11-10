@@ -48,9 +48,14 @@ lib = '\n'.join(lines[:main_start])
 # 3. Neutralise the ambient ubus connect + guard so the library loads without
 #    a real ubus daemon (the test driver re-seats `conn` to its own fixture).
 lib = lib.replace('let conn = ubusmod.connect();', 'let conn = null;')
+# The guard is multi-line once startup diagnostics landed (socket/euid/errno
+# reporting), so match the whole block instead of a single warn() line.
+lib = re.sub(r"if \(!conn\) \{.*?\n\}\n", '', lib, count=1, flags=re.S)
 lib = re.sub(
     r"if \(!conn\) \{\s*warn\('[^\n']*'\);\s*exit\(1\);\s*\}", '', lib)
 lib = re.sub(r"if \(!conn\) \{\s*warn\([^\n]*\);\s*exit\(1\);\s*\}", '', lib)
+if 'if (!conn)' in lib:
+    raise SystemExit('could not neutralise the Core ubus startup guard')
 
 if not DRIVER.exists():
     raise SystemExit(f'test driver fragment missing: {DRIVER}')

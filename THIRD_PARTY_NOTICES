@@ -9,6 +9,11 @@ RillML release. This repository records the immutable source and qualification
 identity in `contracts/rill-runtime.json`; it does not vendor Runtime source or
 build a private adapter.
 
+The canonical recipe may apply declared source patches to that upstream base.
+Its qualification manifest binds the base commit, patch digests, final source
+lock and exact payload identity. An unpatched upstream tag alone does not
+identify the redistributed binary.
+
 The split `performance-manager-rill` package continues to consume the same
 external package independently. In both forms Runtime only ranks/reports;
 Performance Manager Core validates and executes actions.

@@ -91,9 +91,42 @@ let rill_runtime_counters = {
 	runtimeMalformedResponseCount: 0,
 	runtimeNonZeroExitCount: 0
 };
+/* Startup diagnostics: a daemon that cannot expose its ubus object must fail
+ * closed, but the reported reason has to name the real cause instead of a
+ * generic connect/publish failure. */
+const UBUS_SOCKET_CANDIDATES = [ '/var/run/ubus/ubus.sock', '/var/run/ubus.sock' ];
+
+function proc_euid() {
+	let status = fs.readfile('/proc/self/status') ?? '';
+	for (let line in split(status, '\n')) {
+		if (substr(line, 0, 4) == 'Uid:') {
+			let fields = split(trim(substr(line, 4)), /\s+/);
+			return fields[0] ? int(fields[0]) : null;
+		}
+	}
+	return null;
+}
+
+function ubus_socket_info() {
+	for (let path in UBUS_SOCKET_CANDIDATES) {
+		let st = fs.stat(path);
+		if (st)
+			return { path: path, exists: true, writable: fs.access(path, 'w') == true, mode: st.mode & 0777, uid: st.uid, gid: st.gid };
+	}
+	return { path: null, exists: false, writable: false, mode: null, uid: null, gid: null };
+}
+
+function ubus_socket_text(info) {
+	if (!info.exists)
+		return sprintf('no ubus socket found at %s', join(' or ', UBUS_SOCKET_CANDIDATES));
+	return sprintf('socket %s exists (mode %04o uid %s gid %s writable %s)', info.path, info.mode, info.uid, info.gid, info.writable ? 'yes' : 'no');
+}
+
 let conn = ubusmod.connect();
 if (!conn) {
-	warn('performance-manager: unable to connect to ubus\n');
+	let sock = ubus_socket_info();
+	let code = !sock.exists ? 'ubus-socket-unavailable' : (!sock.writable ? 'ubus-permission-denied' : 'ubus-connect-failed');
+	warn(sprintf('performance-manager: %s: %s; euid %s\n', code, ubus_socket_text(sock), proc_euid() ?? 'unknown'));
 	exit(1);
 }
 
@@ -172,6 +205,18 @@ function state_dir() {
 
 function persist_dir() {
 	return cfg('main.persistent_dir', DEFAULT_PERSIST_DIR);
+}
+
+function runtime_dir_diagnosis() {
+	/* After ensure_dir() the only remaining startup blocker is a directory the
+	 * running euid cannot write; name every such directory, not just the first
+	 * mkdir failure. */
+	let unwritable = [];
+	for (let path in [ state_dir(), persist_dir() ]) {
+		if (fs.access(path, 'w') != true) push(unwritable, path);
+	}
+	if (!length(unwritable)) return null;
+	return { euid: proc_euid(), paths: unwritable, socket: ubus_socket_info() };
 }
 
 function boot_id() {
@@ -3717,8 +3762,10 @@ function benchmark_start(msg) {
 		}
 		return {ok:false,error:'invalid-benchmark-phase'};
 	}
+	let action=msg?.actionId;
+	if (action == null || !length(trimstr(`${action}`)))
+		return { ok:false, error:'benchmark-action-required', missing:[ 'actionId' ], detail:'benchmark_start requires an explicit actionId; the implicit observe default was removed' };
 	let guard=system_guard(); if (!guard.pass) return {ok:false,error:'health-guard-blocked',guard:guard};
-	let action=msg?.actionId ?? 'observe';
 	if (action != 'observe' && index(BENCHMARK_ACTIONS,action) < 0) return {ok:false,error:'unknown-benchmark-action'};
 	let measurement=msg?.measurementClass ?? cfg('benchmark.default_measurement_class','passive_before_after');
 	if (index(['controlled_ab','passive_before_after','health_only'],measurement)<0) return {ok:false,error:'invalid-measurement-class'};
@@ -4355,6 +4402,16 @@ rill_recover_execution_hook = recover_rill_executions;
 
 function reply(req, data) { req.reply(data); }
 
+/* LuCI's RPC proxy injects `ubus_rpc_session` into every call it forwards.
+ * ubus validates the payload against the published signature and answers
+ * UBUS_STATUS_INVALID_ARGUMENT (2) when an undeclared key is present, so
+ * every method must declare it or the whole LuCI page stays blank. */
+function rpc_args(extra) {
+	let args = { ubus_rpc_session: 'string' };
+	for (let key in keys(extra ?? {})) args[key] = extra[key];
+	return args;
+}
+
 ensure_dir(state_dir());
 ensure_dir(persist_dir());
 ensure_dir(`${state_dir()}/transactions`);
@@ -4363,47 +4420,64 @@ ensure_dir(`${state_dir()}/benchmarks`);
 ensure_dir(`${state_dir()}/telemetry`);
 ensure_dir(`${state_dir()}/diagnostics`);
 ensure_dir(`${persist_dir()}/rill-executions`);
+let dir_issue = runtime_dir_diagnosis();
+if (dir_issue) {
+	warn(sprintf('performance-manager: state-dir-not-writable: euid %s cannot write %s; %s; publishing a ubus object also requires uid 0\n',
+		dir_issue.euid ?? 'unknown', join(', ', dir_issue.paths), ubus_socket_text(dir_issue.socket)));
+	exit(1);
+}
 uloop.init();
 recover_pending();
 recover_rill_executions();
 let obj = conn.publish(UBUS_NAME, {
-	status: { call: function(req, msg) { reply(req, status()); } },
-	capabilities: { call: function(req, msg) { reply(req, capabilities()); } },
-	topology: { call: function(req, msg) { reply(req, topology()); } },
-	targets: { call: function(req, msg) { reply(req, { topologyGeneration: topology_generation, targets: target_refs() }); } },
-	paths: { call: function(req, msg) { reply(req, { topologyGeneration: topology_generation, paths: topology().paths }); } },
-	analyze: { call: function(req, msg) { reply(req, analysis_report()); } },
-	recommendations: { call: function(req, msg) { reply(req, recommendations()); } },
-	transactions: { call: function(req, msg) { reply(req, { transactions: transaction_list() }); } },
-	locks: { call: function(req, msg) { reply(req, { locks: lock_list() }); } },
+	status: { args: rpc_args(), call: function(req, msg) { reply(req, status()); } },
+	capabilities: { args: rpc_args(), call: function(req, msg) { reply(req, capabilities()); } },
+	topology: { args: rpc_args(), call: function(req, msg) { reply(req, topology()); } },
+	targets: { args: rpc_args(), call: function(req, msg) { reply(req, { topologyGeneration: topology_generation, targets: target_refs() }); } },
+	paths: { args: rpc_args(), call: function(req, msg) { reply(req, { topologyGeneration: topology_generation, paths: topology().paths }); } },
+	analyze: { args: rpc_args(), call: function(req, msg) { reply(req, analysis_report()); } },
+	recommendations: { args: rpc_args(), call: function(req, msg) { reply(req, recommendations()); } },
+	transactions: { args: rpc_args(), call: function(req, msg) { reply(req, { transactions: transaction_list() }); } },
+	locks: { args: rpc_args(), call: function(req, msg) { reply(req, { locks: lock_list() }); } },
 	/* Current ucode exposes validated method payloads as req.args (the handler
 	 * receives one request resource), not as a second callback argument. */
-	history: { args: { limit: 0 }, call: function(req) { let msg=req.args ?? {}, limit = min(MAX_HISTORY_LINES, max(1, +(msg?.limit ?? 100))); reply(req, { history: read_lines(`${persist_dir()}/history.jsonl`, limit), runtimeHistory: read_lines(`${state_dir()}/history.jsonl`, limit) }); } },
-	apply: { args: { actionId: 'string', target: 'string', executionSource: 'string', decisionId: 'string' }, call: function(req) { reply(req, apply_action(req.args ?? {})); } },
-	confirm: { args: { transactionId: 'string' }, call: function(req) { reply(req, confirm_transaction(req.args?.transactionId)); } },
-	rollback: { args: { transactionId: 'string' }, call: function(req) { reply(req, rollback_transaction(req.args?.transactionId, 'manual')); } },
-	benchmark_start: { args: { phase: 'string', actionId: 'string', pathId: 'string', measurementClass: 'string', executionSource: 'string', decisionId: 'string', sessionId: 'string', evidence: {}, target: 'string' }, call: function(req) { reply(req, benchmark_start(req.args ?? {})); } },
-	benchmark_status: { call: function(req) {
+	history: { args: rpc_args({ limit: 0 }), call: function(req) {
+		let msg=req.args ?? {}, requested=msg?.limit ?? 100, limit=int(requested);
+		/* A negative/zero limit used to be silently clamped to 1, which hid
+		 * caller bugs. Reject it and keep the upper bound explicit. */
+		if (limit < 1) { reply(req, { ok:false, error:'invalid-limit', limit:requested, min:1, max:MAX_HISTORY_LINES }); return; }
+		let clamped = limit > MAX_HISTORY_LINES;
+		if (clamped) limit = MAX_HISTORY_LINES;
+		reply(req, { history: read_lines(`${persist_dir()}/history.jsonl`, limit), runtimeHistory: read_lines(`${state_dir()}/history.jsonl`, limit), limit:limit, clamped:clamped });
+	} },
+	apply: { args: rpc_args({ actionId: 'string', target: 'string', executionSource: 'string', decisionId: 'string' }), call: function(req) { reply(req, apply_action(req.args ?? {})); } },
+	confirm: { args: rpc_args({ transactionId: 'string' }), call: function(req) { reply(req, confirm_transaction(req.args?.transactionId)); } },
+	rollback: { args: rpc_args({ transactionId: 'string' }), call: function(req) { reply(req, rollback_transaction(req.args?.transactionId, 'manual')); } },
+	benchmark_start: { args: rpc_args({ phase: 'string', actionId: 'string', pathId: 'string', measurementClass: 'string', executionSource: 'string', decisionId: 'string', sessionId: 'string', evidence: {}, target: 'string' }), call: function(req) { reply(req, benchmark_start(req.args ?? {})); } },
+	benchmark_status: { args: rpc_args({ sessionId: 'string' }), call: function(req) {
 		let msg=req.args ?? {};
 		if (msg?.sessionId) {
 			let s = json_read(benchmark_path(msg.sessionId), null);
 			reply(req, s ? { found: true, session: s } : { found: false });
 		} else reply(req, { found: length(benchmark_list()) > 0, sessions: benchmark_list() });
-	}, args: { sessionId: 'string' } },
-	benchmark_stop: { args: { sessionId: 'string' }, call: function(req) { reply(req, benchmark_stop(req.args?.sessionId)); } },
-	rill_status: { call: function(req, msg) { reply(req, rill_status()); } },
-	rill_refresh: { call: function(req, msg) { reply(req, rill_refresh_advisory()); } },
+	} },
+	benchmark_stop: { args: rpc_args({ sessionId: 'string' }), call: function(req) { reply(req, benchmark_stop(req.args?.sessionId)); } },
+	rill_status: { args: rpc_args(), call: function(req, msg) { reply(req, rill_status()); } },
+	rill_refresh: { args: rpc_args(), call: function(req, msg) { reply(req, rill_refresh_advisory()); } },
 	/* Lightweight observability surface: callers that only need bounded
 	 * process/Rill counters must not pay for the full synchronous topology,
 	 * profile, benchmark and analysis recomputation in diagnostics(). */
-	resources: { call: function(req, msg) { reply(req, { resources: resource_usage() }); } },
-	diagnostics: { call: function(req, msg) { reply(req, diagnostics()); } },
-	cleanup: { args: { reason: 'string' }, call: function(req) { reply(req, cleanup_owned(req.args?.reason ?? 'package-remove')); } },
-	refresh: { args: { reason: 'string' }, call: function(req) { reply(req, refresh(req.args?.reason ?? 'manual')); } }
+	resources: { args: rpc_args(), call: function(req, msg) { reply(req, { resources: resource_usage() }); } },
+	diagnostics: { args: rpc_args(), call: function(req, msg) { reply(req, diagnostics()); } },
+	cleanup: { args: rpc_args({ reason: 'string' }), call: function(req) { reply(req, cleanup_owned(req.args?.reason ?? 'package-remove')); } },
+	refresh: { args: rpc_args({ reason: 'string' }), call: function(req) { reply(req, refresh(req.args?.reason ?? 'manual')); } }
 });
 
 if (!obj) {
-	warn(`performance-manager: failed to publish ubus object: ${ubusmod.error()}\n`);
+	let sock = ubus_socket_info(), euid = proc_euid(), detail = ubusmod.error();
+	let code = (euid != null && euid != 0) ? 'ubus-permission-denied' : (!sock.exists ? 'ubus-socket-unavailable' : 'ubus-publish-failed');
+	let hint = (euid != null && euid != 0) ? '; publishing a ubus object requires uid 0' : '';
+	warn(sprintf('performance-manager: %s: %s; euid %s%s; ubus error: %s\n', code, ubus_socket_text(sock), euid ?? 'unknown', hint, detail));
 	exit(1);
 }
 

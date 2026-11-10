@@ -1,4 +1,5 @@
 'use strict';
+'require baseclass';
 
 const FOOTER_VERSION = '@PKG_VERSION@';
 const FOOTER_OPTIONS = {
@@ -180,4 +181,4 @@ function renderFooter(options) {
 	]);
 }
 
-return { badge: badge, card: card, field: field, grid: grid, inset: inset, jsonBox: jsonBox, kv: kv, note: note, page: page, renderFooter: renderFooter, setBusy: setBusy, tableWrap: tableWrap, toolbar: toolbar };
+return baseclass.extend({ badge: badge, card: card, field: field, grid: grid, inset: inset, jsonBox: jsonBox, kv: kv, note: note, page: page, renderFooter: renderFooter, setBusy: setBusy, tableWrap: tableWrap, toolbar: toolbar });

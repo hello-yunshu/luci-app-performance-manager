@@ -18,8 +18,23 @@ PAIRS={
 class ResourceBudgetTests(unittest.TestCase):
     def test_source_audit_uses_exact_workflow_head_identity(self):
         audit = (ROOT / "scripts/final_audit.py").read_text()
-        self.assertIn('os.environ.get("GITHUB_SHA", "")', audit)
-        self.assertIn('re.fullmatch(r"[0-9a-f]{40}", workflow_sha)', audit)
+        self.assertIn('def head_sha()', audit)
+        self.assertIn('git_output(["rev-parse", "HEAD"])', audit)
+        self.assertIn('SOURCE_COMMIT = source_commit(HEAD_SHA)', audit)
+        self.assertIn('dirty_source_paths()', audit)
+        self.assertIn('GENERATED_EVIDENCE_PATHS', audit)
+        self.assertNotIn('WORKTREE_UNCOMMITTED', audit)
+
+    def test_core_reports_actionable_ubus_startup_failures(self):
+        core = (ROOT / "package/performance-manager/files/usr/sbin/performance-manager.uc").read_text()
+        for code in ("ubus-socket-unavailable", "ubus-permission-denied",
+                     "state-dir-not-writable", "ubus-publish-failed"):
+            with self.subTest(code=code):
+                self.assertIn(code, core)
+        self.assertNotIn("unable to connect to ubus", core)
+        self.assertLess(core.index("ensure_dir(`${persist_dir()}/rill-executions`)"),
+                        core.index("let dir_issue = runtime_dir_diagnosis()"))
+        self.assertLess(core.index("if (dir_issue)"), core.index("let obj = conn.publish("))
 
     def test_ci_aggregator_resolves_unique_artifact_layouts(self):
         workflow = (ROOT / ".github/workflows/ci.yml").read_text()
@@ -182,8 +197,15 @@ class ContractTests(unittest.TestCase):
         build = (ROOT / ".github/workflows/build-openwrt.yml").read_text()
 
         self.assertEqual(ci.count(cache_action), 0)
-        self.assertIn("git -C rill-ml fetch --depth=1 origin \"$commit\"", ci)
-        self.assertIn("cargo build --locked --release --target x86_64-unknown-linux-musl --manifest-path rill-ml/Cargo.toml -p rill-runtime", ci)
+        self.assertIn('git -C rill-openwrt-packages fetch --depth=1 origin "$package_commit"', ci)
+        self.assertIn('test "$(git -C rill-openwrt-packages rev-parse HEAD)" = "$package_commit"', ci)
+        self.assertIn('scripts/qualified_runtime_artifacts.py', ci)
+        self.assertIn('--channel stable --contract', ci)
+        self.assertIn('.qualifiedTarget.binarySha256', ci)
+        self.assertNotIn('cargo build', ci)
+        rootfs = (ROOT / 'scripts/prepare_runtime_test_rootfs.sh').read_text()
+        self.assertIn('sha256sum -c -', rootfs)
+        self.assertIn('test "${#digests[@]}" -eq 1', rootfs)
         self.assertIn("openwrt-sdk-${{ runner.os }}-${{ runner.arch }}", build)
         self.assertIn("openwrt-feeds-${{ runner.os }}-${{ runner.arch }}", build)
         self.assertIn("$SDK_ARCHIVE_SHA256\" \"$archive\" | sha256sum -c -", build)
@@ -248,4 +270,121 @@ class ContractTests(unittest.TestCase):
     def test_transaction_states_cover_full_frozen_machine(self):
         states=set(json.loads((ROOT/'contracts/transaction.schema.json').read_text())['properties']['state']['enum'])
         self.assertEqual(states,{'planned','locked','snapshotted','pending','applied','verified','awaiting_confirm','committed','rolled_back','failed'})
+class AuditConvergenceTests(unittest.TestCase):
+    def test_single_authoritative_rill_contract(self):
+        contract = json.loads((ROOT / "contracts/rill-runtime.json").read_text())
+        self.assertEqual(contract.get("schemaVersion"), 1)
+        for section in ("runtime", "protocol", "security", "resolved", "openwrtPackage", "qualification"):
+            with self.subTest(section=section):
+                self.assertIn(section, contract)
+        self.assertFalse((ROOT / "contracts/rill-dependency.json").exists())
+        for scope in ("scripts", ".github", "package"):
+            for path in (ROOT / scope).rglob("*"):
+                if path.is_file() and path.suffix in (".py", ".json", ".yml", ".yaml", ".uc", ".sh", ".js"):
+                    with self.subTest(path=str(path)):
+                        self.assertNotIn("rill-dependency", path.read_text(errors="ignore"))
+
+    def test_contract_check_records_release_pin_structure_verdict(self):
+        import importlib.util
+        import sys
+        sys.path.insert(0, str(ROOT / "scripts"))
+        spec = importlib.util.spec_from_file_location(
+            "rill_contract_check", ROOT / "scripts/rill_contract_check.py")
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        contract = json.loads((ROOT / "contracts/rill-runtime.json").read_text())
+        verdict, checks = module.release_pin_structure(contract)
+        self.assertEqual(verdict, "PASS")
+        self.assertTrue(all(check["ok"] for check in checks))
+        broken = json.loads(json.dumps(contract))
+        broken["openwrtPackage"]["commit"] = "not-a-sha"
+        broken["openwrtPackage"]["packageRelease"] = 0
+        broken["qualification"]["verdict"] = "BLOCKED"
+        broken["resolved"]["upstreamCommit"] = "main"
+        self.assertEqual(module.release_pin_structure(broken)[0], "FAIL")
+        status = json.loads((ROOT / "docs/rill-integration-status.json").read_text())
+        self.assertEqual(status.get("releasePinStructureVerdict"), "PASS")
+        pin = status.get("releasePin", {})
+        self.assertEqual(pin.get("commit"), contract["openwrtPackage"]["commit"])
+        self.assertEqual(pin.get("packageRelease"), contract["openwrtPackage"]["packageRelease"])
+        self.assertEqual(pin.get("qualification", {}).get("runId"), contract["qualification"]["runId"])
+        self.assertEqual(pin.get("resolvedVersion"), contract["resolved"]["version"])
+
+    def test_final_evidence_carries_contract_pin(self):
+        import importlib.util
+        spec = importlib.util.spec_from_file_location(
+            "aggregate_final_evidence", ROOT / "scripts/aggregate_final_evidence.py")
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        contract = json.loads((ROOT / "contracts/rill-runtime.json").read_text())
+        pin = module.contract_pin(ROOT / "contracts/rill-runtime.json")
+        self.assertTrue(pin["available"])
+        self.assertEqual(pin["commit"], contract["openwrtPackage"]["commit"])
+        self.assertEqual(pin["packageRelease"], contract["openwrtPackage"]["packageRelease"])
+        self.assertEqual(pin["qualification"]["runId"], contract["qualification"]["runId"])
+        self.assertEqual(pin["resolvedVersion"], contract["resolved"]["version"])
+
+    def test_docs_do_not_claim_sha_pinned_actions(self):
+        status = (ROOT / "docs/IMPLEMENTATION_STATUS.md").read_text()
+        self.assertNotIn("pinned to SHAs", status)
+        self.assertIn("readable major tags", status)
+
+    def test_roadmap_job_names_match_workflows(self):
+        roadmap = (ROOT / "ROADMAP.md").read_text()
+        ci = (ROOT / ".github/workflows/ci.yml").read_text()
+        build = (ROOT / ".github/workflows/build-openwrt.yml").read_text()
+        for job in ("static", "rill-runtime-v3", "production-core-rill-integration"):
+            with self.subTest(job=job):
+                self.assertIn(f"\n  {job}:", ci)
+                self.assertIn(f"`{job}`", roadmap)
+        self.assertIn("\n  openwrt-sdk-build:", build)
+        self.assertIn("`openwrt-sdk-build`", roadmap)
+        for stale in ("pm-rill-provenance", "pm-rill-runtime", "pm-core-rill-roundtrip", "openwrt-ucode"):
+            with self.subTest(stale=stale):
+                self.assertNotIn(stale, roadmap)
+
+    def test_test_plan_gates_are_executable_in_repo(self):
+        plan = (ROOT / "docs/TEST_PLAN.md").read_text()
+        self.assertNotIn("cargo test", plan)
+        self.assertNotIn("cargo check", plan)
+        self.assertIn("make audit", plan)
+        self.assertIn("scripts/luci_render_smoke.js", plan)
+        self.assertIn("tools/docker-validate/run-target-gate.sh", plan)
+        self.assertIn("scripts/rill_runtime_v3_integration.py", plan)
+        self.assertIn("scripts/production_core_rill_integration.py", plan)
+        self.assertIn("openwrt-sdk-build", plan)
+
+    def test_historical_rill_evidence_is_labelled(self):
+        provenance = json.loads((ROOT / "docs/rill-provenance.json").read_text())
+        self.assertEqual(provenance.get("evidenceStatus"), "historical-only")
+        self.assertEqual(provenance.get("supersededBy"), "contracts/rill-runtime.json")
+        contract = json.loads((ROOT / "contracts/rill-runtime.json").read_text())
+        self.assertEqual(contract["resolved"]["version"], "1.5.6")
+
+    def test_profile_badge_has_distinct_unhealthy_state(self):
+        ui = (ROOT / "package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/overview.js").read_text()
+        self.assertIn("_('Profile unmet')", ui)
+        self.assertIn("profile.degraded", ui)
+        self.assertIn("_('Profile degraded')", ui)
+        self.assertIn("_('Profile healthy')", ui)
+        self.assertNotIn("profile.healthy ? _('Profile healthy') : _('Profile degraded')", ui)
+
+
+    def test_harness_strips_multiline_ubus_startup_guard(self):
+        import subprocess
+        import tempfile
+        with tempfile.TemporaryDirectory() as tmp:
+            out = Path(tmp) / "harness.uc"
+            subprocess.run(
+                ["python3", str(ROOT / "tools/docker-validate/harness/build-harness.py"),
+                 str(out), str(ROOT / "tools/docker-validate/harness/production_core_rill_test.uc.frag")],
+                check=True, capture_output=True, text=True)
+            text = out.read_text()
+        # The library must load without a real ubus daemon: the ambient connect
+        # and its multi-line fail-closed guard are both neutralised.
+        self.assertNotIn("ubusmod.connect()", text)
+        self.assertNotIn("if (!conn)", text)
+        self.assertIn("function diagnostics(", text)
+
+
 if __name__=='__main__': unittest.main()

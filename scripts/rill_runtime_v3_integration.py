@@ -10,6 +10,8 @@ import subprocess
 import tempfile
 from pathlib import Path
 
+from runtime_test_command import runtime_command
+
 
 def envelope(request_id: str, request: dict, *, capability: str | None, generation: int, schema_hash: str, state_generation: int) -> dict:
     return {
@@ -28,7 +30,7 @@ def envelope(request_id: str, request: dict, *, capability: str | None, generati
 def call(binary: Path, state: Path, request_id: str, request: dict, *, capability: str | None, schema_hash: str, state_generation: int) -> dict:
     wire = json.dumps(envelope(request_id, request, capability=capability, generation=2, schema_hash=schema_hash, state_generation=state_generation))
     proc = subprocess.run(
-        [str(binary), "preview-serve", "--state", str(state), "--feature-schema-hash", schema_hash, "--model-generation", "2"],
+        [*runtime_command(binary), "preview-serve", "--state", str(state), "--feature-schema-hash", schema_hash, "--model-generation", "2"],
         input=wire + "\n", text=True, capture_output=True, check=False,
     )
     if proc.returncode != 0:

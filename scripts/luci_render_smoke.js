@@ -106,10 +106,13 @@ const pm = { status: rpc.declare({}), capabilities: rpc.declare({}), topology: r
   benchmarkStatus: rpc.declare({}), benchmarkStop: rpc.declare({}) };
 const ui = { addNotification: () => {} };
 const view = { extend: (o) => o };
-const puModule = loadModule(path.join(RES, 'performance-manager', 'ui.js'), { E, _ });
+/* LuCI 26 loads module factories through baseclass.extend(); a plain object
+ * literal is rejected as "factory yields invalid constructor". */
+const baseclass = { extend: (o) => o };
+const puModule = loadModule(path.join(RES, 'performance-manager', 'ui.js'), { E, _, baseclass });
 const pu = puModule;
 
-const baseGlobals = { E, _, view, ui, pu, pm, rpc, form, JSON, Object, Array, String, Number };
+const baseGlobals = { E, _, view, ui, pu, pm, rpc, form, baseclass, JSON, Object, Array, String, Number };
 
 /* ---------- mock backend payloads ---------- */
 const mockRec = {

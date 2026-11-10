@@ -75,7 +75,7 @@ core_pkg=re.search(r'define Package/performance-manager\n(.*?)\nendef',make,re.S
 for forbidden in ['+rpcd','+luci-base','+performance-manager-rill']:
     if core_pkg and forbidden in core_pkg.group(1): fail(f'Core hard dependency forbidden: {forbidden}')
 required_ubus=['status','capabilities','topology','targets','paths','analyze','recommendations','transactions','locks','history','apply','confirm','rollback','benchmark_start','benchmark_status','benchmark_stop','rill_status','rill_refresh','diagnostics']
-assert "cleanup: { args: { reason: 'string' }, call:" in core \
+assert "cleanup: { args: rpc_args({ reason: 'string' }), call:" in core \
        and "cleanup_owned(req.args?.reason ?? 'package-remove')" in core, \
        'root-only ownership cleanup method/payload policy missing'
 publish=core[core.find('conn.publish(UBUS_NAME'):]
@@ -186,10 +186,16 @@ if not bundle_pkg: fail('all-in-one package definition missing')
 else:
     for forbidden in ['+performance-manager ', '+luci-app-performance-manager', '+performance-manager-rill', '+rill-runtime']:
         if forbidden in bundle_pkg.group(1): fail(f'all-in-one meta dependency forbidden: {forbidden}')
+    owner_source=re.search(r'^PM_ALL_CONFLICTS:=(.*)$',bundle,re.M)
+    owners=set(owner_source.group(1).split()) if owner_source else set()
     for conflict in ['performance-manager','luci-app-performance-manager',
-                     'performance-manager-rill', 'rill-runtime',
+                     'performance-manager-rill', 'rill-runtime', 'rill-runtime-preview',
                      'luci-i18n-performance-manager-zh-cn']:
-        if conflict not in bundle_pkg.group(1): fail(f'all-in-one split-owner conflict missing: {conflict}')
+        if conflict not in owners: fail(f'all-in-one split-owner conflict missing: {conflict}')
+    if 'CONFLICTS:=$(PM_ALL_CONFLICTS)' not in bundle_pkg.group(1):
+        fail('all-in-one IPK conflicts must consume the single owner source')
+    if 'EXTRA_DEPENDS:=$(if $(CONFIG_USE_APK),$(foreach conflict,$(PM_ALL_CONFLICTS),!$(conflict) (>=0)$(comma)))' not in bundle_pkg.group(1):
+        fail('all-in-one APK negative dependencies must consume the same owner source')
     if re.search(r'^\s*PKGARCH:=all\s*$', bundle, re.M): fail('all-in-one must be architecture-specific')
     for token in ['RILL_RUNTIME_BINARY', '/usr/bin/rill-runtime',
                   'performance-manager-rill/files/lib/upgrade/keep.d/performance-manager-rill']:

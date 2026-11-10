@@ -1,0 +1,256 @@
+..............................................................................................................................{
+  "verdict": "PASS",
+  "targets": [
+    {
+      "openwrtVersion": "25.12.5",
+      "target": "armsr/armv8",
+      "packageArch": "aarch64_generic",
+      "rustTarget": null,
+      "packageManagerFormat": "apk",
+      "sdkIdentity": "sdk-aarch64_generic",
+      "sdkArchiveSha256": "3333333333333333333333333333333333333333333333333333333333333333",
+      "feedsCommits": {},
+      "metadataSha256": "88374a752a8530bdf1be4566120203a316245f25ed40c2fc8be405c61c15ef2a",
+      "verificationSha256": "32518dd1736f94381699864322fb4dd1ba402319b4487e54bad29b0c6d700c1f"
+    },
+    {
+      "openwrtVersion": "25.12.5",
+      "target": "x86/64",
+      "packageArch": "x86_64",
+      "rustTarget": null,
+      "packageManagerFormat": "apk",
+      "sdkIdentity": "sdk-x86_64",
+      "sdkArchiveSha256": "3333333333333333333333333333333333333333333333333333333333333333",
+      "feedsCommits": {},
+      "metadataSha256": "2d753c428a225a11834d3a909d94aa438cad9f515afcd474c167b99fc249f3b6",
+      "verificationSha256": "37deb40b4d0b4a7e9d940ec352521e980ced1dd99ba8a29e8cccb55eac213a2c"
+    }
+  ]
+}
+{
+  "scope": "build",
+  "overallVerdict": "FAIL",
+  "rcVerdict": "FAIL",
+  "evidenceChainVerdict": "PASS",
+  "apkPackagesBuildVerdict": "PASS",
+  "apkExactVerificationVerdict": "FAIL",
+  "rillArtifactProvenanceVerdict": "OUT_OF_SCOPE",
+  "rillRuntimeCompatibilityVerdict": "OUT_OF_SCOPE",
+  "rillFunctionalIntegrationVerdict": "OUT_OF_SCOPE",
+  "evidenceCommits": {
+    "build-metadata.json": "9ba659a",
+    "apk-verification.json": "9ba659a"
+  },
+  "missingEvidence": [],
+  "errors": [],
+  "output": "/var/folders/ng/57pdwsd97zl6qbjwh_sqrts80000gn/T/tmplgn73qxc/final.json"
+}
+{
+  "scope": "build",
+  "overallVerdict": "PASS",
+  "rcVerdict": "PASS",
+  "evidenceChainVerdict": "PASS",
+  "apkPackagesBuildVerdict": "PASS",
+  "apkExactVerificationVerdict": "PASS",
+  "rillArtifactProvenanceVerdict": "OUT_OF_SCOPE",
+  "rillRuntimeCompatibilityVerdict": "OUT_OF_SCOPE",
+  "rillFunctionalIntegrationVerdict": "OUT_OF_SCOPE",
+  "evidenceCommits": {
+    "build-metadata.json": "9ba659a",
+    "apk-verification.json": "9ba659a"
+  },
+  "missingEvidence": [],
+  "errors": [],
+  "output": "/var/folders/ng/57pdwsd97zl6qbjwh_sqrts80000gn/T/tmpvk6gswhz/final.json"
+}
+{
+  "scope": "rill",
+  "overallVerdict": "FAIL",
+  "rcVerdict": "FAIL",
+  "evidenceChainVerdict": "PASS",
+  "apkPackagesBuildVerdict": "OUT_OF_SCOPE",
+  "apkExactVerificationVerdict": "OUT_OF_SCOPE",
+  "rillArtifactProvenanceVerdict": "FAIL",
+  "rillRuntimeCompatibilityVerdict": "PASS",
+  "rillFunctionalIntegrationVerdict": "PASS",
+  "evidenceCommits": {
+    "rill-provenance.json": "9ba659a",
+    "rill-runtime.json": "9ba659a",
+    "rill-core-integration.json": "9ba659a"
+  },
+  "missingEvidence": [],
+  "errors": [],
+  "output": "/var/folders/ng/57pdwsd97zl6qbjwh_sqrts80000gn/T/tmp0d83slsi/final.json"
+}
+{
+  "scope": "rill",
+  "overallVerdict": "FAIL",
+  "rcVerdict": "PASS",
+  "evidenceChainVerdict": "FAIL",
+  "apkPackagesBuildVerdict": "OUT_OF_SCOPE",
+  "apkExactVerificationVerdict": "OUT_OF_SCOPE",
+  "rillArtifactProvenanceVerdict": "PASS",
+  "rillRuntimeCompatibilityVerdict": "PASS",
+  "rillFunctionalIntegrationVerdict": "PASS",
+  "evidenceCommits": {
+    "rill-provenance.json": "9ba659a",
+    "rill-runtime.json": "deadbeef",
+    "rill-core-integration.json": "9ba659a"
+  },
+  "missingEvidence": [],
+  "errors": [
+    "evidence produced at different commit than expected 9ba659a: rill-runtime.json=deadbeef"
+  ],
+  "output": "/var/folders/ng/57pdwsd97zl6qbjwh_sqrts80000gn/T/tmp8ose2atp/final.json"
+}
+{
+  "scope": "full",
+  "overallVerdict": "PASS",
+  "rcVerdict": "PASS",
+  "evidenceChainVerdict": "PASS",
+  "apkPackagesBuildVerdict": "PASS",
+  "apkExactVerificationVerdict": "PASS",
+  "rillArtifactProvenanceVerdict": "PASS",
+  "rillRuntimeCompatibilityVerdict": "PASS",
+  "rillFunctionalIntegrationVerdict": "PASS",
+  "evidenceCommits": {
+    "rill-provenance.json": "9ba659a",
+    "rill-runtime.json": "9ba659a",
+    "rill-core-integration.json": "9ba659a",
+    "build-metadata.json": "9ba659a",
+    "apk-verification.json": "9ba659a"
+  },
+  "missingEvidence": [],
+  "errors": [],
+  "output": "/var/folders/ng/57pdwsd97zl6qbjwh_sqrts80000gn/T/tmpd0lrv2r4/final.json"
+}
+{
+  "scope": "rill",
+  "overallVerdict": "FAIL",
+  "rcVerdict": "PASS",
+  "evidenceChainVerdict": "FAIL",
+  "apkPackagesBuildVerdict": "OUT_OF_SCOPE",
+  "apkExactVerificationVerdict": "OUT_OF_SCOPE",
+  "rillArtifactProvenanceVerdict": "PASS",
+  "rillRuntimeCompatibilityVerdict": "PASS",
+  "rillFunctionalIntegrationVerdict": "PASS",
+  "evidenceCommits": {
+    "rill-provenance.json": "9ba659a",
+    "rill-runtime.json": "<missing>",
+    "rill-core-integration.json": "9ba659a"
+  },
+  "missingEvidence": [],
+  "errors": [
+    "evidence file(s) carry no PM commit SHA: rill-runtime.json"
+  ],
+  "output": "/var/folders/ng/57pdwsd97zl6qbjwh_sqrts80000gn/T/tmpd50ppjnu/final.json"
+}
+{
+  "scope": "rill",
+  "overallVerdict": "FAIL",
+  "rcVerdict": "BLOCKED",
+  "evidenceChainVerdict": "FAIL",
+  "apkPackagesBuildVerdict": "OUT_OF_SCOPE",
+  "apkExactVerificationVerdict": "OUT_OF_SCOPE",
+  "rillArtifactProvenanceVerdict": "PASS",
+  "rillRuntimeCompatibilityVerdict": "PASS",
+  "rillFunctionalIntegrationVerdict": "BLOCKED",
+  "evidenceCommits": {
+    "rill-provenance.json": "9ba659a",
+    "rill-runtime.json": "9ba659a"
+  },
+  "missingEvidence": [
+    "rill-core-integration.json"
+  ],
+  "errors": [
+    "missing required per-job evidence: rill-core-integration.json"
+  ],
+  "output": "/var/folders/ng/57pdwsd97zl6qbjwh_sqrts80000gn/T/tmpm9opphoo/final.json"
+}
+{
+  "scope": "rill-runtime",
+  "overallVerdict": "PASS",
+  "rcVerdict": "PASS",
+  "evidenceChainVerdict": "PASS",
+  "apkPackagesBuildVerdict": "OUT_OF_SCOPE",
+  "apkExactVerificationVerdict": "OUT_OF_SCOPE",
+  "rillArtifactProvenanceVerdict": "PASS",
+  "rillRuntimeCompatibilityVerdict": "PASS",
+  "rillFunctionalIntegrationVerdict": "PASS",
+  "evidenceCommits": {
+    "rill-provenance.json": "9ba659a",
+    "rill-runtime.json": "9ba659a"
+  },
+  "missingEvidence": [],
+  "errors": [],
+  "output": "/var/folders/ng/57pdwsd97zl6qbjwh_sqrts80000gn/T/tmpgys7aibm/final.json"
+}
+{
+  "scope": "rill",
+  "overallVerdict": "PASS",
+  "rcVerdict": "PASS",
+  "evidenceChainVerdict": "PASS",
+  "apkPackagesBuildVerdict": "OUT_OF_SCOPE",
+  "apkExactVerificationVerdict": "OUT_OF_SCOPE",
+  "rillArtifactProvenanceVerdict": "PASS",
+  "rillRuntimeCompatibilityVerdict": "PASS",
+  "rillFunctionalIntegrationVerdict": "PASS",
+  "evidenceCommits": {
+    "rill-provenance.json": "9ba659a",
+    "rill-runtime.json": "9ba659a",
+    "rill-core-integration.json": "9ba659a"
+  },
+  "missingEvidence": [],
+  "errors": [],
+  "output": "/var/folders/ng/57pdwsd97zl6qbjwh_sqrts80000gn/T/tmpes_9381m/final.json"
+}
+{
+  "scope": "build",
+  "overallVerdict": "PASS",
+  "rcVerdict": "PASS",
+  "evidenceChainVerdict": "PASS",
+  "apkPackagesBuildVerdict": "PASS",
+  "apkExactVerificationVerdict": "PASS",
+  "rillArtifactProvenanceVerdict": "OUT_OF_SCOPE",
+  "rillRuntimeCompatibilityVerdict": "OUT_OF_SCOPE",
+  "rillFunctionalIntegrationVerdict": "OUT_OF_SCOPE",
+  "evidenceCommits": {
+    "build-metadata.json": "9ba659a",
+    "apk-verification.json": "9ba659a"
+  },
+  "missingEvidence": [],
+  "errors": [],
+  "output": "/var/folders/ng/57pdwsd97zl6qbjwh_sqrts80000gn/T/tmpovbeo684/final.json"
+}
+{
+  "scope": "rill",
+  "overallVerdict": "FAIL",
+  "rcVerdict": "FAIL",
+  "evidenceChainVerdict": "PASS",
+  "apkPackagesBuildVerdict": "OUT_OF_SCOPE",
+  "apkExactVerificationVerdict": "OUT_OF_SCOPE",
+  "rillArtifactProvenanceVerdict": "PASS",
+  "rillRuntimeCompatibilityVerdict": "PASS",
+  "rillFunctionalIntegrationVerdict": "FAIL",
+  "evidenceCommits": {
+    "rill-provenance.json": "9ba659a",
+    "rill-runtime.json": "9ba659a",
+    "rill-core-integration.json": "9ba659a"
+  },
+  "missingEvidence": [],
+  "errors": [],
+  "output": "/var/folders/ng/57pdwsd97zl6qbjwh_sqrts80000gn/T/tmpmj087dlb/final.json"
+}
+.......................................................
+----------------------------------------------------------------------
+Ran 181 tests in 16.173s
+
+OK
+{
+  "overallVerdict": "PASS",
+  "pmCommitSha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "runtimeSha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+  "blocked": [],
+  "failed": [],
+  "output": "/var/folders/ng/57pdwsd97zl6qbjwh_sqrts80000gn/T/tmphbcyzzcx/final-stable-evidence.json"
+}

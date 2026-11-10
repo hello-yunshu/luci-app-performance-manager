@@ -9,6 +9,14 @@ return view.extend({
 		const s = data[0] || {}, t = data[1] || {};
 		const txs = (data[2] && data[2].transactions) || [];
 		const profile = s.profile || {}, rill = s.rill || {}, guard = s.healthGuard || {};
+		/* degraded means "healthy but a recommended package is missing"; an
+		 * unhealthy profile is a different state and must not be labelled
+		 * degraded. */
+		const profileBadge = profile.healthy
+			? (profile.degraded
+				? pu.badge(_('Profile degraded'), 'warning')
+				: pu.badge(_('Profile healthy'), 'success'))
+			: pu.badge(_('Profile unmet'), 'danger');
 		const status = E('div', { 'class': 'pm-status-row' }, [
 			E('span', { 'class': 'pm-status-label' }, [ _('System status') ]),
 			pu.badge(s.running ? _('Running') : _('Stopped'), s.running ? 'success' : 'danger'),
@@ -17,7 +25,7 @@ return view.extend({
 			pu.badge(rill.status || _('Rill Runtime · Collecting')),
 			pu.badge(s.telemetry ? _('Telemetry enabled') : _('Telemetry disabled'), s.telemetry ? 'success' : 'warning'),
 			pu.badge(s.failsafe ? _('Failsafe enabled') : _('Failsafe disabled'), s.failsafe ? 'success' : 'warning'),
-			pu.badge(profile.healthy ? _('Profile healthy') : _('Profile degraded'), profile.healthy ? 'success' : 'warning')
+			profileBadge
 		]);
 		const recentTx = txs[0] || {};
 		return pu.page(_('Performance Manager'), _('See system health, active safeguards, and the latest verified action.'), [
