@@ -3,6 +3,41 @@
   "contract": "rill-integration-status",
   "scope": "PM consumer of external generic Rill Runtime v3",
   "staticContractVerdict": "PASS",
+  "releasePinStructureVerdict": "PASS",
+  "releasePin": {
+    "source": "contracts/rill-runtime.json",
+    "schemaVersion": 1,
+    "commit": "dcfdb9060e41f2bf10b7eff33c042e3ca9646546",
+    "packageRelease": 2,
+    "qualification": {
+      "runId": 38928695476,
+      "verdict": "PASS"
+    },
+    "upstreamCommit": "b990cd7043d313b0ff29c9693f091a94a5bdaf47",
+    "resolvedVersion": "1.5.6"
+  },
+  "releasePinChecks": [
+    {
+      "name": "schemaVersion is 1",
+      "ok": true
+    },
+    {
+      "name": "package commit is a 40-hex SHA-1",
+      "ok": true
+    },
+    {
+      "name": "package release is a positive integer",
+      "ok": true
+    },
+    {
+      "name": "qualification runId is a positive integer and verdict is PASS",
+      "ok": true
+    },
+    {
+      "name": "upstream commit is a 40-hex SHA-1",
+      "ok": true
+    }
+  ],
   "functionalIntegrationVerdict": "NOT_EVALUATED",
   "resolvedRuntime": {
     "version": "1.5.6",
@@ -29,6 +64,10 @@
   "checks": [
     {
       "name": "canonical pinned Runtime contract",
+      "ok": true
+    },
+    {
+      "name": "release pin structure",
       "ok": true
     },
     {

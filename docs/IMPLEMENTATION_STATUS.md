@@ -41,7 +41,7 @@ This repository implements the frozen planning pack v0.3.2 through Phase 12 as a
 - **Outcome rewrite** — `rill_report_outcome()` consumes the live binding, sends the frozen exact field set, validates the real `accepted`, and skips on no-bound/mismatch/stale; benchmark sessions bind real decision fields; unbound apply/rollback sends no outcome.
 - **Status semantics** — `rill_status()` reads real wire fields (drop `releaseVersion` as a wire claim), enforces ok/requestId echo/contract/protocol/capabilities/modelHealth.
 - **Real adapter runtime test rewritten** — `scripts/rill_adapter_runtime.py` drives real status/observe→decisionId→outcome plus a 15-case negative suite; runtime BLOCKED fails the job non-zero.
-- **Evidence false-PASS closed** — `combine_required` (`ANY FAIL→FAIL`, `ALL PASS→PASS`, else `BLOCKED`); per-job evidence (`rill-provenance.json`/`rill-runtime.json`/`rill-core-integration.json`) + `aggregate_final_evidence.py` same-commit aggregator → `final-release-evidence.json`; unified `generate_rill_consumed_manifest.py`; `verify_rill_release.py` contract-driven from `contracts/rill-dependency.json`.
+- **Evidence false-PASS closed** — `combine_required` (`ANY FAIL→FAIL`, `ALL PASS→PASS`, else `BLOCKED`); per-job evidence (`rill-provenance.json`/`rill-runtime.json`/`rill-core-integration.json`) + `aggregate_final_evidence.py` same-commit aggregator → `final-release-evidence.json`; unified `generate_rill_consumed_manifest.py`; `verify_rill_release.py` contract-driven from `contracts/rill-runtime.json`.
 - **Security/correctness** — `shell_quote` drops `|`; Core binary resolver rejects non-absolute/non-present explicit binaries; `RILL_MODEL.md` corrects the false `SO_PEERCRED` claim; tests upgraded to behavior tests of real builder/parser/binding/combiner paths.
 
 ### Historical / Legacy — 1.0.0-rc.6 round (Rill v1.2.0 Stable real integration)
@@ -64,7 +64,7 @@ This repository implements the frozen planning pack v0.3.2 through Phase 12 as a
 - **Conservative auto-tick** — safe-allowlist-only auto-apply through the full transactional chain, health/benchmark/backoff gated.
 - **Honest Rill integration status** — `docs/rill-integration-status.json` reports only `staticContractVerdict`, `releasePinStructureVerdict`, and `functionalIntegrationVerdict=NOT_EVALUATED`; it has no promotable overall feature verdict.
 - **Exact APK verification** (`scripts/verify_apks.py`) via `.PKGINFO` pkgname/pkgver/arch.
-- **CI hardening** — Actions pinned to SHAs; `make audit` failures not swallowed; CA-bundled TLS apk.
+- **CI hardening** — Actions use readable major tags (`@v7`, `@v6`); 40-hex SHAs, `latest`, `HEAD` and `main` refs are forbidden by `scripts/check_action_refs.py`; `make audit` failures not swallowed; CA-bundled TLS apk.
 - **Goal UI honesty** — settings labels measurable vs non-measurable goals.
 - **rc.3 → rc.4 migration** — `uci-defaults/90-performance-manager` sets the new `main.conservative_auto` on the preserved conffile.
 
