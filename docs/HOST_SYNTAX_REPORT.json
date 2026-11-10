@@ -11,11 +11,6 @@
       "output": ""
     },
     {
-      "name": "sh -n package/performance-manager-rill/files/etc/init.d/performance-manager-rill",
-      "status": "pass",
-      "output": ""
-    },
-    {
       "name": "sh -n scripts/openwrt-runtime-smoke.sh",
       "status": "pass",
       "output": ""
@@ -68,11 +63,7 @@
       "status": "pass"
     },
     {
-      "name": "py_compile scripts/build_pm_adapter.py",
-      "status": "pass"
-    },
-    {
-      "name": "py_compile scripts/build_pm_provenance.py",
+      "name": "py_compile scripts/build_local_validation_report.py",
       "status": "pass"
     },
     {
@@ -81,6 +72,10 @@
     },
     {
       "name": "py_compile scripts/check_action_refs.py",
+      "status": "pass"
+    },
+    {
+      "name": "py_compile scripts/check_rill_dependency.py",
       "status": "pass"
     },
     {
@@ -100,10 +95,6 @@
       "status": "pass"
     },
     {
-      "name": "py_compile scripts/generate_rill_consumed_manifest.py",
-      "status": "pass"
-    },
-    {
       "name": "py_compile scripts/host_syntax_check.py",
       "status": "pass"
     },
@@ -112,7 +103,15 @@
       "status": "pass"
     },
     {
+      "name": "py_compile scripts/package_composition_gate.py",
+      "status": "pass"
+    },
+    {
       "name": "py_compile scripts/pin_feeds.py",
+      "status": "pass"
+    },
+    {
+      "name": "py_compile scripts/po_parser.py",
       "status": "pass"
     },
     {
@@ -120,11 +119,11 @@
       "status": "pass"
     },
     {
-      "name": "py_compile scripts/resource_budget.py",
+      "name": "py_compile scripts/production_core_rill_integration.py",
       "status": "pass"
     },
     {
-      "name": "py_compile scripts/rill_adapter_runtime.py",
+      "name": "py_compile scripts/resource_budget.py",
       "status": "pass"
     },
     {
@@ -132,11 +131,11 @@
       "status": "pass"
     },
     {
-      "name": "py_compile scripts/rill_core_roundtrip.py",
+      "name": "py_compile scripts/rill_runtime_v3_integration.py",
       "status": "pass"
     },
     {
-      "name": "py_compile scripts/rill_runtime_harness.py",
+      "name": "py_compile scripts/smart_decision_model.py",
       "status": "pass"
     },
     {
@@ -145,6 +144,10 @@
     },
     {
       "name": "py_compile scripts/stage_all_in_one_release.py",
+      "status": "pass"
+    },
+    {
+      "name": "py_compile scripts/stage_bundled_runtime.py",
       "status": "pass"
     },
     {
@@ -168,7 +171,11 @@
       "status": "pass"
     },
     {
-      "name": "py_compile scripts/verify_rill_release.py",
+      "name": "py_compile scripts/verify_public_release_assets.py",
+      "status": "pass"
+    },
+    {
+      "name": "py_compile scripts/verify_release_inventory.py",
       "status": "pass"
     },
     {
@@ -181,6 +188,10 @@
     },
     {
       "name": "YAML parse ci.yml",
+      "status": "pass"
+    },
+    {
+      "name": "YAML parse hardware-validation.yml",
       "status": "pass"
     },
     {
@@ -197,6 +208,10 @@
     },
     {
       "name": "YAML parse stable-target-matrix.yml",
+      "status": "pass"
+    },
+    {
+      "name": "YAML parse sync-rill.yml",
       "status": "pass"
     },
     {

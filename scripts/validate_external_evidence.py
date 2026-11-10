@@ -35,8 +35,9 @@ GATE_CHECKS = {
                    "policyPreserved", "firmwareUpgradeProven", "exactRuntimeAfterUpgrade", "noUnsafePendingMutation", "coreStartedClean"],
     "lifecycle": ["install", "serviceStart", "restart", "upgradeReinstall", "configPreserved",
                   "rillOptional", "uninstallCleanup", "reinstall", "noStaleState"],
-    "resource-soak": ["exactPackagesInstalled", "rillPresent", "sampledResources", "noCoreRestart", "noRillRestart",
+    "resource-soak": ["exactPackagesInstalled", "rillPresent", "sampledResources", "noCoreRestart",
                       "idleObserveZero", "idleRuntimePersistenceZero", "idleJournalWritesZero",
+                      "runtimeInvocationHealthy", "runtimeFailureZero", "runtimeStateBounded",
                       "journalMeasured", "stateBoundsPass", "historyBoundsPass"],
 }
 RILL_GATES = set(GATE_CHECKS) - {"target-core-only"}
@@ -50,12 +51,14 @@ ALL_IN_ONE_PAYLOAD = CORE_PAYLOAD + (
     "/usr/share/luci/menu.d/luci-app-performance-manager.json",
     "/www/luci-static/resources/view/performance-manager/overview.js",
     "/usr/lib/lua/luci/i18n/performance-manager.zh-cn.lmo",
+    "/usr/bin/rill-runtime",
+    "/lib/upgrade/keep.d/performance-manager-rill",
 )
 
 RESOURCE_METRICS = (
-    "coreRssKiB", "rillRssKiB", "bindingHighWater", "interventionRequiredCount",
+    "coreRssKiB", "coreMeanCpuPercent", "corePersistentWritesPerDay", "bindingHighWater", "interventionRequiredCount",
     "persistentHistoryGrowthBytes", "executionJournalFileCount", "executionJournalBytes",
-    "retiredExecutionCount", "activeExecutionCount", "executingExecutionCount",
+    "retiredExecutionCount", "activeExecutionCount", "executingExecutionCount", "runtimeStateMaxBytes",
 )
 
 
@@ -157,7 +160,10 @@ def _package_layout_ok(packages: dict[str, Any], gate: str) -> bool:
         return present == {"performance-manager"}
     if gate == "lifecycle":
         return True
-    return present == {PRIMARY_PACKAGE, RUNTIME_PACKAGE}
+    # The full package owns the Runtime binary, so a hardware run may install
+    # only the user-facing APK. Keep accepting the split layout for legacy
+    # evidence and developer migration runs.
+    return present in ({PRIMARY_PACKAGE}, {PRIMARY_PACKAGE, RUNTIME_PACKAGE})
 
 
 def evaluate_raw_facts(raw: dict[str, Any], gate: str) -> dict[str, bool]:
@@ -274,12 +280,12 @@ def evaluate_raw_facts(raw: dict[str, Any], gate: str) -> dict[str, bool]:
             "serviceStart": _nonempty_string(split_runtime.get("corePid")) or (isinstance(split_runtime.get("corePid"), int) and split_runtime.get("corePid") > 0),
             "restart": _nonempty_string(bundle_runtime.get("corePid")) or (isinstance(bundle_runtime.get("corePid"), int) and bundle_runtime.get("corePid") > 0),
             "upgradeReinstall": _exit_ok(migration.get("removeExitCode")) and _exit_ok(migration.get("installBundleExitCode"))
-                and bundle_names == {PRIMARY_PACKAGE, RUNTIME_PACKAGE},
+                and bundle_names in ({PRIMARY_PACKAGE}, {PRIMARY_PACKAGE, RUNTIME_PACKAGE}),
             "configPreserved": _sha(split.get("configSha256")) and _sha(bundle_runtime.get("configSha256"))
                 and split.get("configSha256") == bundle_runtime.get("configSha256"),
             "rillOptional": split_runtime.get("ubusReady") is True and bundle_runtime.get("ubusReady") is True,
             "uninstallCleanup": _exit_ok(uninstall.get("exitCode")) and uninstall.get("remainingOwnedPaths") == [],
-            "reinstall": _exit_ok(reinstall.get("exitCode")) and _dict(reinstall.get("installedPackages")).keys() == {PRIMARY_PACKAGE, RUNTIME_PACKAGE}
+            "reinstall": _exit_ok(reinstall.get("exitCode")) and set(_dict(reinstall.get("installedPackages")).keys()) in ({PRIMARY_PACKAGE}, {PRIMARY_PACKAGE, RUNTIME_PACKAGE})
                 and reinstall.get("ubusReady") is True,
             "noStaleState": uninstall.get("staleLocks") == 0 and uninstall.get("stalePending") == 0
                 and uninstall.get("staleSockets") == 0,
@@ -292,13 +298,22 @@ def evaluate_raw_facts(raw: dict[str, Any], gate: str) -> dict[str, bool]:
             "rillPresent": soak.get("rillPresent") is True,
             "sampledResources": soak.get("sampleCount", 0) > 0 and metrics_valid,
             "noCoreRestart": soak.get("coreRestartCount") == 0,
-            "noRillRestart": soak.get("rillRestartCount") == 0,
             "idleObserveZero": soak.get("idleRillObserveAcceptedDelta") == 0,
             "idleRuntimePersistenceZero": soak.get("idleExpectedRuntimePersistenceEventsDelta") == 0,
             "idleJournalWritesZero": soak.get("idlePendingOutcomeJournalWrites") == 0 and soak.get("executingJournalDelta") == 0,
+            "runtimeInvocationHealthy": soak.get("runtimeInvocationCount", 0) > 0
+                and soak.get("runtimeSuccessfulInvocationCount", 0) > 0
+                and soak.get("runtimeSuccessfulInvocationCount", 0) <= soak.get("runtimeInvocationCount", -1),
+            "runtimeFailureZero": soak.get("runtimeInvocationFailureCount") == 0
+                and soak.get("runtimeTimeoutCount") == 0
+                and soak.get("runtimeMalformedResponseCount") == 0
+                and soak.get("runtimeNonZeroExitCount") == 0,
+            "runtimeStateBounded": metrics_valid and resources["runtimeStateMaxBytes"] <= 4194304,
             "journalMeasured": metrics_valid and resources["executionJournalFileCount"] <= 128
                 and resources["executionJournalBytes"] <= 2097152 and resources["retiredExecutionCount"] <= 64,
-            "stateBoundsPass": metrics_valid and resources["coreRssKiB"] <= 65536 and resources["rillRssKiB"] <= 98304
+            "stateBoundsPass": metrics_valid and resources["coreRssKiB"] <= 65536
+                and resources["coreMeanCpuPercent"] <= 5.0
+                and resources["corePersistentWritesPerDay"] <= 32
                 and resources["bindingHighWater"] <= 64 and resources["interventionRequiredCount"] == 0
                 and resources["activeExecutionCount"] >= resources["executingExecutionCount"],
             "historyBoundsPass": metrics_valid and resources["persistentHistoryGrowthBytes"] <= 262144,
@@ -410,6 +425,10 @@ def _sha(value: Any) -> bool:
 def _artifact_errors(data: dict[str, Any], gate: str, build: dict[str, Any] | None,
                      apk_report: dict[str, Any] | None) -> list[str]:
     errors: list[str] = []
+    full_build = (build or {}).get("fullPackage") or {}
+    full_report = ((apk_report or {}).get("packages") or {}).get(PRIMARY_PACKAGE) or {}
+    bundled_runtime = full_build.get("runtimeBundled") is True or \
+        (full_report.get("runtimeBinary") or {}).get("matchesSplitRuntime") is True
     build_artifacts = data.get("buildArtifacts")
     installed_artifacts = data.get("installedArtifacts")
     if not isinstance(build_artifacts, dict):
@@ -432,8 +451,10 @@ def _artifact_errors(data: dict[str, Any], gate: str, build: dict[str, Any] | No
             elif gate != "lifecycle" and name not in {PRIMARY_PACKAGE, RUNTIME_PACKAGE}:
                 if rec not in (None, "not-installed"):
                     errors.append(f"installedArtifacts.{name} must be absent")
-            elif gate != "lifecycle" and name == RUNTIME_PACKAGE:
+            elif gate != "lifecycle" and name == RUNTIME_PACKAGE and not bundled_runtime:
                 errors.append(f"installedArtifacts.{name} missing")
+            elif gate != "lifecycle" and name == RUNTIME_PACKAGE and bundled_runtime:
+                pass
             elif gate != "lifecycle":
                 errors.append(f"installedArtifacts.{name} missing")
             continue
@@ -501,7 +522,8 @@ def validate_evidence(data: Any, gate: str, expected_commit: str, *, require_ril
         errors.append(f"schema missing for {gate}")
     else:
         errors.extend(_schema_errors(data, json.loads(schema_path.read_text()), schema_path.parent))
-    if data.get("schemaVersion") != 1 or data.get("gate") != gate:
+    expected_schema_version = 2 if gate == "resource-soak" else 1
+    if data.get("schemaVersion") != expected_schema_version or data.get("gate") != gate:
         errors.append(f"schemaVersion/gate mismatch ({data.get('schemaVersion')!r}, {data.get('gate')!r})")
     if data.get("pmCommitSha") != expected_commit:
         errors.append(f"pmCommitSha={data.get('pmCommitSha')!r}")
@@ -569,6 +591,9 @@ def validate_evidence(data: Any, gate: str, expected_commit: str, *, require_ril
         if int(data.get("durationSeconds", 0)) < 86400 or int(soak.get("sampleCount", 0)) <= 0:
             errors.append("24h soak duration/sample evidence invalid")
         for key in ("idleRillObserveAcceptedDelta", "idleExpectedRuntimePersistenceEventsDelta", "idlePendingOutcomeJournalWrites"):
+            if soak.get(key) != 0:
+                errors.append(f"soak {key} must be zero")
+        for key in ("runtimeInvocationFailureCount", "runtimeTimeoutCount", "runtimeMalformedResponseCount", "runtimeNonZeroExitCount"):
             if soak.get(key) != 0:
                 errors.append(f"soak {key} must be zero")
     return errors

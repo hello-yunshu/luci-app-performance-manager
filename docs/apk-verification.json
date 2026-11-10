@@ -1,4 +1,6 @@
 {
+  "historicalOnly": true,
+  "evidenceStatus": "historical-only",
   "schemaVersion": 1,
   "contract": "apk-exact-verification",
   "expectedVersion": "1.0.0_rc5",

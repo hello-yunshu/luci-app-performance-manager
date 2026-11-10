@@ -21,7 +21,7 @@ const RILL_RUNTIME_API_VERSION = 3;
 const RILL_RUNTIME_CAPABILITIES = [ 'org.rill.preview.decide', 'org.rill.preview.feedback' ];
 const RILL_STATES = { disabled: 'disabled', notProvisioned: 'not-provisioned', binaryInvalid: 'binary-invalid', starting: 'starting', available: 'available', learning: 'learning', incompatible: 'incompatible', unhealthy: 'unhealthy', unavailable: 'unavailable' };
 const RILL_BINDINGS_SCHEMA_VERSION = 2;
-const RILL_EXECUTION_SCHEMA_VERSION = 1;
+const RILL_EXECUTION_SCHEMA_VERSION = 2;
 const RILL_BINDINGS_MAX = 64;
 const RILL_EXECUTION_JOURNAL_MAX_FILES = 128;
 const RILL_EXECUTION_JOURNAL_MAX_BYTES = 2097152;
@@ -29,14 +29,27 @@ const RETIRED_EXECUTION_RETENTION_MAX = 64;
 const RILL_EXECUTION_TERMINAL_STATES = [ 'retired-no-valid-outcome', 'retired-restored-after-failure', 'intervention-required', 'retired-abandoned' ];
 const RILL_BINDINGS_TTL_MS = 3600000;
 const RILL_ADVISORY_TTL_MS = 3600000;
-const RILL_MODEL_GENERATION = 1;
+const RILL_MODEL_GENERATION = 2;
 const RILL_OBSERVE_MIN_INTERVAL_MS = 30000;
 const RILL_RESOLVED_VERSION = '1.5.6';
-const RILL_FEATURE_SCHEMA_HASH = '1a131fcbc7cadf0b251c241ace8d6d293bd1027bf8e43db81e0b4a771d8924a4';
+const RILL_FEATURE_SCHEMA_HASH = '925778554fc142043e49e3097ed94baa9fa4b2de251493ba62b96ea55c176557';
 const GOALS = [ 'balanced', 'throughput', 'latency', 'cpu_efficiency' ];
-/* Only throughput A/B is measurable with the current iperf3 methodology.
- * Other goals fail-closed rather than silently degrading to throughput. */
-const GOAL_MEASURABLE = { balanced: 'throughput', throughput: 'throughput', latency: null, cpu_efficiency: null };
+const SMART_STATE_SCHEMA_VERSION = 3;
+const SMART_FEATURE_SCHEMA_VERSION = 2;
+const SMART_MIN_VALIDATED_SAMPLES = 8;
+const SMART_WARMING_SAMPLES = 3;
+const SMART_DRIFT_RECOVERY_SAMPLES = 3;
+const SMART_FEATURE_NAMES = [
+	'is_noop', 'is_safe_direct', 'is_benchmark', 'risk_level', 'action_available',
+	'action_delta_normalized', 'affects_nic', 'affects_network_stack', 'affects_cpu',
+	'affects_fastpath', 'traffic_utilization', 'pps_pressure', 'drop_error_pressure',
+	'cpu_load', 'softirq_pressure', 'queue_pressure', 'memory_pressure',
+	'recent_reward_mean', 'recent_success_rate', 'negative_streak'
+];
+/* All four goals use the same controlled-A/B lifecycle, but each goal still
+ * requires its own evidence components; missing latency/CPU data fails closed
+ * rather than silently degrading to throughput. */
+const GOAL_MEASURABLE = { balanced: 'controlled_ab', throughput: 'controlled_ab', latency: 'controlled_ab', cpu_efficiency: 'controlled_ab' };
 
 let topology_generation = 1;
 let topology_cache = null;
@@ -70,7 +83,13 @@ let rill_runtime_counters = {
 	rillOutcomeSentUnknown: 0,
 	rillOutcomeRecoveredAfterCoreRestart: 0,
 	rillOutcomeRecoveredAfterBoot: 0,
-	rillBindingHighWater: 0
+	rillBindingHighWater: 0,
+	runtimeInvocationCount: 0,
+	runtimeSuccessfulInvocationCount: 0,
+	runtimeInvocationFailureCount: 0,
+	runtimeTimeoutCount: 0,
+	runtimeMalformedResponseCount: 0,
+	runtimeNonZeroExitCount: 0
 };
 let conn = ubusmod.connect();
 if (!conn) {
@@ -194,6 +213,57 @@ function json_read(path, fallback) {
 	}
 }
 
+function json_compact(value) {
+	/* Rust serde_json (used by the generic Runtime) emits compact JSON.  The
+	 * OpenWrt ucode %J formatter inserts insignificant whitespace, so remove
+	 * it only outside quoted strings before hashing; spaces in IDs or state
+	 * payloads remain part of the checksum input. */
+	let raw = sprintf('%J', value), out = '', quoted = false, escaped = false;
+	for (let i = 0; i < length(raw); i++) {
+		let ch = substr(raw, i, 1);
+		if (quoted) {
+			out += ch;
+			if (escaped) escaped = false;
+			else if (ch == '\\') escaped = true;
+			else if (ch == '"') quoted = false;
+		} else if (ch == '"') {
+			quoted = true;
+			out += ch;
+		} else if (ch != ' ' && ch != '\n' && ch != '\r' && ch != '\t') {
+			out += ch;
+		}
+	}
+	return out;
+}
+
+function rill_state_checksum(snapshot) {
+	let h = snapshot.handlerSnapshot ?? {}, handler = {
+		stateSchemaVersion: h.stateSchemaVersion, stateGeneration: h.stateGeneration,
+		state: h.state, checksumSha256: h.checksumSha256
+	};
+	let canonical_entry = function(entry) {
+		let out = { decisionId: entry.decisionId, modelGeneration: entry.modelGeneration,
+			stateGeneration: entry.stateGeneration, createdAtUnixMs: entry.createdAtUnixMs };
+		if (entry.selectedActionId != null) out.selectedActionId = entry.selectedActionId;
+		if (entry.selectedActionFeatures != null) out.selectedActionFeatures = entry.selectedActionFeatures;
+		if (entry.reward != null) out.reward = entry.reward;
+		if (entry.outcomeTimeUnixMs != null) out.outcomeTimeUnixMs = entry.outcomeTimeUnixMs;
+		return out;
+	};
+	let canonical_map = function(input) {
+		let out = {}, names = keys(input ?? {});
+		sort(names);
+		for (let name in names) out[name] = canonical_entry(input[name]);
+		return out;
+	};
+	let wire = json_compact([ handler, canonical_map(snapshot.pendingDecisions), canonical_map(snapshot.completedDecisions) ]);
+	let p = fs.popen(`printf '%s' ${shell_quote(wire)} | sha256sum`, 'r');
+	if (!p) return null;
+	let out = trimstr(p.read('all') ?? ''), rc = p.close() ?? 127;
+	if (rc != 0) return null;
+	return split(out, /\s+/)[0] ?? null;
+}
+
 function note_persistent_write(path, bytes) {
 	let root=persist_dir();
 	if (path == root || substr(path,0,length(root)+1) == `${root}/`) {
@@ -214,6 +284,227 @@ function json_write(path, obj) {
 	if (mv.rc != 0) { fs.unlink(tmp); return false; }
 	note_persistent_write(path,length(wire));
 	return true;
+}
+
+/* Smart Decision v2 is intentionally a small Core-owned policy layer.  The
+ * generic Runtime only ranks opaque action vectors; legality, learning stage,
+ * confidence, cooldown and drift remain here so the learner never gains an
+ * actuator or policy authority.  State is bounded JSON, updated only by
+ * terminal/validated events rather than by telemetry ticks. */
+function smart_state_path() {
+	return `${persist_dir()}/rill/smart-state-v2.json`;
+}
+
+function smart_state_load() {
+	let state = json_read(smart_state_path(), null);
+	if (type(state) != 'object' || type(state.contexts) != 'object')
+		return { schemaVersion: SMART_STATE_SCHEMA_VERSION, contexts: {} };
+	/* v2 keyed action history by business action.  There is no safe way to
+	 * assign that history to one of several targets/paths, so retain only the
+	 * context-level distribution and intentionally reset candidate history. */
+	if (state.schemaVersion == 2) {
+		let migrated = { schemaVersion: SMART_STATE_SCHEMA_VERSION, contexts: {} };
+		for (let context_key in keys(state.contexts)) {
+			let old = state.contexts[context_key] ?? {};
+			migrated.contexts[context_key] = {
+				goal: old.goal ?? 'balanced', validatedSamples: old.validatedSamples ?? 0,
+				ewmaReward: old.ewmaReward ?? 0, rewardMean: old.rewardMean ?? 0,
+				rewardM2: old.rewardM2 ?? 0, recentRewards: old.recentRewards ?? [],
+				drifted: old.drifted === true, driftRecoverySamples: old.driftRecoverySamples ?? 0,
+				actions: {}
+			};
+		}
+		return migrated;
+	}
+	if (state.schemaVersion != SMART_STATE_SCHEMA_VERSION)
+		return { schemaVersion: SMART_STATE_SCHEMA_VERSION, contexts: {} };
+	return state;
+}
+
+function smart_state_save(state) {
+	return json_write(smart_state_path(), state);
+}
+
+function smart_num(v, fallback) {
+	let t = type(v);
+	/* ucode has no portable isfinite() across the supported OpenWrt builds.
+	 * Reject NaN and IEEE infinity explicitly; all product-level numbers are
+	 * bounded well below this finite sentinel. */
+	return (t == 'int' || t == 'double') && v == v && v <= 1e308 && v >= -1e308 ? +v : fallback;
+}
+
+function smart_abs(v) {
+	return v < 0 ? -v : v;
+}
+
+function smart_float_cfg(key, fallback) {
+	let v = +cfg(key, `${fallback}`);
+	return (v == v && v >= 0) ? v : fallback;
+}
+
+function smart_clamp(v, low, high) {
+	return min(high, max(low, smart_num(v, low)));
+}
+
+function smart_action_family(action_id) {
+	let prefix = split(`${action_id ?? ''}`, '.')[0];
+	if (prefix == 'pm') return 'noop';
+	if (prefix == 'nic') return 'nic';
+	if (prefix == 'network' || prefix == 'tcp') return 'network-stack';
+	if (prefix == 'netdev' || prefix == 'qdisc') return 'queue';
+	if (prefix == 'cpu') return 'cpu';
+	if (prefix == 'fastpath') return 'fastpath';
+	return 'service';
+}
+
+function smart_business_action_id(candidate_id) {
+	let text = `${candidate_id ?? ''}`, at = index(text, '@');
+	return at >= 0 ? substr(text, 0, at) : text;
+}
+
+function smart_candidate_identity(action) {
+	if (!action || action.id == 'pm.noop') return 'pm.noop';
+	let paths = map(action.evaluationPaths ?? action.affectedPaths ?? [], function(path) { return `${path}`; });
+	sort(paths);
+	/* Runtime IDs are opaque and bounded. Stable target/path digests keep two
+	 * instances of the same business Action distinct without leaking a
+	 * runtime-only interface name or a shell command into the protocol. */
+	return `${action.id}@target=${fnv1a32(action.applyTarget ?? '')}|path=${fnv1a32(join(',', paths))}`;
+}
+
+function rill_context_scope(paths) {
+	let rows = [];
+	for (let path_id in paths ?? []) {
+		let path = type(path_id) == 'object' ? path_id : primary_path(path_id);
+		if (path && path.id != 'path:local-endpoint') push(rows, `${path.id}|${path.routeIdentity ?? 'unresolved'}`);
+	}
+	sort(rows);
+	return { pathId: stable_list_hash('paths', rows), routeIdentity: stable_list_hash('routes', rows), rows: rows };
+}
+
+function active_selector_mode() {
+	return cfg('main.automation', 'conservative') == 'assisted' ? 'assisted' : 'conservative';
+}
+
+function smart_risk_level(risk) {
+	if (risk == 'safe') return 0.2;
+	if (risk == 'benchmark') return 0.7;
+	if (risk == 'unsafe') return 1.0;
+	return 0.0;
+}
+
+function smart_context_stats(context_key, candidate_id, create) {
+	let state = smart_state_load(), ctx = state.contexts[context_key];
+	if (!ctx && create) {
+		ctx = { goal: goal(), validatedSamples: 0, ewmaReward: 0, rewardMean: 0, rewardM2: 0,
+			recentRewards: [], drifted: false, driftRecoverySamples: 0, actions: {} };
+		state.contexts[context_key] = ctx;
+	}
+	let stats = ctx?.actions?.[candidate_id];
+	if (!stats && create && ctx) {
+		stats = { attemptCount: 0, successCount: 0, failureCount: 0, rollbackCount: 0, validatedOutcomeCount: 0,
+			candidateId: candidate_id, businessActionId: smart_business_action_id(candidate_id), recentRewards: [],
+			recentRewardMean: 0, negativeStreak: 0, lastExecution: null, cooldownUntil: 0, cooldownReason: null };
+		ctx.actions[candidate_id] = stats;
+	}
+	return { state: state, context: ctx, stats: stats };
+}
+
+function smart_learning_stage(context_key, confidence) {
+	let row = smart_context_stats(context_key, '', false), ctx = row.context;
+	if (!ctx) return { stage: 'cold', validatedSamples: 0, drifted: false, confidence: confidence };
+	let min_samples = max(3, int_cfg('main.min_validated_samples', SMART_MIN_VALIDATED_SAMPLES));
+	let c = smart_num(confidence, 0);
+	let stage = ctx.drifted === true ? 'drifted' : ((ctx.validatedSamples ?? 0) < SMART_WARMING_SAMPLES ? 'cold' : ((ctx.validatedSamples ?? 0) < min_samples || c < 0.65 ? 'warming' : 'ready'));
+	return { stage: stage, validatedSamples: ctx.validatedSamples ?? 0, drifted: ctx.drifted === true, confidence: c,
+		minimumSamples: min_samples, driftRecoverySamples: ctx.driftRecoverySamples ?? 0 };
+}
+
+function smart_cooldown_state(context_key, candidate_id) {
+	let row = smart_context_stats(context_key, candidate_id, false), s = row.stats;
+	if (!s) return { active: false, until: 0, reason: null };
+	let until = smart_num(s.cooldownUntil, 0);
+	return { active: until > monotonic_ms(), until: until, reason: until > monotonic_ms() ? (s.cooldownReason ?? 'action-cooldown') : null };
+}
+
+function smart_record_validated_outcome(context_key, goal_id, candidate_id, reward, components, measurement_quality, health_regressed) {
+	/* Only controlled A/B with complete, health-clean evidence changes learning.
+	 * Passive and health-only observations are intentionally not labels. */
+	if (measurement_quality != 'controlled_ab' || health_regressed === true || smart_num(reward, null) == null) return false;
+	let row = smart_context_stats(context_key, candidate_id, true), ctx = row.context, stats = row.stats, value = smart_num(reward, null);
+	if (!ctx || !stats || value == null) return false;
+	stats.validatedOutcomeCount = (stats.validatedOutcomeCount ?? 0) + 1;
+	ctx.validatedSamples = (ctx.validatedSamples ?? 0) + 1;
+	let n = ctx.validatedSamples, old_mean = smart_num(ctx.rewardMean, 0), delta = value - old_mean;
+	ctx.rewardMean = old_mean + delta / n;
+	ctx.rewardM2 = smart_num(ctx.rewardM2, 0) + delta * (value - ctx.rewardMean);
+	ctx.goal = goal_id; ctx.lastReward = value; ctx.lastRewardComponents = components ?? {};
+	ctx.lastOutcome = { candidateId: candidate_id, businessActionId: smart_business_action_id(candidate_id), reward: value, components: components ?? {}, measurementQuality: measurement_quality, validated: true };
+	ctx.ewmaReward = n == 1 ? value : 0.25 * value + 0.75 * smart_num(ctx.ewmaReward, 0);
+	push(ctx.recentRewards, value);
+	while (length(ctx.recentRewards) > 8) shift(ctx.recentRewards);
+	let recent_mean = 0;
+	for (let r in ctx.recentRewards) recent_mean += r;
+	recent_mean = length(ctx.recentRewards) ? recent_mean / length(ctx.recentRewards) : 0;
+	let variance = n > 1 ? smart_num(ctx.rewardM2, 0) / (n - 1) : 0;
+	let threshold = max(0.05, smart_float_cfg('main.performance_drift_threshold', 0.20));
+	let deviation = smart_abs(recent_mean - smart_num(ctx.ewmaReward, 0));
+	if (n >= max(3, int_cfg('main.min_validated_samples', SMART_MIN_VALIDATED_SAMPLES)) && deviation > max(threshold, 2 * sqrt(max(0, variance)))) {
+		ctx.drifted = true; ctx.driftRecoverySamples = 0;
+	}
+	if (ctx.drifted === true) {
+		ctx.driftRecoverySamples = (ctx.driftRecoverySamples ?? 0) + 1;
+		if (ctx.driftRecoverySamples >= max(1, int_cfg('main.drift_recovery_samples', SMART_DRIFT_RECOVERY_SAMPLES)) && deviation <= max(threshold, 2 * sqrt(max(0, variance)))) {
+			ctx.drifted = false; ctx.driftRecoverySamples = 0;
+		}
+	}
+	push(stats.recentRewards, value);
+	while (length(stats.recentRewards) > 8) shift(stats.recentRewards);
+	let candidate_mean = 0;
+	for (let r in stats.recentRewards) candidate_mean += r;
+	stats.recentRewardMean = length(stats.recentRewards) ? candidate_mean / length(stats.recentRewards) : 0;
+	stats.negativeStreak = value < 0 ? (stats.negativeStreak ?? 0) + 1 : 0;
+	stats.lastExecution = monotonic_ms();
+	let base = max(60, int_cfg('main.action_cooldown_base_seconds', 600));
+	stats.cooldownUntil = monotonic_ms() + (value < 0 ? 1800 : base) * 1000;
+	stats.cooldownReason = value < 0 ? 'negative-reward' : 'validated-success';
+	while (length(keys(ctx.actions)) > 32) delete ctx.actions[keys(ctx.actions)[0]];
+	while (length(keys(state.contexts)) > 32) delete state.contexts[keys(state.contexts)[0]];
+	return smart_state_save(state);
+}
+
+function smart_record_action_event(context_key, candidate_id, event) {
+	if (!length(context_key ?? '') || candidate_id == 'pm.noop') return false;
+	let row = smart_context_stats(context_key, candidate_id, true), stats = row.stats;
+	if (!stats) return false;
+	stats.attemptCount = (stats.attemptCount ?? 0) + 1;
+	let now = monotonic_ms(), base = max(60, int_cfg('main.action_cooldown_base_seconds', 600));
+	if (event == 'success') { stats.successCount = (stats.successCount ?? 0) + 1; stats.negativeStreak = 0; stats.cooldownUntil = now + base * 1000; stats.cooldownReason = 'success-debounce'; }
+	else if (event == 'rollback') { stats.rollbackCount = (stats.rollbackCount ?? 0) + 1; stats.failureCount = (stats.failureCount ?? 0) + 1; stats.negativeStreak = (stats.negativeStreak ?? 0) + 1; stats.cooldownUntil = now + max(3600, base) * 1000; stats.cooldownReason = 'health-regression-rollback'; }
+	else { stats.failureCount = (stats.failureCount ?? 0) + 1; stats.negativeStreak = (stats.negativeStreak ?? 0) + 1; stats.cooldownUntil = now + min(21600, base * max(2, 2 ** min(5, stats.negativeStreak))) * 1000; stats.cooldownReason = 'execution-failure'; }
+	stats.lastExecution = now;
+	return smart_state_save(row.state);
+}
+
+function smart_feature_vector(action, index, total, telemetry, context_key) {
+	let candidate_id = smart_candidate_identity(action), family = smart_action_family(action.id), stats = smart_context_stats(context_key, candidate_id, false).stats;
+	let scoped = null;
+	for (let path_id in action.evaluationPaths ?? []) if (telemetry?.pathFeatures?.[path_id]?.available === true) { scoped = telemetry.pathFeatures[path_id]; break; }
+	let observed = scoped ?? telemetry;
+	let risk = smart_risk_level(action.risk);
+	return [
+		action.id == 'pm.noop' ? 1 : 0, action.executionAuthority == 'safe-direct' ? 1 : 0,
+		action.executionAuthority == 'benchmark' ? 1 : 0, risk, action.available === false ? 0 : 1,
+		action.id == 'pm.noop' ? 0 : (action.executionAuthority == 'benchmark' ? 0.25 : 0.5),
+		family == 'nic' ? 1 : 0, (family == 'network-stack' || family == 'queue') ? 1 : 0,
+		family == 'cpu' ? 1 : 0, family == 'fastpath' ? 1 : 0,
+		smart_clamp(smart_num(observed?.trafficUtilization, 0), 0, 1), smart_clamp(smart_num(observed?.ppsPressure, 0), 0, 1),
+		smart_clamp(smart_num(observed?.dropErrorPressure, 0), 0, 1), smart_clamp(smart_num(telemetry?.cpuBusyInterval, 0), 0, 1),
+		smart_clamp(smart_num(telemetry?.softirqPressure, 0), 0, 1), smart_clamp(smart_num(telemetry?.queuePressure, 0), 0, 1),
+		smart_clamp(smart_num(telemetry?.memoryPressure, 0), 0, 1),
+		smart_clamp(stats?.recentRewardMean ?? 0, -1, 1), smart_clamp((stats?.successCount ?? 0) / max(1, stats?.attemptCount ?? 1), 0, 1),
+		smart_clamp((stats?.negativeStreak ?? 0) / 3, 0, 1)
+	];
 }
 
 function append_line(path, obj) {
@@ -890,12 +1181,23 @@ function cpu_stat() {
 	for (let row in lines)
 		if (match(row, /^cpu[0-9]+\s/)) count++;
 	if (length(p) < 9)
-		return { stealPct: 0, total: 0, count: max(1, count) };
+		return { stealPct: 0, busyPct: 0, total: 0, idle: 0, count: max(1, count) };
 	let nums = map(slice(p, 1), function(x) { return +x; });
-	let total = 0;
+	let total = 0, idle = (nums[3] ?? 0) + (nums[4] ?? 0);
 	for (let n in nums) total += n;
 	let steal = nums[7] ?? 0;
-	return { stealPct: total > 0 ? steal / total : 0, total: total, count: max(1, count) };
+	return { stealPct: total > 0 ? steal / total : 0, busyPct: total > 0 ? max(0, total - idle) / total : 0, total: total, idle: idle, count: max(1, count) };
+}
+
+function cpu_interval(start, finish) {
+	if (!start || !finish) return { valid: false, reason: 'cpu-window-missing' };
+	let total_delta = smart_num(finish.total, -1) - smart_num(start.total, -1);
+	let busy_delta = (smart_num(finish.total, -1) - smart_num(finish.idle, -1)) -
+		(smart_num(start.total, -1) - smart_num(start.idle, -1));
+	if (total_delta <= 0 || busy_delta < 0) return { valid: false, reason: 'cpu-window-nonpositive-delta' };
+	let busy = 1.0 * busy_delta / total_delta;
+	if (busy != busy || busy < 0 || busy > 1) return { valid: false, reason: 'cpu-window-invalid' };
+	return { valid: true, busyInterval: busy, totalDelta: total_delta, busyDelta: busy_delta };
 }
 
 function service_running(name) {
@@ -1157,6 +1459,7 @@ function tx_new(action, execution_source, rill_decision) {
 	let id = sprintf('tx-%s-%d-%d', substr(boot_id(), 0, 8), monotonic_ms(), tx_counter);
 	return {
 		schemaVersion: 2, transactionId: id, state: 'planned', actionId: action.id,
+		candidateId: smart_candidate_identity(action), businessActionId: action.id,
 		executionSource: execution_source ?? 'manual', rillDecision: rill_decision ?? null,
 		applyScope: action.applyScope, applyTarget: action.applyTarget, evaluationPaths: action.evaluationPaths ?? [],
 		owner: 'performance_manager', topologyGeneration: topology_generation, bootId: boot_id(),
@@ -1475,8 +1778,7 @@ function confirm_transaction(txid) {
 	}
 	tx.verification.commitConfirm = 'confirmed'; tx.state = 'committed'; tx.deadlineMonotonicMs = null;
 	if (tx.rillDecision) {
-		let intent = rill_prepare_outcome(tx.rillDecision, 'health_only', 0.0, tx.transactionId, 'committed');
-		if (!intent.ok) return rollback_transaction(txid, 'rill-outcome-intent-write-failed');
+		rill_execution_finalize_without_outcome(tx.rillDecision, 'retired-no-valid-outcome', 'no-controlled-ab-evidence', { measurementClass: 'health_only', ownerState: 'committed' });
 	}
 	if (!tx_save(tx)) {
 		/* The durable marker/journal must agree before a connectivity-critical
@@ -1491,8 +1793,6 @@ function confirm_transaction(txid) {
 	}
 	cancel_tx_timer(tx.transactionId); release_locks(tx.requiredLocks, tx.transactionId);
 	history('transaction.commit', tx);
-	if (tx.rillDecision)
-		rill_report_outcome(tx.rillDecision, 'health_only', 0.0, tx.transactionId, {});
 	return { ok: true, transaction: tx };
 }
 
@@ -1681,6 +1981,8 @@ function companion_evidence_valid(e, session, phase) {
 		return {ok:false,error:'companion-context-mismatch'};
 	if (+e.topologyGeneration != +session.topologyGeneration || e.routeIdentity != session.routeIdentity || e.capabilityHash != session.capabilityHash)
 		return {ok:false,error:'companion-context-drift'};
+	if ((session.goal == 'latency' || session.goal == 'balanced') && (!(+e.latencyMedianMs > 0) || !(+e.latencyP95Ms > 0)))
+		return {ok:false,error:session.goal == 'latency' ? 'latency-median-p95-evidence-required' : 'balanced-latency-median-p95-evidence-required'};
 	return {ok:true};
 }
 
@@ -1705,52 +2007,81 @@ function benchmark_stop(session_id) {
 }
 
 function rill_state_path() {
-	return cfg('shadow.state_file', '/etc/performance-manager/rill/runtime-state.json');
+	return cfg('runtime.state_file', '/etc/performance-manager/rill/runtime-state-v2.json');
 }
 
 function rill_state_generation() {
-	let snapshot = json_read(rill_state_path(), null);
-	for (let partition in snapshot?.partitions ?? []) {
-		if (partition?.clientIdentityName == 'performance-manager' && partition?.partitionKey == 'default')
-			return +(partition?.handlerSnapshot?.stateGeneration ?? 0);
-	}
-	return 0;
+	let raw = read(rill_state_path());
+	if (raw == null || !length(trimstr(raw))) return { ok: true, generation: 0, reason: 'state-absent' };
+	let snapshot = null;
+	try { snapshot = json(raw); } catch (e) { return { ok: false, generation: null, reason: 'state-invalid-json' }; }
+	if (type(snapshot) != 'object' || snapshot.formatVersion != 1 || type(snapshot.handlerSnapshot) != 'object' ||
+		type(snapshot.pendingDecisions) != 'object' || type(snapshot.completedDecisions) != 'object' ||
+		!match(snapshot.checksumSha256 ?? '', /^[0-9a-f]{64}$/) || rill_state_checksum(snapshot) != snapshot.checksumSha256)
+		return { ok: false, generation: null, reason: 'state-schema-incompatible' };
+	let generation = snapshot.handlerSnapshot.stateGeneration;
+	if (type(generation) != 'int' || generation < 0) return { ok: false, generation: null, reason: 'state-generation-invalid' };
+	return { ok: true, generation: generation, reason: 'state-valid' };
 }
 
 function rill_runtime_call(request, binary) {
 	/* The generic Runtime is a bounded stdin/stdout subprocess.  A fresh
 	 * process per request keeps the package-owned state file as the single
 	 * durable ledger and avoids a PM-owned socket daemon or protocol shim. */
+	rill_runtime_counters.runtimeInvocationCount++;
 	let state = rill_state_path(), parent = join('/', slice(split(state, '/'), 0, -1));
 	ensure_dir(parent);
 	let wire = sprintf('%J\n', request);
-	let max_msg = min(262144, max(4096, int_cfg('shadow.max_message', 65536)));
-	if (length(wire) > max_msg)
+	let max_msg = min(262144, max(4096, int_cfg('runtime.max_message', 65536)));
+	if (length(wire) > max_msg) {
+		rill_runtime_counters.runtimeInvocationFailureCount++;
 		return { ok: false, state: 'oversized-local-context', connected: false, fullySent: false, responseReceived: false };
-	let timeout = min(5000, max(100, int_cfg('shadow.timeout_ms', 1000)));
+	}
+	let timeout = min(5000, max(100, int_cfg('runtime.timeout_ms', 1000)));
 	let command = sprintf("printf '%%s\\n' %s | timeout %ds %s preview-serve --state %s --feature-schema-hash %s --model-generation %d",
 		shell_quote(trimstr(wire)), max(1, int((timeout + 999) / 1000)), shell_quote(binary), shell_quote(state), shell_quote(RILL_FEATURE_SCHEMA_HASH), RILL_MODEL_GENERATION);
 	let p = fs.popen(command, 'r');
-	if (!p) return { ok: false, state: 'runtime-spawn-failed', connected: false, fullySent: false, responseReceived: false };
+	if (!p) { rill_runtime_counters.runtimeInvocationFailureCount++; return { ok: false, state: 'runtime-spawn-failed', connected: false, fullySent: false, responseReceived: false }; }
 	let output = p.read('all') ?? '', rc = p.close() ?? 127;
-	if (rc != 0) return { ok: false, state: `runtime-exit-${rc}`, connected: true, fullySent: true, responseReceived: false };
+	if (rc != 0) {
+		rill_runtime_counters.runtimeInvocationFailureCount++; rill_runtime_counters.runtimeNonZeroExitCount++;
+		if (rc == 124) rill_runtime_counters.runtimeTimeoutCount++;
+		return { ok: false, state: `runtime-exit-${rc}`, connected: true, fullySent: true, responseReceived: false };
+	}
 	let line = trimstr(split(output, '\n')[0] ?? '');
-	if (!length(line)) return { ok: false, state: 'empty-response', connected: true, fullySent: true, responseReceived: false };
+	if (!length(line)) { rill_runtime_counters.runtimeInvocationFailureCount++; rill_runtime_counters.runtimeMalformedResponseCount++; return { ok: false, state: 'empty-response', connected: true, fullySent: true, responseReceived: false }; }
 	let response = null;
-	try { response = json(line); } catch (e) { return { ok: false, state: 'bad-response', connected: true, fullySent: true, responseReceived: true }; }
-	if (response == null) return { ok: false, state: 'bad-response', connected: true, fullySent: true, responseReceived: true };
+	try { response = json(line); } catch (e) { rill_runtime_counters.runtimeInvocationFailureCount++; rill_runtime_counters.runtimeMalformedResponseCount++; return { ok: false, state: 'bad-response', connected: true, fullySent: true, responseReceived: true }; }
+	if (response == null) { rill_runtime_counters.runtimeInvocationFailureCount++; rill_runtime_counters.runtimeMalformedResponseCount++; return { ok: false, state: 'bad-response', connected: true, fullySent: true, responseReceived: true }; }
+	rill_runtime_counters.runtimeSuccessfulInvocationCount++;
 	return { ok: true, response: response, connected: true, fullySent: true, responseReceived: true };
 }
 
+function rill_binary_path() {
+	/* Explicit paths are opt-in overrides. The only default identity is the
+	 * package-owned generic Runtime path; old adapter and legacy executable
+	 * names are intentionally not searched. */
+	let configured = str_cfg('runtime.binary', '');
+	if (configured != '') {
+		if (substr(configured, 0, 1) != '/' || !file_executable(configured))
+			return { ok: false, binary: configured, effective: null, source: 'explicit', reason: 'binary-invalid' };
+		return { ok: true, binary: configured, effective: configured, source: 'explicit', reason: 'ok' };
+	}
+	if (file_executable('/usr/bin/rill-runtime'))
+		return { ok: true, binary: '/usr/bin/rill-runtime', effective: '/usr/bin/rill-runtime', source: 'default', reason: 'ok' };
+	return { ok: false, binary: '/usr/bin/rill-runtime', effective: null, source: 'default', reason: 'not-provisioned' };
+}
+
 function rill_send(payload, outcome_attempt, mark_sent_unknown) {
-	if (!bool_cfg('shadow.enabled', true)) return { ok: false, state: 'disabled', connected: false, fullySent: false, responseReceived: false };
+	if (!bool_cfg('runtime.enabled', true)) return { ok: false, state: 'disabled', connected: false, fullySent: false, responseReceived: false };
 	let binary = rill_binary_path();
 	if (!binary.ok) return { ok: false, state: binary.reason, connected: false, fullySent: false, responseReceived: false };
-	let op = payload.op, request_id = payload.requestId, state_generation = rill_state_generation();
+	let op = payload.op, request_id = payload.requestId, state = rill_state_generation();
+	if (!state.ok) return { ok: false, state: 'runtime-state-invalid', reason: state.reason, connected: false, fullySent: false, responseReceived: false };
+	let state_generation = state.generation;
 	let request = {
 		requestId: request_id, apiVersion: RILL_RUNTIME_API_VERSION,
 		clientIdentity: { name: 'performance-manager', version: VERSION },
-		partitionKey: 'default',
 		featureSchemaHash: RILL_FEATURE_SCHEMA_HASH, modelGeneration: RILL_MODEL_GENERATION,
 		stateGeneration: state_generation, payloadLimit: 262144
 	};
@@ -1774,8 +2105,8 @@ function rill_send(payload, outcome_attempt, mark_sent_unknown) {
 	}
 	if (op == 'observe') {
 		let actions = map(payload.availableActions ?? [], function(action, index) {
-			/* Stable, bounded product features; Runtime treats IDs as opaque. */
-			return { id: action.id, features: [ (index + 1) / max(1, length(payload.availableActions)), action.executionAuthority == 'benchmark' ? 1 : 0, action.risk == 'benchmark' ? 1 : 0, 1 ] };
+			/* Stable v2 product features; Runtime treats IDs and values as opaque. */
+			return { id: action.id, features: smart_feature_vector(action, index, length(payload.availableActions), payload.context, payload.contextKey) };
 		});
 		request.capability = 'org.rill.preview.decide';
 		request.request = { method: 'decide', context: { actions: actions, contextKey: payload.contextKey, goal: payload.goal, telemetry: payload.context } };
@@ -1784,16 +2115,23 @@ function rill_send(payload, outcome_attempt, mark_sent_unknown) {
 		let body = result.response?.response ?? {}, output = body.output ?? {};
 		if (body.kind != 'result' || output.accepted !== true)
 			return { ok: true, response: { ok: false, error: body.error ?? { code: 'runtimeRejected', retryable: false } } };
-		let selected = output.selectedActionId ?? '', score_rows = output.scores ?? [];
+		let selected = output.selectedActionId ?? '', score_rows = output.scores ?? [], ranking = [];
 		let confidence = 0.5;
-		if (length(score_rows) > 1) {
-			let values = map(score_rows, function(row) { return +row.score; });
-			let low = values[0], high = values[0];
-			for (let value in values) { low = min(low, value); high = max(high, value); }
-			confidence = min(1, max(0, 0.5 + (high - low) / (1 + abs(high) + abs(low))));
+		for (let row in score_rows) {
+			let score = smart_num(row.score, null);
+			let row_id = row.actionId ?? row.id;
+			if (score == null || !length(row_id ?? '')) continue;
+			/* Runtime v3 names this opaque field actionId; keep the compact
+			 * internal `id` alias for the Core response validator. */
+			push(ranking, { id: row_id, actionId: row_id, score: score });
+		}
+		sort(ranking, function(a,b) { return a.score == b.score ? (`${a.actionId}` > `${b.actionId}` ? 1 : -1) : (a.score < b.score ? 1 : -1); });
+		if (length(ranking) > 1) {
+			let top = ranking[0].score, second = ranking[1].score;
+			confidence = min(1, max(0, 0.5 + smart_abs(top - second) / (1 + smart_abs(top) + smart_abs(second))));
 		}
 		return { ok: true, response: { ok: true, requestId: request_id, decisionId: result.response.response?.decisionId ?? request_id,
-			recommendation: { actionId: selected, confidence: confidence, advisory: true },
+			recommendation: { actionId: selected, confidence: confidence, advisory: true, scores: ranking, ranking: ranking },
 			stateGeneration: result.response.stateGeneration ?? state_generation, runtimeVersion: result.response.runtimeIdentity?.version ?? '' } };
 	}
 	if (op == 'outcome') {
@@ -1827,21 +2165,6 @@ function rill_context_key_build(profile, capability_hash, topo_gen, path_id, rou
 		safe_name(path_id ?? 'path:lan-to-wan'), route_class, workload_class_h, integ_class, goal_class);
 }
 
-function rill_binary_path() {
-	/* Explicit paths are opt-in overrides. The only default identity is the
-	 * package-owned generic Runtime path; old adapter and legacy executable
-	 * names are intentionally not searched. */
-	let configured = str_cfg('shadow.binary', '');
-	if (configured != '') {
-		if (substr(configured, 0, 1) != '/' || !file_executable(configured))
-			return { ok: false, binary: configured, effective: null, source: 'explicit', reason: 'binary-invalid' };
-		return { ok: true, binary: configured, effective: configured, source: 'explicit', reason: 'ok' };
-	}
-	if (file_executable('/usr/bin/rill-runtime'))
-		return { ok: true, binary: '/usr/bin/rill-runtime', effective: '/usr/bin/rill-runtime', source: 'default', reason: 'ok' };
-	return { ok: false, binary: '/usr/bin/rill-runtime', effective: null, source: 'default', reason: 'not-provisioned' };
-}
-
 /* ucode resolves function names when the caller is defined, so protocol
  * validators must precede rill_status()/observe/outcome callers in the raw
  * shipped daemon.  The runtime harness intentionally loads this same order
@@ -1872,9 +2195,37 @@ function rill_validate_observe_response(request, response) {
 	let ct = type(rec.confidence);
 	if ((ct != 'int' && ct != 'double') || rec.confidence != rec.confidence || rec.confidence < 0 || rec.confidence > 1)
 		return { ok: false, error: 'confidence-invalid' };
+	if (rec.scores != null && type(rec.scores) != 'array') return { ok: false, error: 'scores-invalid' };
+	let score_ids = {};
+	for (let score in rec.scores ?? []) {
+		if (type(score) != 'object' || !length(score.id ?? '') || smart_num(score.score, null) == null) return { ok: false, error: 'score-row-invalid' };
+		if (score_ids[score.id]) return { ok: false, error: 'score-candidate-duplicate' };
+		let known = false; for (let action in request.availableActions ?? []) if (action.id == score.id) { known = true; break; }
+		if (!known) return { ok: false, error: 'score-action-unknown' };
+		score_ids[score.id] = true;
+	}
 	let advertised = false;
-	for (let action in request.availableActions ?? []) if (action.id == rec.actionId && (action.executionAuthority == 'safe-direct' || action.executionAuthority == 'benchmark')) { advertised = true; break; }
+	for (let action in request.availableActions ?? []) if (action.id == rec.actionId && (action.executionAuthority == 'none' || action.executionAuthority == 'safe-direct' || action.executionAuthority == 'benchmark')) { advertised = true; break; }
 	if (!advertised) return { ok: false, error: 'recommendation-action-unknown' };
+	return { ok: true };
+}
+
+function smart_runtime_selection_valid(advisory, candidates) {
+	let candidate_ids = {}, selected = advisory?.actionId ?? '';
+	for (let action in candidates ?? []) {
+		let candidate_id = smart_candidate_identity(action);
+		if (!length(candidate_id) || candidate_ids[candidate_id]) return { ok: false, reason: 'duplicate-candidate-id' };
+		candidate_ids[candidate_id] = true;
+	}
+	if (!candidate_ids[selected]) return { ok: false, reason: 'rill-selected-candidate-missing' };
+	let ranking_ids = {};
+	for (let row in advisory?.ranking ?? []) {
+		let row_id = row.actionId ?? row.id, score = smart_num(row.score, null);
+		if (!length(row_id ?? '') || score == null) return { ok: false, reason: 'rill-score-invalid' };
+		if (ranking_ids[row_id]) return { ok: false, reason: 'duplicate-ranking-candidate-id' };
+		if (!candidate_ids[row_id]) return { ok: false, reason: 'rill-ranking-candidate-unknown' };
+		ranking_ids[row_id] = true;
+	}
 	return { ok: true };
 }
 
@@ -1887,42 +2238,42 @@ function rill_validate_outcome_response(request, response) {
 }
 
 function rill_status() {
-	let enabled = bool_cfg('shadow.enabled', true);
-	if (!enabled) return { enabled: false, mode: 'shadow', status: 'Shadow · Disabled', state: RILL_STATES.disabled, reason: 'disabled', compatibility: 'not-applicable', transport: 'unavailable', protocolVersion: RILL_RUNTIME_API_VERSION, binary: { configured: str_cfg('shadow.binary', ''), effective: null, source: 'n/a' } };
+	let enabled = bool_cfg('runtime.enabled', true);
+	if (!enabled) return { enabled: false, mode: 'advisory', status: 'Runtime · Disabled', state: RILL_STATES.disabled, reason: 'disabled', compatibility: 'not-applicable', transport: 'unavailable', protocolVersion: RILL_RUNTIME_API_VERSION, binary: { configured: str_cfg('runtime.binary', ''), effective: null, source: 'n/a' } };
 	/* External dependency check driven by the unique binary-resolution
 	 * contract.  Explicit binary wins exclusively and must be absolute and
 	 * present; an empty binary resolves the default install path; a missing
 	 * runtime is reported not-provisioned, never assumed available. */
 	let bin = rill_binary_path();
-	let bmeta = { configured: str_cfg('shadow.binary', ''), effective: bin.effective, source: bin.source };
+	let bmeta = { configured: str_cfg('runtime.binary', ''), effective: bin.effective, source: bin.source };
 	if (!bin.ok) {
 		if (bin.reason == 'binary-invalid')
-			return { enabled: true, mode: 'shadow', status: 'Shadow · Binary invalid', state: RILL_STATES.binaryInvalid, reason: 'binary-invalid', compatibility: 'not-provisioned', transport: 'unavailable', protocolVersion: RILL_RUNTIME_API_VERSION, binary: bmeta };
-		return { enabled: true, mode: 'shadow', status: 'Shadow · Not provisioned', state: RILL_STATES.notProvisioned, reason: 'external-runtime-not-provisioned', compatibility: 'not-provisioned', transport: 'unavailable', protocolVersion: RILL_RUNTIME_API_VERSION, binary: bmeta };
+			return { enabled: true, mode: 'advisory', status: 'Runtime · Binary invalid', state: RILL_STATES.binaryInvalid, reason: 'binary-invalid', compatibility: 'not-provisioned', transport: 'unavailable', protocolVersion: RILL_RUNTIME_API_VERSION, binary: bmeta };
+		return { enabled: true, mode: 'advisory', status: 'Runtime · Not provisioned', state: RILL_STATES.notProvisioned, reason: 'external-runtime-not-provisioned', compatibility: 'not-provisioned', transport: 'unavailable', protocolVersion: RILL_RUNTIME_API_VERSION, binary: bmeta };
 	}
 	let requestId = sprintf('status-%d', monotonic_ms());
 	let request = { requestId: requestId, op: 'status' };
 	let r = rill_send(request);
-	if (!r.ok) return { enabled: true, mode: 'shadow', status: 'Shadow · Unavailable', state: RILL_STATES.unavailable, reason: r.state ?? 'unavailable', compatibility: 'unknown', transport: r.state ?? 'unavailable', protocolVersion: RILL_RUNTIME_API_VERSION, binary: bmeta };
+	if (!r.ok) return { enabled: true, mode: 'advisory', status: 'Runtime · Unavailable', state: RILL_STATES.unavailable, reason: r.state ?? 'unavailable', compatibility: 'unknown', transport: r.state ?? 'unavailable', protocolVersion: RILL_RUNTIME_API_VERSION, binary: bmeta };
 	let resp = r.response ?? {};
 	let valid = rill_validate_status_response(request, resp);
 	if (!valid.ok && valid.error == 'runtime-version-mismatch')
-		return { enabled: true, mode: 'shadow', status: 'Shadow · Runtime version mismatch', state: RILL_STATES.incompatible, reason: 'runtime-version-mismatch', compatibility: 'incompatible', transport: 'connected', requestedRuntimeVersion: RILL_RESOLVED_VERSION, advertisedRuntimeVersion: resp.rillVersion ?? null, protocolVersion: RILL_RUNTIME_API_VERSION, binary: bmeta, detail: r.response };
+		return { enabled: true, mode: 'advisory', status: 'Runtime · Version mismatch', state: RILL_STATES.incompatible, reason: 'runtime-version-mismatch', compatibility: 'incompatible', transport: 'connected', requestedRuntimeVersion: RILL_RESOLVED_VERSION, advertisedRuntimeVersion: resp.rillVersion ?? null, protocolVersion: RILL_RUNTIME_API_VERSION, binary: bmeta, detail: r.response };
 	if (!valid.ok)
-		return { enabled: true, mode: 'shadow', status: 'Shadow · Runtime error', state: RILL_STATES.unhealthy, reason: valid.error, compatibility: 'incompatible', transport: 'connected', protocolVersion: RILL_RUNTIME_API_VERSION, binary: bmeta, detail: r.response };
+		return { enabled: true, mode: 'advisory', status: 'Runtime · Error', state: RILL_STATES.unhealthy, reason: valid.error, compatibility: 'incompatible', transport: 'connected', protocolVersion: RILL_RUNTIME_API_VERSION, binary: bmeta, detail: r.response };
 	/* Required capabilities: the adapter must declare every capability the
 	 * integration depends on; a missing one is fail-closed. */
 	let caps = resp.capabilities ?? [];
 	for (let need in RILL_RUNTIME_CAPABILITIES)
 		if (index(caps, need) < 0)
-			return { enabled: true, mode: 'shadow', status: 'Shadow · Missing capabilities', state: RILL_STATES.incompatible, reason: 'missing-required-capability', compatibility: 'incompatible', transport: 'connected', missingCapability: need, protocolVersion: RILL_RUNTIME_API_VERSION, binary: bmeta, detail: r.response };
+			return { enabled: true, mode: 'advisory', status: 'Runtime · Missing capabilities', state: RILL_STATES.incompatible, reason: 'missing-required-capability', compatibility: 'incompatible', transport: 'connected', missingCapability: need, protocolVersion: RILL_RUNTIME_API_VERSION, binary: bmeta, detail: r.response };
 	/* Model health: advisory is only allowed when the adapter reports a
 	 * healthy model; a degraded adapter is fail-closed unhealthy. */
 	let health = resp.modelHealth ?? {};
 	if (health.overall != 'healthy')
-			return { enabled: true, mode: 'shadow', status: 'Shadow · Unhealthy', state: RILL_STATES.unhealthy, reason: 'model-unhealthy', compatibility: 'compatible', transport: 'connected', modelHealth: health, protocolVersion: RILL_RUNTIME_API_VERSION, binary: bmeta, detail: r.response };
+			return { enabled: true, mode: 'advisory', status: 'Runtime · Unhealthy', state: RILL_STATES.unhealthy, reason: 'model-unhealthy', compatibility: 'compatible', transport: 'connected', modelHealth: health, protocolVersion: RILL_RUNTIME_API_VERSION, binary: bmeta, detail: r.response };
 	let learning = resp.state == 'learning';
-	return { enabled: true, mode: 'shadow', authority: 'advisory-only', status: learning ? 'Shadow · Learning' : 'Shadow · Available', state: learning ? RILL_STATES.learning : RILL_STATES.available, reason: null, compatibility: 'compatible', transport: 'subprocess', rillVersion: resp.rillVersion, resolvedRillVersion: RILL_RESOLVED_VERSION, protocolVersion: RILL_RUNTIME_API_VERSION, binary: bmeta, detail: r.response };
+	return { enabled: true, mode: 'advisory', authority: 'advisory-only', status: learning ? 'Runtime · Learning' : 'Runtime · Available', state: learning ? RILL_STATES.learning : RILL_STATES.available, reason: null, compatibility: 'compatible', transport: 'subprocess', rillVersion: resp.rillVersion, resolvedRillVersion: RILL_RESOLVED_VERSION, protocolVersion: RILL_RUNTIME_API_VERSION, binary: bmeta, detail: r.response };
 }
 
 function rill_integrations_payload() {
@@ -1943,9 +2294,9 @@ let rill_advisory = null;
 
 function rill_binding_valid(binding) {
 	if (type(binding) != 'object' || binding.schemaVersion != RILL_BINDINGS_SCHEMA_VERSION) return false;
-	if (!match(binding.decisionId ?? '', /^[A-Za-z0-9._:-]{1,128}$/) || !length(binding.actionId ?? '') || !length(binding.contextKey ?? '')) return false;
+	if (!match(binding.decisionId ?? '', /^[A-Za-z0-9._:-]{1,128}$/) || !length(binding.actionId ?? '') || !length(binding.candidateId ?? '') || !length(binding.contextKey ?? '')) return false;
 	if (!length(binding.goal ?? '') || binding.modelGeneration != RILL_MODEL_GENERATION || binding.bootId != boot_id()) return false;
-	if (binding.executionAuthority != 'safe-direct' && binding.executionAuthority != 'benchmark') return false;
+	if (binding.executionAuthority != 'none' && binding.executionAuthority != 'safe-direct' && binding.executionAuthority != 'benchmark') return false;
 	if (binding.atMs == null || binding.atMs > monotonic_ms() || (monotonic_ms() - binding.atMs) > RILL_BINDINGS_TTL_MS) return false;
 	return true;
 }
@@ -1973,7 +2324,8 @@ function rill_binding_register(payload, response) {
 	let binding = {
 		schemaVersion: RILL_BINDINGS_SCHEMA_VERSION,
 		decisionId: response.decisionId, contextKey: payload.contextKey,
-		actionId: rec.actionId, goal: payload.goal, modelGeneration: RILL_MODEL_GENERATION,
+		actionId: rec.actionId, candidateId: rec.actionId, goal: payload.goal, modelGeneration: RILL_MODEL_GENERATION,
+		businessActionId: advertised.actionId ?? rec.actionId,
 		decisionGeneration: response.stateGeneration ?? 0, featureSchemaHash: RILL_FEATURE_SCHEMA_HASH,
 		advisory: true, confidence: rec.confidence, executionAuthority: advertised.executionAuthority,
 		bootId: boot_id(), atMs: monotonic_ms()
@@ -2058,13 +2410,13 @@ function rill_binding_reserve(decision_id, action_id, authority, owner_type, own
 	if (active_count >= RILL_BINDINGS_MAX) return null;
 	let frozen = {
 		schemaVersion: binding.schemaVersion, decisionId: binding.decisionId, contextKey: binding.contextKey,
-		actionId: binding.actionId, goal: binding.goal, modelGeneration: binding.modelGeneration,
+		actionId: binding.actionId, candidateId: binding.candidateId, businessActionId: binding.businessActionId ?? smart_business_action_id(binding.candidateId), goal: binding.goal, modelGeneration: binding.modelGeneration,
 		advisory: true, confidence: binding.confidence, bootId: binding.bootId, atMs: binding.atMs,
 		executionAuthority: authority, ownerType: owner_type, ownerId: owner_id
 	};
 	let journal = {
 		schemaVersion: RILL_EXECUTION_SCHEMA_VERSION, decisionId: frozen.decisionId,
-		actionId: frozen.actionId, contextKey: frozen.contextKey, goal: frozen.goal,
+		actionId: frozen.actionId, candidateId: frozen.candidateId, businessActionId: frozen.businessActionId ?? smart_business_action_id(frozen.candidateId), contextKey: frozen.contextKey, goal: frozen.goal,
 		modelGeneration: frozen.modelGeneration, frozenDecision: frozen,
 		executionAuthority: authority, ownerType: owner_type, ownerId: owner_id,
 		executionState: 'reserved', mutationStarted: false, transportState: 'not-sent',
@@ -2156,16 +2508,18 @@ function rill_advisory_update(resp, payload) {
 	 * changed under it, and expiresMonotonicMs bounds its lifetime. */
 	let rec = resp.recommendation;
 	let advertised = null;
-	for (let action in payload.availableActions ?? []) if (action.id == rec.actionId) { advertised = action; break; }
+	for (let action in payload.availableActions ?? []) if (action.id == rec.actionId || (action.id == 'pm.noop' && rec.actionId == 'pm.noop')) { advertised = action; break; }
 	if (!advertised) return null;
 	let now = monotonic_ms();
 	rill_advisory = {
-		decisionId: resp.decisionId, actionId: rec.actionId,
+		decisionId: resp.decisionId, actionId: rec.actionId, candidateId: rec.actionId,
 		confidence: rec.confidence, advisory: true, authority: 'advisory-only',
-		executionAuthority: advertised.executionAuthority, kind: advertised.executionAuthority == 'benchmark' ? 'benchmark' : 'safe-direct',
+		executionAuthority: advertised.executionAuthority, kind: advertised.executionAuthority == 'benchmark' ? 'benchmark' : (advertised.executionAuthority == 'none' ? 'noop' : 'safe-direct'),
 		applyTarget: advertised.applyTarget ?? null, evaluationPaths: advertised.evaluationPaths ?? [],
-		contextKey: payload.contextKey, goal: payload.goal,
-		topologyGeneration: payload.topologyGeneration,
+		businessActionId: advertised.actionId ?? rec.actionId, actionFamily: advertised.actionFamily ?? smart_action_family(advertised.actionId ?? rec.actionId),
+		ranking: rec.ranking ?? rec.scores ?? [], scores: rec.scores ?? rec.ranking ?? [],
+		contextKey: payload.contextKey, goal: payload.goal, selectorMode: payload.selectorMode ?? 'conservative',
+		topologyGeneration: payload.topologyGeneration, pathScope: payload.pathScope ?? null,
 		routeIdentity: payload.routeIdentity,
 		integrationFingerprint: payload.integrationFingerprint,
 		createdMonotonicMs: now, expiresMonotonicMs: now + RILL_ADVISORY_TTL_MS
@@ -2194,6 +2548,8 @@ function rill_outcome_attempt(binding, measurement, session_id, reward) {
 }
 
 rill_prepare_outcome = function(binding, measurement, reward, session_id, expected_owner_state) {
+	if (measurement != 'controlled_ab' || smart_num(reward, null) == null)
+		return { ok: false, state: 'unvalidated-outcome-rejected' };
 	let path = rill_execution_path(binding?.decisionId), journal = json_read(path, null);
 	if (!journal || journal.ownerId != binding?.ownerId || journal.ownerType != binding?.ownerType || journal.mutationStarted !== true)
 		return { ok: false, state: 'rill-execution-journal-owner-mismatch' };
@@ -2221,7 +2577,7 @@ function rill_terminal_proof_build(journal, owner) {
 	let proof = {
 		ownerType: journal.ownerType, ownerId: journal.ownerId, ownerTerminalState: owner.state,
 		terminalResultDigest: fnv1a32(sprintf('%J', result)), decisionId: journal.decisionId,
-		actionId: journal.actionId, contextKey: journal.contextKey, goal: journal.goal,
+		actionId: journal.actionId, candidateId: journal.candidateId, contextKey: journal.contextKey, goal: journal.goal,
 		modelGeneration: journal.modelGeneration, measurementClass: journal.measurementClass,
 		reward: journal.reward, validated: journal.validated === true,
 		rollbackCommitProof: { verification: verification, result: result },
@@ -2235,7 +2591,7 @@ function rill_terminal_proof_valid(journal, proof) {
 	if (!proof || type(proof) != 'object') return false;
 	if (proof.ownerType != journal.ownerType || proof.ownerId != journal.ownerId ||
 		proof.ownerTerminalState != journal.expectedOwnerState || proof.decisionId != journal.decisionId ||
-		proof.actionId != journal.actionId || proof.contextKey != journal.contextKey ||
+		proof.actionId != journal.actionId || proof.candidateId != journal.candidateId || proof.contextKey != journal.contextKey ||
 		proof.goal != journal.goal || proof.modelGeneration != journal.modelGeneration ||
 		proof.measurementClass != journal.measurementClass || proof.validated !== true ||
 		proof.terminalResultDigest != fnv1a32(sprintf('%J', proof.rollbackCommitProof?.result ?? null))) return false;
@@ -2302,6 +2658,10 @@ function rill_retry_pending_outcomes() {
 
 rill_report_outcome = function(binding, measurement, reward, session_id, ctx) {
 	ctx = ctx ?? {};
+	if (measurement != 'controlled_ab' || smart_num(reward, null) == null) {
+		runtime_history('rill.outcome.skipped', { actionId: binding?.actionId ?? null, reason: 'unvalidated-outcome-skipped', measurementClass: measurement ?? null });
+		return { ok: false, state: 'unvalidated-outcome-skipped' };
+	}
 	if (type(binding) != 'object' || !match(binding.decisionId ?? '', /^[A-Za-z0-9._:-]{1,128}$/)) {
 		runtime_history('rill.outcome.skipped', { actionId: binding?.actionId ?? null, reason: 'no-exact-frozen-decision' });
 		return { ok: false, state: 'no-exact-frozen-decision' };
@@ -2337,7 +2697,7 @@ rill_report_outcome = function(binding, measurement, reward, session_id, ctx) {
 		fs.unlink(attempt.path);
 		rill_binding_consume(binding);
 		rill_runtime_counters.rillOutcomeAccepted++;
-		runtime_history('rill.outcome.accepted', { actionId: binding.actionId, decisionId: binding.decisionId, accepted: true, measurementClass: measurement });
+		runtime_history('rill.outcome.accepted', { actionId: binding.actionId, decisionId: binding.decisionId, goal: binding.goal, reward: reward, accepted: true, measurementQuality: measurement, measurementClass: measurement });
 		return { ok: true, accepted: true, decisionId: binding.decisionId, response: r.response };
 	}
 	let code = r.response?.error?.code ?? validated.error;
@@ -2345,7 +2705,7 @@ rill_report_outcome = function(binding, measurement, reward, session_id, ctx) {
 		fs.unlink(attempt.path);
 		rill_binding_consume(binding);
 		rill_runtime_counters.rillOutcomeReconciled++;
-		runtime_history('rill.outcome.reconciled', { actionId: binding.actionId, decisionId: binding.decisionId, measurementClass: measurement, reason: 'same-attempt-already-applied' });
+		runtime_history('rill.outcome.reconciled', { actionId: binding.actionId, decisionId: binding.decisionId, goal: binding.goal, reward: reward, measurementQuality: measurement, measurementClass: measurement, reason: 'same-attempt-already-applied' });
 		return { ok: true, accepted: true, reconciled: true, decisionId: binding.decisionId, response: r.response };
 	}
 	if (r.response?.error?.retryable === true) {
@@ -2496,26 +2856,6 @@ function nft_snapshot() {
 	return { items: parts, parsed: parsed, canonical: join('\n', parts) };
 }
 
-function rill_advisory_get() {
-	/* Latest valid advisory for UI display.  Invalidated on ANY drift
-	 * (topology generation, route identity, integration fingerprint, goal) or
-	 * on action disappearance / decision TTL expiry — fail-closed: a stale
-	 * advisory is never surfaced as if it were current.  Keep this definition
-	 * after topology()/nft_snapshot(): raw ucode resolves callees at definition
-	 * time and the shipped daemon has no source transformation. */
-	if (!rill_advisory) return null;
-	let a = rill_advisory;
-	if (monotonic_ms() > a.expiresMonotonicMs) { rill_advisory = null; return null; }
-	let topo = topology();
-	if ((a.topologyGeneration ?? null) != topology_generation) { rill_advisory = null; return null; }
-	let route = topo?.paths?.[0]?.routeIdentity ?? 'unresolved';
-	if ((a.routeIdentity ?? 'unresolved') != route) { rill_advisory = null; return null; }
-	if ((a.integrationFingerprint ?? '') != integration_fingerprint([], nft_snapshot())) { rill_advisory = null; return null; }
-	if ((a.goal ?? '') != goal()) { rill_advisory = null; return null; }
-	if (rill_binding_peek(a.decisionId) == null) { rill_advisory = null; return null; }
-	return a;
-}
-
 function nft_ruleset_fingerprint() {
 	/* Canonical live nft ruleset identity, no flow masking (Blocker B).
 	 * Returns the structural hash of the FULL ruleset or null when nft is
@@ -2612,12 +2952,101 @@ function system_guard() {
 function telemetry_snapshot() {
 	let dev = {};
 	for (let line in split(read('/proc/net/dev') ?? '', '\n')) {
-		let m = match(line, /^\s*([^:]+):\s*([0-9]+)\s+[0-9]+\s+[0-9]+\s+([0-9]+).*?\s([0-9]+)\s+[0-9]+\s+[0-9]+\s+([0-9]+)/);
-		if (m) dev[trimstr(m[1])] = { rxBytes: +m[2], rxDrop: +m[3], txBytes: +m[4], txDrop: +m[5] };
+		let m = match(line, /^\s*([^:]+):\s*(.*)$/);
+		if (m) {
+			let fields = filter(split(trimstr(m[2]), /\s+/), function(x) { return length(x); });
+			if (length(fields) >= 12) dev[trimstr(m[1])] = {
+				rxBytes: +fields[0], rxPackets: +fields[1], rxErrors: +fields[2], rxDrop: +fields[3],
+				txBytes: +fields[8], txPackets: +fields[9], txErrors: +fields[10], txDrop: +fields[11]
+			};
+		}
 	}
-	return {
-		monotonicMs: monotonic_ms(), bootId: boot_id(), topologyGeneration: topology_generation,
-		softnet: softnet(), interfaces: dev, health: baseline_health()
+	let now = monotonic_ms(), current_cpu = cpu_stat(), memory = meminfo(), current_softnet = softnet();
+	let current = { monotonicMs: now, bootId: boot_id(), topologyGeneration: topology_generation,
+		softnet: current_softnet, interfaces: dev, cpu: current_cpu, memoryKiB: memory.MemTotal ?? 0,
+		memAvailableKiB: memory.MemAvailable ?? 0 };
+	let previous_path = `${state_dir()}/telemetry/feature-baseline.json`, previous = json_read(previous_path, null);
+	let interval = null;
+	if (previous?.bootId == current.bootId && previous?.topologyGeneration == current.topologyGeneration) {
+		let seconds = (now - (previous.monotonicMs ?? 0)) / 1000;
+		if (seconds > 0) interval = { seconds: seconds, bytes: 0, packets: 0, drops: 0, errors: 0, interfaces: {} };
+		for (let name in keys(dev)) {
+			let before = previous.interfaces?.[name], after = dev[name];
+			if (!interval || !before) continue;
+			let row = {
+				bytes: max(0, after.rxBytes - (before.rxBytes ?? 0)) + max(0, after.txBytes - (before.txBytes ?? 0)),
+				packets: max(0, after.rxPackets - (before.rxPackets ?? 0)) + max(0, after.txPackets - (before.txPackets ?? 0)),
+				drops: max(0, after.rxDrop - (before.rxDrop ?? 0)) + max(0, after.txDrop - (before.txDrop ?? 0)),
+				errors: max(0, after.rxErrors - (before.rxErrors ?? 0)) + max(0, after.txErrors - (before.txErrors ?? 0))
+			};
+			interval.interfaces[name] = row;
+			interval.bytes += row.bytes; interval.packets += row.packets;
+			interval.drops += row.drops; interval.errors += row.errors;
+		}
+	}
+	let capacity = 0;
+	let capacity_by_interface = {};
+	for (let name in keys(dev)) {
+		let speed = +trimstr(read(`/sys/class/net/${name}/speed`) ?? '0');
+		let link_capacity = speed > 0 && speed < 1000000 ? speed * 125000 : 125000000;
+		capacity_by_interface[name] = link_capacity;
+		if (speed > 0 && speed < 1000000) capacity += link_capacity;
+	}
+	/* Link speed is not available on every virtual/USB interface. The bounded
+	 * 1Gb/s ceiling is an explicit normalization fallback, never a cumulative
+	 * counter masquerading as utilization. */
+	capacity = max(125000000, min(125000000000, capacity));
+	let features = { trafficUtilization: 0, ppsPressure: 0, dropErrorPressure: 0, cpuBusyInterval: null,
+		cpuWindowValid: false, softirqPressure: 0, queuePressure: 0, memoryPressure: 0, intervalSeconds: interval?.seconds ?? null };
+	if (interval) {
+		features.trafficUtilization = smart_clamp((interval.bytes / interval.seconds) / capacity, 0, 1);
+		features.ppsPressure = smart_clamp((interval.packets / interval.seconds) / max(1, capacity / 64), 0, 1);
+		features.dropErrorPressure = smart_clamp((interval.drops + interval.errors) / max(1, interval.packets), 0, 1);
+		let cpu_window = cpu_interval(previous.cpu, current_cpu);
+		if (cpu_window.valid) {
+			features.cpuBusyInterval = cpu_window.busyInterval;
+			features.cpuWindowValid = true;
+		} else {
+			/* Never leave the generic telemetry default at zero: zero is a valid
+			 * measured value, while an invalid/missing A/B window is null. */
+			features.cpuBusyInterval = null;
+			features.cpuWindowValid = false;
+		}
+		let processed = max(0, current_softnet.processed - (previous.softnet?.processed ?? 0));
+		let softnet_pressure = max(0, current_softnet.dropped - (previous.softnet?.dropped ?? 0)) + max(0, current_softnet.timeSqueezed - (previous.softnet?.timeSqueezed ?? 0));
+		features.softirqPressure = smart_clamp(softnet_pressure / max(1, processed), 0, 1);
+	}
+	if (current.memoryKiB > 0 && current.memAvailableKiB >= 0)
+		features.memoryPressure = smart_clamp((current.memoryKiB - min(current.memoryKiB, current.memAvailableKiB)) / current.memoryKiB, 0, 1);
+	let path_features = {}, logical = {};
+	for (let item in interface_dump().interface ?? []) logical[item.interface] = item;
+	for (let path in topology().paths ?? []) {
+		let iface = logical[path.wanInterface] ?? {}, names = [];
+		for (let name in [ iface.l3_device, iface.device ]) if (name && interval?.interfaces?.[name]) { push_unique(names, name); break; }
+		if (!length(names)) for (let name in path.underlayChain ?? []) if (interval?.interfaces?.[name]) { push_unique(names, name); break; }
+		if (!length(names) || !interval?.seconds) { path_features[path.id] = { available: false, reason: 'path-interval-unavailable' }; continue; }
+		let row = interval.interfaces[names[0]], path_capacity = capacity_by_interface[names[0]] ?? 125000000;
+		path_features[path.id] = {
+			available: true, source: 'interval-netdev', netdevs: names, intervalSeconds: interval.seconds,
+			trafficUtilization: smart_clamp((row.bytes / interval.seconds) / max(1, path_capacity), 0, 1),
+			ppsPressure: smart_clamp((row.packets / interval.seconds) / max(1, path_capacity / 64), 0, 1),
+			dropErrorPressure: smart_clamp((row.drops + row.errors) / max(1, row.packets), 0, 1)
+		};
+	}
+	current.features = features;
+	current.pathFeatures = path_features;
+	current.interval = interval;
+	current.trafficCapacityBytesPerSecond = capacity;
+	json_write(previous_path, current);
+	return { monotonicMs: now, bootId: current.bootId, topologyGeneration: topology_generation,
+		softnet: current_softnet, interfaces: dev, health: baseline_health(), memoryKiB: current.memoryKiB,
+		memAvailableKiB: current.memAvailableKiB, trafficCapacityBytesPerSecond: capacity,
+		pathFeatures: path_features, interval: interval,
+		trafficUtilization: features.trafficUtilization, ppsPressure: features.ppsPressure,
+		dropErrorPressure: features.dropErrorPressure, cpuBusyInterval: features.cpuBusyInterval,
+		cpuWindowValid: features.cpuWindowValid,
+		softirqPressure: features.softirqPressure, queuePressure: features.queuePressure,
+		memoryPressure: features.memoryPressure, intervalSeconds: features.intervalSeconds
 	};
 }
 
@@ -2903,31 +3332,71 @@ function benchmark_context(path_id, masked_keys) {
 }
 
 function rill_action_descriptor(action_id) {
+	if (action_id == 'pm.noop')
+		return { exists: true, kind: 'noop', authority: 'advisory-only', executionAuthority: 'none', executionPath: 'none', mutation: false, action: { id: 'pm.noop', risk: 'none', available: true } };
 	for (let action in candidate_actions())
-		if (action.id == action_id)
+		if (smart_candidate_identity(action) == action_id)
 			return { exists: true, kind: 'safe-direct', authority: 'advisory-only', executionAuthority: 'safe-direct', executionPath: 'apply', action: action };
-	for (let action in benchmark_catalog())
-		if (action.id == action_id && action.status != 'blocked')
-			return { exists: true, kind: 'benchmark', authority: 'advisory-only', executionAuthority: 'benchmark', executionPath: 'benchmark_start', action: action };
+	for (let action in benchmark_catalog()) if (action.status != 'blocked') {
+		for (let path_id in action.evaluationPaths ?? []) {
+			let plan = benchmark_provider_plan(action.id, path_id);
+			if (!plan.ok) continue;
+			let candidate = benchmark_action_contract(action.id, path_id, plan);
+			if (smart_candidate_identity(candidate) == action_id)
+				return { exists: true, kind: 'benchmark', authority: 'advisory-only', executionAuthority: 'benchmark', executionPath: 'benchmark_start', action: candidate };
+		}
+	}
 	return null;
 }
 
-function rill_available_actions() {
-	let out = map(candidate_actions(), function(a) {
-		return { id: a.id, applyScope: a.applyScope, applyTarget: a.applyTarget, evaluationPaths: a.evaluationPaths, risk: a.risk, authority: 'advisory-only', executionAuthority: 'safe-direct', executionPath: 'apply' };
-	});
+function rill_available_actions(mode) {
+	let out = [ { id: 'pm.noop', applyScope: 'none', applyTarget: null, evaluationPaths: [], risk: 'none', authority: 'advisory-only', executionAuthority: 'none', executionPath: 'none', mutation: false, actionFamily: 'noop', available: true } ];
+	for (let a in candidate_actions()) {
+		push(out, { id: smart_candidate_identity(a), actionId: a.id, applyScope: a.applyScope, applyTarget: a.applyTarget, evaluationPaths: a.evaluationPaths, risk: a.risk, authority: 'advisory-only', executionAuthority: 'safe-direct', executionPath: 'apply', mutation: true, actionFamily: smart_action_family(a.id), available: true });
+	}
+	/* Conservative ranking is deliberately scoped before the Runtime call:
+	 * benchmark-only actions cannot win a conservative decision by accident. */
+	if (mode == 'conservative') return out;
 	for (let b in benchmark_catalog()) {
 		if (b.status == 'blocked') continue;
-		push(out, { id: b.id, applyScope: b.applyScope ?? 'system', applyTarget: null, evaluationPaths: b.evaluationPaths ?? ['path:lan-to-wan'], risk: 'benchmark', authority: 'advisory-only', executionAuthority: 'benchmark', executionPath: 'benchmark_start' });
+		for (let path_id in b.evaluationPaths ?? []) {
+			let plan = benchmark_provider_plan(b.id, path_id);
+			if (!plan.ok) continue;
+			let candidate = benchmark_action_contract(b.id, path_id, plan);
+			push(out, { id: smart_candidate_identity(candidate), actionId: candidate.id, applyScope: candidate.applyScope, applyTarget: candidate.applyTarget, evaluationPaths: candidate.evaluationPaths, risk: candidate.risk, authority: 'advisory-only', executionAuthority: 'benchmark', executionPath: 'benchmark_start', mutation: true, actionFamily: smart_action_family(candidate.id), available: true });
+		}
 	}
 	return out;
 }
 
+function rill_advisory_get() {
+	/* Latest valid advisory for UI display.  Invalidated on ANY drift
+	 * (topology generation, route identity, integration fingerprint, goal) or
+	 * on action disappearance / decision TTL expiry — fail-closed: a stale
+	 * advisory is never surfaced as if it were current.  This definition is
+	 * deliberately after rill_available_actions(): raw ucode resolves callees
+	 * at definition time and the shipped daemon has no source transformation. */
+	if (!rill_advisory) return null;
+	let a = rill_advisory;
+	if (monotonic_ms() > a.expiresMonotonicMs) { rill_advisory = null; return null; }
+	let topo = topology();
+	if ((a.topologyGeneration ?? null) != topology_generation) { rill_advisory = null; return null; }
+	let scope_paths = [];
+	for (let candidate in rill_available_actions(a.selectorMode)) for (let path_id in candidate.evaluationPaths ?? []) push_unique(scope_paths, path_id);
+	let scope = rill_context_scope(length(scope_paths) ? scope_paths : topo.paths);
+	if (a.pathScope && (a.pathScope.pathId != scope.pathId || a.pathScope.routeIdentity != scope.routeIdentity)) { rill_advisory = null; return null; }
+	if ((a.integrationFingerprint ?? '') != integration_fingerprint([], nft_snapshot())) { rill_advisory = null; return null; }
+	if ((a.goal ?? '') != goal()) { rill_advisory = null; return null; }
+	if (rill_binding_peek(a.decisionId) == null) { rill_advisory = null; return null; }
+	return a;
+}
+
 function rill_context_key_observe() {
-	let caps = capabilities(), topo = topology(), path = topo.paths[0];
+	let caps = capabilities(), topo = topology(), actions = rill_available_actions(active_selector_mode()), paths = [];
+	for (let action in actions) for (let path_id in action.evaluationPaths ?? []) push_unique(paths, path_id);
+	let scope = rill_context_scope(length(paths) ? paths : topo.paths);
 	return rill_context_key_build(cfg('main.profile','recommended'), capability_hash(caps), topology_generation,
-		path?.id ?? 'path:lan-to-wan', path?.routeIdentity ?? 'unresolved', path?.workloadClass ?? [ 'plain_forwarding' ],
-		integration_fingerprint([], nft_snapshot()), goal());
+		scope.pathId, scope.routeIdentity, workload_for_paths(paths), integration_fingerprint([], nft_snapshot()), goal());
 }
 
 
@@ -2985,6 +3454,7 @@ function apply_ring(action, options) {
 		let restore = ring_restore(ref, snap), restored = restore.rc == 0 && ring_matches(ref, snap);
 		tx.state = restored ? 'rolled_back' : 'failed'; tx.verification.rollbackReadBack = restored ? 'pass' : 'fail';
 		tx.result = { error: 'apply-failed', output: ap.out, rollback: restored ? 'restored' : 'failed' }; tx_save(tx);
+		smart_record_action_event(tx.rillDecision?.contextKey ?? rill_context_key_observe(), smart_candidate_identity(action), restored ? 'rollback' : 'failure');
 		if (tx.rillDecision) rill_execution_finalize_without_outcome(tx.rillDecision, restored ? 'retired-restored-after-failure' : 'intervention-required', 'safe-direct-apply-failed', { rollback: restored ? 'exact' : 'failed' });
 		release_locks(tx.requiredLocks, tx.transactionId);
 		return { ok: false, transaction: tx };
@@ -3007,23 +3477,17 @@ function apply_ring(action, options) {
 		let restore = ring_restore(ref, snap);
 		let restored = restore.rc == 0 && ring_matches(ref, snap);
 		tx.verification = { readBack: readback ? 'pass' : 'fail', link: link ? 'pass' : 'fail', healthRegression: hcmp.pass ? 'none' : hcmp.failures, rollbackReadBack: restored ? 'pass' : 'fail', commitConfirm: 'not_required' };
-		tx.state = restored ? 'rolled_back' : 'failed';
+		 tx.state = restored ? 'rolled_back' : 'failed';
 		tx.result = { error: 'verification-failed', rollback: restored ? 'restored' : 'failed', rollbackOutput: restore.out ?? '' };
-		if (!options.runtimeOnly && restored && tx.rillDecision) {
-			let intent=rill_prepare_outcome(tx.rillDecision,'health_only',-1.0,tx.transactionId,'rolled_back');
-			if (!intent.ok) rill_execution_finalize_without_outcome(tx.rillDecision, 'retired-restored-after-failure', 'safe-direct-verification-intent-failed', { rollback: 'exact' });
-		}
+		smart_record_action_event(tx.rillDecision?.contextKey ?? rill_context_key_observe(), smart_candidate_identity(action), restored ? 'rollback' : 'failure');
 		if (!tx_save(tx)) {
 			if (tx.rillDecision) rill_execution_finalize_without_outcome(tx.rillDecision, restored ? 'retired-restored-after-failure' : 'intervention-required', 'safe-direct-verification-terminal-journal-failed', { rollback: restored ? 'exact' : 'failed' });
 			release_locks(tx.requiredLocks,tx.transactionId); return {ok:false,error:'transaction-terminal-journal-write-failed',transaction:tx};
 		}
-		if (!options.runtimeOnly && restored && tx.rillDecision) {
-			let armed=rill_arm_outcome(tx.rillDecision);
-			if (!armed.ok) { rill_execution_finalize_without_outcome(tx.rillDecision, 'retired-restored-after-failure', 'safe-direct-verification-arm-failed', armed); release_locks(tx.requiredLocks,tx.transactionId); return {ok:false,error:'rill-outcome-arm-failed',transaction:tx,detail:armed}; }
-		}
+		if (!options.runtimeOnly && restored && tx.rillDecision)
+			rill_execution_finalize_without_outcome(tx.rillDecision, 'retired-no-valid-outcome', 'no-controlled-ab-evidence', { measurementClass: 'health_only', ownerState: 'rolled_back' });
 		release_locks(tx.requiredLocks, tx.transactionId);
 		(options.runtimeOnly ? runtime_history : history)(restored ? 'transaction.rollback' : 'transaction.rollback_failed', tx);
-		if (!options.runtimeOnly && restored && tx.rillDecision) rill_report_outcome(tx.rillDecision,'health_only',-1.0,tx.transactionId,{});
 		return { ok: false, transaction: tx };
 	}
 	tx.verification = { readBack: 'pass', link: 'pass', healthRegression: 'none', commitConfirm: action.requiresCommitConfirm ? 'pending' : 'not_required' };
@@ -3032,6 +3496,7 @@ function apply_ring(action, options) {
 		let restore = ring_restore(ref, snap);
 		let restored = restore.rc == 0 && ring_matches(ref, snap);
 		tx.state = restored ? 'rolled_back' : 'failed'; tx.result = { error: 'transaction-journal-write-failed', rollback: restored ? 'restored' : 'failed' };
+		smart_record_action_event(tx.rillDecision?.contextKey ?? rill_context_key_observe(), smart_candidate_identity(action), restored ? 'rollback' : 'failure');
 		tx_save(tx); if (tx.rillDecision) rill_execution_finalize_without_outcome(tx.rillDecision, restored ? 'retired-restored-after-failure' : 'intervention-required', 'safe-direct-verification-journal-failed', { rollback: restored ? 'exact' : 'failed' });
 		release_locks(tx.requiredLocks, tx.transactionId); return { ok: false, transaction: tx };
 	}
@@ -3046,20 +3511,13 @@ function apply_ring(action, options) {
 		tx.verification.rollbackReadBack = restored ? 'pass' : 'fail';
 		tx.state = restored ? 'rolled_back' : 'failed';
 		tx.result = { error: 'persistence-failed', rollback: restored ? 'restored' : 'failed' };
+		smart_record_action_event(tx.rillDecision?.contextKey ?? rill_context_key_observe(), smart_candidate_identity(action), restored ? 'rollback' : 'failure');
 		tx_save(tx); if (tx.rillDecision) rill_execution_finalize_without_outcome(tx.rillDecision, restored ? 'retired-restored-after-failure' : 'intervention-required', 'safe-direct-persistence-failed', { rollback: restored ? 'exact' : 'failed' }); release_locks(tx.requiredLocks, tx.transactionId);
 		history(restored ? 'transaction.rollback' : 'transaction.rollback_failed', tx);
 		return { ok: false, transaction: tx };
 	}
 	tx.state = 'committed'; tx.result = { ring: after_ring };
-	if (!options.runtimeOnly && tx.rillDecision) {
-		let intent=rill_prepare_outcome(tx.rillDecision,'health_only',0.0,tx.transactionId,'committed');
-		if (!intent.ok) {
-			let restore=ring_restore(ref,snap), restored=restore.rc == 0 && ring_matches(ref,snap);
-			tx.state=restored?'rolled_back':'failed'; tx.result={error:'rill-outcome-intent-write-failed',rollback:restored?'restored':'failed'}; tx_save(tx); release_locks(tx.requiredLocks,tx.transactionId);
-			if (tx.rillDecision) rill_execution_finalize_without_outcome(tx.rillDecision, restored ? 'retired-restored-after-failure' : 'intervention-required', 'safe-direct-terminal-intent-failed', { rollback: restored ? 'exact' : 'failed' });
-			return {ok:false,error:'rill-outcome-intent-write-failed',transaction:tx};
-		}
-	}
+	smart_record_action_event(tx.rillDecision?.contextKey ?? rill_context_key_observe(), smart_candidate_identity(action), 'success');
 	if (!tx_save(tx)) {
 		/* Do not report success if terminal journal/pending-marker cleanup failed.
 		 * For PM-owned policy writes, restore both runtime and policy ownership. */
@@ -3068,26 +3526,41 @@ function apply_ring(action, options) {
 		tx.state=restored?'rolled_back':'failed'; tx.result={error:'commit-journal-write-failed',rollback:restored?'restored':'failed'}; tx.verification.rollbackReadBack=restored?'pass':'fail'; tx_save(tx);
 		cancel_tx_timer(tx.transactionId); if (tx.rillDecision) rill_execution_finalize_without_outcome(tx.rillDecision, restored ? 'retired-restored-after-failure' : 'intervention-required', 'safe-direct-commit-journal-failed', { rollback: restored ? 'exact' : 'failed' }); release_locks(tx.requiredLocks,tx.transactionId); history(restored?'transaction.rollback':'transaction.rollback_failed',tx); return {ok:false,error:'commit-journal-write-failed',transaction:tx};
 	}
-	if (!options.runtimeOnly && tx.rillDecision) {
-		let armed=rill_arm_outcome(tx.rillDecision);
-		if (!armed.ok) { rill_execution_finalize_without_outcome(tx.rillDecision, 'intervention-required', 'safe-direct-outcome-arm-failed', armed); cancel_tx_timer(tx.transactionId); release_locks(tx.requiredLocks,tx.transactionId); return {ok:false,error:'rill-outcome-arm-failed',transaction:tx,detail:armed}; }
-	}
+	if (!options.runtimeOnly && tx.rillDecision)
+		rill_execution_finalize_without_outcome(tx.rillDecision, 'retired-no-valid-outcome', 'no-controlled-ab-evidence', { measurementClass: 'health_only', ownerState: 'committed' });
 	cancel_tx_timer(tx.transactionId); release_locks(tx.requiredLocks, tx.transactionId);
 	(options.runtimeOnly ? runtime_history : history)('transaction.commit', tx);
-	if (!options.runtimeOnly && tx.rillDecision)
-		rill_report_outcome(tx.rillDecision,'health_only',0.0,tx.transactionId,{});
 	return { ok: true, transaction: tx };
+}
+
+function smart_selector_context() {
+	let caps = capabilities(), topo = topology(), integ = integration_fingerprint([], nft_snapshot()), actions = rill_available_actions(active_selector_mode()), scope_paths = [];
+	for (let action in actions) for (let path_id in action.evaluationPaths ?? []) push_unique(scope_paths, path_id);
+	let scope = rill_context_scope(length(scope_paths) ? scope_paths : topo.paths);
+	return {
+		profile: cfg('main.profile', 'recommended'), pathId: scope.pathId, workloadClass: workload_for_paths(scope_paths), integrationState: integration_state(),
+		contextKey: rill_context_key_build(cfg('main.profile','recommended'), capability_hash(caps), topology_generation,
+			scope.pathId, scope.routeIdentity, workload_for_paths(scope_paths), integ, goal()),
+		goal: goal(), pathScope: scope, topologyGeneration: topology_generation, routeIdentity: scope.routeIdentity,
+		integrationFingerprint: integ
+	};
 }
 
 function apply_action(msg) {
 	let action_id = msg?.actionId;
-	if (action_id == 'nic.ring.floor') {
-		let a = find_action(action_id, msg?.target);
+	let descriptor = rill_action_descriptor(action_id), a = descriptor?.action ?? null;
+	if (!a && action_id == 'nic.ring.floor') a = find_action(action_id, msg?.target);
+	if (a?.id == 'nic.ring.floor') {
+		if (msg?.target != null && a.applyTarget != msg.target) return { ok: false, error: 'target-mismatch' };
 		if (!a) return { ok: false, error: 'no-legal-candidate' };
 		let source = msg?.executionSource ?? 'manual', frozen = null, tx = null;
 		if (source == 'rill-advisory') {
+			let bound = rill_binding_peek(msg?.decisionId), current = smart_selector_context();
+			let candidate_id = smart_candidate_identity(a);
+			if (!bound || bound.actionId != candidate_id || bound.goal != current.goal || bound.contextKey != current.contextKey)
+				return { ok: false, error: 'exact-decision-context-mismatch' };
 			tx = tx_new(a, source, null);
-			frozen = rill_binding_reserve(msg?.decisionId, action_id, 'safe-direct', 'transaction', tx.transactionId);
+			frozen = rill_binding_reserve(msg?.decisionId, candidate_id, 'safe-direct', 'transaction', tx.transactionId);
 			if (!frozen) return { ok: false, error: 'rill-decision-already-reserved' };
 			tx.rillDecision = frozen;
 		} else if (source != 'manual' || msg?.decisionId != null) {
@@ -3172,14 +3645,19 @@ function benchmark_start(msg) {
 			release_benchmark_lock(session.benchmarkLock?.domain, session.sessionId);
 			session.state='failed'; session.result={validated:false,error:'benchmark-context-drift',nftDelta:nft_cmp}; json_write(benchmark_path(sid),session); return {ok:false,error:'benchmark-context-drift',session:session,nftDelta:nft_cmp};
 		}
-		if (phase == 'control') {
+			if (phase == 'control') {
 			if (session.state != 'awaiting_control') return {ok:false,error:'benchmark-not-awaiting-control'};
 			let valid=companion_evidence_valid(msg?.evidence,session,'control'); if (!valid.ok) return valid;
-			session.controlEvidence=msg.evidence;
+				session.controlEvidence=msg.evidence; session.controlCpuEnd=cpu_stat();
+				session.controlTelemetry=telemetry_snapshot();
+				let control_cpu=cpu_interval(session.controlCpuStart,session.controlCpuEnd);
+				session.controlTelemetry.cpuBusyInterval = control_cpu.valid ? control_cpu.busyInterval : null;
+				session.controlTelemetry.cpuWindowValid = control_cpu.valid;
 			/* Freeze the measurement methodology from the control leg so the
 			 * candidate must reproduce it exactly (Blocker 3). */
 			session.companion.methodology=measurement_methodology(msg.evidence);
-			let applied=benchmark_apply_candidate(session.actionId,session.evaluationPath,session.sessionId,session.rillDecision);
+				session.candidateCpuStart=cpu_stat();
+				let applied=benchmark_apply_candidate(session.actionId,session.evaluationPath,session.sessionId,session.rillDecision);
 			if (!applied.ok) { benchmark_fail_session(benchmark_path(sid),sid,applied.error); return {ok:false,error:applied.error,session:session,detail:applied}; }
 			session.transactionId=applied.transaction.transactionId; session.state='candidate_applied'; session.candidateDeadlineMonotonicMs=applied.transaction.deadlineMonotonicMs;
 			if (!json_write(benchmark_path(sid),session)) {
@@ -3207,14 +3685,26 @@ function benchmark_start(msg) {
 			let hcmp=compare_health(tx.before?.health ?? baseline_health(session.evaluationPath),baseline_health(session.evaluationPath));
 			let restore=rollback_transaction(session.transactionId,'benchmark-complete');
 			if (!restore.ok || !hcmp.pass) { benchmark_fail_session(benchmark_path(sid),sid,!restore.ok?'candidate-rollback-failed':'health-regression'); return {ok:false,error:!restore.ok?'candidate-rollback-failed':'health-regression',health:hcmp,session:session}; }
-			session.candidateEvidence=msg.evidence;
-			let c0=+session.controlEvidence.bitsPerSecond, c1=+session.candidateEvidence.bitsPerSecond, reward=(c1-c0)/c0;
-			session.state='completed'; session.result={validated:true,changedSystemState:true,rolledBack:true,oneVariable:true,reward:reward,controlBitsPerSecond:c0,candidateBitsPerSecond:c1,health:hcmp};
+				session.candidateEvidence=msg.evidence; session.candidateCpuEnd=cpu_stat();
+				session.candidateTelemetry=telemetry_snapshot();
+				let candidate_cpu=cpu_interval(session.candidateCpuStart,session.candidateCpuEnd);
+				session.candidateTelemetry.cpuBusyInterval = candidate_cpu.valid ? candidate_cpu.busyInterval : null;
+				session.candidateTelemetry.cpuWindowValid = candidate_cpu.valid;
+			let reward_result=build_reward(session.goal,session.controlEvidence,session.candidateEvidence,session.controlTelemetry,session.candidateTelemetry,!hcmp.pass);
+			let c0=+session.controlEvidence.bitsPerSecond, c1=+session.candidateEvidence.bitsPerSecond;
+			session.state='completed'; session.result={validated:reward_result.validated,changedSystemState:true,rolledBack:true,oneVariable:true,reward:reward_result.reward,rewardResult:reward_result,controlBitsPerSecond:c0,candidateBitsPerSecond:c1,health:hcmp};
+			if (!reward_result.validated) {
+				if (session.rillDecision) rill_execution_finalize_without_outcome(session.rillDecision, 'retired-restored-after-failure', 'benchmark-reward-not-validated', { rollback: 'exact', reason: reward_result.reason });
+				if (!json_write(benchmark_path(sid),session)) return {ok:false,error:'benchmark-result-write-failed-after-safe-rollback',session:session};
+				release_benchmark_lock(session.benchmarkLock?.domain, sid); history('benchmark.completed-unvalidated',session);
+				return {ok:true,stage:'result',session:session};
+			}
 			if (session.rillDecision) {
-				let intent=rill_prepare_outcome(session.rillDecision,'controlled_ab',reward,sid,'completed');
+				let intent=rill_prepare_outcome(session.rillDecision,'controlled_ab',reward_result.reward,sid,'completed');
 				if (!intent.ok) { rill_execution_finalize_without_outcome(session.rillDecision, 'retired-restored-after-failure', 'benchmark-outcome-intent-failed', { rollback: 'exact' }); return {ok:false,error:'rill-outcome-intent-write-failed',session:session,detail:intent}; }
 			}
 			if (!json_write(benchmark_path(sid),session)) { rill_execution_finalize_without_outcome(session.rillDecision, 'retired-restored-after-failure', 'benchmark-result-journal-failed', { rollback: 'exact' }); return {ok:false,error:'benchmark-result-write-failed-after-safe-rollback',session:session}; }
+				smart_record_validated_outcome(session.rillDecision?.contextKey ?? rill_context_key_observe(), session.goal, session.candidateId ?? smart_candidate_identity({ id: session.actionId, applyTarget: session.applyTarget, evaluationPaths: [ session.evaluationPath ] }), reward_result.reward, reward_result.components, reward_result.measurementQuality, !hcmp.pass);
 			if (session.rillDecision) {
 				let armed=rill_arm_outcome(session.rillDecision);
 				if (!armed.ok) { rill_execution_finalize_without_outcome(session.rillDecision, 'intervention-required', 'benchmark-outcome-arm-failed', armed); return {ok:false,error:'rill-outcome-arm-failed',session:session,detail:armed}; }
@@ -3222,7 +3712,7 @@ function benchmark_start(msg) {
 			release_benchmark_lock(session.benchmarkLock?.domain, sid);
 			history('benchmark.completed',session);
 			if (session.rillDecision)
-				rill_report_outcome(session.rillDecision,'controlled_ab',reward,sid,{});
+				rill_report_outcome(session.rillDecision,'controlled_ab',reward_result.reward,sid,{});
 			return {ok:true,stage:'result',session:session};
 		}
 		return {ok:false,error:'invalid-benchmark-phase'};
@@ -3259,10 +3749,11 @@ function benchmark_start(msg) {
 		/* Local benchmarks measure router-local kernel paths and therefore
 		 * define their own route requirement: the local endpoint path must
 		 * exist; no external WAN route evidence is required. */
+		let benchmark_action=benchmark_action_contract(action,path_id,plan), candidate_id=smart_candidate_identity(benchmark_action);
 		let lock_domain=benchmark_lock_domain(action, plan, path_id);
 		let execution_source=msg?.executionSource ?? 'manual', frozen_decision=null;
 		if (execution_source == 'benchmark-rill') {
-			frozen_decision=rill_binding_reserve(msg?.decisionId,action,'benchmark','benchmark',id);
+			frozen_decision=rill_binding_reserve(msg?.decisionId,candidate_id,'benchmark','benchmark',id);
 			if (!frozen_decision) return {ok:false,error:'rill-decision-already-reserved'};
 		} else if (execution_source != 'manual' || msg?.decisionId != null) {
 			return {ok:false,error:'invalid-execution-source'};
@@ -3272,7 +3763,7 @@ function benchmark_start(msg) {
 			if (frozen_decision) rill_binding_release_reservation(frozen_decision,'benchmark-lock-conflict-before-mutation');
 			return {ok:false,error:'benchmark-domain-lock-conflict',conflict:lock.conflict,domain:lock_domain};
 		}
-		let session={schemaVersion:2,sessionId:id,state:'awaiting_control',userInitiated:true,actionId:action,executionSource:execution_source,rillDecision:frozen_decision,applyTarget:plan.targetRef?.stableId ?? null,evaluationPath:path_id,workloadClass:ctx.workloadClass,capabilityHash:ctx.capabilityHash,topologyGeneration:ctx.topologyGeneration,routeIdentity:ctx.routeIdentity,integrationState:ctx.integrationState,integrationFingerprint:ctx.integrationFingerprint,nftSnapshot:ctx.nftSnapshot,deviceProfile:cfg('main.profile','recommended'),goal:cur_goal,benchmarkLock:{domain:lock_domain,sessionId:id},createdMonotonicMs:monotonic_ms(),measurementClass:'controlled_ab',variableCount:1,transactionId:null,controlEvidence:null,candidateEvidence:null,result:null,companion:{contract:'pm-companion/v2',requiredRole:semantics=='local'?'router-local-client':'lan-client',phases:['control','candidate'],methodology:null,metadata:{sessionId:id,actionId:action,pathId:path_id,topologyGeneration:ctx.topologyGeneration,routeIdentity:ctx.routeIdentity,capabilityHash:ctx.capabilityHash,goal:cur_goal}}};
+		let session={schemaVersion:2,sessionId:id,state:'awaiting_control',userInitiated:true,actionId:action,candidateId:candidate_id,executionSource:execution_source,rillDecision:frozen_decision,applyTarget:plan.targetRef?.stableId ?? null,evaluationPath:path_id,workloadClass:ctx.workloadClass,capabilityHash:ctx.capabilityHash,topologyGeneration:ctx.topologyGeneration,routeIdentity:ctx.routeIdentity,integrationState:ctx.integrationState,integrationFingerprint:ctx.integrationFingerprint,nftSnapshot:ctx.nftSnapshot,deviceProfile:cfg('main.profile','recommended'),goal:cur_goal,benchmarkLock:{domain:lock_domain,sessionId:id},createdMonotonicMs:monotonic_ms(),controlCpuStart:cpu_stat(),controlCpuEnd:null,candidateCpuStart:null,candidateCpuEnd:null,measurementClass:'controlled_ab',variableCount:1,transactionId:null,controlEvidence:null,candidateEvidence:null,result:null,companion:{contract:'pm-companion/v2',requiredRole:semantics=='local'?'router-local-client':'lan-client',phases:['control','candidate'],methodology:null,metadata:{sessionId:id,actionId:action,pathId:path_id,topologyGeneration:ctx.topologyGeneration,routeIdentity:ctx.routeIdentity,capabilityHash:ctx.capabilityHash,goal:cur_goal}}};
 		ensure_dir(`${state_dir()}/benchmarks`);
 		if (!json_write(benchmark_path(id),session)) {
 			release_benchmark_lock(lock_domain,id);
@@ -3289,7 +3780,7 @@ function benchmark_start(msg) {
 	history('benchmark.observed',session); return {ok:true,session:session};
 }
 
-function rill_observe() {
+function rill_observe(mode) {
 	/* Observe is a decision-registration call on the adapter's ledger.  It is
 	 * throttled so PM stays inside the adapter's pending-decision capacity
 	 * (each observe registers one pending decision that only an outcome or the
@@ -3299,20 +3790,24 @@ function rill_observe() {
 		return { ok: false, state: 'throttled', retryAfterMs: RILL_OBSERVE_MIN_INTERVAL_MS };
 	let caps = capabilities();
 	let topo = topology();
-	let path = topo.paths[0];
 	let integ_fp = integration_fingerprint([], nft_snapshot());
 	let g = goal();
-	let available_actions = rill_available_actions();
+	mode = mode == 'assisted' ? 'assisted' : 'conservative';
+	let available_actions = rill_available_actions(mode);
 	if (!length(available_actions)) return { ok: false, state: 'no-available-actions' };
+	let scope_paths = [];
+	for (let candidate in available_actions) for (let path_id in candidate.evaluationPaths ?? []) push_unique(scope_paths, path_id);
+	let scope = rill_context_scope(length(scope_paths) ? scope_paths : topo.paths);
+	let scoped_workload = workload_for_paths(scope_paths);
 	let payload = {
 		protocolVersion: RILL_RUNTIME_API_VERSION, requestId: sprintf('obs-%d', now), op: 'observe', deviceProfile: cfg('main.profile','recommended'),
 		capabilityHash: capability_hash(caps), topologyGeneration: topology_generation,
-		pathId: path?.id ?? 'path:lan-to-wan', routeIdentity: path?.routeIdentity ?? 'unresolved', workloadClass: path?.workloadClass ?? ['plain_forwarding'],
+		pathId: scope.pathId, routeIdentity: scope.routeIdentity, pathScope: scope, workloadClass: scoped_workload,
 		measurementClass: 'passive_before_after', context: telemetry_snapshot(), integrations: rill_integrations_payload(), goal: g,
 		integrationFingerprint: integ_fp,
 		contextKey: rill_context_key_build(cfg('main.profile','recommended'), capability_hash(caps), topology_generation,
-			path?.id ?? 'path:lan-to-wan', path?.routeIdentity ?? 'unresolved', path?.workloadClass ?? ['plain_forwarding'], integ_fp, g),
-		availableActions: available_actions
+			scope.pathId, scope.routeIdentity, scoped_workload, integ_fp, g),
+		availableActions: available_actions, selectorMode: mode
 	};
 	rill_last_observe_ms = now;
 	rill_runtime_counters.rillObserveAttempts++;
@@ -3327,6 +3822,124 @@ function rill_observe() {
 	if (!binding || !advisory) return { ok: false, state: 'binding-registration-failed', requestId: payload.requestId };
 	rill_runtime_counters.rillObserveAccepted++;
 	return { ok: true, decisionId: resp.decisionId, recommendation: resp.recommendation, binding: binding, response: r.response };
+}
+
+function smart_eligible_action(action, mode, context) {
+	if (action.id == 'pm.noop') return { ok: true, action: action };
+	if (action.risk != 'safe' || index(SAFE_ACTIONS, action.id) < 0) return { ok: false, reason: 'mode-policy-blocked' };
+	let ref = resolve_target(action.applyTarget);
+	if (!ref) return { ok: false, reason: 'target-unresolved' };
+	let comp = compatibility(action.id, ref, action.evaluationPaths?.[0]);
+	if (!comp.allowed) return { ok: false, reason: 'compatibility-blocked', detail: comp };
+	let candidate_id = smart_candidate_identity(action), cooldown = smart_cooldown_state(context.contextKey, candidate_id);
+	if (cooldown.active) return { ok: false, reason: 'action-cooldown', cooldownUntil: cooldown.until, cooldownRemaining: max(0, cooldown.until - monotonic_ms()), cooldownReason: cooldown.reason, candidateId: candidate_id };
+	return { ok: true, action: action, ref: ref };
+}
+
+function select_smart_action(mode, candidates, context) {
+	/* One selector is shared by Conservative and Assisted.  Mode can narrow
+	 * the legal set, never widen it; Rill can only rank a Core-approved set. */
+	let all = [ { id: 'pm.noop', risk: 'none', executionAuthority: 'none', mutation: false, actionFamily: 'noop', available: true } ];
+	for (let action in candidates ?? []) push(all, action);
+	let legal = [], blocked = [];
+	for (let action in all) {
+		let check = smart_eligible_action(action, mode, context);
+		if (check.ok) push(legal, action);
+		else if (action.id != 'pm.noop') push(blocked, { actionId: action.id, reason: check.reason, cooldownUntil: check.cooldownUntil ?? null });
+	}
+	let fallback = null;
+	for (let action in legal) if (action.id != 'pm.noop') { fallback = action; break; }
+	let result = { source: 'core-fallback', mode: mode, selectedActionId: fallback?.id ?? 'pm.noop', selectedCandidateId: fallback ? smart_candidate_identity(fallback) : null, decisionId: null,
+		confidence: 0, learningStage: 'cold', autoEligible: true, reason: fallback ? 'deterministic-core-fallback' : 'no-legal-action',
+		fallback: fallback?.id ?? 'pm.noop', coreRecommendation: fallback?.id ?? 'pm.noop', blockedReasons: blocked, ranking: [], goal: context.goal, contextKey: context.contextKey, context: context };
+	if (!bool_cfg('main.smart_rill_auto', true)) { result.reason = 'smart-rill-opt-out'; return result; }
+	let rill = rill_status(), advisory = rill_advisory_get();
+	/* A decision made for one Auto mode is not reusable by the other mode:
+	 * Conservative receives only safe-direct candidates, while Assisted may
+	 * inspect benchmark recommendations as non-direct advice. */
+	if (advisory && advisory.selectorMode != mode) { rill_advisory = null; advisory = null; }
+	if (!advisory && (rill.state == RILL_STATES.available || rill.state == RILL_STATES.learning)) {
+		let observed = rill_observe(mode);
+		advisory = rill_advisory_get();
+		if (!advisory && observed?.state) result.reason = `rill-${observed.state}`;
+	}
+	let stage = smart_learning_stage(context.contextKey, advisory?.confidence ?? 0);
+	result.learningStage = stage.stage; result.validatedSamples = stage.validatedSamples; result.minimumSamples = stage.minimumSamples ?? SMART_MIN_VALIDATED_SAMPLES;
+	let context_stats = smart_context_stats(context.contextKey, '', false).context;
+	result.lastReward = context_stats?.lastReward ?? null; result.lastRewardComponents = context_stats?.lastRewardComponents ?? {}; result.lastOutcome = context_stats?.lastOutcome ?? null;
+	result.drifted = stage.drifted; result.confidence = advisory?.confidence ?? 0; result.rillState = rill.state;
+	result.ranking = advisory?.ranking ?? [];
+	if (!advisory) { if (rill.state != RILL_STATES.available && rill.state != RILL_STATES.learning) result.reason = `rill-${rill.reason ?? rill.state}`; return result; }
+	result.decisionId = advisory.decisionId;
+	if (stage.stage != 'ready') { result.reason = `rill-${stage.stage}`; return result; }
+	let minimum = mode == 'assisted' ? smart_float_cfg('main.min_confidence_assisted', 0.75) : smart_float_cfg('main.min_confidence_conservative', 0.65);
+	if (advisory.confidence < minimum) { result.reason = 'confidence-below-policy'; return result; }
+	let descriptor = rill_action_descriptor(advisory.actionId), runtime_candidates = all;
+	/* Assisted Observe may advertise benchmark-only candidates that are not in
+	 * the direct-apply input list. Include the exact descriptor for validation,
+	 * while keeping it non-direct below. */
+	if (descriptor?.kind == 'benchmark') {
+		runtime_candidates = [];
+		for (let candidate in all) push(runtime_candidates, candidate);
+		push(runtime_candidates, descriptor.action);
+	}
+	let runtime_selection = smart_runtime_selection_valid(advisory, runtime_candidates);
+	if (!runtime_selection.ok) { result.reason = runtime_selection.reason; return result; }
+	let selected = null;
+	for (let action in all) if (smart_candidate_identity(action) == advisory.actionId) { selected = action; break; }
+	if (!selected && descriptor?.kind == 'benchmark' && rill_binding_peek(advisory.decisionId) != null) {
+		result.source = 'rill'; result.selectedActionId = descriptor.action.id; result.selectedCandidateId = advisory.actionId; result.decisionId = advisory.decisionId;
+		result.autoEligible = false; result.reason = 'recommended-for-benchmark'; return result;
+	}
+	if (!selected || rill_binding_peek(advisory.decisionId) == null) { result.reason = 'missing-exact-decision'; return result; }
+	if (selected.id == 'pm.noop') {
+		result.source = 'rill'; result.selectedActionId = 'pm.noop'; result.fallback = null; result.reason = 'rill-selected-noop';
+		return result;
+	}
+	if (selected.executionAuthority == 'benchmark' || selected.risk == 'benchmark') {
+		result.source = 'rill'; result.selectedActionId = selected.id; result.autoEligible = false; result.reason = 'recommended-for-benchmark';
+		return result;
+	}
+	let eligibility = smart_eligible_action(selected, mode, context);
+	if (!eligibility.ok) { result.reason = `rill-${eligibility.reason}`; return result; }
+	result.source = 'rill'; result.selectedActionId = selected.id; result.selectedCandidateId = smart_candidate_identity(selected); result.candidateHistory = smart_context_stats(context.contextKey, result.selectedCandidateId, false).stats ?? null; result.fallback = null; result.reason = 'runtime-selected-eligible-candidate';
+	return result;
+}
+
+function smart_selector_action(result, candidates) {
+	for (let action in candidates ?? []) if (smart_candidate_identity(action) == (result?.selectedCandidateId ?? result?.selectedActionId)) return action;
+	return result?.selectedActionId == 'pm.noop' ? { id: 'pm.noop', risk: 'none', executionAuthority: 'none' } : null;
+}
+
+function build_reward(goal_id, control, candidate, control_telemetry, candidate_telemetry, health_regressed) {
+	let c_bps = smart_num(control?.bitsPerSecond, 0), n_bps = smart_num(candidate?.bitsPerSecond, 0);
+	let components = { throughput: null, latency: null, latencyMedian: null, latencyP95: null, cpuEfficiency: null, cpuBusyInterval: { control: null, candidate: null }, cpuWindowValid: { control: false, candidate: false } };
+	if (c_bps <= 0 || n_bps <= 0 || health_regressed === true)
+		return { goal: goal_id, reward: null, components: components, measurementQuality: 'invalid', validated: false, reason: health_regressed === true ? 'health-regression' : 'missing-throughput-evidence' };
+	components.throughput = 1.0 * (n_bps - c_bps) / c_bps;
+	let c_median = smart_num(control?.latencyMedianMs, null), n_median = smart_num(candidate?.latencyMedianMs, null);
+	let c_p95 = smart_num(control?.latencyP95Ms, null), n_p95 = smart_num(candidate?.latencyP95Ms, null);
+	if (c_median != null && n_median != null && c_median > 0) components.latencyMedian = 1.0 * (c_median - n_median) / c_median;
+	if (c_p95 != null && n_p95 != null && c_p95 > 0) components.latencyP95 = 1.0 * (c_p95 - n_p95) / c_p95;
+	if (components.latencyMedian != null && components.latencyP95 != null) components.latency = 0.5 * components.latencyMedian + 0.5 * components.latencyP95;
+	let c_cpu = control_telemetry?.cpuWindowValid === true ? smart_num(control_telemetry?.cpuBusyInterval, null) : null;
+	let n_cpu = candidate_telemetry?.cpuWindowValid === true ? smart_num(candidate_telemetry?.cpuBusyInterval, null) : null;
+	components.cpuBusyInterval = { control: c_cpu, candidate: n_cpu };
+	components.cpuWindowValid = { control: control_telemetry?.cpuWindowValid === true, candidate: candidate_telemetry?.cpuWindowValid === true };
+	if (components.cpuWindowValid.control && components.cpuWindowValid.candidate && c_cpu != null && n_cpu != null && c_cpu >= 0 && c_cpu <= 1 && n_cpu >= 0 && n_cpu <= 1)
+		components.cpuEfficiency = ((1.0 * n_bps / max(0.01, n_cpu)) - (1.0 * c_bps / max(0.01, c_cpu))) / max(0.01, 1.0 * c_bps / max(0.01, c_cpu));
+	let reward = null, missing = [];
+	if (goal_id == 'throughput') reward = components.throughput;
+	else if (goal_id == 'latency') { if (components.latency == null) push(missing, 'latency'); else reward = components.latency; }
+	else if (goal_id == 'cpu_efficiency') { if (components.cpuEfficiency == null) push(missing, 'cpuEfficiency'); else reward = components.cpuEfficiency; }
+	else if (goal_id == 'balanced') {
+		if (components.latency == null) push(missing, 'latency');
+		if (components.cpuEfficiency == null) push(missing, 'cpuEfficiency');
+		if (!length(missing)) reward = 0.45 * components.throughput + 0.35 * components.latency + 0.20 * components.cpuEfficiency;
+	}
+	else push(missing, 'unsupported-goal');
+	if (length(missing)) return { goal: goal_id, reward: null, components: components, measurementQuality: 'invalid', validated: false, reason: `missing-evidence:${join(',',missing)}` };
+	return { goal: goal_id, reward: reward, components: components, measurementQuality: 'controlled_ab', validated: true, reason: 'validated-controlled-ab' };
 }
 
 function recommendations(allow_observe) {
@@ -3345,10 +3958,10 @@ function recommendations(allow_observe) {
 	if ((po?.conntrackPressure ?? 0) >= 0.70 || integration_state().transparentProxy)
 		push(notes, { id: 'network.local_port_capacity', disposition: 'analyze', detail: 'Local port capacity is relevant under proxy/high-connection pressure; reserved ports and ownership must be preserved. Any change remains benchmark-only.' });
 	let rill = rill_status();
-	let rill_advisory_live = rill_advisory_get();
+	let selector_mode = active_selector_mode(), rill_advisory_live = rill_advisory_get();
 	let rill_observation = null;
 	if (allow_observe && !rill_advisory_live && (rill.state == RILL_STATES.available || rill.state == RILL_STATES.learning)) {
-		rill_observation = rill_observe();
+		rill_observation = rill_observe(selector_mode);
 		rill_advisory_live = rill_advisory_get();
 	}
 	return {
@@ -3356,6 +3969,7 @@ function recommendations(allow_observe) {
 		benchmarkActions: benchmark_catalog(),
 		rill: rill,
 		rillObservation: rill_observation,
+		smartSelection: allow_observe ? select_smart_action(selector_mode, acts, smart_selector_context()) : null,
 		learnedAdvisory: rill_advisory_live ? [rill_advisory_live] : [],
 	};
 }
@@ -3448,11 +4062,15 @@ function assisted_auto_tick(current) {
 	if (!guard.pass) return { enabled: true, state: 'health-guard', guard: guard };
 	let actions = candidate_actions();
 	if (!length(actions)) return { enabled: true, state: 'no-safe-candidate' };
-	/* Assisted Auto intentionally admits only the same v0.1 safe allowlist.
-	 * Benchmark-class actions remain user-initiated and endpoint-gated. */
-	let action = actions[0];
-	if (index(SAFE_ACTIONS, action.id) < 0 || action.risk != 'safe')
-		return { enabled: true, state: 'candidate-not-safe' };
+	/* Assisted Auto and Conservative share the same Smart Selector.  The
+	 * selector can narrow the safe allowlist, but never expand it to benchmark
+	 * or unknown actuators. */
+	let context = smart_selector_context(), selection = select_smart_action('assisted', actions, context);
+	let action = smart_selector_action(selection, actions);
+	if (!action || action.id == 'pm.noop') {
+		runtime_history('assisted.noop', { selection: selection });
+		return { enabled: true, state: action ? 'noop' : 'candidate-not-safe', selection: selection };
+	}
 	/* Select the Action first, then gate on the traffic of THAT action's own
 	 * target/path.  Gating on the primary WAN while modifying another path's
 	 * ring would let a high-traffic experiment run under a quiet primary. */
@@ -3462,9 +4080,9 @@ function assisted_auto_tick(current) {
 		runtime_history('assisted.skip', { reason: 'traffic-gate', traffic: traffic });
 		return { enabled: true, state: 'traffic-gate', traffic: traffic };
 	}
-	let result = apply_ring(action);
-	history('assisted.action', { actionId: action.id, target: action.applyTarget, ok: result.ok, traffic: traffic });
-	return { enabled: true, state: result.ok ? 'applied' : 'failed', actionId: action.id, result: result };
+	let result = selection.source == 'rill' && selection.decisionId ? apply_action({ actionId: action.id, target: action.applyTarget, executionSource: 'rill-advisory', decisionId: selection.decisionId }) : apply_ring(action);
+	history('assisted.action', { actionId: action.id, target: action.applyTarget, ok: result.ok, traffic: traffic, selection: selection });
+	return { enabled: true, state: result.ok ? 'applied' : 'failed', actionId: action.id, selection: selection, result: result };
 }
 
 function benchmark_active() {
@@ -3502,13 +4120,16 @@ function conservative_auto_tick() {
 		return { enabled: true, state: 'backoff' };
 	let actions = candidate_actions();
 	if (!length(actions)) return { enabled: true, state: 'no-safe-candidate' };
-	let action = actions[0];
-	if (index(SAFE_ACTIONS, action.id) < 0 || action.risk != 'safe')
-		return { enabled: true, state: 'candidate-not-safe' };
-	json_write(`${state_dir()}/conservative-last-attempt.json`, { bootId: boot_id(), monotonicMs: monotonic_ms(), actionId: action.id });
-	let result = apply_ring(action);
-	history('conservative.action', { actionId: action.id, target: action.applyTarget, ok: result.ok, state: result.ok ? 'applied' : 'failed', result: result });
-	return { enabled: true, state: result.ok ? 'applied' : 'failed', actionId: action.id, result: result };
+	let context = smart_selector_context(), selection = select_smart_action('conservative', actions, context);
+	let action = smart_selector_action(selection, actions);
+	if (!action || action.id == 'pm.noop') {
+		runtime_history('conservative.noop', { selection: selection });
+		return { enabled: true, state: action ? 'noop' : 'candidate-not-safe', selection: selection };
+	}
+	json_write(`${state_dir()}/conservative-last-attempt.json`, { bootId: boot_id(), monotonicMs: monotonic_ms(), actionId: action.id, decisionId: selection.decisionId, source: selection.source });
+	let result = selection.source == 'rill' && selection.decisionId ? apply_action({ actionId: action.id, target: action.applyTarget, executionSource: 'rill-advisory', decisionId: selection.decisionId }) : apply_ring(action);
+	history('conservative.action', { actionId: action.id, target: action.applyTarget, ok: result.ok, state: result.ok ? 'applied' : 'failed', selection: selection, result: result });
+	return { enabled: true, state: result.ok ? 'applied' : 'failed', actionId: action.id, selection: selection, result: result };
 }
 
 function analysis_report(allow_observe) {
@@ -3544,7 +4165,7 @@ function conservative_disposition() {
 	return {
 		schemaVersion: 2,
 		automation: automation,
-		/* Conservative/Shadow: only the safe allowlist can ever auto-apply, and
+		/* Conservative/Runtime: only the safe allowlist can ever auto-apply, and
 		 * only through the full transactional path (ownership + precheck +
 		 * backup + bounded apply + verification + rollback).  `conservative` is
 		 * the default mode and drives conservative_auto_tick(); `manual` never
@@ -3589,7 +4210,7 @@ function resource_usage() {
 		m=match(line,/^VmSize:\s+([0-9]+)\s+kB/); if (m) vmsize=+m[1];
 		m=match(line,/^Pid:\s+([0-9]+)/); if (m) pid=+m[1];
 	}
-	let rill_dir=cfg('shadow.state_dir',`${persist_dir()}/rill`);
+	let rill_dir=cfg('runtime.state_dir',`${persist_dir()}/rill`);
 	let hs=fs.stat(`${persist_dir()}/history.jsonl`), outcomes=fs.stat(`${rill_dir}/validated-outcomes.tsv`), ledger=fs.stat(`${rill_dir}/decision-ledger.jsonl`);
 	let counters = {};
 	for (let key in keys(rill_runtime_counters)) counters[key] = rill_runtime_counters[key];
@@ -3616,7 +4237,7 @@ function resource_usage() {
 	counters.pmPersistentWrites = persistent_write_count;
 	counters.expectedRuntimePersistenceEvents = rill_runtime_counters.rillObserveAccepted + rill_runtime_counters.rillOutcomeAccepted + rill_runtime_counters.rillOutcomeReconciled;
 	counters.persistenceAccounting = 'logical/inferred-from-pinned-rill-contract';
-	return {corePid:pid,coreVmRssKiB:vmrss,coreVmSizeKiB:vmsize,corePersistentWritesSinceStart:persistent_write_count,corePersistentWriteBytesSinceStart:persistent_write_bytes,persistentHistoryBytes:hs?.size ?? 0,rillOutcomeBytes:outcomes?.size ?? 0,rillLedgerBytes:ledger?.size ?? 0,historyLineLimit:MAX_HISTORY_LINES,rillCounters:counters,rillBounds:{adapterStateFileBytes:4194304,bindingCacheEntries:RILL_BINDINGS_MAX,executionJournalMaxFiles:RILL_EXECUTION_JOURNAL_MAX_FILES,executionJournalMaxBytes:RILL_EXECUTION_JOURNAL_MAX_BYTES,retiredExecutionRetentionMax:RETIRED_EXECUTION_RETENTION_MAX},rillExecutionHealth:{interventionRequired:intervention > 0,interventionRequiredCount:intervention,active:active,executing:executing,retired:retired,journalFileCount:journal_files,journalBytes:journal_bytes}};
+	return {corePid:pid,coreVmRssKiB:vmrss,coreVmSizeKiB:vmsize,corePersistentWritesSinceStart:persistent_write_count,corePersistentWriteBytesSinceStart:persistent_write_bytes,persistentHistoryBytes:hs?.size ?? 0,rillOutcomeBytes:outcomes?.size ?? 0,rillLedgerBytes:ledger?.size ?? 0,historyLineLimit:MAX_HISTORY_LINES,rillCounters:counters,rillBounds:{runtimeStateFileBytes:4194304,bindingCacheEntries:RILL_BINDINGS_MAX,executionJournalMaxFiles:RILL_EXECUTION_JOURNAL_MAX_FILES,executionJournalMaxBytes:RILL_EXECUTION_JOURNAL_MAX_BYTES,retiredExecutionRetentionMax:RETIRED_EXECUTION_RETENTION_MAX},rillExecutionHealth:{interventionRequired:intervention > 0,interventionRequiredCount:intervention,active:active,executing:executing,retired:retired,journalFileCount:journal_files,journalBytes:journal_bytes}};
 }
 
 function diagnostics() {
@@ -3649,7 +4270,7 @@ function refresh(reason) {
 function rill_refresh_advisory() {
 	rill_invalidate_runtime_decisions('explicit-refresh');
 	rill_last_observe_ms = null;
-	return rill_observe();
+	return rill_observe(cfg('main.automation', 'conservative') == 'assisted' ? 'assisted' : 'conservative');
 }
 
 function schedule_event(reason) {
@@ -3690,7 +4311,7 @@ function schedule_rill_outcome_retry() {
 	if (rill_outcome_timer || rill_pending_outcome_count() == 0) return;
 	rill_outcome_timer = uloop.timer(5000, function() {
 		rill_outcome_timer = null;
-		if (bool_cfg('shadow.enabled', true)) { if (rill_recover_execution_hook) rill_recover_execution_hook(); rill_retry_pending_outcomes(); }
+		if (bool_cfg('runtime.enabled', true)) { if (rill_recover_execution_hook) rill_recover_execution_hook(); rill_retry_pending_outcomes(); }
 		if (rill_pending_outcome_count() > 0) schedule_rill_outcome_retry();
 	});
 }

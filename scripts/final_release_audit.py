@@ -30,6 +30,13 @@ def main(argv=None):
         "pmCommitSha": args.expected_commit,
     }
     verdict = evidence.get("overallVerdict", "BLOCKED")
+    stable_verdict = evidence.get("stableReleaseVerdict", "NOT_EVALUATED")
+    authorized = (
+        args.profile == "hardware"
+        and evidence.get("stableReleaseVerdict") == "PASS"
+        and evidence.get("hardwareCoverage") == "PASS"
+        and evidence.get("stableReleaseAuthorized") is True
+    )
     rows = [
         {"gate": name, **gate}
         for name, gate in evidence.get("requiredGates", {}).items()
@@ -41,8 +48,10 @@ def main(argv=None):
         "pmCommitSha": args.expected_commit,
         "scope": f"{args.profile}-release",
         "releaseProfile": args.profile,
-        "stableReleaseVerdict": verdict,
-        "stableReleaseAuthorized": verdict == "PASS",
+        "portableVerdict": evidence.get("portableVerdict"),
+        "stableReleaseVerdict": stable_verdict,
+        "stableReleaseAuthorized": authorized,
+        "hardwareCoverage": evidence.get("hardwareCoverage", "NOT_EVALUATED"),
         "gates": rows,
         "evidence": evidence,
     }
@@ -54,7 +63,7 @@ def main(argv=None):
         + (f" — {row['reason']}" if row.get("reason") else "")
         for row in rows
     )
-    (ROOT / "docs/FINAL_AUDIT.md").write_text(f"""# Stable Release Verdict — {verdict}
+    (ROOT / "docs/FINAL_AUDIT.md").write_text(f"""# Release Evidence — {args.profile}
 
 - Version: `{report['version']}`
 - PM commit: `{args.expected_commit}`
@@ -64,9 +73,12 @@ def main(argv=None):
 
 {lines}
 
-Stable release authorization: **{'YES' if verdict == 'PASS' else 'NO'}**.
+Portable verdict: **{evidence.get('portableVerdict') or 'NOT_APPLICABLE'}**.
+Hardware coverage: **{evidence.get('hardwareCoverage', 'NOT_EVALUATED')}**.
+Stable release verdict: **{stable_verdict}**.
+Stable release authorization: **{'YES' if authorized else 'NO'}**.
 """)
-    print(json.dumps({"stableReleaseVerdict": verdict, "authorized": verdict == "PASS"}, indent=2))
+    print(json.dumps({"overallVerdict": verdict, "stableReleaseVerdict": stable_verdict, "authorized": authorized}, indent=2))
     return 0 if completed.returncode == 0 and verdict == "PASS" else 1
 
 

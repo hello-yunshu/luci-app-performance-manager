@@ -1,5 +1,5 @@
 #!/bin/sh
-# Target-side release evidence gate for a booted OpenWrt 25.12.x x86_64 VM.
+# Target-side release evidence gate for a booted OpenWrt 25.12.5 x86_64 VM.
 # Default is read-only apart from restarting PM/Rill services. Set
 # PM_ALLOW_MUTATION=1 only on an explicit test VM to exercise ring apply/rollback
 # and ownership cleanup.
@@ -28,7 +28,7 @@ json_array() {
 [ "$(uname -m)" = "x86_64" ] && pass architecture-x86_64 || fail architecture-x86_64
 [ -r /etc/openwrt_release ] || fail openwrt-release-missing
 . /etc/openwrt_release 2>/dev/null || true
-case "${DISTRIB_RELEASE:-}" in 25.12.*) pass openwrt-25.12-series;; *) fail openwrt-25.12-series;; esac
+[ "${DISTRIB_RELEASE:-}" = "25.12.5" ] && pass openwrt-25.12.5 || fail openwrt-25.12.5
 have ubus || fail ubus-missing
 have jsonfilter || fail jsonfilter-missing
 [ -x /usr/sbin/performance-manager.uc ] && pass core-installed || fail core-installed
@@ -72,7 +72,7 @@ if [ "$rill_present" = true ]; then
   RS=$(ubus call performance-manager rill_status '{}' 2>/dev/null || printf '{}')
   rstate=$(jget "$RS" '@.state')
   case "$rstate" in available|learning) pass rill-root-core-connect;; *) fail rill-root-core-connect;; esac
-  [ "$(jget "$RS" '@.mode')" = "shadow" ] && pass rill-shadow || fail rill-shadow
+  [ "$(jget "$RS" '@.mode')" = "advisory" ] && pass rill-runtime-mode || fail rill-runtime-mode
   effective_binary=$(jget "$RS" '@.binary.effective')
   if [ -n "$effective_binary" ] && [ -r "$effective_binary" ]; then
     runtime_sha=$(sha256sum "$effective_binary" | awk '{print $1}')
@@ -87,8 +87,11 @@ mutation_ok=null
 if [ "$ALLOW_MUTATION" = "1" ]; then
   mutation_tested=true
   REC=$(ubus call performance-manager recommendations '{}' 2>/dev/null || printf '{}')
-  aid=$(jget "$REC" '@.actions[0].id')
-  target=$(jget "$REC" '@.actions[0].applyTarget')
+  # The target gate exercises the Core's explicit safe recommendation. Resolve
+  # the candidate by Action ID instead of relying on array order, which is not
+  # a Smart Decision contract and may change when Rill ranks candidates.
+  aid=$(jget "$REC" '@.smartSelection.coreRecommendation')
+  target=$(jget "$REC" '@.actions[@.id="nic.ring.floor"].applyTarget')
   if [ "$aid" = "nic.ring.floor" ] && [ -n "$target" ]; then
     ps_before=$(uci -q get network.@globals[0].packet_steering 2>/dev/null || true)
     APPLY=$(ubus call performance-manager apply "{\"actionId\":\"$aid\",\"target\":\"$target\"}" 2>/dev/null || printf '{}')
