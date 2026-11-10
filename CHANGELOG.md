@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.0.4 — True architecture-specific All-in-One release closure (2026-09-04)
+
+- Builds one full architecture-specific APK containing Core, LuCI, Simplified Chinese, Rill glue and the exact qualified Rill Runtime.
+- Keeps split packages for developer and CI validation while preventing split/full mixed ownership.
+- Reduces public release assets to three architecture APKs plus `SHA256SUMS.txt`; build evidence remains in Actions artifacts.
+
 ## 1.0.3 — Rill 1.5.3 release identity repair (2026-08-27)
 
 - Rebuilds the PM-owned adapter and package set as `1.0.3` from one final main commit.

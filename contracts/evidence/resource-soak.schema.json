@@ -1,1 +1,85 @@
-{"$schema":"https://json-schema.org/draft/2020-12/schema","allOf":[{"$ref":"common.schema.json"},{"type":"object","additionalProperties":false,"properties":{"gate":{"const":"resource-soak"},"durationSeconds":{"type":"integer","minimum":86400},"subchecks":{"type":"object","additionalProperties":false,"required":["exactPackagesInstalled","rillPresent","sampledResources","noCoreRestart","noRillRestart","idleObserveZero","idleAdapterPersistenceZero","idleJournalWritesZero","journalMeasured","stateBoundsPass","historyBoundsPass"]},"rawFacts":{"type":"object","additionalProperties":false,"required":["installedPackages","durationSeconds","soak"],"properties":{"installedPackages":{"type":"object"},"durationSeconds":{"type":"integer","minimum":86400},"soak":{"type":"object","additionalProperties":false,"required":["rillPresent","sampleCount","coreRestartCount","rillRestartCount","idleRillObserveAcceptedDelta","idleExpectedAdapterPersistenceEventsDelta","idlePendingOutcomeJournalWrites","executingJournalDelta","resources"],"properties":{"rillPresent":{"const":true},"sampleCount":{"type":"integer","minimum":1},"coreRestartCount":{"type":"integer","minimum":0},"rillRestartCount":{"type":"integer","minimum":0},"idleRillObserveAcceptedDelta":{"type":"integer","minimum":0},"idleExpectedAdapterPersistenceEventsDelta":{"type":"integer","minimum":0},"idlePendingOutcomeJournalWrites":{"type":"integer","minimum":0},"executingJournalDelta":{"type":"integer","minimum":0},"resources":{"type":"object","additionalProperties":false,"required":["coreRssKiB","rillRssKiB","bindingHighWater","interventionRequiredCount","persistentHistoryGrowthBytes","executionJournalFileCount","executionJournalBytes","retiredExecutionCount","activeExecutionCount","executingExecutionCount"],"properties":{"coreRssKiB":{"type":"number","minimum":0},"rillRssKiB":{"type":"number","minimum":0},"bindingHighWater":{"type":"number","minimum":0},"interventionRequiredCount":{"type":"number","minimum":0},"persistentHistoryGrowthBytes":{"type":"number","minimum":0},"executionJournalFileCount":{"type":"number","minimum":0},"executionJournalBytes":{"type":"number","minimum":0},"retiredExecutionCount":{"type":"number","minimum":0},"activeExecutionCount":{"type":"number","minimum":0},"executingExecutionCount":{"type":"number","minimum":0}}}}}}}}},{"required":["durationSeconds"]}]}
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "allOf": [
+    {"$ref": "common.schema.json"},
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "schemaVersion": {"const": 2},
+        "gate": {"const": "resource-soak"},
+        "durationSeconds": {"type": "integer", "minimum": 86400},
+        "subchecks": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "exactPackagesInstalled", "rillPresent", "sampledResources", "noCoreRestart",
+            "idleObserveZero", "idleRuntimePersistenceZero", "idleJournalWritesZero",
+            "runtimeInvocationHealthy", "runtimeFailureZero", "runtimeStateBounded",
+            "journalMeasured", "stateBoundsPass", "historyBoundsPass"
+          ]
+        },
+        "rawFacts": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["installedPackages", "durationSeconds", "soak"],
+          "properties": {
+            "installedPackages": {"type": "object"},
+            "durationSeconds": {"type": "integer", "minimum": 86400},
+            "soak": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "rillPresent", "sampleCount", "coreRestartCount", "idleRillObserveAcceptedDelta",
+                "idleExpectedRuntimePersistenceEventsDelta", "idlePendingOutcomeJournalWrites",
+                "executingJournalDelta", "runtimeInvocationCount", "runtimeSuccessfulInvocationCount",
+                "runtimeInvocationFailureCount", "runtimeTimeoutCount", "runtimeMalformedResponseCount",
+                "runtimeNonZeroExitCount", "resources"
+              ],
+              "properties": {
+                "rillPresent": {"const": true},
+                "sampleCount": {"type": "integer", "minimum": 1},
+                "coreRestartCount": {"type": "integer", "minimum": 0},
+                "idleRillObserveAcceptedDelta": {"type": "integer", "minimum": 0},
+                "idleExpectedRuntimePersistenceEventsDelta": {"type": "integer", "minimum": 0},
+                "idlePendingOutcomeJournalWrites": {"type": "integer", "minimum": 0},
+                "executingJournalDelta": {"type": "integer", "minimum": 0},
+                "runtimeInvocationCount": {"type": "integer", "minimum": 0},
+                "runtimeSuccessfulInvocationCount": {"type": "integer", "minimum": 0},
+                "runtimeInvocationFailureCount": {"type": "integer", "minimum": 0},
+                "runtimeTimeoutCount": {"type": "integer", "minimum": 0},
+                "runtimeMalformedResponseCount": {"type": "integer", "minimum": 0},
+                "runtimeNonZeroExitCount": {"type": "integer", "minimum": 0},
+                "resources": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "coreRssKiB", "coreMeanCpuPercent", "corePersistentWritesPerDay", "bindingHighWater", "interventionRequiredCount",
+                    "persistentHistoryGrowthBytes", "executionJournalFileCount", "executionJournalBytes",
+                    "retiredExecutionCount", "activeExecutionCount", "executingExecutionCount",
+                    "runtimeStateMaxBytes"
+                  ],
+                  "properties": {
+                    "coreRssKiB": {"type": "number", "minimum": 0},
+                    "coreMeanCpuPercent": {"type": "number", "minimum": 0},
+                    "corePersistentWritesPerDay": {"type": "number", "minimum": 0},
+                    "bindingHighWater": {"type": "number", "minimum": 0},
+                    "interventionRequiredCount": {"type": "number", "minimum": 0},
+                    "persistentHistoryGrowthBytes": {"type": "number", "minimum": 0},
+                    "executionJournalFileCount": {"type": "number", "minimum": 0},
+                    "executionJournalBytes": {"type": "number", "minimum": 0},
+                    "retiredExecutionCount": {"type": "number", "minimum": 0},
+                    "activeExecutionCount": {"type": "number", "minimum": 0},
+                    "executingExecutionCount": {"type": "number", "minimum": 0},
+                    "runtimeStateMaxBytes": {"type": "number", "minimum": 0}
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {"required": ["durationSeconds"]}
+  ]
+}

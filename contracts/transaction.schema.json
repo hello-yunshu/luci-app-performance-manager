@@ -8,6 +8,7 @@
     "schemaVersion",
     "transactionId",
     "actionId",
+    "candidateId",
     "executionSource",
     "rillDecision",
     "state",
@@ -27,6 +28,14 @@
       "minLength": 1
     },
     "actionId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "candidateId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "businessActionId": {
       "type": "string",
       "minLength": 1
     },
@@ -60,7 +69,7 @@
         "actionId": { "type": "string", "minLength": 1 },
         "contextKey": { "type": "string", "minLength": 1 },
         "goal": { "type": "string", "minLength": 1 },
-        "modelGeneration": { "const": 1 },
+        "modelGeneration": { "const": 2 },
         "bootId": { "type": "string", "minLength": 1 },
         "executionAuthority": {"const": "safe-direct"},
         "ownerType": {"const": "transaction"},

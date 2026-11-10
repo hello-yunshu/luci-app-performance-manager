@@ -35,7 +35,10 @@ def main(argv=None):
         aggregate_build_matrix([
             "--input", str(build_root), "--out", str(matrix_out),
             "--expected-commit", args.expected_commit,
-            "--expected-arch", "x86_64", "--expected-arch", "aarch64_generic",
+            "--expected-arch", "x86_64",
+            "--expected-arch", "aarch64_generic",
+            "--expected-arch", "aarch64_cortex-a53",
+            "--include-path-fragment", "packages-and-evidence",
         ])
         build_root = matrix_out
     required = PORTABLE_REQUIRED if args.profile == "portable-docker" else REQUIRED
@@ -47,6 +50,7 @@ def main(argv=None):
         "rillCoreFunctional": Path(args.ci_root),
         "openwrtSdk": build_root,
         "apkVerification": build_root,
+        "packageComposition": Path(args.target_root),
     }
     missing = []
     for name, filename in required.items():

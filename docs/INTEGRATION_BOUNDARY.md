@@ -1,10 +1,12 @@
 # Integration boundary
 
-Performance Manager owns the business-specific `pm-rill-shadow` v1 adapter,
-its OpenWrt service/package surface, state migration, and target qualification.
-The adapter links exact crates.io `rill-ml` 1.5.3 and remains advisory-only.
+Performance Manager owns the business-specific feature mapping, Smart Decision
+v2 policy state, selector, explainability and OpenWrt UI/package surface. Core
+calls the external generic Rill Runtime v3 through a bounded UDS envelope and
+keeps the final execution authority.
 
-RillML owns generic native crates, runtime IPC protocols, handler/model APIs,
-generic persistence and conformance. The historical v1.5.1 `rill-pm-adapter`
-Release asset remains readable as a compatibility fixture, but is not emitted
-or selected by current PM provisioning.
+The external Rill Runtime owns generic ranking, online learning, persistence and
+Runtime v3 conformance. It receives only the stable feature vector and legal
+action candidates; it cannot call Core actuators. Missing Runtime, incompatible
+schema/model generation, low confidence, drift or cooldown leaves Core on a
+deterministic safe fallback or `pm.noop`.

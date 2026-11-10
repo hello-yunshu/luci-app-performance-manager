@@ -1,0 +1,42 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openwrt-performance-manager.local/schema/rill-feature-schema.json",
+  "title": "Performance Manager Rill Feature Schema v2",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "contract", "features", "vectorWidth", "missingValue"],
+  "properties": {
+    "schemaVersion": {"const": 2},
+    "contract": {"const": "performance-manager-rill-feature-schema"},
+    "vectorWidth": {"const": 20},
+    "missingValue": {"const": "neutral-zero-after-normalization"},
+    "features": {
+      "type": "array",
+      "minItems": 20,
+      "maxItems": 20,
+      "items": {"type": "object", "additionalProperties": false, "required": ["name", "range", "missing"], "properties": {"name": {"type": "string", "minLength": 1}, "range": {"type": "string", "minLength": 1}, "missing": {"const": "neutral-zero-after-normalization"}}},
+      "prefixItems": [
+        {"name": "is_noop", "range": "0..1", "missing": "neutral-zero-after-normalization"},
+        {"name": "is_safe_direct", "range": "0..1", "missing": "neutral-zero-after-normalization"},
+        {"name": "is_benchmark", "range": "0..1", "missing": "neutral-zero-after-normalization"},
+        {"name": "risk_level", "range": "0..1", "missing": "neutral-zero-after-normalization"},
+        {"name": "action_available", "range": "0..1", "missing": "neutral-zero-after-normalization"},
+        {"name": "action_delta_normalized", "range": "0..1", "missing": "neutral-zero-after-normalization"},
+        {"name": "affects_nic", "range": "0..1", "missing": "neutral-zero-after-normalization"},
+        {"name": "affects_network_stack", "range": "0..1", "missing": "neutral-zero-after-normalization"},
+        {"name": "affects_cpu", "range": "0..1", "missing": "neutral-zero-after-normalization"},
+        {"name": "affects_fastpath", "range": "0..1", "missing": "neutral-zero-after-normalization"},
+        {"name": "traffic_utilization", "range": "0..1", "missing": "neutral-zero-after-normalization"},
+        {"name": "pps_pressure", "range": "0..1", "missing": "neutral-zero-after-normalization"},
+        {"name": "drop_error_pressure", "range": "0..1", "missing": "neutral-zero-after-normalization"},
+        {"name": "cpu_load", "range": "0..1", "missing": "neutral-zero-after-normalization"},
+        {"name": "softirq_pressure", "range": "0..1", "missing": "neutral-zero-after-normalization"},
+        {"name": "queue_pressure", "range": "0..1", "missing": "neutral-zero-after-normalization"},
+        {"name": "memory_pressure", "range": "0..1", "missing": "neutral-zero-after-normalization"},
+        {"name": "recent_reward_mean", "range": "-1..1", "missing": "neutral-zero-after-normalization"},
+        {"name": "recent_success_rate", "range": "0..1", "missing": "neutral-zero-after-normalization"},
+        {"name": "negative_streak", "range": "0..1", "missing": "neutral-zero-after-normalization"}
+      ]
+    }
+  }
+}

@@ -27,6 +27,7 @@ REQUIRED = {
     "rillCoreFunctional": "rill-core-integration.json",
     "openwrtSdk": "build-metadata.json",
     "apkVerification": "apk-verification.json",
+    "packageComposition": "package-composition.json",
     "targetCoreOnly": "target-core-only.json",
     "targetFull": "target-full.json",
     "targetMutation": "target-mutation.json",
@@ -58,6 +59,7 @@ PORTABLE_REQUIRED = {
     "openwrtSdk": "build-metadata.json",
     "apkVerification": "apk-verification.json",
     "portableDocker": "portable-docker.json",
+    "packageComposition": "package-composition.json",
 }
 PORTABLE_RILL_PRESENT = {"rillProvenance", "rillRuntime", "rillCoreFunctional"}
 
@@ -122,6 +124,15 @@ def combine(values):
     if any(value in {"BLOCKED", "PENDING", "NOT_EVALUATED"} for value in values):
         return "BLOCKED"
     return "PASS"
+
+
+def stable_authorization(profile, overall, gates):
+    """Return authorization only for complete, same-profile hardware proof."""
+    if profile != "hardware" or overall != "PASS":
+        return False
+    return bool(EXTERNAL_GATES) and all(
+        gates.get(name, {}).get("status") == "PASS" for name in EXTERNAL_GATES
+    )
 
 
 def main(argv=None):
@@ -191,6 +202,18 @@ def main(argv=None):
         identities[name] = {"pmCommitSha": commit, "runtimeSha256": runtime_sha}
 
     overall = combine([gate["status"] for gate in gates.values()])
+    hardware_gate_statuses = [gates[name]["status"] for name in EXTERNAL_GATES if name in gates]
+    hardware_complete = args.profile == "hardware" and bool(hardware_gate_statuses) and all(
+        status == "PASS" for status in hardware_gate_statuses
+    )
+    # Portable evidence is useful for RC/preview admission, but it is never a
+    # Stable authorization input. Only the hardware profile may authorize a
+    # Stable release, and only after every required external gate is PASS.
+    stable_authorized = stable_authorization(args.profile, overall, gates)
+    hardware_coverage = (
+        "NOT_EVALUATED" if args.profile == "portable-docker"
+        else "PASS" if hardware_complete else "BLOCKED"
+    )
     result = {
         "schemaVersion": 1,
         "contract": "openwrt-performance-manager-stable-evidence",
@@ -203,8 +226,10 @@ def main(argv=None):
         "requiredGates": gates,
         "evidenceIdentity": identities,
         "overallVerdict": overall,
-        "stableReleaseAuthorized": overall == "PASS",
-        "hardwareCoverage": "NOT_EVALUATED" if args.profile == "portable-docker" else "REQUIRED",
+        "portableVerdict": overall if args.profile == "portable-docker" else None,
+        "stableReleaseVerdict": overall if args.profile == "hardware" else "NOT_EVALUATED",
+        "stableReleaseAuthorized": stable_authorized,
+        "hardwareCoverage": hardware_coverage,
     }
     out = Path(args.out)
     out.parent.mkdir(parents=True, exist_ok=True)
