@@ -2,7 +2,7 @@
   "schemaVersion": 3,
   "project": "OpenWrt Performance Manager",
   "version": "1.0.4",
-  "pmCommitSha": "a6eeb9d25477498e3c8b8ee17e502e3a5a2678db",
+  "pmCommitSha": "39d43060c6589d5e24529145f2ed5b9cc620fba6",
   "scope": "source-only",
   "sourceTreeClean": true,
   "sourceTreeDirtyPaths": [],
@@ -42,7 +42,7 @@
       "name": "resource-budget",
       "evidenceClass": "source",
       "status": "PASS",
-      "outputTail": "{\n  \"schemaVersion\": 2,\n  \"areas\": {\n    \"core\": {\n      \"files\": 42,\n      \"sourceBytes\": 308715,\n      \"knownStaticPayloadBytes\": 305506\n    },\n    \"luci\": {\n      \"files\": 17,\n      \"sourceBytes\": 254011,\n      \"knownStaticPayloadBytes\": 253143\n    },\n    \"rill\": {\n      \"files\": 2,\n      \"sourceBytes\": 1562,\n      \"knownStaticPayloadBytes\": 31\n    },\n    \"allInOne\": {\n      \"files\": 1,\n      \"sourceBytes\": 5322,\n      \"knownStaticPayloadBytes\": 0\n    }\n  },\n  \"persistentWritePolicy\": {\n    \"core\": \"event-only transaction/history/policy intents; fast/deep telemetry remains tmpfs\",\n    \"rill\": \"External Runtime v3 state and PM Smart Decision v2 state are bounded/compacted; only validated controlled-A/B outcomes update learning.\",\n    \"idleInvariant\": \"Periodic Core telemetry never calls Observe. With no UI/API refresh, benchmark, or configuration/topology event, rillObserveAccepted and expectedRuntimePersistenceEvents must remain unchanged.\",\n    \"accounting\": \"Core exposes logical counters inferred from the Runtime contract; these are not physical flash-block write measurements.\"\n  },\n  \"limits\": {\n    \"rillMaxMessageBytes\": 65536,\n    \"rillRequestsPerSecond\": 20,\n    \"rillCoreTimeoutMs\": 1000,\n    \"historyReadTailLines\": 512,\n    \"rillValidatedOutcomeLines\": 2048,\n    \"rillDecisionLedgerLines\": 4096,\n    \"runtimeStateFileMaxBytes\": 4194304,\n    \"rillBindingCacheEntries\": 64,\n    \"rillExecutionJournalMaxFiles\": 128,\n    \"rillExecutionJournalMaxBytes\": 2097152,\n    \"retiredExecutionRetentionMax\": 64,\n    \"fastTelemetryMinimumSeconds\": 30,\n    \"deepTelemetryMinimumSeconds\": 300\n  },\n  \"precommittedStableBudgets\": {\n    \"minimumElapsedSeconds\": 86400,\n    \"coreMaxRssKiB\": 65536,\n    \"coreMeanCpuPercent\": 5.0,\n    \"coreRestartCount\": 0,\n    \"pmPersistentWritesPerDay\": 32,\n    \"runtimeInvocationFailureCount\": 0,\n    \"runtimeTimeoutCount\": 0,\n    \"runtimeMalformedResponseCount\": 0,\n    \"runtimeNonZeroExitCount\": 0,\n    \"idleRillObserveAcceptedDelta\": 0,\n    \"idleExpectedRuntimePersistenceEventsDelta\": 0,\n    \"runtimeStateMaxBytes\": 4194304,\n    \"rillExecutionJournalMaxFiles\": 128,\n    \"rillExecutionJournalMaxBytes\": 2097152,\n    \"retiredExecutionRetentionMax\": 64,\n    \"bindingHighWater\": 64,\n    \"persistentHistoryGrowthBytes\": 262144\n  },\n  \"targetRuntimeMetrics\": {\n    \"coreRssKiB\": null,\n    \"coreMeanCpuPercent\": null,\n    \"corePersistentWritesPerDay\": null,\n    \"pmPersistentWritesPerDay\": null,\n    \"runtimeInvocationFailureCount\": null,\n    \"runtimeTimeoutCount\": null,\n    \"runtimeMalformedResponseCount\": null,\n    \"runtimeNonZeroExitCount\": null,\n    \"runtimeStateMaxBytes\": null,\n    \"bootStartMilliseconds\": null,\n    \"status\": \"external-runtime-gate\",\n    \"requiredScripts\": [\n      \"scripts/openwrt-target-gate.sh\",\n      \"scripts/openwrt-resource-soak.sh\"\n    ],\n    \"note\": \"Core RSS/CPU and Runtime subprocess lifecycle/state metrics require a booted OpenWrt x86_64 target with Rill installed. Missing measurements are BLOCKED, never converted to zero.\"\n  }\n}\n"
+      "outputTail": "{\n  \"schemaVersion\": 2,\n  \"areas\": {\n    \"core\": {\n      \"files\": 42,\n      \"sourceBytes\": 310206,\n      \"knownStaticPayloadBytes\": 307006\n    },\n    \"luci\": {\n      \"files\": 17,\n      \"sourceBytes\": 254652,\n      \"knownStaticPayloadBytes\": 253784\n    },\n    \"rill\": {\n      \"files\": 2,\n      \"sourceBytes\": 1562,\n      \"knownStaticPayloadBytes\": 31\n    },\n    \"allInOne\": {\n      \"files\": 1,\n      \"sourceBytes\": 5313,\n      \"knownStaticPayloadBytes\": 0\n    }\n  },\n  \"persistentWritePolicy\": {\n    \"core\": \"event-only transaction/history/policy intents; fast/deep telemetry remains tmpfs\",\n    \"rill\": \"External Runtime v3 state and PM Smart Decision v2 state are bounded/compacted; only validated controlled-A/B outcomes update learning.\",\n    \"idleInvariant\": \"Periodic Core telemetry never calls Observe. With no UI/API refresh, benchmark, or configuration/topology event, rillObserveAccepted and expectedRuntimePersistenceEvents must remain unchanged.\",\n    \"accounting\": \"Core exposes logical counters inferred from the Runtime contract; these are not physical flash-block write measurements.\"\n  },\n  \"limits\": {\n    \"rillMaxMessageBytes\": 65536,\n    \"rillRequestsPerSecond\": 20,\n    \"rillCoreTimeoutMs\": 1000,\n    \"historyReadTailLines\": 512,\n    \"rillValidatedOutcomeLines\": 2048,\n    \"rillDecisionLedgerLines\": 4096,\n    \"runtimeStateFileMaxBytes\": 4194304,\n    \"rillBindingCacheEntries\": 64,\n    \"rillExecutionJournalMaxFiles\": 128,\n    \"rillExecutionJournalMaxBytes\": 2097152,\n    \"retiredExecutionRetentionMax\": 64,\n    \"fastTelemetryMinimumSeconds\": 30,\n    \"deepTelemetryMinimumSeconds\": 300\n  },\n  \"precommittedStableBudgets\": {\n    \"minimumElapsedSeconds\": 86400,\n    \"coreMaxRssKiB\": 65536,\n    \"coreMeanCpuPercent\": 5.0,\n    \"coreRestartCount\": 0,\n    \"pmPersistentWritesPerDay\": 32,\n    \"runtimeInvocationFailureCount\": 0,\n    \"runtimeTimeoutCount\": 0,\n    \"runtimeMalformedResponseCount\": 0,\n    \"runtimeNonZeroExitCount\": 0,\n    \"idleRillObserveAcceptedDelta\": 0,\n    \"idleExpectedRuntimePersistenceEventsDelta\": 0,\n    \"runtimeStateMaxBytes\": 4194304,\n    \"rillExecutionJournalMaxFiles\": 128,\n    \"rillExecutionJournalMaxBytes\": 2097152,\n    \"retiredExecutionRetentionMax\": 64,\n    \"bindingHighWater\": 64,\n    \"persistentHistoryGrowthBytes\": 262144\n  },\n  \"targetRuntimeMetrics\": {\n    \"coreRssKiB\": null,\n    \"coreMeanCpuPercent\": null,\n    \"corePersistentWritesPerDay\": null,\n    \"pmPersistentWritesPerDay\": null,\n    \"runtimeInvocationFailureCount\": null,\n    \"runtimeTimeoutCount\": null,\n    \"runtimeMalformedResponseCount\": null,\n    \"runtimeNonZeroExitCount\": null,\n    \"runtimeStateMaxBytes\": null,\n    \"bootStartMilliseconds\": null,\n    \"status\": \"external-runtime-gate\",\n    \"requiredScripts\": [\n      \"scripts/openwrt-target-gate.sh\",\n      \"scripts/openwrt-resource-soak.sh\"\n    ],\n    \"note\": \"Core RSS/CPU and Runtime subprocess lifecycle/state metrics require a booted OpenWrt x86_64 target with Rill installed. Missing measurements are BLOCKED, never converted to zero.\"\n  }\n}\n"
     }
   ],
   "localEvidence": {
@@ -190,13 +190,13 @@
       "areas": {
         "core": {
           "files": 42,
-          "sourceBytes": 308715,
-          "knownStaticPayloadBytes": 305506
+          "sourceBytes": 310206,
+          "knownStaticPayloadBytes": 307006
         },
         "luci": {
           "files": 17,
-          "sourceBytes": 254011,
-          "knownStaticPayloadBytes": 253143
+          "sourceBytes": 254652,
+          "knownStaticPayloadBytes": 253784
         },
         "rill": {
           "files": 2,
@@ -205,7 +205,7 @@
         },
         "allInOne": {
           "files": 1,
-          "sourceBytes": 5322,
+          "sourceBytes": 5313,
           "knownStaticPayloadBytes": 0
         }
       },
@@ -401,12 +401,12 @@
   "packages": {
     "performance-manager": {
       "files": 42,
-      "bytes": 308715,
-      "makefileSha256": "a1863309dfe35b0b3329b0d0e85d7cf668758c0e9fecbf8e7cf2ba156551df3e"
+      "bytes": 310206,
+      "makefileSha256": "c14a50f91dfd2347efb57442f6387da65cfef6a80ffec5fee0c84cb64bac8dbe"
     },
     "luci-app-performance-manager": {
       "files": 17,
-      "bytes": 254011,
+      "bytes": 254652,
       "makefileSha256": "c1d7698e40e15a8ee84de4dc8b3f3af24e2fe203e4d0261155cdd20b688a9895"
     },
     "performance-manager-rill": {
@@ -416,8 +416,8 @@
     },
     "luci-app-performance-manager-all": {
       "files": 1,
-      "bytes": 5322,
-      "makefileSha256": "7238b9154a2ea04f44088bf6d95334bad254a844f5aa37940dfbbb849d233633"
+      "bytes": 5313,
+      "makefileSha256": "8ceee6815049d5f15b145b4d40540978e94666f3e45b1900866a742b78ba383d"
     }
   },
   "toolchainAvailability": {
