@@ -7,9 +7,9 @@
       "knownStaticPayloadBytes": 305506
     },
     "luci": {
-      "files": 15,
-      "sourceBytes": 116420,
-      "knownStaticPayloadBytes": 115552
+      "files": 17,
+      "sourceBytes": 254011,
+      "knownStaticPayloadBytes": 253143
     },
     "rill": {
       "files": 2,
