@@ -2808,10 +2808,34 @@ function command_exists(name) {
 	return false;
 }
 
+function ip_json_support() {
+	/* Route evidence needs an ip binary that can emit JSON (`-j`).  The
+	 * ip-tiny and ip-full variants both support it on supported releases, but
+	 * they conflict on /sbin/ip, so neither may be a hard package dependency;
+	 * a busybox `ip` lacks `-j` entirely.  Probe the capability instead of
+	 * trusting the binary's existence, and fail closed: a partially parsed
+	 * route table is not evidence, so there is no text-parsing fallback. */
+	if (!command_exists('ip'))
+		return { ok: false, reason: 'iproute2-missing' };
+	let probe = run([ 'ip', '-j', '-4', 'route', 'show' ]);
+	if (probe.rc != 0)
+		return { ok: false, reason: 'ip-json-unsupported' };
+	try {
+		if (type(json(probe.out)) != 'array')
+			return { ok: false, reason: 'ip-json-unsupported' };
+	}
+	catch (e) {
+		return { ok: false, reason: 'ip-json-unsupported' };
+	}
+	return { ok: true };
+}
+
 function route_context(wan) {
 	let fallback = wan ? sprintf('%s:%s:%s', wan.interface, wan.proto ?? 'unknown', wan.device ?? wan.l3_device ?? 'unknown') : 'unresolved';
-	if (!command_exists('ip'))
-		return { identity: fallback == 'unresolved' ? 'unresolved' : `netifd:${fnv1a32(fallback)}`, provider: 'netifd-fallback', resolved: fallback != 'unresolved', evidence: { fallback: fallback } };
+	let identity = fallback == 'unresolved' ? 'unresolved' : `netifd:${fnv1a32(fallback)}`;
+	let cap = ip_json_support();
+	if (!cap.ok)
+		return { identity: identity, provider: 'netifd-fallback', resolved: false, capability: cap.reason, evidence: { fallback: fallback, ipCapability: cap.reason } };
 	let v4 = run([ 'ip', '-j', '-4', 'route', 'show', 'table', 'all', 'default' ]);
 	let v6 = run([ 'ip', '-j', '-6', 'route', 'show', 'table', 'all', 'default' ]);
 	let rules4 = run([ 'ip', '-j', '-4', 'rule', 'show' ]), rules6 = run([ 'ip', '-j', '-6', 'rule', 'show' ]);
@@ -2858,7 +2882,7 @@ function topology() {
 		if (!wan_target) for (let r in target_refs()) if (r.logicalRole == 'wan-underlay' && (r.selector?.interface == wan.interface || wi == 0)) { wan_target=r.stableId; break; }
 		if (wan_target) push(path_targets,wan_target);
 		let route=route_context(wan), specific=`path:lan-to-${safe_name(wan.interface ?? `wan${wi}`)}`;
-		let entry={id:specific,workloadClass:derive_workload({id:specific,proto:wan?.proto ?? null,underlayChain:underlay?.chain ?? []}),lanInterface:lan?.interface ?? 'lan',wanInterface:wan?.interface ?? `wan${wi}`,routeIdentity:route.identity,routeProvider:route.provider,routeResolved:route.resolved,routeEvidence:route.evidence,targetRefs:path_targets,underlayChain:underlay?.chain ?? []};
+		let entry={id:specific,workloadClass:derive_workload({id:specific,proto:wan?.proto ?? null,underlayChain:underlay?.chain ?? []}),lanInterface:lan?.interface ?? 'lan',wanInterface:wan?.interface ?? `wan${wi}`,routeIdentity:route.identity,routeProvider:route.provider,routeResolved:route.resolved,routeCapability:route.capability ?? null,routeEvidence:route.evidence,targetRefs:path_targets,underlayChain:underlay?.chain ?? []};
 		if (wi == 0) {
 			let primary={}; for (let k in keys(entry)) primary[k]=entry[k]; primary.id='path:lan-to-wan'; push(paths,primary);
 			if (specific != 'path:lan-to-wan') push(paths,entry);
@@ -2866,13 +2890,13 @@ function topology() {
 	}
 	if (!length(paths)) {
 		let route=route_context(null);
-		push(paths,{id:'path:lan-to-wan',workloadClass:['plain_forwarding'],lanInterface:lan?.interface ?? 'lan',wanInterface:'wan',routeIdentity:route.identity,routeProvider:route.provider,routeResolved:route.resolved,routeEvidence:route.evidence,targetRefs:[],underlayChain:[]});
+		push(paths,{id:'path:lan-to-wan',workloadClass:['plain_forwarding'],lanInterface:lan?.interface ?? 'lan',wanInterface:'wan',routeIdentity:route.identity,routeProvider:route.provider,routeResolved:route.resolved,routeCapability:route.capability ?? null,routeEvidence:route.evidence,targetRefs:[],underlayChain:[]});
 	}
 	let primary=paths[0], local_targets=primary?.targetRefs ?? [];
 	/* The local-endpoint path has no LAN interface.  Emit the empty string so
 	 * the runtime output conforms to the formal topology schema which declares
 	 * lanInterface as a string (never null). */
-	push(paths,{id:'path:local-endpoint',workloadClass:derive_workload({id:'path:local-endpoint'}),lanInterface:'',wanInterface:primary?.wanInterface ?? 'wan',routeIdentity:primary?.routeIdentity ?? 'unresolved',routeProvider:primary?.routeProvider ?? 'unresolved',routeResolved:primary?.routeResolved ?? false,routeEvidence:primary?.routeEvidence ?? {},targetRefs:local_targets,underlayChain:[]});
+	push(paths,{id:'path:local-endpoint',workloadClass:derive_workload({id:'path:local-endpoint'}),lanInterface:'',wanInterface:primary?.wanInterface ?? 'wan',routeIdentity:primary?.routeIdentity ?? 'unresolved',routeProvider:primary?.routeProvider ?? 'unresolved',routeResolved:primary?.routeResolved ?? false,routeCapability:primary?.routeCapability ?? null,routeEvidence:primary?.routeEvidence ?? {},targetRefs:local_targets,underlayChain:[]});
 	topology_cache = {schemaVersion:2,topologyGeneration:topology_generation,interfaces:interfaces,devices:devices,wanCandidates:map(wans,function(w){return w.interface;}),paths:paths};
 	topology_cache_ms = now;
 	return topology_cache;
@@ -3790,7 +3814,11 @@ function benchmark_start(msg) {
 		if ((action == 'fastpath.software_flow_offload' || action == 'fastpath.hardware_flow_offload') && nft_snapshot() == null)
 			return {ok:false,error:'provider-unavailable:nft-ruleset-required-for-fastpath-delta'};
 		/* Forwarding A/B requires a REAL resolved route identity with explicit
-		 * ip/rule evidence.  netifd-fallback identity is not evidence. */
+		 * ip/rule evidence.  netifd-fallback identity is not evidence.  When the
+		 * route tool itself cannot produce JSON, report the missing capability
+		 * instead of hiding it behind a generic "route unresolved" error. */
+		if (semantics == 'forwarding' && selected_path.routeCapability)
+			return {ok:false,error:'evaluation-route-capability-missing',capability:selected_path.routeCapability,required:{routeResolved:true,routeProvider:'ip-full+rtnl-events'},path:selected_path};
 		if (semantics == 'forwarding' && (!(selected_path.routeResolved === true) || selected_path.routeProvider != 'ip-full+rtnl-events'))
 			return {ok:false,error:'evaluation-route-unresolved',required:{routeResolved:true,routeProvider:'ip-full+rtnl-events'},path:selected_path};
 		/* Local benchmarks measure router-local kernel paths and therefore

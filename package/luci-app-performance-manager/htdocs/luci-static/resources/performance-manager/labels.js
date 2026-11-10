@@ -446,6 +446,7 @@ const ERROR_CODE = {
 	'companion-context-drift': _('The device context changed while the evidence was collected'),
 	'candidate-rollback-failed': _('The candidate change could not be rolled back'),
 	'evaluation-path-not-found': _('The evaluation path was not found'),
+	'evaluation-route-capability-missing': _('The ip command needed for route evidence is missing or cannot emit JSON; install either ip-tiny or ip-full'),
 	'evaluation-route-unresolved': _('The evaluation route could not be resolved'),
 	'unknown-benchmark-action': _('The performance test action is unknown'),
 	'outcome-not-accepted': _('The Rill runtime rejected the outcome'),

@@ -37,14 +37,26 @@ class AllInOnePackageTests(unittest.TestCase):
         for name in ("performance-manager", verify_apks.ALL_IN_ONE):
             self.assertIn("coreutils-timeout", verify_apks.REQUIRED_DEPENDS[name])
 
-    def test_split_and_full_packages_declare_ip_full_dependency(self):
-        self.assertIn("+ip-full", CORE.read_text())
-        self.assertIn("+ip-full", BUNDLE.read_text())
+    def test_iproute2_is_a_runtime_capability_not_a_hard_dependency(self):
+        # ip-tiny and ip-full cannot coexist (they conflict on /sbin/ip) while
+        # both provide the JSON output the route evidence needs, so a hard
+        # dependency on either variant would break the other one.  The package
+        # therefore probes the capability at runtime and stays fail-closed when
+        # it is absent; it must not silently degrade to text parsing.
+        for makefile in (CORE, BUNDLE):
+            text = makefile.read_text()
+            self.assertNotIn("+ip-full", text)
+            self.assertNotIn("+ip-tiny", text)
         sys.path.insert(0, str(ROOT / "scripts"))
         import verify_apks
 
         for name in ("performance-manager", verify_apks.ALL_IN_ONE):
-            self.assertIn("ip-full", verify_apks.REQUIRED_DEPENDS[name])
+            self.assertNotIn("ip-full", verify_apks.REQUIRED_DEPENDS[name])
+            self.assertNotIn("ip-tiny", verify_apks.REQUIRED_DEPENDS[name])
+        daemon = (ROOT / "package/performance-manager/files/usr/sbin/performance-manager.uc").read_text()
+        self.assertIn("function ip_json_support()", daemon)
+        for reason in ("iproute2-missing", "ip-json-unsupported"):
+            self.assertIn(reason, daemon)
 
     def test_missing_timeout_metadata_fails_real_verifier_dependency_gate(self):
         sys.path.insert(0, str(ROOT / "scripts"))

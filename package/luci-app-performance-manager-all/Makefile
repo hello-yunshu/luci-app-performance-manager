@@ -21,7 +21,7 @@ define Package/luci-app-performance-manager-all
   SUBMENU:=3. Applications
   TITLE:=OpenWrt 性能管理器全功能单包 / Performance Manager all-in-one APK
   PROVIDES:=performance-manager-core
-  DEPENDS:=+luci-base +rpcd +luci-i18n-base-zh-cn +ubus +uci +ucode +ucode-mod-fs +ucode-mod-ubus +ucode-mod-uci +ucode-mod-rtnl +ucode-mod-uloop +ucode-mod-socket +ucode-mod-log +coreutils-timeout +ip-full
+  DEPENDS:=+luci-base +rpcd +luci-i18n-base-zh-cn +ubus +uci +ucode +ucode-mod-fs +ucode-mod-ubus +ucode-mod-uci +ucode-mod-rtnl +ucode-mod-uloop +ucode-mod-socket +ucode-mod-log +coreutils-timeout
   CONFLICTS:=$(PM_ALL_CONFLICTS)
   EXTRA_DEPENDS:=$(if $(CONFIG_USE_APK),$(foreach conflict,$(PM_ALL_CONFLICTS),!$(conflict) (>=0)$(comma)))
 endef
