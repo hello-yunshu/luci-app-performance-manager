@@ -2,7 +2,7 @@ include $(TOPDIR)/rules.mk
 
 PKG_NAME:=luci-app-performance-manager-all
 PKG_VERSION:=1.0.4
-PKG_RELEASE:=1
+PKG_RELEASE:=2
 PKG_LICENSE:=GPL-3.0-only
 PKG_MAINTAINER:=OpenWrt Performance Manager contributors
 PKG_BUILD_DEPENDS:=luci-base/host
@@ -11,6 +11,7 @@ PKG_BUILD_DEPENDS:=luci-base/host
 # build error; the full package must never silently degrade to Core + LuCI.
 RILL_RUNTIME_BINARY?=$(CURDIR)/files/usr/bin/rill-runtime
 THIRD_PARTY_NOTICES_SOURCE?=$(CURDIR)/../../THIRD_PARTY_NOTICES
+PM_ALL_CONFLICTS:=performance-manager luci-app-performance-manager performance-manager-rill rill-runtime rill-runtime-preview luci-i18n-performance-manager-zh-cn
 
 include $(INCLUDE_DIR)/package.mk
 
@@ -21,7 +22,8 @@ define Package/luci-app-performance-manager-all
   TITLE:=OpenWrt 性能管理器全功能单包 / Performance Manager all-in-one APK
   PROVIDES:=performance-manager-core
   DEPENDS:=+luci-base +rpcd +luci-i18n-base-zh-cn +ubus +uci +ucode +ucode-mod-fs +ucode-mod-ubus +ucode-mod-uci +ucode-mod-rtnl +ucode-mod-uloop +ucode-mod-socket +ucode-mod-log +coreutils-timeout
-  CONFLICTS:=performance-manager luci-app-performance-manager performance-manager-rill rill-runtime luci-i18n-performance-manager-zh-cn
+  CONFLICTS:=$(PM_ALL_CONFLICTS)
+  EXTRA_DEPENDS:=$(if $(CONFIG_USE_APK),$(foreach conflict,$(PM_ALL_CONFLICTS),!$(conflict) (>=0)$(comma)))
 endef
 
 define Package/luci-app-performance-manager-all/description

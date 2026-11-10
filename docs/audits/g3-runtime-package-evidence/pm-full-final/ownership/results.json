@@ -1,0 +1,996 @@
+{
+  "scope": "real SDK APK Full/split/runtime ownership",
+  "releaseEligible": false,
+  "packageScripts": "NOT RUN",
+  "deviceQualification": false,
+  "dependencyClosure": "real SDK packages resolved by apk; no fake providers",
+  "runtimeBinarySha256": "bcc587dbbeab6da71e6c3b1113db2037b69e7bec3e01f696e0e9a5d3cce1561b",
+  "products": {
+    "full": {
+      "name": "luci-app-performance-manager-all",
+      "version": "1.0.4-r2",
+      "hashes": "6e440adde3cb35b079230c6063a2e135c6873e9c",
+      "description": "\u4e00\u4e2a\u6309\u76ee\u6807\u67b6\u6784\u6784\u5efa\u7684\u5b8c\u6574\u5355\u5305\uff0c\u7269\u7406\u5305\u542b Core\u3001LuCI\u3001ACL/menu\u3001\u7b80\u4f53\u4e2d\u6587\u3001 Rill glue\u3001\u5347\u7ea7\u4fdd\u7559\u89c4\u5219\u548c\u5df2\u8d44\u683c\u9a8c\u8bc1\u7684 exact Runtime\u3002 / Architecture-specific full package containing Core, LuCI, ACL/menu, / Simplified Chinese, Rill glue, upgrade keep rules and the exact qualified / Runtime binary. It has no external rill-runtime dependency.",
+      "arch": "x86_64",
+      "license": "GPL-3.0-only",
+      "origin": "feeds/base/openwrt-performance-manager/luci-app-performance-manager-all",
+      "maintainer": "OpenWrt Performance Manager contributors",
+      "installed-size": 8030979,
+      "depends": [
+        "coreutils-timeout",
+        "libc",
+        "!luci-app-performance-manager>=0",
+        "luci-base",
+        "luci-i18n-base-zh-cn",
+        "!luci-i18n-performance-manager-zh-cn>=0",
+        "!performance-manager>=0",
+        "!performance-manager-rill>=0",
+        "!rill-runtime>=0",
+        "!rill-runtime-preview>=0",
+        "rpcd",
+        "ubus",
+        "uci",
+        "ucode",
+        "ucode-mod-fs",
+        "ucode-mod-log",
+        "ucode-mod-rtnl",
+        "ucode-mod-socket",
+        "ucode-mod-ubus",
+        "ucode-mod-uci",
+        "ucode-mod-uloop"
+      ],
+      "provides": [
+        "luci-app-performance-manager-all-any",
+        "performance-manager-core=1.0.4-r2"
+      ]
+    },
+    "stable": {
+      "name": "rill-runtime",
+      "version": "1.5.6-r2",
+      "hashes": "3aa9f0c069b55095b40a5eea41887f11bf3f4f80",
+      "description": "Generic Rill Runtime packaged for OpenWrt. This distribution recipe installs only the runtime executable from an immutable Stable RillML source archive. It does not add OpenWrt product semantics or host mutation and does not install the rill-pack development binary.",
+      "arch": "x86_64",
+      "license": "MIT",
+      "origin": "feeds/base/rill-runtime",
+      "maintainer": "Rill OpenWrt Packages maintainers",
+      "url": "https://github.com/hello-yunshu/rill-ml",
+      "installed-size": 7654081,
+      "depends": [
+        "libc"
+      ],
+      "provides": [
+        "rill-runtime-any"
+      ]
+    },
+    "preview": {
+      "name": "rill-runtime-preview",
+      "version": "1.5.6-r3",
+      "hashes": "c27c26f1ee6af2115f83db18c01dd7de8bfc1be3",
+      "description": "Exact Preview Rill Runtime for qualified Cloudflare IP consumers. This package is intentionally separate from the Stable rill-runtime package and installs only the generic runtime executable.",
+      "arch": "x86_64",
+      "license": "MIT",
+      "origin": "feeds/base/rill-runtime-preview",
+      "maintainer": "Rill OpenWrt Packages maintainers",
+      "url": "https://github.com/hello-yunshu/rill-ml",
+      "installed-size": 7695041,
+      "depends": [
+        "libc",
+        "!rill-runtime>=0"
+      ],
+      "provides": [
+        "rill-runtime-preview-any"
+      ]
+    },
+    "core": {
+      "name": "performance-manager",
+      "version": "1.0.4-r1",
+      "hashes": "7c00b9a580934e8014dec0781d9481de1b5605c4",
+      "description": "\u4ee5\u80fd\u529b\u4e3a\u5148\u3001\u611f\u77e5\u62d3\u6251\u5e76\u91c7\u7528\u4e8b\u52a1\u673a\u5236\u7684 OpenWrt \u6027\u80fd\u7ba1\u7406\u5668\u3002 \u6838\u5fc3\u72ec\u7acb\u4e8e LuCI\u3001rpcd \u548c\u53ef\u9009\u7684 Rill Runtime \u96c6\u6210\u5c42\u3002 / A topology-aware, evidence-driven and transactional performance manager. / Core is independent from LuCI, rpcd and the optional Rill Runtime integration.",
+      "arch": "noarch",
+      "license": "GPL-3.0-only",
+      "origin": "feeds/base/openwrt-performance-manager/performance-manager",
+      "maintainer": "OpenWrt Performance Manager contributors",
+      "installed-size": 304180,
+      "depends": [
+        "coreutils-timeout",
+        "libc",
+        "ubus",
+        "uci",
+        "ucode",
+        "ucode-mod-fs",
+        "ucode-mod-log",
+        "ucode-mod-rtnl",
+        "ucode-mod-socket",
+        "ucode-mod-ubus",
+        "ucode-mod-uci",
+        "ucode-mod-uloop"
+      ],
+      "provides": [
+        "performance-manager-any",
+        "performance-manager-core=1.0.4-r1"
+      ]
+    },
+    "luci": {
+      "name": "luci-app-performance-manager",
+      "version": "1.0.4-r1",
+      "hashes": "e5e2268c7cda4ac338fc0a49d18d9fef9ed5e360",
+      "description": "OpenWrt \u6027\u80fd\u7ba1\u7406\u5668\u7684 LuCI \u754c\u9762\uff08\u7b80\u4f53\u4e2d\u6587\u4f18\u5148\uff0c\u82f1\u6587\u4e3a\u6b21\u8981\u8bed\u8a00\uff09\u3002 \u754c\u9762\u8bed\u8a00\u8ddf\u968f OpenWrt/LuCI \u7684\u7cfb\u7edf\u8bed\u8a00\u8bbe\u7f6e\u81ea\u52a8\u5207\u6362\u3002 / LuCI interface for OpenWrt Performance Manager (Simplified Chinese first, / English secondary). The UI language follows the OpenWrt/LuCI system language / setting automatically.",
+      "arch": "noarch",
+      "license": "GPL-3.0-only",
+      "origin": "feeds/base/openwrt-performance-manager/luci-app-performance-manager",
+      "maintainer": "OpenWrt LuCI community",
+      "url": "https://github.com/openwrt/luci",
+      "installed-size": 52586,
+      "depends": [
+        "libc",
+        "luci-base",
+        "luci-i18n-base-zh-cn",
+        "performance-manager",
+        "rpcd"
+      ],
+      "provides": [
+        "luci-app-performance-manager-any"
+      ]
+    },
+    "glue": {
+      "name": "performance-manager-rill",
+      "version": "1.0.4-r1",
+      "hashes": "bb0b3e6b9041f520053cef0b236a201cc48e564a",
+      "description": "PM integration glue and sysupgrade keep rule. The generic rill-runtime package owns /usr/bin/rill-runtime and is consumed through package dependency resolution. PM does not ship a private Runtime or daemon. / PM \u96c6\u6210 glue \u4e0e\u5347\u7ea7\u4fdd\u7559\u89c4\u5219\uff1b\u901a\u7528 rill-runtime \u5305\u62e5\u6709 /usr/bin/rill-runtime\uff0cPM \u901a\u8fc7\u5305\u4f9d\u8d56\u6d88\u8d39\uff0c\u4e0d\u53d1\u5e03\u79c1\u6709 Runtime \u6216 daemon\u3002",
+      "arch": "noarch",
+      "license": "GPL-3.0-only",
+      "origin": "feeds/base/openwrt-performance-manager/performance-manager-rill",
+      "maintainer": "OpenWrt Performance Manager contributors",
+      "installed-size": 186,
+      "depends": [
+        "libc",
+        "performance-manager",
+        "rill-runtime"
+      ],
+      "provides": [
+        "performance-manager-rill-any"
+      ]
+    }
+  },
+  "cases": [
+    {
+      "first": "full",
+      "rejected": "stable",
+      "installedAndWorldUnchanged": true,
+      "protectedPayloadSha256": {
+        "usr/bin/rill-runtime": "bcc587dbbeab6da71e6c3b1113db2037b69e7bec3e01f696e0e9a5d3cce1561b",
+        "usr/sbin/performance-manager.uc": "f902258d4aa14d2775b38f599b90c39e98b02a297a9b3df0f28b00fc65f0094f",
+        "etc/config/performance-manager": "19bf0cd88577fca49e0902633d0fc8a38beb480ae1297d00433b888c1da1a505"
+      },
+      "removeReinstallPreservedState": true,
+      "installedPackages": {
+        "cgi-io": {
+          "version": "2026.06.28~7314451c-r1",
+          "sha256": "18f7235ecc07ee17c9ad4e7739f62641852f9f4d1e060094803d573c76e54e32",
+          "file": "cgi-io-2026.06.28~7314451c-r1.apk"
+        },
+        "coreutils": {
+          "version": "9.9-r2",
+          "sha256": "fe275266eb3d917162986bad82d2d74bc3763db9f497a584b77215e40e53f158",
+          "file": "coreutils-9.9-r2.apk"
+        },
+        "coreutils-timeout": {
+          "version": "9.9-r2",
+          "sha256": "5a9d7cbff353150164ba6e61457b65c699c5f94a62c3eb48606a6b4c6abf7257",
+          "file": "coreutils-timeout-9.9-r2.apk"
+        },
+        "libblobmsg-json20260213": {
+          "version": "2026.06.19~7dd12784-r1",
+          "sha256": "84f9d40c360f310a7f696a2ccca1e390ae486d08fc839fee0ac7a13b21cea22b",
+          "file": "libblobmsg-json20260213-2026.06.19~7dd12784-r1.apk"
+        },
+        "libc": {
+          "version": "1.2.5-r5",
+          "sha256": "fa10ca4fb7dae837e536138274ff94194345c89a87454e3c2a21651db7b09d15",
+          "file": "libc-1.2.5-r5.apk"
+        },
+        "libgcc1": {
+          "version": "14.3.0-r5",
+          "sha256": "8027076120709b7847902bb98eed93f5c197f1aab53124a786088cce91950b7d",
+          "file": "libgcc1-14.3.0-r5.apk"
+        },
+        "libjson-c5": {
+          "version": "0.18-r1",
+          "sha256": "ade1ebed94053d8c9d2463af2349fe49d9c06e05607bbc9dd52645ce69d5d362",
+          "file": "libjson-c5-0.18-r1.apk"
+        },
+        "liblucihttp-ucode": {
+          "version": "2023.03.15~9b5b683f-r1",
+          "sha256": "e3fe2a287750313b872022d1a341092c246e70c05c973de03f9b9c4ad85b12db",
+          "file": "liblucihttp-ucode-2023.03.15~9b5b683f-r1.apk"
+        },
+        "liblucihttp0": {
+          "version": "2023.03.15~9b5b683f-r1",
+          "sha256": "b21e66b9be3eaaea032ad5d084b3f4085c3af24772b1303150faeabb46cd45e4",
+          "file": "liblucihttp0-2023.03.15~9b5b683f-r1.apk"
+        },
+        "libnl-tiny1": {
+          "version": "2025.12.02~40493a65-r1",
+          "sha256": "56ebb8d3bad234559abc6a1f8f8e91f9e180bc8c8d7f3e4d3583af403222ab43",
+          "file": "libnl-tiny1-2025.12.02~40493a65-r1.apk"
+        },
+        "libpthread": {
+          "version": "1.2.5-r5",
+          "sha256": "5b628d4fee9bba4397efce5b0b4e28f3a9a753c49f2eff7eafcb1f1653bc2217",
+          "file": "libpthread-1.2.5-r5.apk"
+        },
+        "librt": {
+          "version": "1.2.5-r5",
+          "sha256": "75b7ca15df78b6f906dc570f07184ed22eee336684705d1736ad9ee50b0b8f1e",
+          "file": "librt-1.2.5-r5.apk"
+        },
+        "libubox20260213": {
+          "version": "2026.06.19~7dd12784-r1",
+          "sha256": "eb55a57f2639f58f788a24b77ee2e85f4e310dcc9a0e1018c87cba61db3ee906",
+          "file": "libubox20260213-2026.06.19~7dd12784-r1.apk"
+        },
+        "libubus20251202": {
+          "version": "2026.06.28~24864e78-r2",
+          "sha256": "8dfdbbf870efe377a894be0eed32695b3d008e1e49e5461b2f4eb59300578de8",
+          "file": "libubus20251202-2026.06.28~24864e78-r2.apk"
+        },
+        "libuci20250120": {
+          "version": "2025.12.02~66127cd7-r1",
+          "sha256": "6b0d6e8e96c70951657beb1a935d7d9f3c46aa191da763e1066e15e67bdf92f0",
+          "file": "libuci20250120-2025.12.02~66127cd7-r1.apk"
+        },
+        "libucode20230711": {
+          "version": "2026.01.16~85922056-r1",
+          "sha256": "a3b7772fef3d84aaf65fa56ec753bddcce8b7962ea4ee7a4db29e1845a36bd46",
+          "file": "libucode20230711-2026.01.16~85922056-r1.apk"
+        },
+        "luci-app-performance-manager-all": {
+          "version": "1.0.4-r2",
+          "sha256": "0a616655880e00637e40a8b1c88a3fde00a4f8bd429860a39817a30035a343e9",
+          "file": "luci-app-performance-manager-all-1.0.4-r2.apk"
+        },
+        "luci-base": {
+          "version": "26.180.75667~128a781",
+          "sha256": "280957fbb750396cbb474427248943cce7179f41e589124e6ad0b43a2cea337f",
+          "file": "luci-base-26.180.75667~128a781.apk"
+        },
+        "luci-i18n-base-zh-cn": {
+          "version": "26.180.75667~128a781",
+          "sha256": "c27cfd8e3dfb1af7db15a559058fab5dc731f2a017321e2c1d5ff8392ac98097",
+          "file": "luci-i18n-base-zh-cn-26.180.75667~128a781.apk"
+        },
+        "rpcd": {
+          "version": "2026.06.04~28faf640-r1",
+          "sha256": "6b56076a6fa01f67d6c9b9a02cf59117e5f9b5af35a08fb6e9cd5e45b203b51e",
+          "file": "rpcd-2026.06.04~28faf640-r1.apk"
+        },
+        "rpcd-mod-file": {
+          "version": "2026.06.04~28faf640-r1",
+          "sha256": "8224dfa45de97d1f6ece3bf7b2652f1c7ac5456992e6ecf1e4cbe7b302b48793",
+          "file": "rpcd-mod-file-2026.06.04~28faf640-r1.apk"
+        },
+        "rpcd-mod-luci": {
+          "version": "20240305-r1",
+          "sha256": "dd4631be626a4b07cc691d050dce07be5d606cd2e42b4561dd6bd265ed84b764",
+          "file": "rpcd-mod-luci-20240305-r1.apk"
+        },
+        "rpcd-mod-ucode": {
+          "version": "2026.06.04~28faf640-r1",
+          "sha256": "8cb3ee178c241a11e3b691c413a73efacb26b6e0c6ef8d4c0c635ecac4ae3ab0",
+          "file": "rpcd-mod-ucode-2026.06.04~28faf640-r1.apk"
+        },
+        "ubus": {
+          "version": "2026.06.28~24864e78-r2",
+          "sha256": "2bd639eb008700100935b5bf77cf9607254224fc9300c5762b293e6bedfba6e0",
+          "file": "ubus-2026.06.28~24864e78-r2.apk"
+        },
+        "ubusd": {
+          "version": "2026.06.28~24864e78-r2",
+          "sha256": "28af04970b3bc959b9a392cba2d066db9164a24e2967a6e920bf57a78a632b07",
+          "file": "ubusd-2026.06.28~24864e78-r2.apk"
+        },
+        "uci": {
+          "version": "2025.12.02~66127cd7-r1",
+          "sha256": "d5e8f29533b919fd9446f915c9a4da491a923afdbfb610c6a95630ab0011f5cf",
+          "file": "uci-2025.12.02~66127cd7-r1.apk"
+        },
+        "ucode": {
+          "version": "2026.01.16~85922056-r1",
+          "sha256": "c12658dbc2cf6ec09e31cba4b5ec3f712a0682e009cae95a23492395ce5569d1",
+          "file": "ucode-2026.01.16~85922056-r1.apk"
+        },
+        "ucode-mod-fs": {
+          "version": "2026.01.16~85922056-r1",
+          "sha256": "cadb7dea239023d348e93112b4b0714b838d3adef33a670bf69c287df12e7459",
+          "file": "ucode-mod-fs-2026.01.16~85922056-r1.apk"
+        },
+        "ucode-mod-html": {
+          "version": "1",
+          "sha256": "25bb4bcf33fa6822d78f2a6da5e08b09d3346f6a2dd0e616e8b5d4a785219d2b",
+          "file": "ucode-mod-html-1.apk"
+        },
+        "ucode-mod-log": {
+          "version": "2026.01.16~85922056-r1",
+          "sha256": "8f3aa84d534692b1d965921f9831879db8b9b468df94ff7f07eb80a1e8c7d5f5",
+          "file": "ucode-mod-log-2026.01.16~85922056-r1.apk"
+        },
+        "ucode-mod-math": {
+          "version": "2026.01.16~85922056-r1",
+          "sha256": "935a620b49448c760273e668b055813b13f49a8b908244d60eb6602a1113ad64",
+          "file": "ucode-mod-math-2026.01.16~85922056-r1.apk"
+        },
+        "ucode-mod-rtnl": {
+          "version": "2026.01.16~85922056-r1",
+          "sha256": "1f45e2224764a2e22d78cfa599180b42f87f0bfd679fd7ec4b286c79783df63e",
+          "file": "ucode-mod-rtnl-2026.01.16~85922056-r1.apk"
+        },
+        "ucode-mod-socket": {
+          "version": "2026.01.16~85922056-r1",
+          "sha256": "d8140a3bc29be990d18a2ee5eb5425e69656e456d47155663ced7e55916c63d0",
+          "file": "ucode-mod-socket-2026.01.16~85922056-r1.apk"
+        },
+        "ucode-mod-ubus": {
+          "version": "2026.01.16~85922056-r1",
+          "sha256": "b852c97c9fc371fb32367fee6ab9b2032eceb7417b9d3fabe2944150cada0624",
+          "file": "ucode-mod-ubus-2026.01.16~85922056-r1.apk"
+        },
+        "ucode-mod-uci": {
+          "version": "2026.01.16~85922056-r1",
+          "sha256": "cc9f8be474ba4411222b2818d14176a9f6dc6031cbf2b057a85f29fde6139e49",
+          "file": "ucode-mod-uci-2026.01.16~85922056-r1.apk"
+        },
+        "ucode-mod-uloop": {
+          "version": "2026.01.16~85922056-r1",
+          "sha256": "1a731d1fbddcccf45aec2de15b4035c5146b94e1e50831e9a1874ddd57e0d11c",
+          "file": "ucode-mod-uloop-2026.01.16~85922056-r1.apk"
+        }
+      }
+    },
+    {
+      "first": "stable",
+      "rejected": "full",
+      "installedAndWorldUnchanged": true,
+      "protectedPayloadSha256": {
+        "usr/bin/rill-runtime": "bcc587dbbeab6da71e6c3b1113db2037b69e7bec3e01f696e0e9a5d3cce1561b"
+      },
+      "removeReinstallPreservedState": true,
+      "installedPackages": {
+        "libc": {
+          "version": "1.2.5-r5",
+          "sha256": "fa10ca4fb7dae837e536138274ff94194345c89a87454e3c2a21651db7b09d15",
+          "file": "libc-1.2.5-r5.apk"
+        },
+        "libgcc1": {
+          "version": "14.3.0-r5",
+          "sha256": "8027076120709b7847902bb98eed93f5c197f1aab53124a786088cce91950b7d",
+          "file": "libgcc1-14.3.0-r5.apk"
+        },
+        "rill-runtime": {
+          "version": "1.5.6-r2",
+          "sha256": "37839a4703f08013ff986291974338f7993c75c6c83ee7d05b03883058a5efa5",
+          "file": "rill-runtime-1.5.6-r2.apk"
+        }
+      }
+    },
+    {
+      "first": "full",
+      "rejected": "preview",
+      "installedAndWorldUnchanged": true,
+      "protectedPayloadSha256": {
+        "usr/bin/rill-runtime": "bcc587dbbeab6da71e6c3b1113db2037b69e7bec3e01f696e0e9a5d3cce1561b",
+        "usr/sbin/performance-manager.uc": "f902258d4aa14d2775b38f599b90c39e98b02a297a9b3df0f28b00fc65f0094f",
+        "etc/config/performance-manager": "19bf0cd88577fca49e0902633d0fc8a38beb480ae1297d00433b888c1da1a505"
+      },
+      "removeReinstallPreservedState": true,
+      "installedPackages": {
+        "cgi-io": {
+          "version": "2026.06.28~7314451c-r1",
+          "sha256": "18f7235ecc07ee17c9ad4e7739f62641852f9f4d1e060094803d573c76e54e32",
+          "file": "cgi-io-2026.06.28~7314451c-r1.apk"
+        },
+        "coreutils": {
+          "version": "9.9-r2",
+          "sha256": "fe275266eb3d917162986bad82d2d74bc3763db9f497a584b77215e40e53f158",
+          "file": "coreutils-9.9-r2.apk"
+        },
+        "coreutils-timeout": {
+          "version": "9.9-r2",
+          "sha256": "5a9d7cbff353150164ba6e61457b65c699c5f94a62c3eb48606a6b4c6abf7257",
+          "file": "coreutils-timeout-9.9-r2.apk"
+        },
+        "libblobmsg-json20260213": {
+          "version": "2026.06.19~7dd12784-r1",
+          "sha256": "84f9d40c360f310a7f696a2ccca1e390ae486d08fc839fee0ac7a13b21cea22b",
+          "file": "libblobmsg-json20260213-2026.06.19~7dd12784-r1.apk"
+        },
+        "libc": {
+          "version": "1.2.5-r5",
+          "sha256": "fa10ca4fb7dae837e536138274ff94194345c89a87454e3c2a21651db7b09d15",
+          "file": "libc-1.2.5-r5.apk"
+        },
+        "libgcc1": {
+          "version": "14.3.0-r5",
+          "sha256": "8027076120709b7847902bb98eed93f5c197f1aab53124a786088cce91950b7d",
+          "file": "libgcc1-14.3.0-r5.apk"
+        },
+        "libjson-c5": {
+          "version": "0.18-r1",
+          "sha256": "ade1ebed94053d8c9d2463af2349fe49d9c06e05607bbc9dd52645ce69d5d362",
+          "file": "libjson-c5-0.18-r1.apk"
+        },
+        "liblucihttp-ucode": {
+          "version": "2023.03.15~9b5b683f-r1",
+          "sha256": "e3fe2a287750313b872022d1a341092c246e70c05c973de03f9b9c4ad85b12db",
+          "file": "liblucihttp-ucode-2023.03.15~9b5b683f-r1.apk"
+        },
+        "liblucihttp0": {
+          "version": "2023.03.15~9b5b683f-r1",
+          "sha256": "b21e66b9be3eaaea032ad5d084b3f4085c3af24772b1303150faeabb46cd45e4",
+          "file": "liblucihttp0-2023.03.15~9b5b683f-r1.apk"
+        },
+        "libnl-tiny1": {
+          "version": "2025.12.02~40493a65-r1",
+          "sha256": "56ebb8d3bad234559abc6a1f8f8e91f9e180bc8c8d7f3e4d3583af403222ab43",
+          "file": "libnl-tiny1-2025.12.02~40493a65-r1.apk"
+        },
+        "libpthread": {
+          "version": "1.2.5-r5",
+          "sha256": "5b628d4fee9bba4397efce5b0b4e28f3a9a753c49f2eff7eafcb1f1653bc2217",
+          "file": "libpthread-1.2.5-r5.apk"
+        },
+        "librt": {
+          "version": "1.2.5-r5",
+          "sha256": "75b7ca15df78b6f906dc570f07184ed22eee336684705d1736ad9ee50b0b8f1e",
+          "file": "librt-1.2.5-r5.apk"
+        },
+        "libubox20260213": {
+          "version": "2026.06.19~7dd12784-r1",
+          "sha256": "eb55a57f2639f58f788a24b77ee2e85f4e310dcc9a0e1018c87cba61db3ee906",
+          "file": "libubox20260213-2026.06.19~7dd12784-r1.apk"
+        },
+        "libubus20251202": {
+          "version": "2026.06.28~24864e78-r2",
+          "sha256": "8dfdbbf870efe377a894be0eed32695b3d008e1e49e5461b2f4eb59300578de8",
+          "file": "libubus20251202-2026.06.28~24864e78-r2.apk"
+        },
+        "libuci20250120": {
+          "version": "2025.12.02~66127cd7-r1",
+          "sha256": "6b0d6e8e96c70951657beb1a935d7d9f3c46aa191da763e1066e15e67bdf92f0",
+          "file": "libuci20250120-2025.12.02~66127cd7-r1.apk"
+        },
+        "libucode20230711": {
+          "version": "2026.01.16~85922056-r1",
+          "sha256": "a3b7772fef3d84aaf65fa56ec753bddcce8b7962ea4ee7a4db29e1845a36bd46",
+          "file": "libucode20230711-2026.01.16~85922056-r1.apk"
+        },
+        "luci-app-performance-manager-all": {
+          "version": "1.0.4-r2",
+          "sha256": "0a616655880e00637e40a8b1c88a3fde00a4f8bd429860a39817a30035a343e9",
+          "file": "luci-app-performance-manager-all-1.0.4-r2.apk"
+        },
+        "luci-base": {
+          "version": "26.180.75667~128a781",
+          "sha256": "280957fbb750396cbb474427248943cce7179f41e589124e6ad0b43a2cea337f",
+          "file": "luci-base-26.180.75667~128a781.apk"
+        },
+        "luci-i18n-base-zh-cn": {
+          "version": "26.180.75667~128a781",
+          "sha256": "c27cfd8e3dfb1af7db15a559058fab5dc731f2a017321e2c1d5ff8392ac98097",
+          "file": "luci-i18n-base-zh-cn-26.180.75667~128a781.apk"
+        },
+        "rpcd": {
+          "version": "2026.06.04~28faf640-r1",
+          "sha256": "6b56076a6fa01f67d6c9b9a02cf59117e5f9b5af35a08fb6e9cd5e45b203b51e",
+          "file": "rpcd-2026.06.04~28faf640-r1.apk"
+        },
+        "rpcd-mod-file": {
+          "version": "2026.06.04~28faf640-r1",
+          "sha256": "8224dfa45de97d1f6ece3bf7b2652f1c7ac5456992e6ecf1e4cbe7b302b48793",
+          "file": "rpcd-mod-file-2026.06.04~28faf640-r1.apk"
+        },
+        "rpcd-mod-luci": {
+          "version": "20240305-r1",
+          "sha256": "dd4631be626a4b07cc691d050dce07be5d606cd2e42b4561dd6bd265ed84b764",
+          "file": "rpcd-mod-luci-20240305-r1.apk"
+        },
+        "rpcd-mod-ucode": {
+          "version": "2026.06.04~28faf640-r1",
+          "sha256": "8cb3ee178c241a11e3b691c413a73efacb26b6e0c6ef8d4c0c635ecac4ae3ab0",
+          "file": "rpcd-mod-ucode-2026.06.04~28faf640-r1.apk"
+        },
+        "ubus": {
+          "version": "2026.06.28~24864e78-r2",
+          "sha256": "2bd639eb008700100935b5bf77cf9607254224fc9300c5762b293e6bedfba6e0",
+          "file": "ubus-2026.06.28~24864e78-r2.apk"
+        },
+        "ubusd": {
+          "version": "2026.06.28~24864e78-r2",
+          "sha256": "28af04970b3bc959b9a392cba2d066db9164a24e2967a6e920bf57a78a632b07",
+          "file": "ubusd-2026.06.28~24864e78-r2.apk"
+        },
+        "uci": {
+          "version": "2025.12.02~66127cd7-r1",
+          "sha256": "d5e8f29533b919fd9446f915c9a4da491a923afdbfb610c6a95630ab0011f5cf",
+          "file": "uci-2025.12.02~66127cd7-r1.apk"
+        },
+        "ucode": {
+          "version": "2026.01.16~85922056-r1",
+          "sha256": "c12658dbc2cf6ec09e31cba4b5ec3f712a0682e009cae95a23492395ce5569d1",
+          "file": "ucode-2026.01.16~85922056-r1.apk"
+        },
+        "ucode-mod-fs": {
+          "version": "2026.01.16~85922056-r1",
+          "sha256": "cadb7dea239023d348e93112b4b0714b838d3adef33a670bf69c287df12e7459",
+          "file": "ucode-mod-fs-2026.01.16~85922056-r1.apk"
+        },
+        "ucode-mod-html": {
+          "version": "1",
+          "sha256": "25bb4bcf33fa6822d78f2a6da5e08b09d3346f6a2dd0e616e8b5d4a785219d2b",
+          "file": "ucode-mod-html-1.apk"
+        },
+        "ucode-mod-log": {
+          "version": "2026.01.16~85922056-r1",
+          "sha256": "8f3aa84d534692b1d965921f9831879db8b9b468df94ff7f07eb80a1e8c7d5f5",
+          "file": "ucode-mod-log-2026.01.16~85922056-r1.apk"
+        },
+        "ucode-mod-math": {
+          "version": "2026.01.16~85922056-r1",
+          "sha256": "935a620b49448c760273e668b055813b13f49a8b908244d60eb6602a1113ad64",
+          "file": "ucode-mod-math-2026.01.16~85922056-r1.apk"
+        },
+        "ucode-mod-rtnl": {
+          "version": "2026.01.16~85922056-r1",
+          "sha256": "1f45e2224764a2e22d78cfa599180b42f87f0bfd679fd7ec4b286c79783df63e",
+          "file": "ucode-mod-rtnl-2026.01.16~85922056-r1.apk"
+        },
+        "ucode-mod-socket": {
+          "version": "2026.01.16~85922056-r1",
+          "sha256": "d8140a3bc29be990d18a2ee5eb5425e69656e456d47155663ced7e55916c63d0",
+          "file": "ucode-mod-socket-2026.01.16~85922056-r1.apk"
+        },
+        "ucode-mod-ubus": {
+          "version": "2026.01.16~85922056-r1",
+          "sha256": "b852c97c9fc371fb32367fee6ab9b2032eceb7417b9d3fabe2944150cada0624",
+          "file": "ucode-mod-ubus-2026.01.16~85922056-r1.apk"
+        },
+        "ucode-mod-uci": {
+          "version": "2026.01.16~85922056-r1",
+          "sha256": "cc9f8be474ba4411222b2818d14176a9f6dc6031cbf2b057a85f29fde6139e49",
+          "file": "ucode-mod-uci-2026.01.16~85922056-r1.apk"
+        },
+        "ucode-mod-uloop": {
+          "version": "2026.01.16~85922056-r1",
+          "sha256": "1a731d1fbddcccf45aec2de15b4035c5146b94e1e50831e9a1874ddd57e0d11c",
+          "file": "ucode-mod-uloop-2026.01.16~85922056-r1.apk"
+        }
+      }
+    },
+    {
+      "first": "preview",
+      "rejected": "full",
+      "installedAndWorldUnchanged": true,
+      "protectedPayloadSha256": {
+        "usr/bin/rill-runtime": "f5585110bb0ed1091bba5091726638937103e53a93043a35a72fd4f24ec42e32"
+      },
+      "removeReinstallPreservedState": true,
+      "installedPackages": {
+        "libc": {
+          "version": "1.2.5-r5",
+          "sha256": "fa10ca4fb7dae837e536138274ff94194345c89a87454e3c2a21651db7b09d15",
+          "file": "libc-1.2.5-r5.apk"
+        },
+        "libgcc1": {
+          "version": "14.3.0-r5",
+          "sha256": "8027076120709b7847902bb98eed93f5c197f1aab53124a786088cce91950b7d",
+          "file": "libgcc1-14.3.0-r5.apk"
+        },
+        "rill-runtime-preview": {
+          "version": "1.5.6-r3",
+          "sha256": "3250e62b71549bb5c4325bf4362222c3d568712004d459977df775d8a522f8b4",
+          "file": "rill-runtime-preview-1.5.6-r3.apk"
+        }
+      }
+    },
+    {
+      "first": "full",
+      "rejected": "split",
+      "installedAndWorldUnchanged": true,
+      "protectedPayloadSha256": {
+        "usr/bin/rill-runtime": "bcc587dbbeab6da71e6c3b1113db2037b69e7bec3e01f696e0e9a5d3cce1561b",
+        "usr/sbin/performance-manager.uc": "f902258d4aa14d2775b38f599b90c39e98b02a297a9b3df0f28b00fc65f0094f",
+        "etc/config/performance-manager": "19bf0cd88577fca49e0902633d0fc8a38beb480ae1297d00433b888c1da1a505"
+      },
+      "removeReinstallPreservedState": true,
+      "installedPackages": {
+        "cgi-io": {
+          "version": "2026.06.28~7314451c-r1",
+          "sha256": "18f7235ecc07ee17c9ad4e7739f62641852f9f4d1e060094803d573c76e54e32",
+          "file": "cgi-io-2026.06.28~7314451c-r1.apk"
+        },
+        "coreutils": {
+          "version": "9.9-r2",
+          "sha256": "fe275266eb3d917162986bad82d2d74bc3763db9f497a584b77215e40e53f158",
+          "file": "coreutils-9.9-r2.apk"
+        },
+        "coreutils-timeout": {
+          "version": "9.9-r2",
+          "sha256": "5a9d7cbff353150164ba6e61457b65c699c5f94a62c3eb48606a6b4c6abf7257",
+          "file": "coreutils-timeout-9.9-r2.apk"
+        },
+        "libblobmsg-json20260213": {
+          "version": "2026.06.19~7dd12784-r1",
+          "sha256": "84f9d40c360f310a7f696a2ccca1e390ae486d08fc839fee0ac7a13b21cea22b",
+          "file": "libblobmsg-json20260213-2026.06.19~7dd12784-r1.apk"
+        },
+        "libc": {
+          "version": "1.2.5-r5",
+          "sha256": "fa10ca4fb7dae837e536138274ff94194345c89a87454e3c2a21651db7b09d15",
+          "file": "libc-1.2.5-r5.apk"
+        },
+        "libgcc1": {
+          "version": "14.3.0-r5",
+          "sha256": "8027076120709b7847902bb98eed93f5c197f1aab53124a786088cce91950b7d",
+          "file": "libgcc1-14.3.0-r5.apk"
+        },
+        "libjson-c5": {
+          "version": "0.18-r1",
+          "sha256": "ade1ebed94053d8c9d2463af2349fe49d9c06e05607bbc9dd52645ce69d5d362",
+          "file": "libjson-c5-0.18-r1.apk"
+        },
+        "liblucihttp-ucode": {
+          "version": "2023.03.15~9b5b683f-r1",
+          "sha256": "e3fe2a287750313b872022d1a341092c246e70c05c973de03f9b9c4ad85b12db",
+          "file": "liblucihttp-ucode-2023.03.15~9b5b683f-r1.apk"
+        },
+        "liblucihttp0": {
+          "version": "2023.03.15~9b5b683f-r1",
+          "sha256": "b21e66b9be3eaaea032ad5d084b3f4085c3af24772b1303150faeabb46cd45e4",
+          "file": "liblucihttp0-2023.03.15~9b5b683f-r1.apk"
+        },
+        "libnl-tiny1": {
+          "version": "2025.12.02~40493a65-r1",
+          "sha256": "56ebb8d3bad234559abc6a1f8f8e91f9e180bc8c8d7f3e4d3583af403222ab43",
+          "file": "libnl-tiny1-2025.12.02~40493a65-r1.apk"
+        },
+        "libpthread": {
+          "version": "1.2.5-r5",
+          "sha256": "5b628d4fee9bba4397efce5b0b4e28f3a9a753c49f2eff7eafcb1f1653bc2217",
+          "file": "libpthread-1.2.5-r5.apk"
+        },
+        "librt": {
+          "version": "1.2.5-r5",
+          "sha256": "75b7ca15df78b6f906dc570f07184ed22eee336684705d1736ad9ee50b0b8f1e",
+          "file": "librt-1.2.5-r5.apk"
+        },
+        "libubox20260213": {
+          "version": "2026.06.19~7dd12784-r1",
+          "sha256": "eb55a57f2639f58f788a24b77ee2e85f4e310dcc9a0e1018c87cba61db3ee906",
+          "file": "libubox20260213-2026.06.19~7dd12784-r1.apk"
+        },
+        "libubus20251202": {
+          "version": "2026.06.28~24864e78-r2",
+          "sha256": "8dfdbbf870efe377a894be0eed32695b3d008e1e49e5461b2f4eb59300578de8",
+          "file": "libubus20251202-2026.06.28~24864e78-r2.apk"
+        },
+        "libuci20250120": {
+          "version": "2025.12.02~66127cd7-r1",
+          "sha256": "6b0d6e8e96c70951657beb1a935d7d9f3c46aa191da763e1066e15e67bdf92f0",
+          "file": "libuci20250120-2025.12.02~66127cd7-r1.apk"
+        },
+        "libucode20230711": {
+          "version": "2026.01.16~85922056-r1",
+          "sha256": "a3b7772fef3d84aaf65fa56ec753bddcce8b7962ea4ee7a4db29e1845a36bd46",
+          "file": "libucode20230711-2026.01.16~85922056-r1.apk"
+        },
+        "luci-app-performance-manager-all": {
+          "version": "1.0.4-r2",
+          "sha256": "0a616655880e00637e40a8b1c88a3fde00a4f8bd429860a39817a30035a343e9",
+          "file": "luci-app-performance-manager-all-1.0.4-r2.apk"
+        },
+        "luci-base": {
+          "version": "26.180.75667~128a781",
+          "sha256": "280957fbb750396cbb474427248943cce7179f41e589124e6ad0b43a2cea337f",
+          "file": "luci-base-26.180.75667~128a781.apk"
+        },
+        "luci-i18n-base-zh-cn": {
+          "version": "26.180.75667~128a781",
+          "sha256": "c27cfd8e3dfb1af7db15a559058fab5dc731f2a017321e2c1d5ff8392ac98097",
+          "file": "luci-i18n-base-zh-cn-26.180.75667~128a781.apk"
+        },
+        "rpcd": {
+          "version": "2026.06.04~28faf640-r1",
+          "sha256": "6b56076a6fa01f67d6c9b9a02cf59117e5f9b5af35a08fb6e9cd5e45b203b51e",
+          "file": "rpcd-2026.06.04~28faf640-r1.apk"
+        },
+        "rpcd-mod-file": {
+          "version": "2026.06.04~28faf640-r1",
+          "sha256": "8224dfa45de97d1f6ece3bf7b2652f1c7ac5456992e6ecf1e4cbe7b302b48793",
+          "file": "rpcd-mod-file-2026.06.04~28faf640-r1.apk"
+        },
+        "rpcd-mod-luci": {
+          "version": "20240305-r1",
+          "sha256": "dd4631be626a4b07cc691d050dce07be5d606cd2e42b4561dd6bd265ed84b764",
+          "file": "rpcd-mod-luci-20240305-r1.apk"
+        },
+        "rpcd-mod-ucode": {
+          "version": "2026.06.04~28faf640-r1",
+          "sha256": "8cb3ee178c241a11e3b691c413a73efacb26b6e0c6ef8d4c0c635ecac4ae3ab0",
+          "file": "rpcd-mod-ucode-2026.06.04~28faf640-r1.apk"
+        },
+        "ubus": {
+          "version": "2026.06.28~24864e78-r2",
+          "sha256": "2bd639eb008700100935b5bf77cf9607254224fc9300c5762b293e6bedfba6e0",
+          "file": "ubus-2026.06.28~24864e78-r2.apk"
+        },
+        "ubusd": {
+          "version": "2026.06.28~24864e78-r2",
+          "sha256": "28af04970b3bc959b9a392cba2d066db9164a24e2967a6e920bf57a78a632b07",
+          "file": "ubusd-2026.06.28~24864e78-r2.apk"
+        },
+        "uci": {
+          "version": "2025.12.02~66127cd7-r1",
+          "sha256": "d5e8f29533b919fd9446f915c9a4da491a923afdbfb610c6a95630ab0011f5cf",
+          "file": "uci-2025.12.02~66127cd7-r1.apk"
+        },
+        "ucode": {
+          "version": "2026.01.16~85922056-r1",
+          "sha256": "c12658dbc2cf6ec09e31cba4b5ec3f712a0682e009cae95a23492395ce5569d1",
+          "file": "ucode-2026.01.16~85922056-r1.apk"
+        },
+        "ucode-mod-fs": {
+          "version": "2026.01.16~85922056-r1",
+          "sha256": "cadb7dea239023d348e93112b4b0714b838d3adef33a670bf69c287df12e7459",
+          "file": "ucode-mod-fs-2026.01.16~85922056-r1.apk"
+        },
+        "ucode-mod-html": {
+          "version": "1",
+          "sha256": "25bb4bcf33fa6822d78f2a6da5e08b09d3346f6a2dd0e616e8b5d4a785219d2b",
+          "file": "ucode-mod-html-1.apk"
+        },
+        "ucode-mod-log": {
+          "version": "2026.01.16~85922056-r1",
+          "sha256": "8f3aa84d534692b1d965921f9831879db8b9b468df94ff7f07eb80a1e8c7d5f5",
+          "file": "ucode-mod-log-2026.01.16~85922056-r1.apk"
+        },
+        "ucode-mod-math": {
+          "version": "2026.01.16~85922056-r1",
+          "sha256": "935a620b49448c760273e668b055813b13f49a8b908244d60eb6602a1113ad64",
+          "file": "ucode-mod-math-2026.01.16~85922056-r1.apk"
+        },
+        "ucode-mod-rtnl": {
+          "version": "2026.01.16~85922056-r1",
+          "sha256": "1f45e2224764a2e22d78cfa599180b42f87f0bfd679fd7ec4b286c79783df63e",
+          "file": "ucode-mod-rtnl-2026.01.16~85922056-r1.apk"
+        },
+        "ucode-mod-socket": {
+          "version": "2026.01.16~85922056-r1",
+          "sha256": "d8140a3bc29be990d18a2ee5eb5425e69656e456d47155663ced7e55916c63d0",
+          "file": "ucode-mod-socket-2026.01.16~85922056-r1.apk"
+        },
+        "ucode-mod-ubus": {
+          "version": "2026.01.16~85922056-r1",
+          "sha256": "b852c97c9fc371fb32367fee6ab9b2032eceb7417b9d3fabe2944150cada0624",
+          "file": "ucode-mod-ubus-2026.01.16~85922056-r1.apk"
+        },
+        "ucode-mod-uci": {
+          "version": "2026.01.16~85922056-r1",
+          "sha256": "cc9f8be474ba4411222b2818d14176a9f6dc6031cbf2b057a85f29fde6139e49",
+          "file": "ucode-mod-uci-2026.01.16~85922056-r1.apk"
+        },
+        "ucode-mod-uloop": {
+          "version": "2026.01.16~85922056-r1",
+          "sha256": "1a731d1fbddcccf45aec2de15b4035c5146b94e1e50831e9a1874ddd57e0d11c",
+          "file": "ucode-mod-uloop-2026.01.16~85922056-r1.apk"
+        }
+      }
+    },
+    {
+      "first": "split",
+      "rejected": "full",
+      "installedAndWorldUnchanged": true,
+      "protectedPayloadSha256": {
+        "usr/bin/rill-runtime": "bcc587dbbeab6da71e6c3b1113db2037b69e7bec3e01f696e0e9a5d3cce1561b",
+        "usr/sbin/performance-manager.uc": "f902258d4aa14d2775b38f599b90c39e98b02a297a9b3df0f28b00fc65f0094f",
+        "etc/config/performance-manager": "19bf0cd88577fca49e0902633d0fc8a38beb480ae1297d00433b888c1da1a505"
+      },
+      "removeReinstallPreservedState": true,
+      "installedPackages": {
+        "cgi-io": {
+          "version": "2026.06.28~7314451c-r1",
+          "sha256": "18f7235ecc07ee17c9ad4e7739f62641852f9f4d1e060094803d573c76e54e32",
+          "file": "cgi-io-2026.06.28~7314451c-r1.apk"
+        },
+        "coreutils": {
+          "version": "9.9-r2",
+          "sha256": "fe275266eb3d917162986bad82d2d74bc3763db9f497a584b77215e40e53f158",
+          "file": "coreutils-9.9-r2.apk"
+        },
+        "coreutils-timeout": {
+          "version": "9.9-r2",
+          "sha256": "5a9d7cbff353150164ba6e61457b65c699c5f94a62c3eb48606a6b4c6abf7257",
+          "file": "coreutils-timeout-9.9-r2.apk"
+        },
+        "libblobmsg-json20260213": {
+          "version": "2026.06.19~7dd12784-r1",
+          "sha256": "84f9d40c360f310a7f696a2ccca1e390ae486d08fc839fee0ac7a13b21cea22b",
+          "file": "libblobmsg-json20260213-2026.06.19~7dd12784-r1.apk"
+        },
+        "libc": {
+          "version": "1.2.5-r5",
+          "sha256": "fa10ca4fb7dae837e536138274ff94194345c89a87454e3c2a21651db7b09d15",
+          "file": "libc-1.2.5-r5.apk"
+        },
+        "libgcc1": {
+          "version": "14.3.0-r5",
+          "sha256": "8027076120709b7847902bb98eed93f5c197f1aab53124a786088cce91950b7d",
+          "file": "libgcc1-14.3.0-r5.apk"
+        },
+        "libjson-c5": {
+          "version": "0.18-r1",
+          "sha256": "ade1ebed94053d8c9d2463af2349fe49d9c06e05607bbc9dd52645ce69d5d362",
+          "file": "libjson-c5-0.18-r1.apk"
+        },
+        "liblucihttp-ucode": {
+          "version": "2023.03.15~9b5b683f-r1",
+          "sha256": "e3fe2a287750313b872022d1a341092c246e70c05c973de03f9b9c4ad85b12db",
+          "file": "liblucihttp-ucode-2023.03.15~9b5b683f-r1.apk"
+        },
+        "liblucihttp0": {
+          "version": "2023.03.15~9b5b683f-r1",
+          "sha256": "b21e66b9be3eaaea032ad5d084b3f4085c3af24772b1303150faeabb46cd45e4",
+          "file": "liblucihttp0-2023.03.15~9b5b683f-r1.apk"
+        },
+        "libnl-tiny1": {
+          "version": "2025.12.02~40493a65-r1",
+          "sha256": "56ebb8d3bad234559abc6a1f8f8e91f9e180bc8c8d7f3e4d3583af403222ab43",
+          "file": "libnl-tiny1-2025.12.02~40493a65-r1.apk"
+        },
+        "libpthread": {
+          "version": "1.2.5-r5",
+          "sha256": "5b628d4fee9bba4397efce5b0b4e28f3a9a753c49f2eff7eafcb1f1653bc2217",
+          "file": "libpthread-1.2.5-r5.apk"
+        },
+        "librt": {
+          "version": "1.2.5-r5",
+          "sha256": "75b7ca15df78b6f906dc570f07184ed22eee336684705d1736ad9ee50b0b8f1e",
+          "file": "librt-1.2.5-r5.apk"
+        },
+        "libubox20260213": {
+          "version": "2026.06.19~7dd12784-r1",
+          "sha256": "eb55a57f2639f58f788a24b77ee2e85f4e310dcc9a0e1018c87cba61db3ee906",
+          "file": "libubox20260213-2026.06.19~7dd12784-r1.apk"
+        },
+        "libubus20251202": {
+          "version": "2026.06.28~24864e78-r2",
+          "sha256": "8dfdbbf870efe377a894be0eed32695b3d008e1e49e5461b2f4eb59300578de8",
+          "file": "libubus20251202-2026.06.28~24864e78-r2.apk"
+        },
+        "libuci20250120": {
+          "version": "2025.12.02~66127cd7-r1",
+          "sha256": "6b0d6e8e96c70951657beb1a935d7d9f3c46aa191da763e1066e15e67bdf92f0",
+          "file": "libuci20250120-2025.12.02~66127cd7-r1.apk"
+        },
+        "libucode20230711": {
+          "version": "2026.01.16~85922056-r1",
+          "sha256": "a3b7772fef3d84aaf65fa56ec753bddcce8b7962ea4ee7a4db29e1845a36bd46",
+          "file": "libucode20230711-2026.01.16~85922056-r1.apk"
+        },
+        "luci-app-performance-manager": {
+          "version": "1.0.4-r1",
+          "sha256": "29215a3356f20fb656ea7e521929f67ed78197b77a366a355fafc4565f609ea3",
+          "file": "luci-app-performance-manager-1.0.4-r1.apk"
+        },
+        "luci-base": {
+          "version": "26.180.75667~128a781",
+          "sha256": "280957fbb750396cbb474427248943cce7179f41e589124e6ad0b43a2cea337f",
+          "file": "luci-base-26.180.75667~128a781.apk"
+        },
+        "luci-i18n-base-zh-cn": {
+          "version": "26.180.75667~128a781",
+          "sha256": "c27cfd8e3dfb1af7db15a559058fab5dc731f2a017321e2c1d5ff8392ac98097",
+          "file": "luci-i18n-base-zh-cn-26.180.75667~128a781.apk"
+        },
+        "performance-manager": {
+          "version": "1.0.4-r1",
+          "sha256": "e59fdb040f5e4423248692bf925cacd2af2f20cefc1571c785601ad0bc10f5c2",
+          "file": "performance-manager-1.0.4-r1.apk"
+        },
+        "performance-manager-rill": {
+          "version": "1.0.4-r1",
+          "sha256": "25640c2e23d27a8e1c699cde17f1a20d3e7b7c6a178305c85bed0bd704894628",
+          "file": "performance-manager-rill-1.0.4-r1.apk"
+        },
+        "rill-runtime": {
+          "version": "1.5.6-r2",
+          "sha256": "37839a4703f08013ff986291974338f7993c75c6c83ee7d05b03883058a5efa5",
+          "file": "rill-runtime-1.5.6-r2.apk"
+        },
+        "rpcd": {
+          "version": "2026.06.04~28faf640-r1",
+          "sha256": "6b56076a6fa01f67d6c9b9a02cf59117e5f9b5af35a08fb6e9cd5e45b203b51e",
+          "file": "rpcd-2026.06.04~28faf640-r1.apk"
+        },
+        "rpcd-mod-file": {
+          "version": "2026.06.04~28faf640-r1",
+          "sha256": "8224dfa45de97d1f6ece3bf7b2652f1c7ac5456992e6ecf1e4cbe7b302b48793",
+          "file": "rpcd-mod-file-2026.06.04~28faf640-r1.apk"
+        },
+        "rpcd-mod-luci": {
+          "version": "20240305-r1",
+          "sha256": "dd4631be626a4b07cc691d050dce07be5d606cd2e42b4561dd6bd265ed84b764",
+          "file": "rpcd-mod-luci-20240305-r1.apk"
+        },
+        "rpcd-mod-ucode": {
+          "version": "2026.06.04~28faf640-r1",
+          "sha256": "8cb3ee178c241a11e3b691c413a73efacb26b6e0c6ef8d4c0c635ecac4ae3ab0",
+          "file": "rpcd-mod-ucode-2026.06.04~28faf640-r1.apk"
+        },
+        "ubus": {
+          "version": "2026.06.28~24864e78-r2",
+          "sha256": "2bd639eb008700100935b5bf77cf9607254224fc9300c5762b293e6bedfba6e0",
+          "file": "ubus-2026.06.28~24864e78-r2.apk"
+        },
+        "ubusd": {
+          "version": "2026.06.28~24864e78-r2",
+          "sha256": "28af04970b3bc959b9a392cba2d066db9164a24e2967a6e920bf57a78a632b07",
+          "file": "ubusd-2026.06.28~24864e78-r2.apk"
+        },
+        "uci": {
+          "version": "2025.12.02~66127cd7-r1",
+          "sha256": "d5e8f29533b919fd9446f915c9a4da491a923afdbfb610c6a95630ab0011f5cf",
+          "file": "uci-2025.12.02~66127cd7-r1.apk"
+        },
+        "ucode": {
+          "version": "2026.01.16~85922056-r1",
+          "sha256": "c12658dbc2cf6ec09e31cba4b5ec3f712a0682e009cae95a23492395ce5569d1",
+          "file": "ucode-2026.01.16~85922056-r1.apk"
+        },
+        "ucode-mod-fs": {
+          "version": "2026.01.16~85922056-r1",
+          "sha256": "cadb7dea239023d348e93112b4b0714b838d3adef33a670bf69c287df12e7459",
+          "file": "ucode-mod-fs-2026.01.16~85922056-r1.apk"
+        },
+        "ucode-mod-html": {
+          "version": "1",
+          "sha256": "25bb4bcf33fa6822d78f2a6da5e08b09d3346f6a2dd0e616e8b5d4a785219d2b",
+          "file": "ucode-mod-html-1.apk"
+        },
+        "ucode-mod-log": {
+          "version": "2026.01.16~85922056-r1",
+          "sha256": "8f3aa84d534692b1d965921f9831879db8b9b468df94ff7f07eb80a1e8c7d5f5",
+          "file": "ucode-mod-log-2026.01.16~85922056-r1.apk"
+        },
+        "ucode-mod-math": {
+          "version": "2026.01.16~85922056-r1",
+          "sha256": "935a620b49448c760273e668b055813b13f49a8b908244d60eb6602a1113ad64",
+          "file": "ucode-mod-math-2026.01.16~85922056-r1.apk"
+        },
+        "ucode-mod-rtnl": {
+          "version": "2026.01.16~85922056-r1",
+          "sha256": "1f45e2224764a2e22d78cfa599180b42f87f0bfd679fd7ec4b286c79783df63e",
+          "file": "ucode-mod-rtnl-2026.01.16~85922056-r1.apk"
+        },
+        "ucode-mod-socket": {
+          "version": "2026.01.16~85922056-r1",
+          "sha256": "d8140a3bc29be990d18a2ee5eb5425e69656e456d47155663ced7e55916c63d0",
+          "file": "ucode-mod-socket-2026.01.16~85922056-r1.apk"
+        },
+        "ucode-mod-ubus": {
+          "version": "2026.01.16~85922056-r1",
+          "sha256": "b852c97c9fc371fb32367fee6ab9b2032eceb7417b9d3fabe2944150cada0624",
+          "file": "ucode-mod-ubus-2026.01.16~85922056-r1.apk"
+        },
+        "ucode-mod-uci": {
+          "version": "2026.01.16~85922056-r1",
+          "sha256": "cc9f8be474ba4411222b2818d14176a9f6dc6031cbf2b057a85f29fde6139e49",
+          "file": "ucode-mod-uci-2026.01.16~85922056-r1.apk"
+        },
+        "ucode-mod-uloop": {
+          "version": "2026.01.16~85922056-r1",
+          "sha256": "1a731d1fbddcccf45aec2de15b4035c5146b94e1e50831e9a1874ddd57e0d11c",
+          "file": "ucode-mod-uloop-2026.01.16~85922056-r1.apk"
+        }
+      }
+    }
+  ]
+}

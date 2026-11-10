@@ -31,13 +31,25 @@ Runtime v3 integration additionally exercises strict envelope parsing, bounded r
 
 ## CI gates
 
-1. `make audit` on Linux.
-2. Native `cargo test --locked` + `cargo check --locked` for Rill.
-3. Official OpenWrt **25.12.5 x86/64** rootfs ucode bytecode compile with required modules.
+Every gate below maps to a command that exists in this repository; CI only
+wraps them.
+
+1. `make audit` on Linux (`ci.yml` job `static`).
+2. LuCI JavaScript syntax + render smoke (`node --check` per file, then
+   `node scripts/luci_render_smoke.js`, `ci.yml` job `static`).
+3. Official OpenWrt **25.12.5 x86/64** rootfs ucode bytecode compile with
+   required modules (`/usr/bin/ucode -c -o ...` as executed by
+   `tools/docker-validate/docker-entry.sh` and
+   `tools/docker-validate/run-target-gate.sh`).
 4. Pinned real Runtime + official OpenWrt ucode execution of the raw shipped
    Core production selector and transaction harness, including candidate
-   identity/history isolation and exact target/path trace.
-5. Official OpenWrt 25.12.5 x86/64 SDK build of Core, LuCI and PM-owned packages.
+   identity/history isolation and exact target/path trace
+   (`scripts/prepare_runtime_test_rootfs.sh`,
+   `scripts/rill_runtime_v3_integration.py`,
+   `scripts/production_core_rill_integration.py`; `ci.yml` jobs
+   `rill-runtime-v3` and `production-core-rill-integration`).
+5. Official OpenWrt 25.12.5 x86/64 SDK build of Core, LuCI and PM-owned packages
+   (`build-openwrt.yml` job `openwrt-sdk-build`).
 
 ## Booted-target gates
 

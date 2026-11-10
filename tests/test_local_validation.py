@@ -117,6 +117,10 @@ class LocalValidationTests(unittest.TestCase):
             "contracts/evidence/portable-macos-docker.schema.json",
             "package/performance-manager/files/usr/share/performance-manager/schemas/portable-macos-docker.schema.json",
             "tests/test_all_in_one_package.py",
+            "package/luci-app-performance-manager-all/Makefile",
+            "scripts/validate_contracts.py",
+            "scripts/verify_apks.py",
+            "tests/fixtures/apk-negative-dependency.apk",
             "tests/test_local_validation.py",
             "tests/test_full_upgrade_gate.py",
             "scripts/package_composition_gate.py",
@@ -133,6 +137,10 @@ class LocalValidationTests(unittest.TestCase):
             "contracts/evidence/portable-macos-docker.schema.json",
             "package/performance-manager/files/usr/share/performance-manager/schemas/portable-macos-docker.schema.json",
             "tests/test_all_in_one_package.py",
+            "package/luci-app-performance-manager-all/Makefile",
+            "scripts/validate_contracts.py",
+            "scripts/verify_apks.py",
+            "tests/fixtures/apk-negative-dependency.apk",
             "tests/test_local_validation.py",
             "tests/test_full_upgrade_gate.py",
             "scripts/package_composition_gate.py",
@@ -324,6 +332,7 @@ class LocalValidationTests(unittest.TestCase):
         for relative in (
             "docs/FINAL_AUDIT.json", "docs/FINAL_AUDIT.md", "docs/HOST_SYNTAX_REPORT.json",
             "docs/RESOURCE_BUDGET.json", "docs/source-audit.json",
+            "docs/rill-integration-status.json",
         ):
             original = subprocess.check_output(["git", "show", f"HEAD:{relative}"], cwd=repo)
             (repo / relative).write_bytes(original)

@@ -64,7 +64,7 @@ phases['0']=gate('Contract Freeze',[
  ('full transaction states',all_tokens((ROOT/'contracts/transaction.schema.json').read_text(),['planned','locked','snapshotted','awaiting_confirm','rolled_back']))])
 phases['0'].update({'evidence':'structural: schema files + frozen contract fields present'})
 phases['1']=gate('Bootstrap',[(f'package {x}',(ROOT/'package'/x/'Makefile').exists()) for x in ['performance-manager','luci-app-performance-manager','performance-manager-rill','luci-app-performance-manager-all']]+[
- ('Core ubus daemon wiring','ubusmod.connect()' in CORE and 'conn.publish' in CORE and '{ call: function' in CORE),
+ ('Core ubus daemon wiring','ubusmod.connect()' in CORE and 'conn.publish(UBUS_NAME' in CORE and 'rpc_args()' in CORE and 'call: function' in CORE),
  ('full package is architecture-specific','PKGARCH:=all' not in BUNDLE_MAKE),
  ('full package embeds qualified Runtime','RILL_RUNTIME_BINARY' in BUNDLE_MAKE and '/usr/bin/rill-runtime' in BUNDLE_MAKE),
  ('full package has no Runtime dependency','+rill-runtime' not in BUNDLE_MAKE),

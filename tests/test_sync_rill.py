@@ -58,5 +58,50 @@ class SyncRillApiTests(unittest.TestCase):
         self.assertNotIn("secret-value", str(raised.exception))
 
 
+class SyncContractTransactionTests(unittest.TestCase):
+    def test_fields_noop_release_binding_and_failed_write(self):
+        import copy
+        import contextlib
+        import hashlib
+        import json
+        from pathlib import Path
+        import tempfile
+        with tempfile.TemporaryDirectory() as directory:
+            root=Path(directory);package=root/'package'
+            (package/'package/rill-runtime').mkdir(parents=True);(package/'metadata').mkdir()
+            contract=json.loads((Path(ROOT)/'contracts/rill-runtime.json').read_text())
+            raw=b'validated schema 3 fixture'
+            contract['qualification'].update(runAttempt=2,manifestSha256=hashlib.sha256(raw).hexdigest())
+            contract['extension']={'keep':True};contract['policy']['future']='preserve'
+            destination=root/'contract.json';destination.write_text(json.dumps(contract))
+            version=contract['resolved']['version'];commit=contract['openwrtPackage']['commit'];run=contract['qualification']['runId']
+            metadata={'package':{'name':'rill-runtime','version':version,'release':contract['openwrtPackage']['packageRelease'],'binary':'/usr/bin/rill-runtime'},
+                'upstream':{'version':version,'commit':contract['resolved']['upstreamCommit'],'archiveSha256':contract['resolved']['sourceArchiveSha256']}}
+            metadata_path=package/'metadata/rill-runtime.json';metadata_path.write_text(json.dumps(metadata))
+            recipe=package/'package/rill-runtime/Makefile';recipe.write_text(f"PKG_NAME:=rill-runtime\nPKG_VERSION:={version}\nPKG_RELEASE:={metadata['package']['release']}\n")
+            def api(path):
+                if '/releases?' in path:return [{'tag_name':'v'+version,'draft':False,'prerelease':False}]
+                return {'workflow_runs':[{'id':run,'run_attempt':2,'conclusion':'success'}]}
+            def proof(*args):return {'package':metadata['package'],'upstream':metadata['upstream']},raw,[]
+            with patch.object(sync_rill,'CONTRACT',destination),patch.object(sync_rill,'api',api), \
+                 patch.object(sync_rill,'git_head',return_value=commit),patch.object(sync_rill,'qualified_manifest',proof), \
+                 contextlib.redirect_stdout(io.StringIO()):
+                before=destination.read_bytes();sync_rill.sync(package);self.assertEqual(before,destination.read_bytes())
+                changed=copy.deepcopy(contract);changed['qualification']['runId']=run+1;destination.write_text(json.dumps(changed))
+                sync_rill.sync(package);result=json.loads(destination.read_text())
+                self.assertEqual(result['extension'],contract['extension']);self.assertEqual(result['policy']['future'],'preserve')
+                self.assertEqual(result['qualification']['runId'],run)
+                # The package recipe release is independently bound, not merely its version.
+                recipe.write_text(f'PKG_NAME:=rill-runtime\nPKG_VERSION:={version}\nPKG_RELEASE:=99\n')
+                before=destination.read_bytes()
+                with self.assertRaises(ValueError):sync_rill.sync(package)
+                self.assertEqual(before,destination.read_bytes())
+                recipe.write_text(f"PKG_NAME:=rill-runtime\nPKG_VERSION:={version}\nPKG_RELEASE:={metadata['package']['release']}\n")
+                changed=json.loads(destination.read_text());changed['qualification']['runId']=run+1;destination.write_text(json.dumps(changed));before=destination.read_bytes()
+                with patch.object(sync_rill.os,'replace',side_effect=OSError('injected failure')):
+                    with self.assertRaises(OSError):sync_rill.sync(package)
+                self.assertEqual(before,destination.read_bytes());self.assertFalse(list(root.glob('.rill-contract-*')))
+
+
 if __name__ == "__main__":
     unittest.main()

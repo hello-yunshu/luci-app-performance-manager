@@ -10,7 +10,6 @@ from __future__ import annotations
 
 import hashlib
 import json
-import os
 import re
 import shutil
 import subprocess
@@ -21,29 +20,95 @@ ROOT = Path(__file__).resolve().parents[1]
 VERSION = (ROOT / "VERSION").read_text().strip()
 TEMP_PATH = re.compile(r"/(?:private/)?(?:tmp|var/folders)/[^\s\"']+")
 
+# These files are rewritten by this audit itself.  They must not make the
+# source tree look dirty, and a commit that only changes them is a snapshot
+# commit rather than a new source revision.
+GENERATED_EVIDENCE_PATHS = frozenset({
+    "docs/FINAL_AUDIT.json",
+    "docs/FINAL_AUDIT.md",
+    "docs/source-audit.json",
+    "docs/SOURCE_GATES.json",
+    "docs/HOST_SYNTAX_REPORT.json",
+    "docs/RESOURCE_BUDGET.json",
+    "docs/rill-integration-status.json",
+})
+
 
 def stable_output_tail(output: str) -> str:
     """Keep generated audit evidence stable across temporary directories."""
     return TEMP_PATH.sub("<temporary-path>", output[-4000:])
 
 
-def git_commit() -> str:
-    # GitHub Actions runs the audit against an immutable checked-out head, but
-    # the audit itself refreshes tracked report files before this identity is
-    # emitted.  Bind CI evidence to the runner-provided exact head SHA rather
-    # than misclassifying those generated reports as an uncommitted source.
-    workflow_sha = os.environ.get("GITHUB_SHA", "")
-    if re.fullmatch(r"[0-9a-f]{40}", workflow_sha):
-        return workflow_sha
-    dirty = subprocess.run(
-        ["git", "status", "--porcelain", "--untracked-files=no"], cwd=ROOT,
-        text=True, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
+def git_output(args):
+    return subprocess.run(
+        ["git", *args], cwd=ROOT, text=True,
+        stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
     )
-    if dirty.returncode != 0 or dirty.stdout.strip():
-        return "WORKTREE_UNCOMMITTED"
-    completed = subprocess.run(["git", "rev-parse", "HEAD"], cwd=ROOT, text=True,
-                               stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
-    return completed.stdout.strip() if completed.returncode == 0 else "unknown"
+
+
+def head_sha() -> str:
+    completed = git_output(["rev-parse", "HEAD"])
+    value = completed.stdout.strip()
+    if completed.returncode != 0 or not re.fullmatch(r"[0-9a-f]{40}", value):
+        raise SystemExit("ERROR: unable to resolve a real HEAD commit SHA")
+    return value
+
+
+def changed_paths(parent: str, child: str) -> list[str]:
+    completed = git_output(["diff", "--name-only", parent, child])
+    if completed.returncode != 0:
+        return []
+    return [line for line in completed.stdout.splitlines() if line]
+
+
+def source_commit(head: str) -> str:
+    """Return the audited source commit, skipping snapshot-only children.
+
+    A commit cannot contain its own SHA, so a snapshot that is committed after
+    generation necessarily lives in a child commit.  When HEAD is such a
+    snapshot-only child, the snapshot must keep identifying its source parent;
+    otherwise every regeneration after committing the snapshot would rewrite
+    pmCommitSha and make the audit non-idempotent.
+    """
+    candidate = head
+    for _ in range(10):
+        parent = git_output(["rev-parse", f"{candidate}^"])
+        if parent.returncode != 0:
+            break
+        parent_sha = parent.stdout.strip()
+        paths = changed_paths(parent_sha, candidate)
+        if not paths or not set(paths).issubset(GENERATED_EVIDENCE_PATHS):
+            break
+        candidate = parent_sha
+    return candidate
+
+
+def dirty_source_paths() -> list[str]:
+    completed = git_output(["status", "--porcelain", "--untracked-files=no"])
+    if completed.returncode != 0:
+        raise SystemExit("ERROR: unable to inspect git worktree state")
+    dirty = []
+    for line in completed.stdout.splitlines():
+        path = line[3:].strip()
+        if " -> " in path:
+            path = path.split(" -> ", 1)[1]
+        if path and path not in GENERATED_EVIDENCE_PATHS:
+            dirty.append(path)
+    return dirty
+
+
+HEAD_SHA = head_sha()
+DIRTY_SOURCE = dirty_source_paths()
+if DIRTY_SOURCE:
+    print("ERROR: source worktree is dirty; refusing to write an audit snapshot.",
+          file=sys.stderr)
+    print("A snapshot written now would identify a commit that does not contain these changes.",
+          file=sys.stderr)
+    for path in DIRTY_SOURCE:
+        print(f"  dirty: {path}", file=sys.stderr)
+    print("Commit or stash the source changes, then rerun make audit.", file=sys.stderr)
+    raise SystemExit(2)
+SOURCE_COMMIT = source_commit(HEAD_SHA)
 
 
 def sha(path: Path) -> str:
@@ -120,8 +185,12 @@ report = {
     "schemaVersion": 3,
     "project": "OpenWrt Performance Manager",
     "version": VERSION,
-    "pmCommitSha": git_commit(),
+    "pmCommitSha": SOURCE_COMMIT,
     "scope": "source-only",
+    "sourceTreeClean": True,
+    "sourceTreeDirtyPaths": [],
+    "snapshotIdentity": "source-commit",
+    "snapshotCommitPolicy": "pmCommitSha identifies the audited source commit. A commit that changes only GENERATED_EVIDENCE_PATHS is a snapshot-only child and is skipped, so regenerating after committing the snapshot is byte-identical.",
     "sourceCandidateVerdict": "PASS" if local_pass else "FAIL",
     "functionalIntegrationVerdict": "NOT_EVALUATED",
     "stableReleaseVerdict": "NOT_EVALUATED",
@@ -155,6 +224,10 @@ report = {
         if local_pass else f"{VERSION} source audit FAILED"
     ),
 }
+if head_sha() != HEAD_SHA:
+    print("ERROR: HEAD changed while the audit was running; refusing to write an unattributable snapshot.",
+          file=sys.stderr)
+    raise SystemExit(3)
 (ROOT / "docs/FINAL_AUDIT.json").write_text(
     json.dumps(report, ensure_ascii=False, indent=2) + "\n"
 )
@@ -182,6 +255,9 @@ markdown = f"""# Source Audit — {VERSION}
 This is a source-only, non-promotable audit. It does not consume old runtime
 artifacts and cannot claim functional-integration or Stable-release PASS.
 
+Snapshot source commit: **{report['pmCommitSha']}**. A commit that only changes
+generated audit files is treated as a snapshot child, not a new source revision.
+
 ## Orchestrated local gates
 
 {step_lines}
@@ -207,6 +283,7 @@ sysupgrade, lifecycle, and 24-hour soak evidence.
 (ROOT / "docs/FINAL_AUDIT.md").write_text(markdown)
 print(json.dumps({
     "version": VERSION,
+    "pmCommitSha": report["pmCommitSha"],
     "sourceCandidateVerdict": report["sourceCandidateVerdict"],
     "functionalIntegrationVerdict": "NOT_EVALUATED",
     "stableReleaseVerdict": "NOT_EVALUATED",

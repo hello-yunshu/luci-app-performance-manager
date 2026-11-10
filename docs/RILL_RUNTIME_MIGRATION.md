@@ -21,3 +21,6 @@ verify, rollback and reward mapping remain owned by Core in this repository.
 
 Historical adapter/state fixtures are retained only as explicitly labelled
 audit history and are not package, protocol, migration, or release inputs.
+In particular `docs/rill-provenance.json` is a `historical-only` 1.5.1
+snapshot (`supersededBy: contracts/rill-runtime.json`); the only current pin is
+the 1.5.6 entry in `contracts/rill-runtime.json`.
