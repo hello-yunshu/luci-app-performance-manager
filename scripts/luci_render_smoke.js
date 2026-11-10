@@ -503,6 +503,8 @@ function assertCleanPage(name, payload) {
   const attrs = attributeText(rendered);
   for (const value of attrs.split('\n')) {
     if (/^\/|^<|^$/.test(value) || /[\u4e00-\u9fff]/.test(value)) continue;
+    /* Values with no Latin letters (for example "—") are not untranslated text. */
+    if (!/[A-Za-z]/.test(value)) continue;
     throw new Error('untranslated attribute text: ' + value);
   }
 }
@@ -510,6 +512,29 @@ for (const name of PAGES) {
   await expect('no raw contract values: ' + name, () => assertCleanPage(name, MOCK[name]));
   await expect('no raw contract values (empty state): ' + name, () => assertCleanPage(name, EMPTY[name]));
 }
+
+/* Default install: the external Rill runtime is not provisioned.  This is the
+ * first screen a fresh user sees, so it must explain itself instead of
+ * falling back to the generic "unknown state" label. */
+const DEFAULT_INSTALL_RILL = [
+  { status: 'Runtime · Not provisioned', transport: 'unavailable' },
+  { smartSelection: { reason: 'external-runtime-not-provisioned', ranking: [] } },
+  { history: [] },
+];
+await expect('default install Rill page explains the missing runtime', () => {
+  assertCleanPage('rill', DEFAULT_INSTALL_RILL);
+  const text = visibleText(loadModule(path.join(VIEW_DIR, 'rill.js'), baseGlobals).render(DEFAULT_INSTALL_RILL));
+  if (!text.includes(_('Runtime not provisioned'))) throw new Error('runtime state is not explained: ' + text.slice(0, 160));
+  if (!text.includes(_('The external Rill runtime is not installed')))
+    throw new Error('policy reason is not explained: ' + text.slice(0, 160));
+  if (text.includes(_('Unknown state')) || text.includes(_('Unrecognized reason, see technical details')))
+    throw new Error('default install fell back to an unknown label');
+  if (text.includes(_('Unknown action')))
+    throw new Error('default install invented an unknown action instead of showing a dash');
+  /* Every absent field must read as "not recorded", never as "unknown". */
+  const unknown = text.match(/未知[^\s，。]{0,4}/);
+  if (unknown) throw new Error('default install shows an unknown value: ' + unknown[0]);
+});
 
 /* Prove the scanner itself would catch the exact regressions it is meant to
  * catch, so a future refactor cannot silently weaken it. */
@@ -602,6 +627,11 @@ if (htmlFlag !== -1 && process.argv[htmlFlag + 1]) {
       `<style>${css}</style><style>body{background:#f6f7f9;margin:0;padding:24px;font-family:system-ui,-apple-system,"PingFang SC",sans-serif}</style>` +
       `</head><body>${body}</body></html>`);
   }
+  const rillDefault = toHtml(loadModule(path.join(VIEW_DIR, 'rill.js'), baseGlobals).render(DEFAULT_INSTALL_RILL));
+  fs.writeFileSync(path.join(outDir, 'rill-default-install.html'),
+    `<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><title>rill-default-install</title>` +
+    `<style>${css}</style><style>body{background:#f6f7f9;margin:0;padding:24px;font-family:system-ui,-apple-system,"PingFang SC",sans-serif}</style>` +
+    `</head><body>${rillDefault}</body></html>`);
   console.log('html snapshots written to ' + outDir);
 }
 
