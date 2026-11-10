@@ -24,6 +24,10 @@ env:
   OPENWRT_VERSION: "25.12.5"
   OPENWRT_TARGET: "x86/64"
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   portable-docker:
     runs-on: ubuntu-latest
