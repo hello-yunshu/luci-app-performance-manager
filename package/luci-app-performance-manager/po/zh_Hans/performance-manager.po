@@ -1959,8 +1959,15 @@ msgstr "qosify 流量分类"
 
 
 msgid "%s candidate"
-msgstr "%s 候选"
+msgstr "%s候选"
 
 msgid "Resolved"
 msgstr "已解析"
+
+
+msgid "Ranking table"
+msgstr "排名表"
+
+msgid "Feedback table"
+msgstr "反馈表"
 
