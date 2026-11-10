@@ -3,6 +3,7 @@
 'require ui';
 'require performance-manager.api as pm';
 'require performance-manager.ui as pu';
+'require performance-manager.labels as labels';
 
 return view.extend({
 	load: function() { return Promise.all([ pm.transactions(), pm.locks(), pm.history(100) ]); },
@@ -14,9 +15,9 @@ return view.extend({
 			if (tx.state === 'awaiting_confirm') {
 				const c = E('button', { 'class': 'btn cbi-button cbi-button-positive', 'type': 'button' }, [ _('Confirm') ]);
 				c.addEventListener('click', function() {
-					const restore = pu.setBusy(c, _('Confirming…'));
+					const restore = pu.setBusy(c, _('Confirming...'));
 					pm.confirm(tx.transactionId).then(function(r){ ui.addNotification(null, E('p', {}, [ r && r.ok ? _('Transaction confirmed.') : _('Confirmation failed or expired. Refresh the page to check the transaction state.') ])); })
-						.catch(function(error) { ui.addNotification(null, E('p', {}, [ _('Unable to confirm transaction: %s. Refresh the page and try again if it is still pending.').format(error.message || error) ]), 'error'); })
+						.catch(function(error) { ui.addNotification(null, E('p', {}, [ _('Unable to confirm transaction: %s. Refresh the page and try again if it is still pending.').format(labels.errorSummary(error)) ]), 'error'); })
 						.finally(restore);
 				});
 				controls.push(c);
@@ -24,14 +25,14 @@ return view.extend({
 			if (!['rolled_back','failed'].includes(tx.state)) {
 				const b = E('button', { 'class': 'btn cbi-button cbi-button-negative', 'type': 'button' }, [ _('Rollback') ]);
 				b.addEventListener('click', function() {
-					const restore = pu.setBusy(b, _('Rolling back…'));
+					const restore = pu.setBusy(b, _('Rolling back...'));
 					pm.rollback(tx.transactionId).then(function(r){ ui.addNotification(null, E('p', {}, [ r && r.ok ? _('Rollback completed and read-back verified.') : _('Rollback could not be completed. Check the transaction details before trying again.') ])); })
-						.catch(function(error) { ui.addNotification(null, E('p', {}, [ _('Unable to roll back transaction: %s. Check the transaction details and try again.').format(error.message || error) ]), 'error'); })
+						.catch(function(error) { ui.addNotification(null, E('p', {}, [ _('Unable to roll back transaction: %s. Check the transaction details and try again.').format(labels.errorSummary(error)) ]), 'error'); })
 						.finally(restore);
 				});
 				controls.push(b);
 			}
-			nodes.push(pu.card(tx.transactionId, E('div', {}, [ pu.kv([ [_('Action'), tx.actionId], [_('State'), tx.state], [_('Target'), tx.applyTarget], [_('Boot identity'), tx.bootId] ]), controls.length ? E('div', { 'class': 'pm-toolbar' }, controls) : null, pu.jsonBox(tx, _('Transaction JSON')) ]), 'transaction'));
+			nodes.push(pu.card(labels.transaction(tx.transactionId), E('div', {}, [ pu.kv([ [_('Action'), labels.actionName(tx.actionId)], [_('State'), labels.state(tx.state)], [_('Target'), labels.target(tx.applyTarget)], [_('Boot identity'), labels.shortId(tx.bootId)] ]), controls.length ? E('div', { 'class': 'pm-toolbar' }, controls) : null, pu.jsonBox(tx, _('Transaction JSON')) ]), 'transaction'));
 		});
 		if (!txs.length) nodes.push(pu.note(_('No transactions are currently recorded.'), 'success'));
 		return pu.page(_('History and rollback'), _('Review pending confirmations, verified rollbacks, and runtime events with their safety context.'), [

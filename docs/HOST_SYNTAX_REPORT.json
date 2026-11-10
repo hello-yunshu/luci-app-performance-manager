@@ -240,6 +240,11 @@
       "output": ""
     },
     {
+      "name": "node --check package/luci-app-performance-manager/htdocs/luci-static/resources/performance-manager/labels.js",
+      "status": "pass",
+      "output": ""
+    },
+    {
       "name": "node --check package/luci-app-performance-manager/htdocs/luci-static/resources/performance-manager/ui.js",
       "status": "pass",
       "output": ""
