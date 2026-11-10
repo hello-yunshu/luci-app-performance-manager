@@ -1,5 +1,7 @@
 import json
 import re
+import subprocess
+import tempfile
 import unittest
 from pathlib import Path
 import jsonschema
@@ -115,15 +117,64 @@ class ContractTests(unittest.TestCase):
                 self.assertRegex(ref, r"^v[0-9]+$")
         self.assertEqual(found, set(expected))
 
-    def test_sync_rill_is_read_only_and_cannot_create_branches(self):
+    def test_sync_rill_is_pr_first_and_bounded_to_the_runtime_contract(self):
         workflow = (ROOT / ".github/workflows/sync-rill.yml").read_text()
-        self.assertIn("contents: read", workflow)
-        self.assertIn("pull-requests: read", workflow)
-        self.assertNotIn("contents: write", workflow)
-        self.assertNotIn("pull-requests: write", workflow)
-        self.assertNotIn("git switch -c", workflow)
-        self.assertNotIn("git push", workflow)
-        self.assertNotIn("gh pr create", workflow)
+        # Automation is allowed, but only through a pull request: the required
+        # consumer checks gate every contract update.
+        self.assertIn("contents: write", workflow)
+        self.assertIn("pull-requests: write", workflow)
+        self.assertIn("gh pr create", workflow)
+        self.assertIn("concurrency:", workflow)
+        self.assertNotIn("contents: read", workflow)
+        self.assertNotIn("pull-requests: read", workflow)
+        # The drift guard must run before the PR is opened, not after.
+        self.assertLess(
+            workflow.index("name: Verify no contract drift"),
+            workflow.index("name: Open update pull request"),
+        )
+
+        guard = self._workflow_step_script(workflow, "Verify no contract drift")
+
+        def run_guard(repo):
+            return subprocess.run(["bash", "-e", "-c", guard], cwd=repo, capture_output=True, text=True)
+
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            subprocess.run(["git", "init", "-q", str(repo)], check=True)
+            subprocess.run(["git", "-C", str(repo), "config", "user.email", "guard@example.com"], check=True)
+            subprocess.run(["git", "-C", str(repo), "config", "user.name", "guard"], check=True)
+            (repo / "contracts").mkdir()
+            (repo / "contracts/rill-runtime.json").write_text("{}\n")
+            (repo / "README.md").write_text("original\n")
+            subprocess.run(["git", "-C", str(repo), "add", "-A"], check=True)
+            subprocess.run(["git", "-C", str(repo), "commit", "-qm", "init"], check=True)
+
+            (repo / "contracts/rill-runtime.json").write_text('{"resolved":{"version":"1.5.7"}}\n')
+            contract_only = run_guard(repo)
+            self.assertEqual(contract_only.returncode, 0, contract_only.stdout + contract_only.stderr)
+
+            (repo / "README.md").write_text("silently rewritten\n")
+            out_of_scope = run_guard(repo)
+            self.assertNotEqual(out_of_scope.returncode, 0, "an out-of-scope rewrite must fail the sync")
+            self.assertIn("README.md", out_of_scope.stdout)
+
+            (repo / "README.md").write_text("original\n")
+            (repo / "scratch.log").write_text("untracked\n")
+            untracked = run_guard(repo)
+            self.assertEqual(untracked.returncode, 0, "untracked build leftovers must not trip the guard")
+
+    @staticmethod
+    def _workflow_step_script(workflow, step_name):
+        lines = workflow.splitlines()
+        start = next(i for i, line in enumerate(lines) if f"name: {step_name}" in line)
+        run_at = next(i for i in range(start, len(lines)) if lines[i].strip().startswith("run: |"))
+        indent = len(lines[run_at]) - len(lines[run_at].lstrip())
+        body = []
+        for line in lines[run_at + 1:]:
+            if line.strip() and len(line) - len(line.lstrip()) <= indent:
+                break
+            body.append(line[indent + 2:] if line.strip() else "")
+        return "\n".join(body)
 
     def test_openwrt_download_caches_remain_digest_bound_and_fail_closed(self):
         cache_action = "actions/cache@v6"
