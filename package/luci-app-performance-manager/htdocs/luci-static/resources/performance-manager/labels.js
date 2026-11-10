@@ -461,7 +461,9 @@ function has(table, key) {
 }
 
 function pick(table, value, fallback) {
-	if (value == null || value === '') return fallback || UNKNOWN;
+	/* An absent field means "nothing recorded yet", which is different from a
+	 * value we failed to recognize.  Only the latter is an unknown state. */
+	if (value == null || value === '') return DASH;
 	const key = String(value);
 	if (has(table, key)) return table[key];
 	return fallback || UNKNOWN;
@@ -558,7 +560,7 @@ function smartReason(value) {
 }
 
 function path(value) {
-	if (value == null || value === '') return UNKNOWN;
+	if (value == null || value === '') return DASH;
 	const id = String(value).replace(/^path:/, '');
 	if (id === 'lan-to-wan') return _('LAN to WAN');
 	if (id === 'local-endpoint') return _('Local endpoint');
@@ -592,11 +594,11 @@ function candidate(value) {
 }
 
 function transaction(value) {
-	return value == null || value === '' ? UNKNOWN : _('Change transaction');
+	return value == null || value === '' ? DASH : _('Change transaction');
 }
 
 function routeIdentity(value) {
-	if (value == null || value === '') return UNKNOWN;
+	if (value == null || value === '') return DASH;
 	if (String(value) === 'unresolved') return _('Not resolved');
 	return _('Resolved');
 }
@@ -606,11 +608,13 @@ function entity(id) {
 }
 
 function actionName(id) {
+	if (id == null || id === '') return DASH;
 	const e = entity(id);
 	return e ? e.name : UNKNOWN_ACTION;
 }
 
 function actionDesc(id) {
+	if (id == null || id === '') return DASH;
 	const e = entity(id);
 	return e ? e.desc : UNKNOWN_ACTION;
 }
@@ -620,11 +624,13 @@ function action(id) {
 }
 
 function capabilityName(id) {
+	if (id == null || id === '') return DASH;
 	const e = entity(id);
 	return e ? e.name : UNKNOWN_CAPABILITY;
 }
 
 function capabilityDesc(id) {
+	if (id == null || id === '') return DASH;
 	const e = entity(id);
 	return e ? e.desc : UNKNOWN_CAPABILITY;
 }
