@@ -3,7 +3,7 @@
   "areas": {
     "core": {
       "files": 42,
-      "sourceBytes": 308706,
+      "sourceBytes": 308715,
       "knownStaticPayloadBytes": 305506
     },
     "luci": {
@@ -18,7 +18,7 @@
     },
     "allInOne": {
       "files": 1,
-      "sourceBytes": 5313,
+      "sourceBytes": 5322,
       "knownStaticPayloadBytes": 0
     }
   },
