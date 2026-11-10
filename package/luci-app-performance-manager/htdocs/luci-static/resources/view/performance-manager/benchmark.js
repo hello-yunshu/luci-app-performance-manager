@@ -3,6 +3,7 @@
 'require ui';
 'require performance-manager.api as pm';
 'require performance-manager.ui as pu';
+'require performance-manager.labels as labels';
 
 function parseEvidence(text) {
 	try { return JSON.parse(text); }
@@ -23,12 +24,12 @@ return view.extend({
 		const advisories = (rec && rec.learnedAdvisory) || [];
 		const root = E('div');
 		const action = E('select', { 'class': 'cbi-input-select', 'aria-label': _('Benchmark action') });
-		actions.forEach(function(a) { action.appendChild(E('option', { value: a.id }, [ a.id + ' · ' + a.evaluationSemantics ])); });
+		actions.forEach(function(a) { action.appendChild(E('option', { value: a.id }, [ labels.actionName(a.id) + ' · ' + labels.evaluationSemantics(a.evaluationSemantics) ])); });
 		const pathSelect = E('select', { 'class': 'cbi-input-select', 'aria-label': _('Evaluation path') });
 		function refreshPaths() {
 			pathSelect.replaceChildren();
 			const selected = actions.find(function(a){ return a.id === action.value; });
-			((selected && selected.evaluationPaths) || []).forEach(function(p){ pathSelect.appendChild(E('option', { value: p }, [ p ])); });
+			((selected && selected.evaluationPaths) || []).forEach(function(p){ pathSelect.appendChild(E('option', { value: p }, [ labels.path(p) ])); });
 		}
 		action.addEventListener('change', refreshPaths);
 		refreshPaths();
@@ -42,7 +43,7 @@ return view.extend({
 
 		function renderSession(res) {
 			output.replaceChildren();
-			if (!res || !res.ok) { output.appendChild(pu.inset(_('Test blocked'), pu.jsonBox(res || {}, _('Details')), 'warning')); return; }
+			if (!res || !res.ok) { output.appendChild(pu.inset(_('Test blocked'), E('div', {}, [ E('p', {}, [ labels.errorSummary(res) ]), pu.jsonBox(res || {}, _('Details')) ]), 'warning')); return; }
 			const s = res.session || {};
 			const stages = E('ol', { 'class': 'pm-stage-list' }, [
 				stageRow(_('Environment'), true), stageRow(_('Path'), true), stageRow(_('Compatibility'), true), stageRow(_('Locks / Failsafe'), s.state !== 'awaiting_control'),
@@ -56,27 +57,34 @@ return view.extend({
 				const command = 'python3 pm_companion_agent.py client --host <WAN_SERVER> --role ' + ((s.companion && s.companion.requiredRole) || 'lan-client') +
 					' --session-id ' + s.sessionId + ' --phase ' + phase + ' --action-id ' + s.actionId + ' --path-id ' + s.evaluationPath +
 					' --topology-generation ' + meta.topologyGeneration + ' --route-identity ' + meta.routeIdentity + ' --capability-hash ' + meta.capabilityHash;
-				const evidenceBox = E('textarea', { class: 'cbi-input-textarea', rows: 9, placeholder: _('Paste Companion JSON evidence') });
+				const evidenceBox = E('textarea', { class: 'cbi-input-textarea', rows: 9, placeholder: _('Paste the JSON evidence produced by the companion test tool') });
 				const submitEvidence = E('button', { class: 'btn cbi-button cbi-button-positive', type: 'button' }, [ phase === 'control' ? _('Validate baseline and apply candidate') : _('Validate candidate and restore original state') ]);
+				const advanced = E('details', { 'class': 'pm-disclosure' }, [
+					E('summary', {}, [ _('Advanced: submit evidence manually') ]),
+					E('p', {}, [ _('The companion test tool runs on a separate client or on the router itself and produces the evidence JSON this page needs. Only use this path when you must validate a benchmark by hand; it is not required for normal use.') ]),
+					E('p', { 'class': 'pm-control-help' }, [ _('Required role: %s').format(labels.clientRole((s.companion && s.companion.requiredRole) || 'lan-client')) ]),
+					E('p', { 'class': 'pm-control-help' }, [ _('Replace <WAN_SERVER> with the router WAN address before running the command.') ]),
+					E('pre', {}, [ command ])
+				]);
 				submitEvidence.addEventListener('click', function() {
 					let evidence;
 					try { evidence = parseEvidence(evidenceBox.value); } catch (e) { ui.addNotification(null, E('p', {}, [ e.message ])); return; }
-					const restore = pu.setBusy(submitEvidence, _('Working…'));
+					const restore = pu.setBusy(submitEvidence, _('Working...'));
 					pm.benchmarkStart(s.actionId, s.evaluationPath, 'controlled_ab', phase, s.sessionId, evidence)
 						.then(renderSession)
-						.catch(function(error) { ui.addNotification(null, E('p', {}, [ _('Unable to submit evidence: %s. Check the evidence and try again.').format(error.message || error) ]), 'error'); })
+						.catch(function(error) { ui.addNotification(null, E('p', {}, [ _('Unable to submit evidence: %s. Check the evidence and try again.').format(labels.errorSummary(error)) ]), 'error'); })
 						.finally(restore);
 				});
 				output.appendChild(pu.inset(phase === 'control' ? _('Baseline evidence') : _('Candidate evidence'), E('div', {}, [
-					E('p', {}, [ phase === 'control' ? _('Run the Companion before any candidate is applied, then paste its JSON result.') : _('The candidate is temporarily active and protected by commit-confirm. Run the same endpoint test now; Core will restore the original value before validating the result.') ]),
-					E('pre', {}, [ command ]), evidenceBox, E('div', { 'class': 'pm-toolbar' }, [ submitEvidence ])
+					E('p', {}, [ phase === 'control' ? _('Run the companion test tool before any candidate is applied, then paste its JSON result.') : _('The candidate is temporarily active and protected by commit-confirm. Run the same endpoint test now; the Core engine will restore the original value before validating the result.') ]),
+					evidenceBox, E('div', { 'class': 'pm-toolbar' }, [ submitEvidence ]), advanced
 				])));
 			}
 			output.appendChild(pu.jsonBox(s, _('Benchmark session JSON')));
 		}
 
 		start.addEventListener('click', function() {
-			const restore = pu.setBusy(start, _('Starting…'));
+			const restore = pu.setBusy(start, _('Starting...'));
 			const selected = actions.find(function(a){ return a.id === action.value; });
 			const path = pathSelect.value || (selected && selected.evaluationPaths && selected.evaluationPaths[0]) || 'path:lan-to-wan';
 			const selectedAdvisory = advisories.find(function(a) { return a.kind === 'benchmark' && a.actionId === action.value; });
@@ -87,7 +95,7 @@ return view.extend({
 				selectedAdvisory && measurement.value === 'controlled_ab' ? 'benchmark-rill' : 'manual',
 				selectedAdvisory && measurement.value === 'controlled_ab' ? selectedAdvisory.decisionId : undefined)
 				.then(renderSession)
-				.catch(function(error) { output.replaceChildren(pu.inset(_('Unable to start test'), pu.note(_('Check the selected action and path, then try again: %s').format(error.message || error), 'warning'))); })
+				.catch(function(error) { output.replaceChildren(pu.inset(_('Unable to start test'), pu.note(_('Check the selected action and path, then try again: %s').format(labels.errorSummary(error)), 'warning'))); })
 				.finally(restore);
 		});
 
