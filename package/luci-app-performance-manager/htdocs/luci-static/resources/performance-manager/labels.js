@@ -16,6 +16,9 @@
 
 const UNKNOWN = _('Unknown');
 const UNKNOWN_STATE = _('Unknown state');
+const UNKNOWN_REASON = _('Unrecognized reason, see technical details');
+const UNKNOWN_ACTION = _('Unknown action');
+const UNKNOWN_CAPABILITY = _('Unknown capability');
 const DASH = '—';
 
 const AUTOMATION = {
@@ -41,8 +44,7 @@ const RUNTIME_STATUS = {
 	'Runtime · Missing capabilities': _('Runtime missing capabilities'),
 	'Runtime · Unhealthy': _('Runtime unhealthy'),
 	'Runtime · Learning': _('Runtime learning'),
-	'Runtime · Available': _('Runtime available'),
-	'Runtime · Collecting': _('Runtime collecting data')
+	'Runtime · Available': _('Runtime available')
 };
 
 const GUARD_REASON = {
@@ -72,22 +74,55 @@ const SMART_REASON = {
 
 const RILL_REASON = {
 	disabled: _('Runtime disabled'),
-	'binary-invalid': _('Runtime binary invalid'),
 	'not-provisioned': _('Runtime not provisioned'),
+	'external-runtime-not-provisioned': _('The external Rill runtime is not installed'),
+	'binary-invalid': _('Runtime binary invalid'),
+	starting: _('The Rill runtime is starting'),
 	'unavailable': _('Runtime unavailable'),
+	'incompatible': _('The Rill runtime is incompatible'),
+	unhealthy: _('The Rill runtime is unhealthy'),
 	'runtime-version-mismatch': _('Runtime version mismatch'),
-	'missing-required-capability': _('Required capability is missing'),
-	'model-unhealthy': _('Model is unhealthy'),
+	'runtime-unavailable': _('The Rill runtime is unavailable'),
+	'runtime-state-invalid': _('The saved Rill runtime state is invalid'),
+	'runtime-spawn-failed': _('The Rill runtime could not be started'),
+	'empty-response': _('The Rill runtime returned an empty response'),
+	'bad-response': _('The Rill runtime returned an unreadable response'),
+	'oversized-local-context': _('The local context is too large to send to Rill'),
+	'unsupported-operation': _('The Rill runtime does not support this operation'),
+	'sent-unknown-journal-failed': _('The request was sent but its journal could not be recorded'),
+	throttled: _('Rill decisions are throttled; try again shortly'),
+	'no-available-actions': _('No action is available for Rill to rank'),
 	'invalid-observe-response': _('Observation response was invalid'),
 	'binding-registration-failed': _('Decision binding could not be registered'),
 	'duplicate-candidate-id': _('Duplicate candidate identifier'),
+	'duplicate-ranking-candidate-id': _('The ranking contains a duplicate candidate identifier'),
 	'rill-selected-candidate-missing': _('The selected candidate no longer exists'),
 	'rill-score-invalid': _('The reported score is invalid'),
 	'rill-ranking-candidate-unknown': _('The ranking contains an unknown candidate'),
 	'mode-policy-blocked': _('Blocked by the current mode policy'),
 	'target-unresolved': _('The target could not be resolved'),
 	'compatibility-blocked': _('Compatibility check failed'),
-	'action-cooldown': _('The action is cooling down')
+	'action-cooldown': _('The action is cooling down'),
+	'negative-reward': _('The last result reduced measured performance'),
+	'validated-success': _('The last result was validated successfully'),
+	'success-debounce': _('Cooling down after a validated success'),
+	'health-regression-rollback': _('Cooling down after a health-driven rollback'),
+	'execution-failure': _('Cooling down after an execution failure'),
+	'missing-required-capability': _('Required capability is missing'),
+	'model-unhealthy': _('Model is unhealthy'),
+	'response-not-object': _('The Rill response was not an object'),
+	'ok-not-boolean': _('The Rill response did not report a valid status'),
+	'status-fields-invalid': _('The Rill status response is malformed'),
+	'status-version-missing': _('The Rill status response has no version'),
+	'decision-id-invalid': _('The decision identifier is invalid'),
+	'recommendation-invalid': _('The recommendation is invalid'),
+	'confidence-invalid': _('The reported confidence is invalid'),
+	'scores-invalid': _('The reported scores are invalid'),
+	'score-row-invalid': _('A score row is invalid'),
+	'score-candidate-duplicate': _('A candidate appears twice in the scores'),
+	'score-action-unknown': _('The scores contain an unknown action'),
+	'recommendation-action-unknown': _('The recommended action is unknown'),
+	'outcome-not-accepted': _('The Rill runtime rejected the outcome')
 };
 
 const LEARNING_STAGE = {
@@ -371,7 +406,54 @@ const ERROR_CODE = {
 	'route-unresolved': _('The route could not be resolved'),
 	'goal-unsupported-for-controlled-ab': _('This goal cannot be validated with a controlled A/B test'),
 	'invalid-config-explicit-start-disabled': _('Explicit test start is disabled in the configuration'),
-	'one-variable-contract-disabled': _('The single-variable test contract is disabled')
+	'one-variable-contract-disabled': _('The single-variable test contract is disabled'),
+	'lock-conflict': _('Another operation holds the required lock'),
+	'rollback-lock-conflict': _('Another operation holds the lock needed for the rollback'),
+	'benchmark-domain-lock-conflict': _('A performance test already holds the required lock'),
+	'transaction-not-found': _('The transaction no longer exists'),
+	'transaction-already-rolled-back': _('The transaction has already been rolled back'),
+	'not-awaiting-confirm': _('The transaction is not waiting for confirmation'),
+	'rollback-snapshot-from-different-boot': _('The rollback snapshot belongs to a previous boot'),
+	'rollback-target-unresolved': _('The rollback target could not be resolved'),
+	'rollback-apply-or-readback-failed': _('The rollback could not be applied or verified'),
+	'live-state-drift-refuses-stale-rollback': _('Live state changed, so the stale rollback was refused'),
+	'stale-transaction-policy-owner-changed': _('The configuration is now owned by another operation'),
+	'target-unresolved': _('The target could not be resolved'),
+	'target-mismatch': _('The target changed since the transaction was planned'),
+	'health-guard-blocked': _('The health guard blocked this action'),
+	'no-legal-candidate': _('No safe action is available right now'),
+	'apply-failed': _('The action could not be applied'),
+	'verification-failed': _('Verification after applying the action failed'),
+	'snapshot-failed': _('The pre-change snapshot could not be taken'),
+	'persistence-failed': _('The change could not be written to storage'),
+	'action-not-allowlisted-for-direct-apply': _('This action cannot be applied directly'),
+	'invalid-limit': _('The requested limit is not valid'),
+	'benchmark-action-required': _('A performance test action is required'),
+	'invalid-benchmark-phase': _('The performance test phase is not valid'),
+	'invalid-measurement-class': _('The measurement class is not valid'),
+	'controlled-ab-requires-action': _('A controlled A/B test requires a performance test action'),
+	'benchmark-not-awaiting-control': _('The performance test is not waiting for baseline evidence'),
+	'benchmark-not-awaiting-candidate': _('The performance test is not waiting for candidate evidence'),
+	'benchmark-session-not-found': _('The performance test session no longer exists'),
+	'benchmark-session-not-running': _('The performance test session is not running'),
+	'benchmark-session-idle-expired': _('The performance test session expired through inactivity'),
+	'benchmark-candidate-transaction-not-live': _('The candidate change is no longer active'),
+	'benchmark-transactions-cannot-be-manually-committed':
+		_('A performance test transaction cannot be confirmed manually'),
+	'benchmark-context-drift': _('The device context changed during the performance test'),
+	'invalid-companion-evidence': _('The evidence from the companion test tool is not valid'),
+	'companion-context-mismatch': _('The evidence was produced for a different test context'),
+	'companion-context-drift': _('The device context changed while the evidence was collected'),
+	'candidate-rollback-failed': _('The candidate change could not be rolled back'),
+	'evaluation-path-not-found': _('The evaluation path was not found'),
+	'evaluation-route-unresolved': _('The evaluation route could not be resolved'),
+	'unknown-benchmark-action': _('The performance test action is unknown'),
+	'outcome-not-accepted': _('The Rill runtime rejected the outcome'),
+	'rill-decision-already-reserved': _('This Rill decision is already reserved by another operation'),
+	'rill-outcome-arm-failed': _('The Rill outcome could not be armed'),
+	'rill-outcome-intent-write-failed': _('The Rill outcome journal could not be written'),
+	'rill-mutation-journal-write-failed': _('The Rill mutation journal could not be written'),
+	'stopped-by-user': _('The performance test was stopped by the user')
 };
 
 function has(table, key) {
@@ -389,52 +471,81 @@ function fmt(value) {
 	return value == null || value === '' ? DASH : String(value);
 }
 
-function shortId(value) {
-	return typeof value === 'string' && value.length ? value.slice(0, 8) : DASH;
+/* Raw contract identifiers (transaction, boot, decision) are only useful for
+ * log correlation.  The pages show that the value exists, and keep the raw
+ * UUID in the collapsed technical details block. */
+function reference(value) {
+	return value == null || value === '' ? DASH : _('Recorded, see technical details');
 }
 
 function percent(value) {
 	const n = typeof value === 'number' ? value : Number(value);
 	if (value == null || value === '' || !isFinite(n)) return DASH;
-	if (n < -1 || n > 1) return n.toFixed(3);
-	return Math.round(n * 100) + '%';
+	/* Rewards are ratios and may exceed 1 (for example a 120% throughput
+	 * gain), so every value is rendered as a percentage. */
+	const pct = n * 100;
+	const rounded = Math.abs(pct) >= 10 ? Math.round(pct) : Math.round(pct * 10) / 10;
+	return rounded + '%';
 }
 
 function duration(ms) {
 	const n = typeof ms === 'number' ? ms : Number(ms);
 	if (ms == null || ms === '' || !isFinite(n) || n < 0) return DASH;
 	const total = Math.ceil(n / 1000);
-	if (total < 60) return _('About %s seconds').format(total);
+	if (total < 60) return total === 1 ? _('About 1 second') : _('About %s seconds').format(total);
 	const minutes = Math.floor(total / 60), seconds = total % 60;
-	if (seconds === 0) return _('About %s minutes').format(minutes);
+	if (seconds === 0) return minutes === 1 ? _('About 1 minute') : _('About %s minutes').format(minutes);
 	return _('About %s min %s sec').format(minutes, seconds);
 }
 
 function errorRaw(err) {
 	if (err == null) return DASH;
 	if (typeof err === 'string') return err;
-	if (err.message) return String(err.message);
+	if (typeof err === 'number' || typeof err === 'boolean') return String(err);
+	const candidates = [err.error, err.reason, err.state, err.message];
+	for (const candidate of candidates) {
+		if (typeof candidate === 'string' && candidate !== '') return candidate;
+		if (candidate && typeof candidate === 'object') return errorRaw(candidate);
+	}
 	const text = String(err);
 	return text === '[object Object]' ? JSON.stringify(err) : text;
+}
+
+function errorCodeText(raw) {
+	const text = String(raw).trim();
+	if (has(ERROR_CODE, text)) return ERROR_CODE[text];
+	const ubus = text.match(/UBUS_STATUS_[A-Z_]+/);
+	if (ubus && has(ERROR_CODE, ubus[0])) return ERROR_CODE[ubus[0]];
+	const head = text.split(':')[0].trim();
+	if (has(ERROR_CODE, head)) return ERROR_CODE[head];
+	return null;
 }
 
 function errorSummary(err) {
 	const raw = errorRaw(err);
 	if (raw === DASH) return _('Unknown error, see technical details');
-	if (has(ERROR_CODE, raw)) return ERROR_CODE[raw];
-	const ubus = raw.match(/UBUS_STATUS_[A-Z_]+/);
-	if (ubus && has(ERROR_CODE, ubus[0])) return ERROR_CODE[ubus[0]];
-	const head = raw.split(':')[0];
-	if (has(ERROR_CODE, head)) return ERROR_CODE[head];
-	if (head !== raw) return _('%s, see technical details').format(errorSummary(head));
+	const direct = errorCodeText(raw);
+	if (direct) return direct;
+	const head = raw.split(':')[0].trim();
+	const nested = head !== raw ? errorCodeText(head) : null;
+	if (nested) return _('%s, see technical details').format(nested);
+	/* Rill failures report a state or reason instead of an error code. */
+	const friendly = smartReason(raw);
+	if (friendly !== UNKNOWN_REASON && friendly !== DASH) return friendly;
+	if (head !== raw) {
+		const headFriendly = smartReason(head);
+		if (headFriendly !== UNKNOWN_REASON && headFriendly !== DASH) return headFriendly;
+	}
 	return _('Unknown error, see technical details');
 }
 
 function smartReason(value) {
-	if (value == null || value === '') return UNKNOWN_STATE;
+	if (value == null || value === '') return DASH;
 	const key = String(value);
 	if (has(SMART_REASON, key)) return SMART_REASON[key];
 	if (has(RILL_REASON, key)) return RILL_REASON[key];
+	const exit = key.match(/^(?:rill-)?runtime-exit-(-?\d+)$/);
+	if (exit) return _('The Rill runtime exited with code %s').format(exit[1]);
 	if (key.indexOf('rill-') === 0) {
 		const rest = key.slice(5);
 		if (has(RILL_REASON, rest)) return RILL_REASON[rest];
@@ -443,7 +554,7 @@ function smartReason(value) {
 	if (key.indexOf('missing-evidence:') === 0)
 		return _('Missing evidence: %s').format(key.slice(16).split(',').join('、'));
 	if (key.indexOf('provider-unavailable:') === 0) return ERROR_CODE['provider-unavailable'];
-	return UNKNOWN_STATE;
+	return UNKNOWN_REASON;
 }
 
 function path(value) {
@@ -477,13 +588,11 @@ function candidate(value) {
 	if (value == null || value === '') return DASH;
 	const id = String(value);
 	const m = id.match(/^([^@]+)@target=/);
-	if (!m) return actionName(id);
-	return _('%s candidate').format(actionName(m[1]));
+	return actionName(m ? m[1] : id);
 }
 
 function transaction(value) {
-	if (value == null || value === '') return UNKNOWN;
-	return _('Transaction %s').format(shortId(value));
+	return value == null || value === '' ? UNKNOWN : _('Change transaction');
 }
 
 function routeIdentity(value) {
@@ -498,12 +607,12 @@ function entity(id) {
 
 function actionName(id) {
 	const e = entity(id);
-	return e ? e.name : UNKNOWN;
+	return e ? e.name : UNKNOWN_ACTION;
 }
 
 function actionDesc(id) {
 	const e = entity(id);
-	return e ? e.desc : UNKNOWN;
+	return e ? e.desc : UNKNOWN_ACTION;
 }
 
 function action(id) {
@@ -511,11 +620,19 @@ function action(id) {
 }
 
 function capabilityName(id) {
-	return actionName(id);
+	const e = entity(id);
+	return e ? e.name : UNKNOWN_CAPABILITY;
 }
 
 function capabilityDesc(id) {
-	return actionDesc(id);
+	const e = entity(id);
+	return e ? e.desc : UNKNOWN_CAPABILITY;
+}
+
+/* Native packet steering is fixed to "observe-respect" by the backend
+ * contract; the status payload does not repeat the policy field. */
+function nativeSteeringPolicy() {
+	return pick(POLICY, 'observe-respect', UNKNOWN_STATE);
 }
 
 function observationDetail(detail) {
@@ -540,7 +657,11 @@ function confidence(value) {
 function integrationSummary(state) {
 	if (!state || typeof state !== 'object') return DASH;
 	const on = [];
+	/* Each proxy integration already implies transparent proxying, so the
+	 * generic flag would repeat the same fact in the same sentence. */
+	const proxyOn = ['openclash', 'passwall', 'homeproxy'].some(function(key) { return state[key] === true; });
 	Object.keys(state).forEach(function(key) {
+		if (key === 'transparentProxy' && proxyOn) return;
 		if (state[key] === true) on.push(has(INTEGRATION, key) ? INTEGRATION[key] : UNKNOWN);
 	});
 	return on.length ? on.join('、') : _('None');
@@ -566,7 +687,7 @@ function map(kind, value) {
 return baseclass.extend({
 	fmt: fmt,
 	unknown: UNKNOWN,
-	shortId: shortId,
+	reference: reference,
 	percent: percent,
 	score: percent,
 	duration: duration,
@@ -577,6 +698,7 @@ return baseclass.extend({
 	capability: capabilityName,
 	capabilityName: capabilityName,
 	capabilityDesc: capabilityDesc,
+	nativeSteeringPolicy: nativeSteeringPolicy,
 	observationDetail: observationDetail,
 	target: target,
 	path: path,

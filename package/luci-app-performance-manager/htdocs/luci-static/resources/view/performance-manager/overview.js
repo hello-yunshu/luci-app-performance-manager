@@ -23,7 +23,7 @@ return view.extend({
 			pu.badge(s.running ? _('Running') : _('Stopped'), s.running ? 'success' : 'danger'),
 			pu.badge(_('Automation: %s').format(labels.automation(s.automation))),
 			pu.badge(_('Goal: %s').format(labels.goal(s.goal))),
-			pu.badge(labels.runtimeStatus(rill.status || 'Runtime · Collecting')),
+			pu.badge(labels.runtimeStatus(rill.status)),
 			pu.badge(s.telemetry ? _('Telemetry enabled') : _('Telemetry disabled'), s.telemetry ? 'success' : 'warning'),
 			pu.badge(s.failsafe ? _('Failsafe enabled') : _('Failsafe disabled'), s.failsafe ? 'success' : 'warning'),
 			profileBadge
@@ -34,9 +34,11 @@ return view.extend({
 				[_('Action'), labels.actionName(recentTx.actionId)],
 				[_('State'), labels.state(recentTx.state)],
 				[_('Target'), labels.target(recentTx.applyTarget)],
-				[_('Boot identity'), labels.shortId(recentTx.bootId)]
+				[_('Boot identity'), labels.reference(recentTx.bootId)]
 			])
 		];
+		if (txs.length)
+			recentBody.push(E('p', { 'class': 'pm-control-help' }, [ _('Identifiers are kept in technical details so long UUIDs do not crowd the page.') ]));
 		if (txs.length)
 			recentBody.push(pu.jsonBox({
 				actionId: recentTx.actionId,
@@ -62,7 +64,7 @@ return view.extend({
 				pu.kv([
 					[_('Provider'), labels.provider(s.nativePacketSteering && s.nativePacketSteering.provider)],
 					[_('Availability'), labels.availability(s.nativePacketSteering && s.nativePacketSteering.availability)],
-					[_('Policy'), labels.policy('observe-respect')],
+					[_('Policy'), labels.nativeSteeringPolicy()],
 					[_('Ownership'), labels.ownership(s.nativePacketSteering && s.nativePacketSteering.ownership)]
 				]),
 				s.nativePacketSteering ? pu.jsonBox(s.nativePacketSteering, _('Technical details')) : null
