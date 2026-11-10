@@ -7,6 +7,9 @@
 This is a source-only, non-promotable audit. It does not consume old runtime
 artifacts and cannot claim functional-integration or Stable-release PASS.
 
+Snapshot source commit: **0607a165fbc36ce1011f7d1afd9014a9a40ab451**. A commit that only changes
+generated audit files is treated as a snapshot child, not a new source revision.
+
 ## Orchestrated local gates
 
 - contract-validation: **PASS** (source)
@@ -15,10 +18,10 @@ artifacts and cannot claim functional-integration or Stable-release PASS.
 - rill-static-contract: **PASS** (source)
 - resource-budget: **PASS** (source)
 
-- Executable unit/contract tests in this checked-in source-audit snapshot: **176**, status **PASS**.
+- Executable unit/contract tests in this checked-in source-audit snapshot: **193**, status **PASS**.
 - Current test counts and conclusions come from the same-SHA CI artifacts, not this historical/generated snapshot.
 - Rill static contract: **PASS**.
-- Rill release-pin structure: **None**.
+- Rill release-pin structure: **PASS**.
 - Rill functional integration: **NOT_EVALUATED** in this report.
 
 ## Source phase gates
