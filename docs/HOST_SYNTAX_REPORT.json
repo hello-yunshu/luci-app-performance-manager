@@ -71,6 +71,10 @@
       "status": "pass"
     },
     {
+      "name": "py_compile scripts/build_synthetic_prior_fixture.py",
+      "status": "pass"
+    },
+    {
       "name": "py_compile scripts/check_action_refs.py",
       "status": "pass"
     },
@@ -92,6 +96,10 @@
     },
     {
       "name": "py_compile scripts/final_release_audit.py",
+      "status": "pass"
+    },
+    {
+      "name": "py_compile scripts/full_upgrade_gate.py",
       "status": "pass"
     },
     {
