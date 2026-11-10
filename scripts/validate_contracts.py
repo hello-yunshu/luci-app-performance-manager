@@ -3,6 +3,7 @@ from __future__ import annotations
 import ast, json, re, sys
 from pathlib import Path
 import jsonschema
+from po_parser import missing_msgids
 ROOT=Path(__file__).resolve().parents[1]
 errors=[]
 def fail(msg): errors.append(msg)
@@ -51,12 +52,21 @@ for ex,sch in pairs.items():
     if obj is not None and schema is not None:
         try: jsonschema.Draft202012Validator(schema).validate(obj)
         except Exception as e: fail(f'{ex} violates {sch}: {getattr(e,"message",e)}')
-# Every formal schema must ship in Core payload and stay identical.
+# Every formal schema must ship in Core payload and stay identical. `contracts/`
+# is the only active source; root `schemas/` contains examples only.
 dest=ROOT/'package/performance-manager/files/usr/share/performance-manager/schemas'
 for sch in (ROOT/'contracts').glob('*.schema.json'):
     dst=dest/sch.name
     if not dst.exists(): fail(f'runtime schema missing: {sch.name}')
     elif load(sch)!=load(dst): fail(f'runtime schema drift: {sch.name}')
+active_ids = {}
+for sch in sorted((ROOT/'contracts').glob('*.schema.json')):
+    obj = load(sch)
+    if obj and obj.get('$id'):
+        if obj['$id'] in active_ids: fail(f'duplicate active schema $id: {obj["$id"]}')
+        active_ids[obj['$id']] = sch.name
+for sch in sorted((ROOT/'schemas').glob('*.schema.json')):
+    fail(f'active schema must not live in schemas/: {sch.name}')
 
 core=(ROOT/'package/performance-manager/files/usr/sbin/performance-manager.uc').read_text(); contracts=(ROOT/'package/performance-manager/files/usr/share/performance-manager/contracts.uc').read_text(); make=(ROOT/'package/performance-manager/Makefile').read_text()
 for m in ['ucode-mod-fs','ucode-mod-ubus','ucode-mod-uci','ucode-mod-rtnl','ucode-mod-uloop','ucode-mod-socket','ucode-mod-log']:
@@ -123,9 +133,9 @@ def function_body(src,name):
 
 # Benchmark must use explicit evidence + the common transaction/rollback engine.
 bench=function_body(core,'benchmark_start')
-for token in ['companion_evidence_valid(','benchmark_apply_candidate(','rollback_transaction(session.transactionId',"validated:true","validated:false"]:
+for token in ['companion_evidence_valid(','benchmark_apply_candidate(','rollback_transaction(session.transactionId','validated:reward_result.validated','validated:false']:
     if token not in bench: fail(f'benchmark state-machine mechanism missing: {token}')
-if bench.index("rollback_transaction(session.transactionId,'benchmark-complete')")>bench.index('reward=(c1-c0)/c0'): fail('benchmark reward computed before rollback verification')
+if bench.index("rollback_transaction(session.transactionId,'benchmark-complete')")>bench.index('let reward_result=build_reward'): fail('benchmark reward computed before rollback verification')
 for unsafe_refusal in ['exact-qdisc-restore-not-proven','no-generic-third-party-sfe-contract']:
     if unsafe_refusal not in core: fail(f'explicit unsafe-provider refusal missing: {unsafe_refusal}')
 
@@ -157,15 +167,12 @@ for token in ['shell=True','uci set','/proc/sys','nft ','iptables']:
 # LuCI required surfaces + full literal zh_Hans coverage.
 for page in ['overview','optimize','benchmark','capabilities','rill','history','advanced','settings']:
     if not (ROOT/f'package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/{page}.js').exists(): fail(f'LuCI page missing: {page}')
-po=(ROOT/'package/luci-app-performance-manager/po/zh_Hans/performance-manager.po').read_text()
-po_ids=set(re.findall(r'^msgid "(.*)"$',po,re.M)); js_ids=set()
+po=(ROOT/'package/luci-app-performance-manager/po/zh_Hans/performance-manager.po').read_text(); js_ids=set()
 for p in (ROOT/'package/luci-app-performance-manager/htdocs/luci-static/resources').rglob('*.js'):
     for m in re.finditer(r"_\('((?:\\.|[^'\\])*)'\)",p.read_text()):
         try: js_ids.add(ast.literal_eval("'"+m.group(1)+"'"))
         except Exception: js_ids.add(m.group(1))
-for msg in sorted(js_ids):
-    esc=msg.replace('\\','\\\\').replace('"','\\"').replace('\n','\\n')
-    if esc not in po_ids: fail(f'zh_Hans missing msgid: {msg}')
+for msg in missing_msgids(po, js_ids): fail(f'zh_Hans missing msgid: {msg}')
 
 # The recommended all-in-one APK must physically own every application layer;
 # it is not allowed to regress into a meta package depending on the split APKs.
@@ -177,13 +184,19 @@ for token in ['po2lmo','/usr/sbin/performance-manager.uc','luci-app-performance-
 bundle_pkg=re.search(r'define Package/luci-app-performance-manager-all\n(.*?)\nendef',bundle,re.S)
 if not bundle_pkg: fail('all-in-one package definition missing')
 else:
-    for forbidden in ['+performance-manager ', '+luci-app-performance-manager', '+performance-manager-rill']:
+    for forbidden in ['+performance-manager ', '+luci-app-performance-manager', '+performance-manager-rill', '+rill-runtime']:
         if forbidden in bundle_pkg.group(1): fail(f'all-in-one meta dependency forbidden: {forbidden}')
     for conflict in ['performance-manager','luci-app-performance-manager',
+                     'performance-manager-rill', 'rill-runtime',
                      'luci-i18n-performance-manager-zh-cn']:
         if conflict not in bundle_pkg.group(1): fail(f'all-in-one split-owner conflict missing: {conflict}')
-    if 'performance-manager-rill' in bundle_pkg.group(1): fail('all-in-one must not own the temporary Rill compatibility bridge')
-if 'PROVIDES:=' in bundle: fail('all-in-one must not alias split package names through APK PROVIDES')
+    if re.search(r'^\s*PKGARCH:=all\s*$', bundle, re.M): fail('all-in-one must be architecture-specific')
+    for token in ['RILL_RUNTIME_BINARY', '/usr/bin/rill-runtime',
+                  'performance-manager-rill/files/lib/upgrade/keep.d/performance-manager-rill']:
+        if token not in bundle: fail(f'all-in-one bundled Runtime mechanism missing: {token}')
+if 'PROVIDES:=performance-manager-core' not in bundle: fail('all-in-one virtual core capability missing')
+if re.search(r'^\s*PROVIDES:=performance-manager\s*$', bundle, re.M) or re.search(r'^\s*PROVIDES:=luci-app-performance-manager\s*$', bundle, re.M):
+    fail('all-in-one must not alias split package names through APK PROVIDES')
 
 # Scan only the repository's own files.  In CI the workspace also contains the
 # downloaded OpenWrt SDK tree (a subdirectory whose feeds legitimately include
@@ -194,7 +207,7 @@ if 'PROVIDES:=' in bundle: fail('all-in-one must not alias split package names t
 try:
     import subprocess
     _out = subprocess.run(['git', 'ls-files', '-z'], cwd=ROOT, capture_output=True, text=True)
-    _tracked = [ROOT / p for p in _out.stdout.split('\0') if p]
+    _tracked = [ROOT / p for p in _out.stdout.split('\0') if p and (ROOT / p).is_file()]
 except Exception:
     _tracked = [p for p in ROOT.rglob('*') if p.is_file() and '__pycache__' not in p.parts and '.git' not in p.parts]
 for p in _tracked:

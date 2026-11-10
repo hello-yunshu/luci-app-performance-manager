@@ -1,4 +1,4 @@
-.PHONY: test lint syntax source-gates action-refs audit package adapter
+.PHONY: test lint syntax source-gates action-refs audit package portable-macos local-macos
 
 test:
 	python3 -m unittest discover -s tests -v
@@ -15,12 +15,12 @@ source-gates:
 action-refs:
 	python3 scripts/check_action_refs.py
 
-adapter:
-	python3 scripts/build_pm_adapter.py
-
 audit:
 	python3 scripts/check_action_refs.py
 	python3 scripts/final_audit.py
 
 package: audit
 	python3 scripts/make_release.py
+
+portable-macos local-macos:
+	tools/docker-validate/run-local-macos.sh

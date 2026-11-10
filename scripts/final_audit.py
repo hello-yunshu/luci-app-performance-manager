@@ -19,6 +19,12 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 VERSION = (ROOT / "VERSION").read_text().strip()
+TEMP_PATH = re.compile(r"/(?:private/)?(?:tmp|var/folders)/[^\s\"']+")
+
+
+def stable_output_tail(output: str) -> str:
+    """Keep generated audit evidence stable across temporary directories."""
+    return TEMP_PATH.sub("<temporary-path>", output[-4000:])
 
 
 def git_commit() -> str:
@@ -58,7 +64,7 @@ def step(name, command, evidence_class="source"):
         "name": name,
         "evidenceClass": evidence_class,
         "status": "PASS" if completed.returncode == 0 else "FAIL",
-        "outputTail": completed.stdout[-4000:],
+        "outputTail": stable_output_tail(completed.stdout),
     })
     return completed
 
@@ -68,7 +74,7 @@ match = re.search(r"Ran (\d+) tests?", unit.stdout)
 tests = {
     "status": "PASS" if unit.returncode == 0 else "FAIL",
     "count": int(match.group(1)) if match else None,
-    "outputTail": unit.stdout[-4000:],
+    "outputTail": stable_output_tail(unit.stdout),
 }
 step("contract-validation", [sys.executable, "scripts/validate_contracts.py"])
 step("host-syntax", [sys.executable, "scripts/host_syntax_check.py"])
@@ -119,6 +125,7 @@ report = {
     "sourceCandidateVerdict": "PASS" if local_pass else "FAIL",
     "functionalIntegrationVerdict": "NOT_EVALUATED",
     "stableReleaseVerdict": "NOT_EVALUATED",
+    "testEvidenceScope": "checked-in source-audit snapshot; current same-SHA CI artifacts are authoritative",
     "promotionPolicy": "This report is non-promotable. Runtime and Stable PASS are exclusively owned by final_release_audit.py with same-commit external evidence.",
     "orchestrationSteps": steps,
     "localEvidence": {
@@ -179,7 +186,8 @@ artifacts and cannot claim functional-integration or Stable-release PASS.
 
 {step_lines}
 
-- Executable unit/contract tests: **{tests['count']}**, status **{tests['status']}**.
+- Executable unit/contract tests in this checked-in source-audit snapshot: **{tests['count']}**, status **{tests['status']}**.
+- Current test counts and conclusions come from the same-SHA CI artifacts, not this historical/generated snapshot.
 - Rill static contract: **{rill_static.get('staticContractVerdict')}**.
 - Rill release-pin structure: **{rill_static.get('releasePinStructureVerdict')}**.
 - Rill functional integration: **NOT_EVALUATED** in this report.

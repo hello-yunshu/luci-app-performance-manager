@@ -1,7 +1,7 @@
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=performance-manager-rill
-PKG_VERSION:=1.0.3
+PKG_VERSION:=1.0.4
 PKG_RELEASE:=1
 PKG_LICENSE:=GPL-3.0-only
 PKG_MAINTAINER:=OpenWrt Performance Manager contributors
@@ -16,6 +16,8 @@ define Package/performance-manager-rill
   CATEGORY:=Network
   SUBMENU:=Routing and Redirection
   TITLE:=OpenWrt 性能管理器 Rill 集成层 / PM Rill integration glue
+  # Keep the split package concrete so OpenWrt never resolves the virtual
+  # capability to the full all-in-one provider while compiling glue.
   DEPENDS:=+performance-manager +rill-runtime
   PKGARCH:=all
   USERID:=performance-manager-rill=5666:performance-manager-rill=5666

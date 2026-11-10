@@ -159,6 +159,7 @@ class EvidenceAggregationTest(unittest.TestCase):
             "apk-verification.json": _apk(),
             "rill-wire-harness.json": {
                 "pmCommitSha": "historical-snapshot",
+                "historicalOnly": True,
                 "runtime": {"wireHarnessVerdict": "PASS"},
             },
         }
@@ -166,7 +167,7 @@ class EvidenceAggregationTest(unittest.TestCase):
         self.assertEqual(code, 0)
         self.assertEqual(r["evidenceChainVerdict"], "PASS")
         self.assertNotIn("rill-wire-harness.json", r["evidenceCommits"])
-        self.assertEqual(r["verdicts"]["wireHarnessVerdict"], "PASS")
+        self.assertEqual(r["verdicts"]["wireHarnessVerdict"], agg.OUT_OF_SCOPE)
 
     def test_commit_mismatch_fails_chain(self):
         """A single evidence file produced at a different commit must FAIL the

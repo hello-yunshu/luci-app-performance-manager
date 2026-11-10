@@ -2,6 +2,15 @@
 # Preserve existing settings. Only ensure the persistent policy directory exists.
 mkdir -p /etc/performance-manager
 
+# Migrate the pre-v3 `rill.shadow` section once. `uci rename` preserves every
+# user value and avoids a long-lived dual-write compatibility surface.
+if uci -q get performance-manager.runtime >/dev/null 2>&1; then
+	:
+elif uci -q get performance-manager.shadow >/dev/null 2>&1; then
+	uci rename performance-manager.shadow=runtime
+	uci commit performance-manager
+fi
+
 # rc.3 -> rc.4 migration: `main.conservative_auto` is new. The Core defaults it
 # to enabled (true) when absent, but make it explicit on the preserved conffile
 # so an upgrade from rc.3 surfaces the intended conservative auto-apply setting

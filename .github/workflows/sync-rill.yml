@@ -29,7 +29,22 @@ jobs:
         with:
           python-version: '3.13'
       - name: Resolve latest qualified Stable 1.x
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
         run: python3 scripts/check_rill_dependency.py --sync --package-dir rill-openwrt-packages
+      - name: Verify no contract drift
+        shell: bash
+        run: |
+          set -euo pipefail
+          # The sync may only rewrite the single immutable Runtime contract.
+          changed=$(git status --porcelain --untracked-files=no | cut -c4-)
+          unexpected=$(printf '%s\n' "$changed" | grep -vE '^(contracts/rill-runtime\.json)?$' || true)
+          if [ -n "$unexpected" ]; then
+            echo '::error::Qualified Runtime sync changed files outside contracts/rill-runtime.json.'
+            printf '%s\n' "$unexpected"
+            exit 1
+          fi
+          git diff -- contracts/rill-runtime.json
       - name: Open update pull request
         env:
           GH_TOKEN: ${{ github.token }}

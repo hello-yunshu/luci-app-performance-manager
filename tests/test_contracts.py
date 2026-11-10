@@ -1,5 +1,7 @@
 import json
 import re
+import subprocess
+import tempfile
 import unittest
 from pathlib import Path
 import jsonschema
@@ -24,6 +26,9 @@ class ResourceBudgetTests(unittest.TestCase):
         self.assertIn("rill-runtime-v3:", workflow)
         self.assertIn("rill_runtime_v3_integration.py", workflow)
         self.assertIn("check_rill_dependency.py --package-dir", workflow)
+        self.assertIn("actions/download-artifact@v8", workflow)
+        self.assertIn("rill-runtime-input/rill-runtime", workflow)
+        self.assertNotIn("Build the exact pinned Runtime binary", workflow)
 
     def test_resource_budget_requires_target_and_soak_evidence(self):
         script = (ROOT / "scripts/resource_budget.py").read_text()
@@ -37,6 +42,8 @@ class ResourceBudgetTests(unittest.TestCase):
         self.assertIn('"passed": $within', script)
         self.assertIn('[ "$stable" = true ] || within=false', script)
         self.assertIn('measurementUnavailable', script)
+        self.assertIn('[ "$runtime_failures" -eq 0 ]', script)
+        self.assertNotIn('deliberately does not invent', script)
 
     def test_resource_soak_never_zero_fills_missing_rill_measurements(self):
         script = (ROOT / "scripts/openwrt-resource-soak.sh").read_text()
@@ -49,11 +56,9 @@ class ResourceBudgetTests(unittest.TestCase):
         script = (ROOT / "scripts/openwrt-resource-soak.sh").read_text()
         expected = {
             "coreMaxRssKiB": "B_CORE_RSS",
-            "rillMaxRssKiB": "B_RILL_RSS",
             "coreMeanCpuPercent": "B_CORE_CPU",
-            "rillMeanCpuPercent": "B_RILL_CPU",
             "pmPersistentWritesPerDay": "B_PM_WRITES_DAY",
-            "rillStateFileMaxBytes": "B_RILL_STATE_BYTES",
+            "runtimeStateMaxBytes": "B_RUNTIME_STATE_BYTES",
             "bindingHighWater": "B_BINDINGS",
             "persistentHistoryGrowthBytes": "B_HISTORY_GROWTH",
         }
@@ -61,9 +66,41 @@ class ResourceBudgetTests(unittest.TestCase):
             with self.subTest(key=key):
                 self.assertIn(f"{variable}={budget[key]}", script)
 
+    def test_resource_soak_contract_uses_runtime_names_only(self):
+        schema = (ROOT / "contracts/evidence/resource-soak.schema.json").read_text()
+        evaluator = (ROOT / "scripts/validate_external_evidence.py").read_text()
+        for text in (schema, evaluator):
+            self.assertIn("idleExpectedRuntimePersistenceEventsDelta", text)
+            self.assertNotIn("idleExpectedAdapterPersistenceEventsDelta", text)
+            self.assertNotIn("idleAdapterPersistenceZero", text)
+        self.assertNotIn("rillRssKiB", schema + evaluator)
+        self.assertNotIn("rillRestartCount", schema + evaluator)
+
+    def test_resource_soak_has_its_own_timeout_budget(self):
+        workflow = (ROOT / ".github/workflows/hardware-validation.yml").read_text()
+        self.assertIn("timeout-minutes: ${{ matrix.timeout }}", workflow)
+        self.assertIn("runner: pm-soak\n            timeout: 1800", workflow)
+        self.assertIn("runner: pm-generic\n            timeout: 1440", workflow)
+
 
 
 class ContractTests(unittest.TestCase):
+    def test_production_and_harness_share_the_locked_v3_envelope_shape(self):
+        core = (ROOT / 'package/performance-manager/files/usr/sbin/performance-manager.uc').read_text()
+        harness = (ROOT / 'scripts/rill_runtime_v3_integration.py').read_text()
+        required = ['requestId', 'apiVersion', 'clientIdentity', 'modelGeneration',
+                    'stateGeneration', 'payloadLimit', 'request']
+        for field in required:
+            with self.subTest(field=field):
+                self.assertIn(field + ':' if field != 'request' else 'request.request', core)
+                self.assertIn('"' + field + '"', harness)
+        self.assertIn('featureSchemaHash', core)
+        self.assertIn('featureSchemaHash', harness)
+        self.assertIn('"featureSchemaHash": schema_hash', harness)
+        self.assertNotIn('partitionKey', core)
+        self.assertNotIn('partitionKey', harness)
+        self.assertNotIn('clientIdentityName', core[core.index('let request = {'):core.index("if (op == 'status')")])
+
     def test_github_actions_follow_readable_refs(self):
         expected = {
             "actions/checkout": "v7",
@@ -80,6 +117,65 @@ class ContractTests(unittest.TestCase):
                 self.assertRegex(ref, r"^v[0-9]+$")
         self.assertEqual(found, set(expected))
 
+    def test_sync_rill_is_pr_first_and_bounded_to_the_runtime_contract(self):
+        workflow = (ROOT / ".github/workflows/sync-rill.yml").read_text()
+        # Automation is allowed, but only through a pull request: the required
+        # consumer checks gate every contract update.
+        self.assertIn("contents: write", workflow)
+        self.assertIn("pull-requests: write", workflow)
+        self.assertIn("gh pr create", workflow)
+        self.assertIn("concurrency:", workflow)
+        self.assertNotIn("contents: read", workflow)
+        self.assertNotIn("pull-requests: read", workflow)
+        # The drift guard must run before the PR is opened, not after.
+        self.assertLess(
+            workflow.index("name: Verify no contract drift"),
+            workflow.index("name: Open update pull request"),
+        )
+
+        guard = self._workflow_step_script(workflow, "Verify no contract drift")
+
+        def run_guard(repo):
+            return subprocess.run(["bash", "-e", "-c", guard], cwd=repo, capture_output=True, text=True)
+
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            subprocess.run(["git", "init", "-q", str(repo)], check=True)
+            subprocess.run(["git", "-C", str(repo), "config", "user.email", "guard@example.com"], check=True)
+            subprocess.run(["git", "-C", str(repo), "config", "user.name", "guard"], check=True)
+            (repo / "contracts").mkdir()
+            (repo / "contracts/rill-runtime.json").write_text("{}\n")
+            (repo / "README.md").write_text("original\n")
+            subprocess.run(["git", "-C", str(repo), "add", "-A"], check=True)
+            subprocess.run(["git", "-C", str(repo), "commit", "-qm", "init"], check=True)
+
+            (repo / "contracts/rill-runtime.json").write_text('{"resolved":{"version":"1.5.7"}}\n')
+            contract_only = run_guard(repo)
+            self.assertEqual(contract_only.returncode, 0, contract_only.stdout + contract_only.stderr)
+
+            (repo / "README.md").write_text("silently rewritten\n")
+            out_of_scope = run_guard(repo)
+            self.assertNotEqual(out_of_scope.returncode, 0, "an out-of-scope rewrite must fail the sync")
+            self.assertIn("README.md", out_of_scope.stdout)
+
+            (repo / "README.md").write_text("original\n")
+            (repo / "scratch.log").write_text("untracked\n")
+            untracked = run_guard(repo)
+            self.assertEqual(untracked.returncode, 0, "untracked build leftovers must not trip the guard")
+
+    @staticmethod
+    def _workflow_step_script(workflow, step_name):
+        lines = workflow.splitlines()
+        start = next(i for i, line in enumerate(lines) if f"name: {step_name}" in line)
+        run_at = next(i for i in range(start, len(lines)) if lines[i].strip().startswith("run: |"))
+        indent = len(lines[run_at]) - len(lines[run_at].lstrip())
+        body = []
+        for line in lines[run_at + 1:]:
+            if line.strip() and len(line) - len(line.lstrip()) <= indent:
+                break
+            body.append(line[indent + 2:] if line.strip() else "")
+        return "\n".join(body)
+
     def test_openwrt_download_caches_remain_digest_bound_and_fail_closed(self):
         cache_action = "actions/cache@v6"
         ci = (ROOT / ".github/workflows/ci.yml").read_text()
@@ -87,7 +183,7 @@ class ContractTests(unittest.TestCase):
 
         self.assertEqual(ci.count(cache_action), 0)
         self.assertIn("git -C rill-ml fetch --depth=1 origin \"$commit\"", ci)
-        self.assertIn("cargo build --locked --release --manifest-path rill-ml/Cargo.toml -p rill-runtime", ci)
+        self.assertIn("cargo build --locked --release --target x86_64-unknown-linux-musl --manifest-path rill-ml/Cargo.toml -p rill-runtime", ci)
         self.assertIn("openwrt-sdk-${{ runner.os }}-${{ runner.arch }}", build)
         self.assertIn("openwrt-feeds-${{ runner.os }}-${{ runner.arch }}", build)
         self.assertIn("$SDK_ARCHIVE_SHA256\" \"$archive\" | sha256sum -c -", build)
@@ -100,43 +196,51 @@ class ContractTests(unittest.TestCase):
             with self.subTest(example=example):
                 obj=json.loads((ROOT/'schemas'/example).read_text()); sch=json.loads((ROOT/'contracts'/schema).read_text())
                 jsonschema.Draft202012Validator(sch).validate(obj)
-    def test_rill_ipc_per_op_branches_enforce_full_context_binding(self):
+    def test_rill_ipc_runtime_v3_branches_enforce_method_binding(self):
         sch=json.loads((ROOT/'contracts/rill-ipc.schema.json').read_text())
         v=jsonschema.Draft202012Validator(sch)
-        # The schema is oneOf over per-op $defs with additionalProperties:false,
-        # mirroring the tagged Request enum (deny_unknown_fields) in
-        # crates/rill-pm-adapter/src/lib.rs v1.5.1: a valid outcome carries ONLY
-        # the outcomeRequest fields (no observe-only metadata).
-        outcome={ 'contract':'pm-rill-shadow','protocolVersion':1,'requestId':'o1','op':'outcome','validated':True,'actionId':'nic.ring.floor','decisionId':'d1','goal':'balanced','modelGeneration':1,
-                  'sessionId':'s1','reward':0.25,
-                  'contextKey':'ctx-v1:profile=p;cap=c;topo=1;path=path:lan-to-wan;route=r;workload=plain_forwarding;integ=f;goal=balanced' }
-        self.assertTrue(v.is_valid(outcome))
-        for field in ['validated','contextKey','reward','actionId','sessionId','decisionId','goal','modelGeneration','requestId']:
+        decide=json.loads((ROOT/'schemas/rill-ipc.example.json').read_text())
+        self.assertTrue(v.is_valid(decide))
+        self.assertFalse(v.is_valid({**decide,'apiVersion':2}))
+        self.assertFalse(v.is_valid({**decide,'request':{**decide['request'],'method':'health'}}))
+        self.assertFalse(v.is_valid({**decide,'unexpected':True}))
+        self.assertFalse(v.is_valid({k:value for k,value in decide.items() if k!='featureSchemaHash'}))
+    def test_rill_ipc_feedback_requires_decision_and_reward_fields(self):
+        sch=json.loads((ROOT/'contracts/rill-ipc.schema.json').read_text())
+        v=jsonschema.Draft202012Validator(sch)
+        feedback=json.loads((ROOT/'schemas/rill-ipc.example.json').read_text())
+        feedback['request']={'method':'feedback','decisionId':'d1','selectedActionId':'pm.noop','reward':0.0,'outcomeTimeMs':1,'generation':0}
+        self.assertTrue(v.is_valid(feedback))
+        for field in ['decisionId','selectedActionId','reward','outcomeTimeMs','generation']:
             with self.subTest(field=field):
-                broken=dict(outcome); del broken[field]
-                self.assertFalse(v.is_valid(broken),f'outcome must reject missing {field}')
-        invalid_context=dict(outcome); invalid_context['contextKey']='v1:prefix'
-        self.assertFalse(v.is_valid(invalid_context))
-        # deny_unknown_fields: a foreign field is REJECTED, never ignored.
-        unknown=dict(outcome); unknown['deviceProfile']='p'
+                broken=json.loads(json.dumps(feedback)); del broken['request'][field]
+                self.assertFalse(v.is_valid(broken),f'feedback must reject missing {field}')
+    def test_rill_ipc_response_is_generic_runtime_v3(self):
+        schema=json.loads((ROOT/'contracts/rill-ipc-response.schema.json').read_text())
+        v=jsonschema.Draft202012Validator(schema)
+        base={'requestId':'d1','apiVersion':3,'runtimeIdentity':{'name':'rill-runtime','version':'1.5.6'},'modelGeneration':2,'stateGeneration':1}
+        handshake={**base,'response':{'kind':'handshake','capabilities':['org.rill.preview.decide'],'featureSchemaHash':'9'*64,'handlerApiVersion':2}}
+        self.assertTrue(v.is_valid(handshake))
+        result={**base,'response':{'kind':'result','output':{'accepted':True,'selectedActionId':'pm.noop','scores':[]}}}
+        self.assertTrue(v.is_valid(result))
+        unknown=json.loads(json.dumps(result)); unknown['response']['extra']=True
         self.assertFalse(v.is_valid(unknown))
-    def test_rill_ipc_observe_requires_full_metadata(self):
-        sch=json.loads((ROOT/'contracts/rill-ipc.schema.json').read_text())
-        v=jsonschema.Draft202012Validator(sch)
-        observe=json.loads((ROOT/'schemas/rill-ipc.example.json').read_text())
-        self.assertTrue(v.is_valid(observe))
-        for field in ['deviceProfile','capabilityHash','topologyGeneration','pathId','routeIdentity',
-                      'workloadClass','measurementClass','context','integrations','goal','integrationFingerprint',
-                      'contextKey','availableActions']:
-            with self.subTest(field=field):
-                broken=dict(observe); del broken[field]
-                self.assertFalse(v.is_valid(broken),f'observe must reject missing {field}')
     def test_runtime_package_has_every_formal_schema(self):
         dest=ROOT/'package/performance-manager/files/usr/share/performance-manager/schemas'
         for schema in sorted((ROOT/'contracts').glob('*.schema.json')):
             with self.subTest(schema=schema.name):
                 self.assertTrue((dest/schema.name).exists())
                 self.assertEqual(json.loads(schema.read_text()),json.loads((dest/schema.name).read_text()))
+
+    def test_contracts_are_the_only_active_schema_source(self):
+        active_ids = {}
+        for schema in sorted((ROOT / 'contracts').glob('*.schema.json')):
+            data = json.loads(schema.read_text())
+            schema_id = data.get('$id')
+            if schema_id:
+                self.assertNotIn(schema_id, active_ids, schema_id)
+                active_ids[schema_id] = schema.name
+        self.assertFalse(list((ROOT / 'schemas').glob('*.schema.json')))
     def test_action_contract_requires_frozen_safety_fields(self):
         sch=json.loads((ROOT/'contracts/action.schema.json').read_text())
         for field in ['risk','requiresBenchmark','persistenceClass','commitPolicy','requiredLocks','requiresCommitConfirm']:
