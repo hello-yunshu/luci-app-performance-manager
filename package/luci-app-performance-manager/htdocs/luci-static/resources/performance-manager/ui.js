@@ -96,7 +96,7 @@ function setBusy(button, busyLabel) {
 	button.disabled = true;
 	button.setAttribute('aria-busy', 'true');
 	button.classList.add('pm-button--busy');
-	button.replaceChildren(busyLabel || _('Working…'));
+	button.replaceChildren(busyLabel || _('Working...'));
 	return function() {
 		button.disabled = false;
 		button.removeAttribute('aria-busy');

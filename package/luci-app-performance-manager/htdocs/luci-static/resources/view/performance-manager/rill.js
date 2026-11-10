@@ -3,6 +3,7 @@
 'require ui';
 'require performance-manager.api as pm';
 'require performance-manager.ui as pu';
+'require performance-manager.labels as labels';
 
 return view.extend({
 	load: function() { return Promise.all([ pm.rill(), pm.recommendations(), pm.history(100) ]); },
@@ -10,38 +11,81 @@ return view.extend({
 		const r = (payload && payload[0]) || {}, rec = (payload && payload[1]) || {}, history = (payload && payload[2]) || {}, s = rec.smartSelection || {};
 		const refresh = E('button', { 'class': 'btn cbi-button cbi-button-action', 'type': 'button' }, [ _('Refresh Rill decision') ]);
 		refresh.addEventListener('click', function() {
-			const restore = pu.setBusy(refresh, _('Refreshing…'));
+			const restore = pu.setBusy(refresh, _('Refreshing...'));
 			pm.rillRefresh().then(function(result) {
 				if (result && result.ok === false)
 					throw new Error(result.reason || result.state || _('Unable to refresh Rill.'));
 				if (typeof window !== 'undefined') window.location.reload();
 			}).catch(function(error) {
-				ui.addNotification(null, E('p', {}, [ _('Unable to refresh Rill: %s. Try again.').format(error.message || error) ]), 'error');
+				ui.addNotification(null, E('p', {}, [ _('Unable to refresh Rill: %s. Try again.').format(labels.errorSummary(error)) ]), 'error');
 			}).finally(restore);
 		});
 		const ranking = (s.ranking || []).slice(0, 5);
 		const rows = ranking.length ? ranking.map(function(row, i) {
 				const blocked = (s.blockedReasons || []).find(function(item) { return item.actionId === row.actionId; });
-				return E('tr', { 'aria-current': row.actionId === s.selectedCandidateId ? 'true' : 'false' }, [ E('td', {}, [ String(i + 1) ]), E('td', {}, [ row.actionId || '—' ]), E('td', {}, [ row.score == null ? '—' : String(row.score) ]), E('td', {}, [ row.actionId === s.selectedCandidateId ? _('Selected') : (blocked ? (blocked.reason || _('Blocked')) : _('Eligible')) ]), E('td', {}, [ blocked && blocked.cooldownRemaining ? String(blocked.cooldownRemaining) : '—' ]) ]);
+				return E('tr', { 'aria-current': row.actionId === s.selectedCandidateId ? 'true' : 'false' }, [ E('td', {}, [ String(i + 1) ]), E('td', {}, [ labels.actionName(row.actionId) ]), E('td', {}, [ labels.percent(row.score) ]), E('td', {}, [ row.actionId === s.selectedCandidateId ? _('Selected') : (blocked ? labels.smartReason(blocked.reason) : _('Eligible')) ]), E('td', {}, [ blocked && blocked.cooldownRemaining ? labels.duration(blocked.cooldownRemaining) : '—' ]) ]);
 			}) : [ E('tr', {}, [ E('td', { 'colspan': '5' }, [ _('No ranking is available yet. Refresh the decision or wait for the next evaluation.') ]) ]) ];
-		const table = E('table', { 'class': 'table pm-ranking-table' }, [ E('caption', { 'class': 'pm-visually-hidden' }, [ _('Top ranking') ]), E('thead', {}, [ E('tr', {}, [ E('th', {}, [ _('Rank') ]), E('th', {}, [ _('Candidate') ]), E('th', {}, [ _('Score') ]), E('th', {}, [ _('Eligibility') ]), E('th', {}, [ _('Cooldown') ]) ]) ]), E('tbody', {}, rows) ]);
+		const table = E('table', { 'class': 'table pm-ranking-table' }, [ E('caption', { 'class': 'pm-visually-hidden' }, [ _('Ranking table') ]), E('thead', {}, [ E('tr', {}, [ E('th', {}, [ _('Rank') ]), E('th', {}, [ _('Candidate') ]), E('th', {}, [ _('Score') ]), E('th', {}, [ _('Eligibility') ]), E('th', {}, [ _('Cooldown') ]) ]) ]), E('tbody', {}, rows) ]);
 		const context = s.context || {};
 		const feedback = (history.history || []).filter(function(row) { return /^rill\.outcome\.(accepted|reconciled)/.test(row.event || ''); }).slice(-5).reverse();
-		const feedbackRows = feedback.length ? feedback.map(function(row) { const d = row.data || {}; return E('tr', {}, [ E('td', {}, [ d.actionId || '—' ]), E('td', {}, [ d.goal || s.goal || '—' ]), E('td', {}, [ d.reward == null ? '—' : String(d.reward) ]), E('td', {}, [ d.measurementQuality || 'controlled_ab' ]), E('td', {}, [ d.accepted === true ? _('Accepted') : _('Reconciled') ]) ]); }) : [ E('tr', {}, [ E('td', { 'colspan': '5' }, [ _('No validated feedback yet.') ]) ]) ];
-		const feedbackTable = E('table', { 'class': 'table pm-ranking-table' }, [ E('caption', { 'class': 'pm-visually-hidden' }, [ _('Recent feedback') ]), E('thead', {}, [ E('tr', {}, [ E('th', {}, [ _('Candidate') ]), E('th', {}, [ _('Goal') ]), E('th', {}, [ _('Reward') ]), E('th', {}, [ _('Quality') ]), E('th', {}, [ _('Result') ]) ]) ]), E('tbody', {}, feedbackRows) ]);
-		return pu.page(_('RillML (Rill) intelligence'), _('Rill ranks Core-approved actions; Core keeps final authority to execute them.'), [
-			pu.card(_('Runtime status'), pu.kv([
-				[_('State'), r.status || _('Runtime · Collecting')], [_('Version'), r.rillVersion || r.resolvedRillVersion || '—'], [_('Transport'), r.transport || '—'], [_('Runtime contract'), r.protocolVersion == null ? '—' : 'Runtime v' + r.protocolVersion], [_('Last decision'), s.decisionId || '—'], [_('Selected action'), s.selectedActionId || '—'], [_('Selected candidate'), s.selectedCandidateId || '—'], [_('Last outcome'), s.lastOutcome ? JSON.stringify(s.lastOutcome) : '—']
+		const feedbackRows = feedback.length ? feedback.map(function(row) { const d = row.data || {}; return E('tr', {}, [ E('td', {}, [ labels.actionName(d.actionId) ]), E('td', {}, [ labels.goal(d.goal || s.goal) ]), E('td', {}, [ labels.percent(d.reward) ]), E('td', {}, [ labels.measurementQuality(d.measurementQuality) ]), E('td', {}, [ d.accepted === true ? _('Accepted') : _('Reconciled') ]) ]); }) : [ E('tr', {}, [ E('td', { 'colspan': '5' }, [ _('No validated feedback yet.') ]) ]) ];
+		const feedbackTable = E('table', { 'class': 'table pm-ranking-table' }, [ E('caption', { 'class': 'pm-visually-hidden' }, [ _('Feedback table') ]), E('thead', {}, [ E('tr', {}, [ E('th', {}, [ _('Candidate') ]), E('th', {}, [ _('Goal') ]), E('th', {}, [ _('Reward') ]), E('th', {}, [ _('Quality') ]), E('th', {}, [ _('Result') ]) ]) ]), E('tbody', {}, feedbackRows) ]);
+		const outcomeText = s.lastOutcome
+			? _('Reward %s · %s').format(labels.percent(s.lastOutcome.reward), labels.measurementQuality(s.lastOutcome.measurementQuality))
+			: '—';
+		const candidateHistory = s.candidateHistory || {};
+		return pu.page(_('Rill smart decisions'), _('Rill ranks actions that passed the Core engine review; the Core engine keeps the final authority to execute them. Confidence and scores are shown as percentages (0–1 maps to 0–100%).'), [
+			pu.card(_('Runtime status'), E('div', {}, [
+				pu.kv([
+					[_('State'), labels.runtimeStatus(r.status)],
+					[_('Version'), labels.fmt(r.rillVersion || r.resolvedRillVersion)],
+					[_('Transport'), labels.transport(r.transport)],
+					[_('Protocol'), r.protocolVersion == null ? '—' : _('Runtime protocol v%s').format(r.protocolVersion)],
+					[_('Last decision'), labels.reference(s.decisionId)],
+					[_('Selected action'), labels.actionName(s.selectedActionId)],
+					[_('Last outcome'), outcomeText]
+				]),
+				pu.jsonBox({ runtime: r, decisionId: s.decisionId, selectedCandidateId: s.selectedCandidateId, lastOutcome: s.lastOutcome }, _('Technical details'))
 			]), 'hero'),
 			pu.grid([
-				pu.card(_('Decision context'), pu.kv([
-					[_('Profile'), context.profile || '—'], [_('Goal'), s.goal || context.goal || '—'], [_('Path'), context.pathId || '—'], [_('Workload'), (context.workloadClass || []).join(', ') || '—'], [_('Topology generation'), context.topologyGeneration == null ? '—' : String(context.topologyGeneration)], [_('Route identity'), context.routeIdentity || '—'], [_('Integration'), context.integrationState ? JSON.stringify(context.integrationState) : '—']
+				pu.card(_('Decision context'), E('div', {}, [
+					pu.kv([
+						[_('Profile'), labels.profile(context.profile)],
+						[_('Goal'), labels.goal(s.goal || context.goal)],
+						[_('Path'), labels.path(context.pathId)],
+						[_('Workload'), (context.workloadClass || []).map(labels.workloadClass).join('、') || '—'],
+						[_('Topology generation'), context.topologyGeneration == null ? '—' : String(context.topologyGeneration)],
+						[_('Route identity'), labels.routeIdentity(context.routeIdentity)],
+						[_('Integration'), labels.integrationSummary(context.integrationState)]
+					]),
+					pu.jsonBox({ context: context }, _('Technical details'))
 				]), 'muted'),
-				pu.card(_('Selected candidate details'), pu.kv([
-					[_('Business action'), s.selectedActionId || '—'], [_('Candidate ID'), s.selectedCandidateId || '—'], [_('Candidate reward mean'), s.candidateHistory?.recentRewardMean == null ? '—' : String(s.candidateHistory.recentRewardMean)], [_('Candidate successes'), s.candidateHistory?.successCount == null ? '—' : String(s.candidateHistory.successCount)], [_('Candidate failures'), s.candidateHistory?.failureCount == null ? '—' : String(s.candidateHistory.failureCount)], [_('Candidate rollbacks'), s.candidateHistory?.rollbackCount == null ? '—' : String(s.candidateHistory.rollbackCount)], [_('Cooldown reason'), s.candidateHistory?.cooldownReason || '—']
+				pu.card(_('Selected candidate details'), E('div', {}, [
+					pu.kv([
+						[_('Business action'), labels.actionName(s.selectedActionId)],
+						[_('Candidate identifier'), labels.reference(s.selectedCandidateId)],
+						[_('Candidate reward mean'), labels.percent(candidateHistory.recentRewardMean)],
+						[_('Candidate successes'), labels.fmt(candidateHistory.successCount)],
+						[_('Candidate failures'), labels.fmt(candidateHistory.failureCount)],
+						[_('Candidate rollbacks'), labels.fmt(candidateHistory.rollbackCount)],
+						[_('Cooldown reason'), labels.smartReason(candidateHistory.cooldownReason)]
+					]),
+					E('p', { 'class': 'pm-control-help' }, [ _('Candidate identifiers are kept in technical details so long identifiers do not crowd the page.') ]),
+					pu.jsonBox({ candidateHistory: candidateHistory }, _('Technical details'))
 				]), 'muted'),
-				pu.card(_('Learning status'), pu.kv([
-					[_('Learning stage'), s.learningStage || _('cold')], [_('Validated samples'), s.validatedSamples == null ? '0' : String(s.validatedSamples)], [_('Minimum samples'), s.minimumSamples == null ? '—' : String(s.minimumSamples)], [_('Confidence'), s.confidence == null ? '—' : String(s.confidence)], [_('Last reward'), s.lastReward == null ? '—' : String(s.lastReward)], [_('Reward components'), s.lastRewardComponents ? JSON.stringify(s.lastRewardComponents) : '—'], [_('Measurement quality'), s.lastOutcome?.measurementQuality || '—'], [_('Drift'), s.drifted ? _('Detected') : _('Stable')], [_('Auto eligibility'), s.autoEligible === false ? _('Paused') : (s.reason || _('Eligible'))]
+				pu.card(_('Learning status'), E('div', {}, [
+					pu.kv([
+						[_('Learning stage'), labels.learningStage(s.learningStage)],
+						[_('Validated samples'), s.validatedSamples == null ? '0' : String(s.validatedSamples)],
+						[_('Minimum samples'), labels.fmt(s.minimumSamples)],
+						[_('Confidence'), labels.percent(s.confidence)],
+						[_('Last reward'), labels.percent(s.lastReward)],
+						[_('Measurement quality'), labels.measurementQuality((s.lastOutcome && s.lastOutcome.measurementQuality) || s.measurementQuality)],
+						[_('Drift'), s.drifted ? _('Detected') : _('Stable')],
+						[_('Auto eligibility'), s.autoEligible === false ? _('Paused') : _('Eligible')],
+						[_('Policy reason'), labels.smartReason(s.reason)]
+					]),
+					pu.jsonBox({ learningStage: s.learningStage, confidence: s.confidence, lastReward: s.lastReward, lastRewardComponents: s.lastRewardComponents, reason: s.reason }, _('Technical details'))
 				]), 'muted')
 			], 'pm-card-grid--supporting'),
 			pu.grid([
