@@ -7,7 +7,7 @@
 This is a source-only, non-promotable audit. It does not consume old runtime
 artifacts and cannot claim functional-integration or Stable-release PASS.
 
-Snapshot source commit: **b4232cdf2e82a3d8245c1ac21e6c56297717060b**. A commit that only changes
+Snapshot source commit: **a6eeb9d25477498e3c8b8ee17e502e3a5a2678db**. A commit that only changes
 generated audit files is treated as a snapshot child, not a new source revision.
 
 ## Orchestrated local gates
@@ -18,7 +18,7 @@ generated audit files is treated as a snapshot child, not a new source revision.
 - rill-static-contract: **PASS** (source)
 - resource-budget: **PASS** (source)
 
-- Executable unit/contract tests in this checked-in source-audit snapshot: **193**, status **PASS**.
+- Executable unit/contract tests in this checked-in source-audit snapshot: **194**, status **PASS**.
 - Current test counts and conclusions come from the same-SHA CI artifacts, not this historical/generated snapshot.
 - Rill static contract: **PASS**.
 - Rill release-pin structure: **PASS**.
