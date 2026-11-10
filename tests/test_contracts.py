@@ -319,4 +319,21 @@ class AuditConvergenceTests(unittest.TestCase):
         self.assertNotIn("profile.healthy ? _('Profile healthy') : _('Profile degraded')", ui)
 
 
+    def test_harness_strips_multiline_ubus_startup_guard(self):
+        import subprocess
+        import tempfile
+        with tempfile.TemporaryDirectory() as tmp:
+            out = Path(tmp) / "harness.uc"
+            subprocess.run(
+                ["python3", str(ROOT / "tools/docker-validate/harness/build-harness.py"),
+                 str(out), str(ROOT / "tools/docker-validate/harness/production_core_rill_test.uc.frag")],
+                check=True, capture_output=True, text=True)
+            text = out.read_text()
+        # The library must load without a real ubus daemon: the ambient connect
+        # and its multi-line fail-closed guard are both neutralised.
+        self.assertNotIn("ubusmod.connect()", text)
+        self.assertNotIn("if (!conn)", text)
+        self.assertIn("function diagnostics(", text)
+
+
 if __name__=='__main__': unittest.main()
