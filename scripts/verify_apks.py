@@ -51,7 +51,7 @@ REQUIRED_DEPENDS = {
     'performance-manager': {
         'ubus', 'uci', 'ucode', 'ucode-mod-fs', 'ucode-mod-ubus', 'ucode-mod-uci',
         'ucode-mod-rtnl', 'ucode-mod-uloop', 'ucode-mod-socket', 'ucode-mod-log',
-        'coreutils-timeout', 'ip-full',
+        'coreutils-timeout',
     },
     'luci-app-performance-manager': {
         'luci-base', 'rpcd', 'performance-manager', 'luci-i18n-base-zh-cn',
@@ -64,7 +64,6 @@ REQUIRED_DEPENDS = {
         'luci-base', 'rpcd', 'luci-i18n-base-zh-cn', 'ubus', 'uci', 'ucode',
         'ucode-mod-fs', 'ucode-mod-ubus', 'ucode-mod-uci', 'ucode-mod-rtnl',
         'ucode-mod-uloop', 'ucode-mod-socket', 'ucode-mod-log', 'coreutils-timeout',
-        'ip-full',
         '!performance-manager>=0', '!luci-app-performance-manager>=0',
         '!performance-manager-rill>=0', '!rill-runtime>=0', '!rill-runtime-preview>=0',
         '!luci-i18n-performance-manager-zh-cn>=0',

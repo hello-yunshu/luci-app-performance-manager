@@ -7,7 +7,7 @@
 This is a source-only, non-promotable audit. It does not consume old runtime
 artifacts and cannot claim functional-integration or Stable-release PASS.
 
-Snapshot source commit: **a6eeb9d25477498e3c8b8ee17e502e3a5a2678db**. A commit that only changes
+Snapshot source commit: **39d43060c6589d5e24529145f2ed5b9cc620fba6**. A commit that only changes
 generated audit files is treated as a snapshot child, not a new source revision.
 
 ## Orchestrated local gates
