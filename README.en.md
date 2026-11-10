@@ -26,7 +26,7 @@
 - **Telemetry + Health Guard**: evidence/confidence Analyzer, baseline-relative health gate, resource locks, durable pending markers, verified rollback and a real monotonic commit-confirm engine
 - **Phase-7 benchmark orchestration**: irqbalance, backlog/budget, buffers, busy poll, tx queue, coalescing, CC, qdisc, SFO/HFO/SFE and CPU governor; providers run only when an exact reversible contract exists
 - **Controlled A/B truthfulness**: persisted control evidence → one-variable transactional candidate → candidate evidence → verified rollback → result persistence → optional Rill outcome; missing/invalid evidence never becomes `validated=true`
-- **RillML (Rill) Shadow learning**: PM owns the consumer-specific adapter and links exact crates.io `rill-ml` 1.5.3 through the bounded shadow-only IPC protocol (context drift detection, validated-outcome weighting, Decision Ledger, model health), failing closed without faking recommendations when the adapter is missing or incompatible
+- **Rill Runtime v3 Smart Decision**: an external `rill-runtime` ranks a stable feature vector; Core owns the unified Conservative/Assisted selector, safe allowlist, `pm.noop`, confidence, drift and cooldown gates, and never delegates actuation authority
 - **Assisted Auto**: explicit opt-in only — maintenance window + low-traffic gate + safe allowlist
 - **Multi-platform guidance**: generic x86, Hyper-V and KVM (including Proxmox VE guest guidance)
 - **Companion Agent**: an explicit LAN/WAN iperf3 endpoint tool with no router-mutation authority
@@ -48,23 +48,23 @@
 |---|---|
 | `performance-manager` | procd-managed ucode/ubus Core: contracts, discovery, telemetry, transaction engine and safe actions |
 | `luci-app-performance-manager` | Supported-first LuCI UI (Simplified Chinese) |
-| `performance-manager-rill` | PM-owned adapter service glue; the target-specific `performance-manager-rill-adapter` package ships the native binary |
-| `luci-app-performance-manager-all` | Recommended all-in-one APK: physically contains Core, LuCI, rpcd ACL/menu and Simplified Chinese translation; Rill glue remains the separate `performance-manager-rill` package |
+| `performance-manager-rill` | Developer / split-package Rill glue; consumes the external `rill-runtime` package |
+| `rill-runtime` | Canonical external Runtime source/package; the full APK embeds its exact target binary |
+| `luci-app-performance-manager-all` | User-facing architecture-specific full APK containing Core, LuCI, ACL/menu, Simplified Chinese, Rill glue, keep rules and Runtime |
 
 ## Installation
 
 ### Prerequisites
 
-- OpenWrt 25.12.x / x86_64, aarch64_generic, or aarch64_cortex-a53; current real runtime gates remain x86_64-scoped
+- OpenWrt 25.12.5 / x86_64, aarch64_generic, or aarch64_cortex-a53; current real runtime gates remain x86_64-scoped
 - An OpenWrt SDK or buildroot environment (for source builds)
 
 ### Build from source (OpenWrt SDK / buildroot)
 
 ```sh
-# 1. Build and stage the native adapter in the Performance Manager repository
+# 1. Build the canonical Runtime from the Rill OpenWrt feed; the full package
+#    receives only its exact verified binary payload
 cd /path/to/openwrt-performance-manager
-python3 scripts/build_pm_adapter.py --target x86_64-unknown-linux-musl
-
 # 2. Then enter the OpenWrt SDK
 cd /path/to/openwrt-sdk
 ./scripts/feeds update -a
@@ -72,47 +72,40 @@ cd /path/to/openwrt-sdk
 mkdir -p package/openwrt-performance-manager
 cp -a /path/to/openwrt-performance-manager/package/* package/openwrt-performance-manager/
 make defconfig
-make package/performance-manager-rill-adapter/compile V=s
 make package/performance-manager/compile V=s
 make package/luci-app-performance-manager/compile V=s
 make package/performance-manager-rill/compile V=s
+mkdir -p package/openwrt-performance-manager/luci-app-performance-manager-all/files/usr/bin
+# Place the exact /usr/bin/rill-runtime extracted from the qualified Runtime APK there.
 make package/luci-app-performance-manager-all/compile V=s
 ```
 
-`build_pm_adapter.py` builds and stages the target-specific native adapter from this repository's Rust source; the generated binary must not be committed. The recommended Rill installation model is `luci-app-performance-manager-all`, `performance-manager-rill`, and the matching target-specific `performance-manager-rill-adapter` package. The all-in-one package does not contain the Rill service glue.
+The SDK builds the split packages and the architecture-specific full package. The production path is the official GitHub Actions SDK workflow, which stages and verifies the exact Runtime binary automatically.
 
 > You can also rely on the GitHub Actions `build-openwrt.yml` → `openwrt-sdk-build` job to produce the build instead of using a local SDK.
 
-### Recommended: one-APK installation
+### Recommended: one APK per device
 
-Download `luci-app-performance-manager-all-1.0.3-r1.apk` and `performance-manager-rill-1.0.3-r1.apk` from the GitHub Release, then choose the adapter matching the device architecture. The next Release uses architecture-qualified adapter assets (the examples below retain the current candidate version):
+From [GitHub Releases](https://github.com/hello-yunshu/luci-app-performance-manager/releases), download exactly one `performance-manager-all-v<VERSION>-<package-arch>.apk` for the device architecture.
 
-The repository's official OpenWrt SDK build still compiles and verifies every split package and the physical all-in-one package. The public Release includes one copy each of the architecture-independent all-in-one and Rill glue packages, plus one target-specific native adapter for each qualified target; the current matrix is x86_64, aarch64_generic, and aarch64_cortex-a53. The independent `rill-runtime` package is obtained from `hello-yunshu/rill-openwrt-packages` and is not copied into this Release.
-
-```text
-performance-manager-rill-adapter-1.0.3-r1_x86_64.apk
-performance-manager-rill-adapter-1.0.3-r1_aarch64_generic.apk
-performance-manager-rill-adapter-1.0.3-r1_aarch64_cortex-a53.apk
-```
+Every device needs only one All-in-One APK. It contains Performance Manager Core, LuCI, Simplified Chinese, Rill integration and the exact qualified Runtime; do not download `rill-runtime` or `performance-manager-rill` separately.
 
 ```sh
-apk add --allow-untrusted /tmp/luci-app-performance-manager-all-1.0.3-r1.apk
-apk add --allow-untrusted /tmp/performance-manager-rill-1.0.3-r1.apk
-# Install exactly one adapter matching the device architecture:
-apk add --allow-untrusted /tmp/performance-manager-rill-adapter-1.0.3-r1_x86_64.apk
-# For aarch64_generic use *_aarch64_generic.apk;
-# for aarch64_cortex-a53 use *_aarch64_cortex-a53.apk.
+apk --print-arch
+apk add --allow-untrusted /tmp/performance-manager-all-v<VERSION>-x86_64.apk
 ```
 
-OpenWrt still resolves system runtime libraries such as `luci-base`, `rpcd` and `ucode` from its configured repositories. The all-in-one APK contains the Core, LuCI, backend and translation payloads; `performance-manager-rill` owns the service glue and the adapter package owns the native binary. The all-in-one package conflicts with the Core/LuCI split packages so duplicate file ownership is impossible. Back up `/etc/config/performance-manager` and switch package forms only during a maintenance window on devices already using the split packages.
+Architecture mapping: `x86_64` → `x86_64`; `aarch64_generic` → generic ARM64; `aarch64_cortex-a53` → Filogic / MT7981 / MT7986. Replace the filename in the command with the one matching your architecture.
+
+OpenWrt still resolves system libraries such as `luci-base`, `rpcd` and `ucode` from configured repositories. The full APK conflicts with every split owner, including `performance-manager-rill` and `rill-runtime`. Back up `/etc/config/performance-manager` before switching package forms during a maintenance window.
 
 ### Package info
 
 | Item | Value |
 |---|---|
-| Recommended package | `luci-app-performance-manager-all` (one APK) |
+| Recommended package | `performance-manager-all-v<VERSION>-<package-arch>.apk` (one APK) |
 | Target | OpenWrt 25.12.5 / x86_64, aarch64_generic, aarch64_cortex-a53 (package-level); runtime evidence is x86_64 |
-| Current source candidate | `1.0.3` |
+| Current source candidate | `1.0.4` |
 | Service script | `/etc/init.d/performance-manager` |
 | UCI config | `/etc/config/performance-manager` |
 | Core binary | `/usr/sbin/performance-manager.uc` |
@@ -136,7 +129,7 @@ The UI is Simplified-Chinese-first and automatically follows the OpenWrt/LuCI sy
 | Smart Optimization | recommended actions and safe apply |
 | Performance Test | Phase-7 controlled benchmark orchestration |
 | Capabilities | capability / topology / TargetRef views |
-| Rill Intelligence | shadow learning model and decision ledger |
+| Rill Intelligence | Runtime advisory model and decision ledger |
 | History & Rollback | history and rollback |
 | Settings / Advanced | configuration |
 
@@ -205,19 +198,34 @@ package/luci-app-performance-manager-all/Makefile  # merges all owned runtime co
 │   LuCI UI    │ ─────────→ │  performance-manager   │
 │  (8 views)   │ ←───────── │  Core (ucode/ubus)     │
 └──────────────┘  JSON     └───────────┬────────────┘
-                                      │ UDS (bounded, shadow-only)
+                                      │ UDS (bounded, Runtime v3)
                           ┌───────────▼────────────┐
                           │ performance-manager-rill │
-                          │   (integration glue)     │
+                          │   (external glue)        │
                           └───────────┬────────────┘
-                                      │ owns adapter + exact rill-ml
+                                      │ generic Runtime v3
                           ┌───────────▼────────────┐
-                          │ PM-owned adapter runtime  │
-                          │ exact crates.io rill-ml   │
+                          │ bundled exact Runtime    │
+                          │ ranking, no actuator      │
                           └────────────────────────┘
 ```
 
-> **Consumer ownership boundary.** Performance Manager owns `pm-rill-shadow` and its native adapter. The adapter links exact crates.io `rill-ml` 1.5.3; it does not consume a PM-specific RillML Release artifact. RillML remains the owner of generic crates and contracts. The upstream PM adapter active surface was removed in RillML 1.5.2; the retained v1.5.1 fixture is historical-only.
+> **Consumer ownership boundary.** Rill Runtime source and the canonical package remain owned by `hello-yunshu/rill-openwrt-packages`; the full APK redistributes only its qualified exact binary and owns `/usr/bin/rill-runtime` inside the package. Runtime only ranks/reports and cannot apply router changes. Core remains fail-closed when Runtime is missing or incompatible.
+
+## MacBook + Docker local Portable validation
+
+Run the repeatable repository-software validation before pushing:
+
+```sh
+make portable-macos
+# or: tools/docker-validate/run-local-macos.sh
+```
+
+Prerequisites are Docker Desktop, Git, Python 3, an authenticated `gh` CLI, and network access to GitHub / OpenWrt. The same-SHA CI and same-SHA Build for the current commit must already have completed successfully. The first run automatically downloads and verifies the OpenWrt 25.12.5 x86_64 rootfs; later runs may reuse the rootfs cache, but always re-check it against the official `sha256sums`. If the same-SHA Build is not complete, the result is `BLOCKED`, not a project-code `FAIL`.
+
+The entry point reuses the existing source audit, OpenWrt ucode harness, artifact identity, package-composition gate, and portable gate. Run evidence is written to untracked `local-evidence/` and bound to the current commit SHA; package artifacts must come from a same-SHA GitHub Actions Build, never from `latest` or an older branch cache.
+
+`Mac Docker PASS != Hardware Stable PASS`. Portable evidence always reports `hardwareCoverage = NOT_EVALUATED` and `stableReleaseAuthorized = false`; it cannot cover real NIC behavior, Hyper-V/KVM, LAN-WAN, sysupgrade, reboot, or a real-router 24-hour soak. If Docker Desktop, linux/amd64 emulation, network downloads, or same-SHA artifacts are unavailable, the entry point reports a diagnostic `BLOCKED` instead of fabricating PASS.
 
 **Data flow**:
 
@@ -246,13 +254,13 @@ package/luci-app-performance-manager-all/Makefile  # merges all owned runtime co
 | `health_dns_name` | string | openwrt.org | health-check DNS target |
 | `oom_window_seconds` / `max_load_per_cpu` / `max_cpu_steal_percent` / `max_thermal_millicelsius` | integer | 600 / 2 / 20 / 90000 | health gate thresholds |
 
-### rill section (shadow)
+### rill section (Runtime v3)
 
 | Option | Type | Default | Description |
 |---|---|---|---|
-| `enabled` | boolean | 1 | enable Rill Shadow |
-| `mode` | enum | shadow | read-only learning, no apply authority |
-| `socket` | string | /run/performance-manager/rill.sock | UDS path |
+| `enabled` | boolean | 1 | enable external Runtime |
+| `mode` | fixed semantic | advisory | advisory ranking only, no apply authority; legacy `shadow` is read once by upgrade migration |
+| `binary` | string | (empty) | external Runtime path; empty uses `/usr/bin/rill-runtime` |
 | `max_message` | integer | 65536 | max message bytes |
 | `timeout_ms` | integer | 1000 | call timeout |
 | `state_dir` | string | /etc/performance-manager/rill | Rill persistent state |
@@ -272,15 +280,17 @@ package/luci-app-performance-manager-all/Makefile  # merges all owned runtime co
 
 This project is built and verified automatically with GitHub Actions, triggered by pushing to main or manually:
 
-**`ci.yml` (source, behavior, contract & PM-owned adapter verification)**
+**`ci.yml` (source, behavior, contract & Runtime v3 verification)**
 - **static**: unit tests + contract validation + source gates + final audit + LuCI JS syntax & render smoke
-- **adapter-rust / rill-contract**: verifies the PM-owned adapter with exact crates.io `rill-ml` 1.5.3, retained historical v1.5.1 fixture, and emits `rill-consumed-manifest.json`
+- **rill-runtime-v3**: verifies the generic Runtime v3 handshake/health/decide/feedback contract and fail-closed behavior
 - **openwrt-ucode**: compiles and validates Core ucode inside the official OpenWrt 25.12.5 rootfs
 
 **`build-openwrt.yml` (remote official SDK build)**
-- **openwrt-sdk-build**: builds the four split packages (including the PM-owned native adapter) plus the all-in-one APK with the official SDK, and emits `build-metadata.json`, `checksums.txt` and audit-evidence artifacts
+- **openwrt-sdk-build**: builds the four split packages plus three architecture-specific full APKs with the official SDK, and emits Runtime provenance and audit-evidence artifacts
 
-> The native build here is intentionally limited to the consumer-owned adapter. Generic `rill-ml` crates remain a crates.io dependency; the PM adapter is built by this repository's Rust CI and target-specific OpenWrt package job.
+Public release staging emits only three full APKs and `SHA256SUMS.txt`; JSON, MD, ZIP, split APK and standalone Runtime artifacts remain private Actions artifacts.
+
+> The generic Runtime binary is intentionally external. This repository validates the Runtime v3 boundary and does not build, vendor or release a PM-owned Rust adapter.
 
 Local quick verification:
 
@@ -293,7 +303,7 @@ make package        # build release artifacts
 - Resource / write soak: `scripts/openwrt-resource-soak.sh`
 - External validation evidence: `docs/EXTERNAL_VALIDATION.md`
 
-> `1.0.3` uses the explicit `portable-docker` release profile: same-commit official SDK/APKs, exact Rill evidence, hosted Actions, and the Docker Core ucode harness must pass before publishing the verified all-in-one and x86_64-musl adapter APKs. This profile does not claim Hyper-V, real-router A/B, firmware sysupgrade, or 24-hour soak coverage; those require the separate `hardware` profile.
+> Historical public `1.0.3` uses the explicit `portable-docker` release profile and does not claim Hyper-V, real-router A/B, firmware sysupgrade, or 24-hour soak coverage. Current `1.0.4` and later Stable releases require every `hardware` gate to pass; the external `rill-runtime` package is qualified and published by its own feed.
 
 ## Documentation
 

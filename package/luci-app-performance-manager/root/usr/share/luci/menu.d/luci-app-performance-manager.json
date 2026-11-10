@@ -20,7 +20,7 @@
     }
   },
   "admin/network/performance-manager/optimize": {
-    "title": "Smart Optimization",
+    "title": "Smart optimization",
     "order": 20,
     "action": {
       "type": "view",
@@ -28,7 +28,7 @@
     }
   },
   "admin/network/performance-manager/benchmark": {
-    "title": "Performance Test",
+    "title": "Performance test",
     "order": 30,
     "action": {
       "type": "view",
@@ -44,7 +44,7 @@
     }
   },
   "admin/network/performance-manager/rill": {
-    "title": "Rill Intelligence",
+    "title": "Rill intelligence",
     "order": 50,
     "action": {
       "type": "view",
@@ -52,7 +52,7 @@
     }
   },
   "admin/network/performance-manager/history": {
-    "title": "History & Rollback",
+    "title": "History and rollback",
     "order": 60,
     "action": {
       "type": "view",

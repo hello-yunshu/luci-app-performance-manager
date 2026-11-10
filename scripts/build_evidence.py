@@ -4,7 +4,7 @@
 This is the auditable evidence record required by the RC gate: it captures the
  repository commit, OpenWrt version/architecture, SDK identity/digest, feed
  commits, the packages that were built, the package manager format, the exact
- PM-owned adapter dependency and the overall
+ external Runtime dependency and the overall
 PASS/FAIL verdict. It is emitted by the remote GitHub Actions build job; the
 script is kept runnable on the host so the schema and field population can be
 reused and tested without a toolchain.
@@ -49,6 +49,11 @@ def sdk_digest(sdk_dir):
         except Exception:
             return None
     return None
+
+
+def payload_digest(payload):
+    """Normalize source payload records and Runtime records to one SHA field."""
+    return payload.get('apkSha256') or payload.get('sha256')
 
 
 def feeds_commits(sdk_dir):
@@ -162,7 +167,7 @@ def main(argv):
         return [_rt.get(f) for f in fields]
 
     def _core_roundtrip_verdict():
-        # Core<->adapter roundtrip is a separate parallel job; its own per-job
+        # Core<->Runtime roundtrip is a separate parallel job; its own per-job
         # file is authoritative when present (never the shared seed, which the
         # roundtrip job must not clobber).
         if _core_job:
@@ -205,15 +210,16 @@ def main(argv):
     pm_build_verdict = 'PASS' if (apk_report is not None and all(produced[n] for n in packages)) else 'FAIL'
     apk_exact_verdict = 'PASS' if (apk_report or {}).get('verdict') == 'PASS' else 'FAIL'
 
-    # The generic Runtime package is qualified in its canonical feed; PM does
-    # not publish a duplicate executable.
+    # The generic Runtime source/package is still qualified in its canonical
+    # feed; the full package embeds the exact target binary but PM does not
+    # publish a second standalone Runtime release asset.
     if _prov_job:
         rill_checksum = _prov_job.get('runtimeSha256')
     rill_provenance = combine_required(_prov_verdicts())
     rill_provenance_reason = None if rill_provenance == 'PASS' else 'same-commit generic Runtime provenance not resolved'
 
     # Rill Gates 2 (Runtime Compatibility) and 3 (Functional Integration) require
-    # executing the real adapter and are recorded by the gate jobs. The verdicts
+    # executing the real external Runtime and are recorded by the gate jobs. The verdicts
     # come from the per-job evidence files (rill-runtime.json / rill-core-integration.json);
     # any missing/unknown verdict is BLOCKED (never fabricated PASS).
     rill_runtime_verdict = combine_required(_rt_verdicts(
@@ -263,10 +269,12 @@ def main(argv):
                 entry['core'] = rec['core']
             if name in ('performance-manager', 'luci-app-performance-manager-all') and 'installedPayload' in rec:
                 entry['installedPayload'] = {
-                    path: payload.get('apkSha256')
+                    path: payload_digest(payload)
                     for path, payload in rec['installedPayload'].items()
                     if payload.get('status') in ('match', 'compiled')
                 }
+            if name == 'luci-app-performance-manager-all' and rec.get('runtimeBinary'):
+                entry['runtimeBinary'] = rec['runtimeBinary']
         packages_meta[name] = entry
 
     metadata = {
@@ -303,6 +311,19 @@ def main(argv):
             'qualificationArtifact': 'qualification-evidence',
             'qualificationRequired': True,
             'publicReleaseIncluded': False,
+            'bundledInFullAllInOne': True,
+        },
+        'fullPackage': {
+            'package': 'luci-app-performance-manager-all',
+            'filename': (packages_meta.get('luci-app-performance-manager-all') or {}).get('apkFilename'),
+            'sha256': (packages_meta.get('luci-app-performance-manager-all') or {}).get('apkSha256'),
+            'packageArch': arch,
+            'target': target,
+            'runtimeVersion': rill_version,
+            'runtimeSourceRepository': 'hello-yunshu/rill-openwrt-packages',
+            'runtimeSourceCommit': env('RILL_OPENWRT_PACKAGE_COMMIT'),
+            'runtimeSha256': ((packages_meta.get('luci-app-performance-manager-all') or {}).get('runtimeBinary') or {}).get('sha256'),
+            'runtimeBundled': ((packages_meta.get('luci-app-performance-manager-all') or {}).get('runtimeBinary') or {}).get('matchesSplitRuntime') is True,
         },
         'rillArtifactProvenanceReason': rill_provenance_reason,
         'evidenceSources': {

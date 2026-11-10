@@ -28,7 +28,6 @@ function page(title, description, content, eyebrow) {
 	return E('div', { 'class': 'pm-shell' }, [
 		E('header', { 'class': 'pm-page-header' }, [
 			E('div', { 'class': 'pm-page-heading' }, [
-				E('div', { 'class': 'pm-eyebrow' }, [ eyebrow || _('Performance Manager') ]),
 				E('h2', { 'class': 'pm-page-title' }, [ title ]),
 				description ? E('p', { 'class': 'pm-page-description' }, [ description ]) : null
 			]),
@@ -47,12 +46,15 @@ function card(title, body, tone) {
 
 function kv(rows) {
 	return E('dl', { 'class': 'pm-kv' },
-		rows.flatMap(function(r) { return [ E('dt', {}, [ r[0] ]), E('dd', {}, [ r[1] == null ? '—' : String(r[1]) ]) ]; }));
+		rows.flatMap(function(r) {
+			const value = r[1] == null ? '—' : (typeof r[1] === 'string' || typeof r[1] === 'number' ? String(r[1]) : r[1]);
+			return [ E('dt', {}, [ r[0] ]), E('dd', {}, [ value ]) ];
+		}));
 }
 
 function jsonBox(obj, label) {
 	return E('details', { 'class': 'pm-disclosure' }, [
-		E('summary', { 'tabindex': '0' }, [ label || _('Raw JSON') ]),
+		E('summary', {}, [ label || _('Raw JSON') ]),
 		E('pre', {}, [ JSON.stringify(obj, null, 2) ])
 	]);
 }
@@ -67,6 +69,39 @@ function toolbar(items) {
 
 function note(text, kind) {
 	return E('div', { 'class': 'pm-note pm-note--' + (kind || 'info'), 'role': 'status' }, [ text ]);
+}
+
+function field(label, control, help) {
+	return E('label', { 'class': 'pm-field' }, [
+		E('span', { 'class': 'pm-field-label' }, [ label ]),
+		control,
+		help ? E('span', { 'class': 'pm-control-help' }, [ help ]) : null
+	]);
+}
+
+function inset(title, body, tone) {
+	return E('section', { 'class': 'pm-inset' + (tone ? ' pm-inset--' + tone : '') }, [
+		title ? E('h4', { 'class': 'pm-inset-title' }, [ title ]) : null,
+		body
+	]);
+}
+
+function tableWrap(table) {
+	return E('div', { 'class': 'pm-table-wrap' }, [ table ]);
+}
+
+function setBusy(button, busyLabel) {
+	const original = button.textContent;
+	button.disabled = true;
+	button.setAttribute('aria-busy', 'true');
+	button.classList.add('pm-button--busy');
+	button.replaceChildren(busyLabel || _('Working…'));
+	return function() {
+		button.disabled = false;
+		button.removeAttribute('aria-busy');
+		button.classList.remove('pm-button--busy');
+		button.replaceChildren(original);
+	};
 }
 
 function footerSeparator(extraClass) {
@@ -145,4 +180,4 @@ function renderFooter(options) {
 	]);
 }
 
-return { badge: badge, card: card, grid: grid, jsonBox: jsonBox, kv: kv, note: note, page: page, renderFooter: renderFooter, toolbar: toolbar };
+return { badge: badge, card: card, field: field, grid: grid, inset: inset, jsonBox: jsonBox, kv: kv, note: note, page: page, renderFooter: renderFooter, setBusy: setBusy, tableWrap: tableWrap, toolbar: toolbar };

@@ -33,6 +33,9 @@ def main(argv=None) -> int:
     expected_sha = record.get("sha256")
     if record.get("status") != "ok" or not expected_name or not expected_sha:
         raise RuntimeError("all-in-one APK lacks exact verified identity")
+    runtime = record.get("runtimeBinary") or {}
+    if runtime.get("status") != "present" or runtime.get("matchesSplitRuntime") is not True:
+        raise RuntimeError("all-in-one APK lacks the exact bundled canonical Runtime")
 
     try:
         identity = resolve_artifact(PACKAGE, expected_sha, [sdk_dir], expected_name)
@@ -70,7 +73,9 @@ def main(argv=None) -> int:
         "externalRuntime": {
             "package": "rill-runtime",
             "binary": "/usr/bin/rill-runtime",
-            "releaseIncluded": False,
+            "bundled": True,
+            "standaloneReleaseIncluded": False,
+            "sha256": runtime.get("sha256"),
         },
     }
     manifest_path = out / "all-in-one-release-manifest.json"

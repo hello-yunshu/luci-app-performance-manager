@@ -1,0 +1,9 @@
+{
+  "historicalOnly": true,
+  "evidenceStatus": "historical-only",
+  "schemaVersion": 2,
+  "contract": "historical-pm-owned-rill-adapter-migration",
+  "status": "RETIRED",
+  "note": "Retained for audit provenance only. Current PM uses the external generic Runtime v3 package and the canonical runtime UCI section.",
+  "historicalFixture": "contracts/upstream/rill-pm-adapter-v1.5.1-contract.json"
+}

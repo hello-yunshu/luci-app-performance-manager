@@ -5,11 +5,8 @@ CORE=(ROOT/'package/performance-manager/files/usr/sbin/performance-manager.uc').
 SCHEMA=json.loads((ROOT/'contracts/rill-ipc.schema.json').read_text())
 
 def allowed_ops():
-    """Allowed op values = the per-op consts of the oneOf branches
-    (statusRequest/observeRequest/outcomeRequest in rill-ipc.schema.json,
-    mirroring the tagged Request enum in rill-pm-adapter v1.5.1)."""
-    return [SCHEMA['$defs'][k]['properties']['op']['const']
-            for k in ('statusRequest', 'observeRequest', 'outcomeRequest')]
+    """Allowed Runtime v3 methods from the tagged request branches."""
+    return ['handshake', 'health', 'decide', 'feedback']
 
 class SecurityTests(unittest.TestCase):
     def test_core_uses_safe_shell_quoting(self):

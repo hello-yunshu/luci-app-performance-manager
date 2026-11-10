@@ -1,4 +1,4 @@
-# Test Plan — 1.0.0-rc.2
+# Test Plan — Smart Decision v2
 
 The frozen plan requires separate evidence layers. Passing one layer never substitutes for another.
 
@@ -11,24 +11,39 @@ The frozen plan requires separate evidence layers. Passing one layer never subst
 - Profile inheritance plus required/recommended/conditional package/capability/target checks.
 - Benchmark state/persistence ordering and rollback-before-reward invariants.
 - Ownership-safe uninstall/runtime-lease and sysupgrade keep semantics.
-- Security source guards: fixed argv Core, Rill no command execution, Shadow-only protocol.
+- Security source guards: fixed argv Core, Runtime no command execution, advisory-only Runtime v3 protocol.
+- Smart Decision v2: unified selector, `pm.noop`, 20-feature schema, reward-goal completeness, cold/warming/ready/drifted stages, confidence, cooldown and drift recovery.
+- Candidate identity: same business action with different stable target/path
+  candidates must keep ranking, cooldown, outcome history and transaction
+  binding isolated; the real production harness exercises Core selector →
+  exact candidate binding → transaction trace against the pinned Runtime. A
+  mixed trained/untrained fixture must preserve the exact Runtime exploration
+  choice even when its numeric score is below a trained candidate.
+- Controlled A/B CPU evidence uses paired `/proc/stat` counter deltas captured
+  at the control and candidate windows. Cumulative health CPU fields alone are
+  invalid evidence; invalid windows are null with `cpuWindowValid=false` and
+  cannot fall back to generic telemetry. Path features must resolve to the selected WAN/underlay or
+  fail closed; queue pressure remains reserved-neutral.
 - LuCI JavaScript syntax, JSON/YAML, shell syntax and complete current zh_Hans literal coverage.
 - Machine-computed Phase 0–12 **source-only** gates.
 
-Rust unit tests additionally exercise strict envelope parsing, bounded reads, UTF-8/JSON escapes, validated-only outcomes, bounded state and positive-evidence recommendation behavior. They run in CI because the current assembly environment has no local Rust toolchain.
+Runtime v3 integration additionally exercises strict envelope parsing, bounded reads, validated-only feedback, bounded state, ranking order and restart persistence. It runs in CI because the current assembly environment has no local Runtime toolchain.
 
 ## CI gates
 
 1. `make audit` on Linux.
 2. Native `cargo test --locked` + `cargo check --locked` for Rill.
 3. Official OpenWrt **25.12.5 x86/64** rootfs ucode bytecode compile with required modules.
-4. Official OpenWrt 25.12.5 x86/64 SDK build of Core, LuCI and Rill packages.
+4. Pinned real Runtime + official OpenWrt ucode execution of the raw shipped
+   Core production selector and transaction harness, including candidate
+   identity/history isolation and exact target/path trace.
+5. Official OpenWrt 25.12.5 x86/64 SDK build of Core, LuCI and PM-owned packages.
 
 ## Booted-target gates
 
 `scripts/openwrt-target-gate.sh` produces machine-readable target evidence. It checks OpenWrt/x86_64 identity, Core startup/ubus, Analyzer/Topology/Packet Steering, Core survival with Rill stopped and stale locks. `PM_ALLOW_MUTATION=1` explicitly enables the conservative Hyper-V ring apply/manual-rollback and ownership-cleanup tests when a legal candidate exists.
 
-`scripts/openwrt-resource-soak.sh` defaults to the frozen 24h gate and reports maximum Core RSS, approximate mean CPU and Core/Rill logical persistent writes per day. A shortened duration is development evidence only.
+`scripts/openwrt-resource-soak.sh` defaults to the frozen 24h gate and reports maximum Core RSS, approximate mean CPU, bounded Runtime state, Runtime invocation/failure/timeout counters, and Core logical persistent writes per day. Runtime is a bounded subprocess per request, so no daemon RSS/CPU/restart metric is invented. A shortened duration is development evidence only.
 
 ## Testbed-only gates
 

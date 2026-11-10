@@ -63,6 +63,14 @@
     "capabilityHash": {
       "type": "string",
       "minLength": 1
+    },
+    "latencyMedianMs": {
+      "type": "number",
+      "exclusiveMinimum": 0
+    },
+    "latencyP95Ms": {
+      "type": "number",
+      "exclusiveMinimum": 0
     }
   }
 }

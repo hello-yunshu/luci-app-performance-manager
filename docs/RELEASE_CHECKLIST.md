@@ -1,21 +1,29 @@
 # 1.0 Stable Release Checklist
 
-## Portable Docker release profile
+## Historical public v1.0.3
 
-The current public `1.0.3` release uses `portable-docker`. It requires the
-same-commit CI/Rill chain, official SDK/APK identity, hosted Action tests, and
-the real Core ucode harness executed inside Docker. It must disclose that
+The public `v1.0.3` release is a historical `portable-docker`-verified release.
+It requires the same-commit CI/Rill chain, official SDK/APK identity, hosted
+Action tests, and the real Core ucode harness executed inside Docker. It is not
+Hardware Stable under the current policy and must disclose that
 Hyper-V, KVM hotplug, real-router A/B, firmware sysupgrade reboot, and 24-hour
 hardware soak are **NOT_EVALUATED**. The checklist below remains the separate
 `hardware` profile and must not be represented as passed by portable evidence.
 
+## Current Stable policy for v1.0.4 and later
+
+The current source candidate is `1.0.4`. A Stable release may use only the
+`hardware` profile: every hardware gate below must be `PASS` in a same-commit
+aggregate. Portable evidence can authorize a portable/prerelease result only;
+it always leaves `stableReleaseVerdict=NOT_EVALUATED`,
+`stableReleaseAuthorized=false`, and `hardwareCoverage=NOT_EVALUATED`.
+
 ## Build / package
 
-- [ ] Official OpenWrt 25.12.x x86_64 SDK builds `performance-manager`.
-- [ ] SDK builds `luci-app-performance-manager`.
-- [ ] SDK builds `performance-manager-rill` as an integration/meta package (no Rust build; fail-closed init guard and `lib/upgrade/keep.d` packaged).
-- [ ] SDK builds `luci-app-performance-manager-all` and `performance-manager-rill-adapter`; exact APK verification proves all repository-owned Core/LuCI/rpcd source files match, the compiled zh-cn LMO is present, and the target-specific adapter APK is byte-identified. Rill glue is verified as the separate `performance-manager-rill` package.
-- [ ] Public assembly includes exactly one `luci-app-performance-manager-all` and one `performance-manager-rill` APK, plus one adapter APK for each of `x86_64`, `aarch64_generic`, and `aarch64_cortex-a53`; `rill-runtime` remains an external package from `rill-openwrt-packages`.
+- [ ] Official OpenWrt 25.12.5 SDK builds `performance-manager`, `luci-app-performance-manager`, and split `performance-manager-rill`.
+- [ ] The SDK builds one architecture-specific `luci-app-performance-manager-all` APK per target, physically containing Core, LuCI, zh-cn, glue, keep rules, notices, and the exact qualified Runtime binary.
+- [ ] Exact APK verification proves the full package has no `+rill-runtime` dependency and conflicts with every split owner; split packages remain independently buildable.
+- [ ] Public assembly includes exactly three normalized full APKs (`x86_64`, `aarch64_generic`, `aarch64_cortex-a53`) plus `SHA256SUMS.txt`; Runtime, glue, source, and evidence remain private inputs.
 - [ ] Official OpenWrt rootfs compiles Core ucode with all declared modules.
 
 ## Runtime / topology / ownership

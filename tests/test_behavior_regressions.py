@@ -60,12 +60,10 @@ class BehavioralRegressions(unittest.TestCase):
 
     # 3. Goal is behaviourally first-class (Blocker 2): unsupported Goals never degrade.
     def test_goal_measurement_semantics_are_real(self):
-        self.assertEqual(goal_measurement('balanced'), 'throughput')
-        self.assertEqual(goal_measurement('throughput'), 'throughput')
-        # latency / cpu_efficiency have no supported measurement -> must be None,
-        # so the Core fails closed instead of faking a throughput result.
-        self.assertIsNone(goal_measurement('latency'))
-        self.assertIsNone(goal_measurement('cpu_efficiency'))
+        self.assertEqual(goal_measurement('balanced'), 'controlled_ab')
+        self.assertEqual(goal_measurement('throughput'), 'controlled_ab')
+        self.assertEqual(goal_measurement('latency'), 'controlled_ab')
+        self.assertEqual(goal_measurement('cpu_efficiency'), 'controlled_ab')
         self.assertIn('const GOALS = [ \'balanced\', \'throughput\', \'latency\', \'cpu_efficiency\' ]', CORE)
 
     # 4. Measurement fingerprint mismatch is rejected (Blocker 3).
@@ -158,8 +156,8 @@ class BehavioralRegressions(unittest.TestCase):
         self.assertIn('binary-invalid', CORE)
         self.assertIn("state: RILL_STATES.incompatible", CORE)
 
-    # 11. PM-owned adapter dependency contract is exact and downstream-owned.
-    def test_rill_dependency_contract_is_pm_owned(self):
+    # 11. External Runtime dependency contract is exact and downstream-owned.
+    def test_rill_dependency_contract_is_external_and_qualified(self):
         dep = json.loads((ROOT / 'contracts/rill-runtime.json').read_text())
         self.assertEqual(dep['resolved']['version'], '1.5.6')
         self.assertEqual(dep['openwrtPackage']['package'], 'rill-runtime')
