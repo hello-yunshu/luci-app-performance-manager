@@ -617,6 +617,10 @@ msgstr "配置方案正常"
 msgid "Profile degraded"
 msgstr "配置方案降级"
 
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/overview.js:20
+msgid "Profile unmet"
+msgstr "配置方案未满足"
+
 #: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/overview.js:23
 #: package/luci-app-performance-manager/htdocs/luci-static/resources/performance-manager/ui.js:5
 msgid "Performance Manager"

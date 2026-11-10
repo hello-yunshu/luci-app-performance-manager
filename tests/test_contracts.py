@@ -219,4 +219,104 @@ class ContractTests(unittest.TestCase):
     def test_transaction_states_cover_full_frozen_machine(self):
         states=set(json.loads((ROOT/'contracts/transaction.schema.json').read_text())['properties']['state']['enum'])
         self.assertEqual(states,{'planned','locked','snapshotted','pending','applied','verified','awaiting_confirm','committed','rolled_back','failed'})
+class AuditConvergenceTests(unittest.TestCase):
+    def test_single_authoritative_rill_contract(self):
+        contract = json.loads((ROOT / "contracts/rill-runtime.json").read_text())
+        self.assertEqual(contract.get("schemaVersion"), 1)
+        for section in ("runtime", "protocol", "security", "resolved", "openwrtPackage", "qualification"):
+            with self.subTest(section=section):
+                self.assertIn(section, contract)
+        self.assertFalse((ROOT / "contracts/rill-dependency.json").exists())
+        for scope in ("scripts", ".github", "package"):
+            for path in (ROOT / scope).rglob("*"):
+                if path.is_file() and path.suffix in (".py", ".json", ".yml", ".yaml", ".uc", ".sh", ".js"):
+                    with self.subTest(path=str(path)):
+                        self.assertNotIn("rill-dependency", path.read_text(errors="ignore"))
+
+    def test_contract_check_records_release_pin_structure_verdict(self):
+        import importlib.util
+        import sys
+        sys.path.insert(0, str(ROOT / "scripts"))
+        spec = importlib.util.spec_from_file_location(
+            "rill_contract_check", ROOT / "scripts/rill_contract_check.py")
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        contract = json.loads((ROOT / "contracts/rill-runtime.json").read_text())
+        verdict, checks = module.release_pin_structure(contract)
+        self.assertEqual(verdict, "PASS")
+        self.assertTrue(all(check["ok"] for check in checks))
+        broken = json.loads(json.dumps(contract))
+        broken["openwrtPackage"]["commit"] = "not-a-sha"
+        broken["openwrtPackage"]["packageRelease"] = 0
+        broken["qualification"]["verdict"] = "BLOCKED"
+        broken["resolved"]["upstreamCommit"] = "main"
+        self.assertEqual(module.release_pin_structure(broken)[0], "FAIL")
+        status = json.loads((ROOT / "docs/rill-integration-status.json").read_text())
+        self.assertEqual(status.get("releasePinStructureVerdict"), "PASS")
+        pin = status.get("releasePin", {})
+        self.assertEqual(pin.get("commit"), contract["openwrtPackage"]["commit"])
+        self.assertEqual(pin.get("packageRelease"), contract["openwrtPackage"]["packageRelease"])
+        self.assertEqual(pin.get("qualification", {}).get("runId"), contract["qualification"]["runId"])
+        self.assertEqual(pin.get("resolvedVersion"), contract["resolved"]["version"])
+
+    def test_final_evidence_carries_contract_pin(self):
+        import importlib.util
+        spec = importlib.util.spec_from_file_location(
+            "aggregate_final_evidence", ROOT / "scripts/aggregate_final_evidence.py")
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        contract = json.loads((ROOT / "contracts/rill-runtime.json").read_text())
+        pin = module.contract_pin(ROOT / "contracts/rill-runtime.json")
+        self.assertTrue(pin["available"])
+        self.assertEqual(pin["commit"], contract["openwrtPackage"]["commit"])
+        self.assertEqual(pin["packageRelease"], contract["openwrtPackage"]["packageRelease"])
+        self.assertEqual(pin["qualification"]["runId"], contract["qualification"]["runId"])
+        self.assertEqual(pin["resolvedVersion"], contract["resolved"]["version"])
+
+    def test_docs_do_not_claim_sha_pinned_actions(self):
+        status = (ROOT / "docs/IMPLEMENTATION_STATUS.md").read_text()
+        self.assertNotIn("pinned to SHAs", status)
+        self.assertIn("readable major tags", status)
+
+    def test_roadmap_job_names_match_workflows(self):
+        roadmap = (ROOT / "ROADMAP.md").read_text()
+        ci = (ROOT / ".github/workflows/ci.yml").read_text()
+        build = (ROOT / ".github/workflows/build-openwrt.yml").read_text()
+        for job in ("static", "rill-runtime-v3", "production-core-rill-integration"):
+            with self.subTest(job=job):
+                self.assertIn(f"\n  {job}:", ci)
+                self.assertIn(f"`{job}`", roadmap)
+        self.assertIn("\n  openwrt-sdk-build:", build)
+        self.assertIn("`openwrt-sdk-build`", roadmap)
+        for stale in ("pm-rill-provenance", "pm-rill-runtime", "pm-core-rill-roundtrip", "openwrt-ucode"):
+            with self.subTest(stale=stale):
+                self.assertNotIn(stale, roadmap)
+
+    def test_test_plan_gates_are_executable_in_repo(self):
+        plan = (ROOT / "docs/TEST_PLAN.md").read_text()
+        self.assertNotIn("cargo test", plan)
+        self.assertNotIn("cargo check", plan)
+        self.assertIn("make audit", plan)
+        self.assertIn("scripts/luci_render_smoke.js", plan)
+        self.assertIn("tools/docker-validate/run-target-gate.sh", plan)
+        self.assertIn("scripts/rill_runtime_v3_integration.py", plan)
+        self.assertIn("scripts/production_core_rill_integration.py", plan)
+        self.assertIn("openwrt-sdk-build", plan)
+
+    def test_historical_rill_evidence_is_labelled(self):
+        provenance = json.loads((ROOT / "docs/rill-provenance.json").read_text())
+        self.assertEqual(provenance.get("evidenceStatus"), "historical-only")
+        self.assertEqual(provenance.get("supersededBy"), "contracts/rill-runtime.json")
+        contract = json.loads((ROOT / "contracts/rill-runtime.json").read_text())
+        self.assertEqual(contract["resolved"]["version"], "1.5.6")
+
+    def test_profile_badge_has_distinct_unhealthy_state(self):
+        ui = (ROOT / "package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/overview.js").read_text()
+        self.assertIn("_('Profile unmet')", ui)
+        self.assertIn("profile.degraded", ui)
+        self.assertIn("_('Profile degraded')", ui)
+        self.assertIn("_('Profile healthy')", ui)
+        self.assertNotIn("profile.healthy ? _('Profile healthy') : _('Profile degraded')", ui)
+
+
 if __name__=='__main__': unittest.main()

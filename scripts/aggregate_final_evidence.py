@@ -99,6 +99,32 @@ def commit_of(name: str, data: dict):
     return data.get("pmCommitSha")
 
 
+def contract_pin(path: Path) -> dict:
+    """Copy the authoritative Runtime pin so the verdict is independently checkable.
+
+    The per-job evidence proves what ran; the contract proves which exact
+    Runtime identity that evidence is allowed to refer to.  Keeping both in the
+    aggregated file means a reader does not have to trust a CI log or a
+    separately fetched artifact to know the pinned commit/release/qualification.
+    """
+    contract = load(path)
+    if "__error__" in contract:
+        return {"source": str(path), "available": False, "error": contract["__error__"]}
+    resolved = contract.get("resolved", {})
+    package = contract.get("openwrtPackage", {})
+    qualification = contract.get("qualification", {})
+    return {
+        "source": "contracts/rill-runtime.json",
+        "available": True,
+        "schemaVersion": contract.get("schemaVersion"),
+        "commit": package.get("commit"),
+        "packageRelease": package.get("packageRelease"),
+        "qualification": {"runId": qualification.get("runId"), "verdict": qualification.get("verdict")},
+        "upstreamCommit": resolved.get("upstreamCommit"),
+        "resolvedVersion": resolved.get("version"),
+    }
+
+
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description="Aggregate per-job evidence into the final release verdict")
     ap.add_argument("--evidence-dir", default=str(ROOT / "docs"))
@@ -109,6 +135,8 @@ def main(argv=None) -> int:
                          "(SDK/APK gates owned by build-openwrt.yml); build = SDK/APK only "
                          "(Rill gates owned by ci.yml)")
     ap.add_argument("--out", default=str(ROOT / "docs" / "final-release-evidence.json"))
+    ap.add_argument("--contract", default=str(ROOT / "contracts" / "rill-runtime.json"),
+                    help="authoritative Runtime pin copied into the aggregated evidence")
     args = ap.parse_args(argv)
 
     ev_dir = Path(args.evidence_dir)
@@ -308,6 +336,7 @@ def main(argv=None) -> int:
             "protocolVersion": manifest.get("protocolVersion"),
             "artifactSha256": manifest.get("runtimeSha256") or manifest.get("artifactSha256"),
         },
+        "rillPin": contract_pin(Path(args.contract)),
         "verdicts": release_verdicts,
         "rcVerdict": rc_verdict,
         "evidenceChainVerdict": chain_verdict,

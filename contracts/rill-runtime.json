@@ -1,8 +1,33 @@
 {
   "schemaVersion": 1,
+  "contract": "rill-runtime-dependency",
+  "description": "External generic Rill Runtime v3 dependency consumed by Performance Manager Core.",
   "policy": {
     "major": 1,
     "track": "latest-qualified-stable"
+  },
+  "runtime": {
+    "owner": "hello-yunshu/rill-ml",
+    "packageOwner": "hello-yunshu/rill-openwrt-packages",
+    "package": "rill-runtime",
+    "binary": "/usr/bin/rill-runtime",
+    "authority": "ranking-and-learning-only",
+    "hostMutation": false
+  },
+  "protocol": {
+    "owner": "generic Rill Runtime",
+    "apiVersion": 3,
+    "schemaFile": "contracts/rill-ipc.schema.json",
+    "methods": ["handshake", "health", "decide", "feedback"],
+    "featureSchemaFile": "contracts/rill-feature-schema.json",
+    "featureSchemaVersion": 2,
+    "featureVectorWidth": 20,
+    "modelGeneration": 2
+  },
+  "security": {
+    "coreOwns": ["authorize", "govern", "apply", "verify", "rollback"],
+    "runtimeOwns": ["rank", "learn", "report"],
+    "directMutation": false
   },
   "resolved": {
     "version": "1.5.6",

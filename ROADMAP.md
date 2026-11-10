@@ -4,7 +4,7 @@ Planning pack v0.3.2 is contract-frozen. Smart Decision v2 adds the unified Core
 
 > 审计问题收敛计划（5 阶段，按依赖排序）：[docs/plans/2026-11-09-audit-convergence-plan.md](docs/plans/2026-11-09-audit-convergence-plan.md)。
 
-1. Pass the CI gates on official OpenWrt 25.12.5: `ci.yml` (static, pm-rill-provenance, pm-rill-runtime, pm-core-rill-roundtrip, openwrt-ucode rootfs) and `build-openwrt.yml` (openwrt-sdk-build, which also emits build-metadata.json + checksums.txt evidence).
+1. Pass the CI gates on official OpenWrt 25.12.5: `ci.yml` job IDs `static`, `rill-runtime-v3` and `production-core-rill-integration` (the last one boots the official ucode rootfs and exercises the raw shipped Core), plus `build-openwrt.yml` job `openwrt-sdk-build` (which also emits build-metadata.json + checksums.txt evidence).
 2. Pass booted-target evidence on clean x86_64 OpenWrt 25.12.x VMs, including Core without LuCI/Rill dependency.
 3. Pass Hyper-V and KVM/Proxmox TargetRef, hotplug, replay, rollback and ownership-cleanup tests.
 4. Run explicit LAN→Router→WAN and router-local controlled A/B for supported benchmark providers.
