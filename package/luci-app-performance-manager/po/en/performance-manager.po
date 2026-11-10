@@ -1,0 +1,1562 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: luci-app-performance-manager\n"
+"PO-Revision-Date: 2026-11-10 00:00+0800\n"
+"Last-Translator: Performance Manager contributors\n"
+"Language-Team: English\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+"Language: en\n"
+
+msgid "Performance Manager settings"
+msgstr "Performance Manager settings"
+
+msgid "Conservative automation is the supported default. Active benchmark saturation remains disabled by default."
+msgstr "Conservative automation is the supported default. Active benchmark saturation remains disabled by default."
+
+msgid "Core"
+msgstr "Core"
+
+msgid "Enable Core"
+msgstr "Enable Core"
+
+msgid "Run the Performance Manager core service. Disable this to stop performance management."
+msgstr "Run the Performance Manager core service. Disable this to stop performance management."
+
+msgid "Automation mode"
+msgstr "Automation mode"
+
+msgid "Manual"
+msgstr "Manual"
+
+msgid "Conservative"
+msgstr "Conservative"
+
+msgid "Assisted automation (opt-in; safe actions only)"
+msgstr "Assisted automation (opt-in; safe actions only)"
+
+msgid "Choose how Core responds: manual, conservative, or assisted automation."
+msgstr "Choose how Core responds: manual, conservative, or assisted automation."
+
+msgid "Enable assisted automation"
+msgstr "Enable assisted automation"
+
+msgid "Allow assisted automation to apply only actions on the safe allowlist."
+msgstr "Allow assisted automation to apply only actions on the safe allowlist."
+
+msgid "Maintenance window start"
+msgstr "Maintenance window start"
+
+msgid "Assisted automation may run only within this local time window."
+msgstr "Assisted automation may run only within this local time window."
+
+msgid "Maintenance window end"
+msgstr "Maintenance window end"
+
+msgid "Low-traffic threshold (bytes/s)"
+msgstr "Low-traffic threshold (bytes/s)"
+
+msgid "Assisted automation runs only while traffic stays below this threshold."
+msgstr "Assisted automation runs only while traffic stays below this threshold."
+
+msgid "Goal"
+msgstr "Goal"
+
+msgid "Balanced (requires latency and CPU evidence)"
+msgstr "Balanced (requires latency and CPU evidence)"
+
+msgid "Throughput"
+msgstr "Throughput"
+
+msgid "Latency (requires latency evidence)"
+msgstr "Latency (requires latency evidence)"
+
+msgid "CPU efficiency (requires Core CPU evidence)"
+msgstr "CPU efficiency (requires Core CPU evidence)"
+
+msgid "Select the outcome used to rank supported actions and evaluate evidence."
+msgstr "Select the outcome used to rank supported actions and evaluate evidence."
+
+msgid "Profile"
+msgstr "Profile"
+
+msgid "Minimal"
+msgstr "Minimal"
+
+msgid "Recommended"
+msgstr "Recommended"
+
+msgid "Performance x86"
+msgstr "Performance x86"
+
+msgid "Wireless"
+msgstr "Wireless"
+
+msgid "Diagnostics"
+msgstr "Diagnostics"
+
+msgid "Load the selected configuration profile and its capability expectations."
+msgstr "Load the selected configuration profile and its capability expectations."
+
+msgid "Telemetry"
+msgstr "Telemetry"
+
+msgid "Collect measurements used by health checks and decision-making."
+msgstr "Collect measurements used by health checks and decision-making."
+
+msgid "History"
+msgstr "History"
+
+msgid "Store action and runtime events for review and rollback."
+msgstr "Store action and runtime events for review and rollback."
+
+msgid "Failsafe"
+msgstr "Failsafe"
+
+msgid "Protect changes with locks, health checks, and verified rollback."
+msgstr "Protect changes with locks, health checks, and verified rollback."
+
+msgid "Fast telemetry interval (seconds)"
+msgstr "Fast telemetry interval (seconds)"
+
+msgid "How often to collect fast measurements."
+msgstr "How often to collect fast measurements."
+
+msgid "Deep telemetry interval (seconds)"
+msgstr "Deep telemetry interval (seconds)"
+
+msgid "How often to collect deeper measurements."
+msgstr "How often to collect deeper measurements."
+
+msgid "Rill Runtime"
+msgstr "Rill Runtime"
+
+msgid "Enable Runtime"
+msgstr "Enable Runtime"
+
+msgid "Enable the optional Rill Runtime integration. Core remains the execution authority."
+msgstr "Enable the optional Rill Runtime integration. Core remains the execution authority."
+
+msgid "Generic Runtime binary"
+msgstr "Generic Runtime binary"
+
+msgid "Path to the external generic Rill Runtime binary."
+msgstr "Path to the external generic Rill Runtime binary."
+
+msgid "Use Rill ranking in automatic modes"
+msgstr "Use Rill ranking in automatic modes"
+
+msgid "Let Rill rank Core-approved actions in automatic modes. Core still decides and executes."
+msgstr "Let Rill rank Core-approved actions in automatic modes. Core still decides and executes."
+
+msgid "Minimum validated samples"
+msgstr "Minimum validated samples"
+
+msgid "Minimum validated samples before an action can be considered for automatic selection."
+msgstr "Minimum validated samples before an action can be considered for automatic selection."
+
+msgid "Conservative minimum confidence"
+msgstr "Conservative minimum confidence"
+
+msgid "Minimum confidence required by conservative automation."
+msgstr "Minimum confidence required by conservative automation."
+
+msgid "Assisted minimum confidence"
+msgstr "Assisted minimum confidence"
+
+msgid "Minimum confidence required by assisted automation."
+msgstr "Minimum confidence required by assisted automation."
+
+msgid "Performance drift threshold"
+msgstr "Performance drift threshold"
+
+msgid "Pause automatic Rill decisions when measured performance drifts beyond this threshold."
+msgstr "Pause automatic Rill decisions when measured performance drifts beyond this threshold."
+
+msgid "Action cooldown (seconds)"
+msgstr "Action cooldown (seconds)"
+
+msgid "Minimum time between repeated applications of the same action."
+msgstr "Minimum time between repeated applications of the same action."
+
+msgid "Settings"
+msgstr "Settings"
+
+msgid "Keep conservative automation as the safe default; assisted actions remain explicitly opt-in."
+msgstr "Keep conservative automation as the safe default; assisted actions remain explicitly opt-in."
+
+msgid "Configuration"
+msgstr "Configuration"
+
+msgid "Refresh Rill decision"
+msgstr "Refresh Rill decision"
+
+msgid "Refreshing…"
+msgstr "Refreshing…"
+
+msgid "Unable to refresh Rill."
+msgstr "Unable to refresh Rill."
+
+msgid "Unable to refresh Rill: %s. Try again."
+msgstr "Unable to refresh Rill: %s. Try again."
+
+msgid "Selected"
+msgstr "Selected"
+
+msgid "Blocked"
+msgstr "Blocked"
+
+msgid "Eligible"
+msgstr "Eligible"
+
+msgid "No ranking is available yet. Refresh the decision or wait for the next evaluation."
+msgstr "No ranking is available yet. Refresh the decision or wait for the next evaluation."
+
+msgid "Top ranking"
+msgstr "Top ranking"
+
+msgid "Rank"
+msgstr "Rank"
+
+msgid "Candidate"
+msgstr "Candidate"
+
+msgid "Score"
+msgstr "Score"
+
+msgid "Eligibility"
+msgstr "Eligibility"
+
+msgid "Cooldown"
+msgstr "Cooldown"
+
+msgid "Accepted"
+msgstr "Accepted"
+
+msgid "Reconciled"
+msgstr "Reconciled"
+
+msgid "No validated feedback yet."
+msgstr "No validated feedback yet."
+
+msgid "Recent feedback"
+msgstr "Recent feedback"
+
+msgid "Reward"
+msgstr "Reward"
+
+msgid "Quality"
+msgstr "Quality"
+
+msgid "Result"
+msgstr "Result"
+
+msgid "RillML (Rill) intelligence"
+msgstr "RillML (Rill) intelligence"
+
+msgid "Rill ranks Core-approved actions; Core keeps final authority to execute them."
+msgstr "Rill ranks Core-approved actions; Core keeps final authority to execute them."
+
+msgid "Runtime status"
+msgstr "Runtime status"
+
+msgid "State"
+msgstr "State"
+
+msgid "Runtime · Collecting"
+msgstr "Runtime · Collecting"
+
+msgid "Version"
+msgstr "Version"
+
+msgid "Transport"
+msgstr "Transport"
+
+msgid "Runtime contract"
+msgstr "Runtime contract"
+
+msgid "Last decision"
+msgstr "Last decision"
+
+msgid "Selected action"
+msgstr "Selected action"
+
+msgid "Selected candidate"
+msgstr "Selected candidate"
+
+msgid "Last outcome"
+msgstr "Last outcome"
+
+msgid "Decision context"
+msgstr "Decision context"
+
+msgid "Path"
+msgstr "Path"
+
+msgid "Workload"
+msgstr "Workload"
+
+msgid "Topology generation"
+msgstr "Topology generation"
+
+msgid "Route identity"
+msgstr "Route identity"
+
+msgid "Integration"
+msgstr "Integration"
+
+msgid "Selected candidate details"
+msgstr "Selected candidate details"
+
+msgid "Business action"
+msgstr "Business action"
+
+msgid "Candidate ID"
+msgstr "Candidate ID"
+
+msgid "Candidate reward mean"
+msgstr "Candidate reward mean"
+
+msgid "Candidate successes"
+msgstr "Candidate successes"
+
+msgid "Candidate failures"
+msgstr "Candidate failures"
+
+msgid "Candidate rollbacks"
+msgstr "Candidate rollbacks"
+
+msgid "Cooldown reason"
+msgstr "Cooldown reason"
+
+msgid "Learning status"
+msgstr "Learning status"
+
+msgid "Learning stage"
+msgstr "Learning stage"
+
+msgid "cold"
+msgstr "cold"
+
+msgid "Validated samples"
+msgstr "Validated samples"
+
+msgid "Minimum samples"
+msgstr "Minimum samples"
+
+msgid "Confidence"
+msgstr "Confidence"
+
+msgid "Last reward"
+msgstr "Last reward"
+
+msgid "Reward components"
+msgstr "Reward components"
+
+msgid "Measurement quality"
+msgstr "Measurement quality"
+
+msgid "Drift"
+msgstr "Drift"
+
+msgid "Detected"
+msgstr "Detected"
+
+msgid "Stable"
+msgstr "Stable"
+
+msgid "Auto eligibility"
+msgstr "Auto eligibility"
+
+msgid "Paused"
+msgstr "Paused"
+
+msgid "Performance drift detected. Rill Auto temporarily paused."
+msgstr "Performance drift detected. Rill Auto temporarily paused."
+
+msgid "Rill provides observation and recommendations only. It cannot write UCI, sysctl, or firewall state, execute arbitrary shell commands, or apply actions."
+msgstr "Rill provides observation and recommendations only. It cannot write UCI, sysctl, or firewall state, execute arbitrary shell commands, or apply actions."
+
+msgid "Rill details"
+msgstr "Rill details"
+
+msgid "Raw Rill contract"
+msgstr "Raw Rill contract"
+
+msgid "System status"
+msgstr "System status"
+
+msgid "Running"
+msgstr "Running"
+
+msgid "Stopped"
+msgstr "Stopped"
+
+msgid "Automation: %s"
+msgstr "Automation: %s"
+
+msgid "Goal: %s"
+msgstr "Goal: %s"
+
+msgid "Rill Runtime · Collecting"
+msgstr "Rill Runtime · Collecting"
+
+msgid "Telemetry enabled"
+msgstr "Telemetry enabled"
+
+msgid "Telemetry disabled"
+msgstr "Telemetry disabled"
+
+msgid "Failsafe enabled"
+msgstr "Failsafe enabled"
+
+msgid "Failsafe disabled"
+msgstr "Failsafe disabled"
+
+msgid "Profile healthy"
+msgstr "Profile healthy"
+
+msgid "Profile degraded"
+msgstr "Profile degraded"
+
+msgid "Profile unmet"
+msgstr "Profile unmet"
+
+msgid "Performance Manager"
+msgstr "Performance Manager"
+
+msgid "See system health, active safeguards, and the latest verified action."
+msgstr "See system health, active safeguards, and the latest verified action."
+
+msgid "System health guard"
+msgstr "System health guard"
+
+msgid "Health guard passed"
+msgstr "Health guard passed"
+
+msgid "Blocked by health guard"
+msgstr "Blocked by health guard"
+
+msgid "Reasons"
+msgstr "Reasons"
+
+msgid "None"
+msgstr "None"
+
+msgid "Platform"
+msgstr "Platform"
+
+msgid "Generic x86"
+msgstr "Generic x86"
+
+msgid "Recent transaction"
+msgstr "Recent transaction"
+
+msgid "Action"
+msgstr "Action"
+
+msgid "Target"
+msgstr "Target"
+
+msgid "Boot identity"
+msgstr "Boot identity"
+
+msgid "Native Packet Steering"
+msgstr "Native Packet Steering"
+
+msgid "Provider"
+msgstr "Provider"
+
+msgid "Availability"
+msgstr "Availability"
+
+msgid "Policy"
+msgstr "Policy"
+
+msgid "Observe / Respect"
+msgstr "Observe / Respect"
+
+msgid "Ownership"
+msgstr "Ownership"
+
+msgid "LAN → WAN"
+msgstr "LAN → WAN"
+
+msgid "Stable targets"
+msgstr "Stable targets"
+
+msgid "Advanced details"
+msgstr "Advanced details"
+
+msgid "Status and topology JSON"
+msgstr "Status and topology JSON"
+
+msgid "Unknown"
+msgstr "Unknown"
+
+msgid "Scope"
+msgstr "Scope"
+
+msgid "Adjustable"
+msgstr "Adjustable"
+
+msgid "Yes"
+msgstr "Yes"
+
+msgid "No"
+msgstr "No"
+
+msgid "No capabilities are available from the current provider."
+msgstr "No capabilities are available from the current provider."
+
+msgid "Capabilities"
+msgstr "Capabilities"
+
+msgid "Review the capabilities available on this device. Unsupported capabilities are hidden from action controls; expected profile gaps appear as degraded."
+msgstr "Review the capabilities available on this device. Unsupported capabilities are hidden from action controls; expected profile gaps appear as degraded."
+
+msgid "Capability / Topology / TargetRef JSON"
+msgstr "Capability / Topology / TargetRef JSON"
+
+msgid "Raw capability contract"
+msgstr "Raw capability contract"
+
+msgid "Confirm"
+msgstr "Confirm"
+
+msgid "Confirming…"
+msgstr "Confirming…"
+
+msgid "Transaction confirmed."
+msgstr "Transaction confirmed."
+
+msgid "Confirmation failed or expired. Refresh the page to check the transaction state."
+msgstr "Confirmation failed or expired. Refresh the page to check the transaction state."
+
+msgid "Unable to confirm transaction: %s. Refresh the page and try again if it is still pending."
+msgstr "Unable to confirm transaction: %s. Refresh the page and try again if it is still pending."
+
+msgid "Rollback"
+msgstr "Rollback"
+
+msgid "Rolling back…"
+msgstr "Rolling back…"
+
+msgid "Rollback completed and read-back verified."
+msgstr "Rollback completed and read-back verified."
+
+msgid "Rollback could not be completed. Check the transaction details before trying again."
+msgstr "Rollback could not be completed. Check the transaction details before trying again."
+
+msgid "Unable to roll back transaction: %s. Check the transaction details and try again."
+msgstr "Unable to roll back transaction: %s. Check the transaction details and try again."
+
+msgid "Transaction JSON"
+msgstr "Transaction JSON"
+
+msgid "No transactions are currently recorded."
+msgstr "No transactions are currently recorded."
+
+msgid "History and rollback"
+msgstr "History and rollback"
+
+msgid "Review pending confirmations, verified rollbacks, and runtime events with their safety context."
+msgstr "Review pending confirmations, verified rollbacks, and runtime events with their safety context."
+
+msgid "Resource locks"
+msgstr "Resource locks"
+
+msgid "Locks JSON"
+msgstr "Locks JSON"
+
+msgid "Persistent action history"
+msgstr "Persistent action history"
+
+msgid "History JSON"
+msgstr "History JSON"
+
+msgid "Runtime event history"
+msgstr "Runtime event history"
+
+msgid "Runtime History JSON"
+msgstr "Runtime History JSON"
+
+msgid "Unable to read evidence. Paste valid JSON and try again."
+msgstr "Unable to read evidence. Paste valid JSON and try again."
+
+msgid "Complete"
+msgstr "Complete"
+
+msgid "Pending"
+msgstr "Pending"
+
+msgid "Benchmark action"
+msgstr "Benchmark action"
+
+msgid "Evaluation path"
+msgstr "Evaluation path"
+
+msgid "Measurement class"
+msgstr "Measurement class"
+
+msgid "Controlled A/B"
+msgstr "Controlled A/B"
+
+msgid "Passive before/after"
+msgstr "Passive before/after"
+
+msgid "Health only"
+msgstr "Health only"
+
+msgid "Start test"
+msgstr "Start test"
+
+msgid "Test blocked"
+msgstr "Test blocked"
+
+msgid "Details"
+msgstr "Details"
+
+msgid "Environment"
+msgstr "Environment"
+
+msgid "Compatibility"
+msgstr "Compatibility"
+
+msgid "Locks / Failsafe"
+msgstr "Locks / Failsafe"
+
+msgid "Baseline"
+msgstr "Baseline"
+
+msgid "Commit-confirm"
+msgstr "Commit-confirm"
+
+msgid "Paste Companion JSON evidence"
+msgstr "Paste Companion JSON evidence"
+
+msgid "Validate baseline and apply candidate"
+msgstr "Validate baseline and apply candidate"
+
+msgid "Validate candidate and restore original state"
+msgstr "Validate candidate and restore original state"
+
+msgid "Working…"
+msgstr "Working…"
+
+msgid "Unable to submit evidence: %s. Check the evidence and try again."
+msgstr "Unable to submit evidence: %s. Check the evidence and try again."
+
+msgid "Baseline evidence"
+msgstr "Baseline evidence"
+
+msgid "Candidate evidence"
+msgstr "Candidate evidence"
+
+msgid "Run the Companion before any candidate is applied, then paste its JSON result."
+msgstr "Run the Companion before any candidate is applied, then paste its JSON result."
+
+msgid "The candidate is temporarily active and protected by commit-confirm. Run the same endpoint test now; Core will restore the original value before validating the result."
+msgstr "The candidate is temporarily active and protected by commit-confirm. Run the same endpoint test now; Core will restore the original value before validating the result."
+
+msgid "Benchmark session JSON"
+msgstr "Benchmark session JSON"
+
+msgid "Starting…"
+msgstr "Starting…"
+
+msgid "Unable to start test"
+msgstr "Unable to start test"
+
+msgid "Check the selected action and path, then try again: %s"
+msgstr "Check the selected action and path, then try again: %s"
+
+msgid "No benchmark action is currently available for this device."
+msgstr "No benchmark action is currently available for this device."
+
+msgid "Performance test"
+msgstr "Performance test"
+
+msgid "Run one explicit test at a time. Controlled A/B results require stable context, health checks, and verified rollback."
+msgstr "Run one explicit test at a time. Controlled A/B results require stable context, health checks, and verified rollback."
+
+msgid "Environment → Path → Compatibility → Locks/Failsafe → Baseline → Candidate → Commit-confirm → Result"
+msgstr "Environment → Path → Compatibility → Locks/Failsafe → Baseline → Candidate → Commit-confirm → Result"
+
+msgid "Unavailable benchmark providers"
+msgstr "Unavailable benchmark providers"
+
+msgid "Why benchmark actions are unavailable"
+msgstr "Why benchmark actions are unavailable"
+
+msgid "Smart policy"
+msgstr "Smart policy"
+
+msgid "Automatic action paused"
+msgstr "Automatic action paused"
+
+msgid "Eligible for automatic action"
+msgstr "Eligible for automatic action"
+
+msgid "Core recommendation"
+msgstr "Core recommendation"
+
+msgid "Deterministic fallback"
+msgstr "Deterministic fallback"
+
+msgid "Policy reason"
+msgstr "Policy reason"
+
+msgid "Rill recommends keeping the current configuration."
+msgstr "Rill recommends keeping the current configuration."
+
+msgid "Performance drift detected. Automatic Rill decisions are temporarily paused."
+msgstr "Performance drift detected. Automatic Rill decisions are temporarily paused."
+
+msgid "No conservative changes are needed right now."
+msgstr "No conservative changes are needed right now."
+
+msgid "Apply safely"
+msgstr "Apply safely"
+
+msgid "Applying…"
+msgstr "Applying…"
+
+msgid "Action committed after verification."
+msgstr "Action committed after verification."
+
+msgid "Action was not committed. Check the transaction details and try again."
+msgstr "Action was not committed. Check the transaction details and try again."
+
+msgid "Unable to apply action: %s. Check the transaction details and try again."
+msgstr "Unable to apply action: %s. Check the transaction details and try again."
+
+msgid "Applies to"
+msgstr "Applies to"
+
+msgid "Affected targets"
+msgstr "Affected targets"
+
+msgid "Evaluation paths"
+msgstr "Evaluation paths"
+
+msgid "Risk"
+msgstr "Risk"
+
+msgid "Reason"
+msgstr "Reason"
+
+msgid "Authority"
+msgstr "Authority"
+
+msgid "none"
+msgstr "none"
+
+msgid "Execution path"
+msgstr "Execution path"
+
+msgid "Controlled benchmark"
+msgstr "Controlled benchmark"
+
+msgid "No mutation"
+msgstr "No mutation"
+
+msgid "Safe direct apply"
+msgstr "Safe direct apply"
+
+msgid "Apply this Rill recommendation"
+msgstr "Apply this Rill recommendation"
+
+msgid "Rill recommendation applied and verified."
+msgstr "Rill recommendation applied and verified."
+
+msgid "Rill recommendation was not applied. The decision binding was rejected or the safety check failed; review the safety state and try again."
+msgstr "Rill recommendation was not applied. The decision binding was rejected or the safety check failed; review the safety state and try again."
+
+msgid "Unable to apply Rill recommendation: %s. Review the safety state and try again."
+msgstr "Unable to apply Rill recommendation: %s. Review the safety state and try again."
+
+msgid "This recommendation is for benchmark tests only. Open Performance test and complete both Companion evidence phases; it cannot be applied directly."
+msgstr "This recommendation is for benchmark tests only. Open Performance test and complete both Companion evidence phases; it cannot be applied directly."
+
+msgid "Rill recommendation: %s"
+msgstr "Rill recommendation: %s"
+
+msgid "Smart optimization"
+msgstr "Smart optimization"
+
+msgid "Review supported actions and apply them only after Core safety checks. Existing user and external settings are preserved."
+msgstr "Review supported actions and apply them only after Core safety checks. Existing user and external settings are preserved."
+
+msgid "Advanced"
+msgstr "Advanced"
+
+msgid "Inspect the read-only contracts and resource state behind the supported views."
+msgstr "Inspect the read-only contracts and resource state behind the supported views."
+
+msgid "Profile contract"
+msgstr "Profile contract"
+
+msgid "Profile status JSON"
+msgstr "Profile status JSON"
+
+msgid "Build recommendations"
+msgstr "Build recommendations"
+
+msgid "Build and provider recommendations"
+msgstr "Build and provider recommendations"
+
+msgid "Hidden capabilities"
+msgstr "Hidden capabilities"
+
+msgid "Unavailable capability JSON"
+msgstr "Unavailable capability JSON"
+
+msgid "Raw topology contract"
+msgstr "Raw topology contract"
+
+msgid "Transactions"
+msgstr "Transactions"
+
+msgid "Transactions JSON"
+msgstr "Transactions JSON"
+
+msgid "Resource usage"
+msgstr "Resource usage"
+
+msgid "Resource usage JSON"
+msgstr "Resource usage JSON"
+
+msgid "Diagnostics JSON"
+msgstr "Diagnostics JSON"
+
+msgid "Raw JSON"
+msgstr "Raw JSON"
+
+msgid "Project"
+msgstr "Project"
+
+msgid "Overview"
+msgstr "Overview"
+
+msgid "Rill intelligence"
+msgstr "Rill intelligence"
+
+msgid "%s (candidate %s)"
+msgstr "%s (candidate %s)"
+
+msgid "%s, see technical details"
+msgstr "%s, see technical details"
+
+msgid "About %s min %s sec"
+msgstr "About %s min %s sec"
+
+msgid "About %s minutes"
+msgstr "About %s minutes"
+
+msgid "About %s seconds"
+msgstr "About %s seconds"
+
+msgid "Adjust busy polling to reduce latency at the cost of CPU time."
+msgstr "Adjust busy polling to reduce latency at the cost of CPU time."
+
+msgid "Adjust how many packets the kernel processes per soft-interrupt poll."
+msgstr "Adjust how many packets the kernel processes per soft-interrupt poll."
+
+msgid "Adjust interrupt coalescing to trade latency against CPU usage."
+msgstr "Adjust interrupt coalescing to trade latency against CPU usage."
+
+msgid "Adjust the CPU frequency governor (performance or schedutil)."
+msgstr "Adjust the CPU frequency governor (performance or schedutil)."
+
+msgid "Adjust the kernel socket receive buffer limit."
+msgstr "Adjust the kernel socket receive buffer limit."
+
+msgid "Adjust the maximum length of the kernel receive backlog queue."
+msgstr "Adjust the maximum length of the kernel receive backlog queue."
+
+msgid "Adjust the transmit queue length to absorb traffic bursts."
+msgstr "Adjust the transmit queue length to absorb traffic bursts."
+
+msgid "Advanced: submit evidence manually"
+msgstr "Advanced: submit evidence manually"
+
+msgid "Advisory only (never applied automatically)"
+msgstr "Advisory only (never applied automatically)"
+
+msgid "Analyse only"
+msgstr "Analyse only"
+
+msgid "Applied"
+msgstr "Applied"
+
+msgid "Applying..."
+msgstr "Applying..."
+
+msgid "Assisted"
+msgstr "Assisted"
+
+msgid "Available"
+msgstr "Available"
+
+msgid "Balanced"
+msgstr "Balanced"
+
+msgid "Blocked by the current mode policy"
+msgstr "Blocked by the current mode policy"
+
+msgid "Boot %s"
+msgstr "Boot %s"
+
+msgid "Built-in OpenWrt packet steering. It is observed only; existing ownership is never seized."
+msgstr "Built-in OpenWrt packet steering. It is observed only; existing ownership is never seized."
+
+msgid "CPU"
+msgstr "CPU"
+
+msgid "CPU efficiency first"
+msgstr "CPU efficiency first"
+
+msgid "CPU frequency governor"
+msgstr "CPU frequency governor"
+
+msgid "Candidate applied"
+msgstr "Candidate applied"
+
+msgid "Capacity test only when conditions are met"
+msgstr "Capacity test only when conditions are met"
+
+msgid "Cold start (not enough samples)"
+msgstr "Cold start (not enough samples)"
+
+msgid "Collect kernel network parameters and available benchmark candidates for explicit controlled tests."
+msgstr "Collect kernel network parameters and available benchmark candidates for explicit controlled tests."
+
+msgid "Committed"
+msgstr "Committed"
+
+msgid "Compatibility check failed"
+msgstr "Compatibility check failed"
+
+msgid "Completed"
+msgstr "Completed"
+
+msgid "Confidence is below the policy threshold"
+msgstr "Confidence is below the policy threshold"
+
+msgid "Confirming..."
+msgstr "Confirming..."
+
+msgid "Connected"
+msgstr "Connected"
+
+msgid "Controlled A/B comparison"
+msgstr "Controlled A/B comparison"
+
+msgid "Could not connect to the backend"
+msgstr "Could not connect to the backend"
+
+msgid "Decision binding could not be registered"
+msgstr "Decision binding could not be registered"
+
+msgid "Device"
+msgstr "Device"
+
+msgid "Device %s"
+msgstr "Device %s"
+
+msgid "Device temperature too high"
+msgstr "Device temperature too high"
+
+msgid "Discover only (requires an explicit controlled A/B test)"
+msgstr "Discover only (requires an explicit controlled A/B test)"
+
+msgid "Docker"
+msgstr "Docker"
+
+msgid "Drifted"
+msgstr "Drifted"
+
+msgid "Duplicate candidate identifier"
+msgstr "Duplicate candidate identifier"
+
+msgid "Enable or disable firewall hardware flow offloading."
+msgstr "Enable or disable firewall hardware flow offloading."
+
+msgid "Enable or disable firewall software flow offloading."
+msgstr "Enable or disable firewall software flow offloading."
+
+msgid "Enable or stop irqbalance, which spreads interrupts across CPU cores."
+msgstr "Enable or stop irqbalance, which spreads interrupts across CPU cores."
+
+msgid "Explicit test start is disabled in the configuration"
+msgstr "Explicit test start is disabled in the configuration"
+
+msgid "Failed"
+msgstr "Failed"
+
+msgid "Firewall (firewall4 or third party)"
+msgstr "Firewall (firewall4 or third party)"
+
+msgid "Firewall fast path"
+msgstr "Firewall fast path"
+
+msgid "Forwarding path"
+msgstr "Forwarding path"
+
+msgid "Full routing tools (ip-full with route events)"
+msgstr "Full routing tools (ip-full with route events)"
+
+msgid "Hardware flow offloading"
+msgstr "Hardware flow offloading"
+
+msgid "Health observation only"
+msgstr "Health observation only"
+
+msgid "Health regressed during the test"
+msgstr "Health regressed during the test"
+
+msgid "High"
+msgstr "High"
+
+msgid "High CPU load"
+msgstr "High CPU load"
+
+msgid "High CPU steal from virtualisation"
+msgstr "High CPU steal from virtualisation"
+
+msgid "High performance (x86)"
+msgstr "High performance (x86)"
+
+msgid "High risk"
+msgstr "High risk"
+
+msgid "HomeProxy proxy"
+msgstr "HomeProxy proxy"
+
+msgid "Interrupt balancing service"
+msgstr "Interrupt balancing service"
+
+msgid "Invalid (not adopted)"
+msgstr "Invalid (not adopted)"
+
+msgid "Keep the current configuration"
+msgstr "Keep the current configuration"
+
+msgid "Kernel network baseline"
+msgstr "Kernel network baseline"
+
+msgid "Kernel polling budget"
+msgstr "Kernel polling budget"
+
+msgid "Kernel receive backlog"
+msgstr "Kernel receive backlog"
+
+msgid "LAN client"
+msgstr "LAN client"
+
+msgid "LAN to %s"
+msgstr "LAN to %s"
+
+msgid "LAN to WAN"
+msgstr "LAN to WAN"
+
+msgid "Latency first"
+msgstr "Latency first"
+
+msgid "Learning"
+msgstr "Learning"
+
+msgid "Limited"
+msgstr "Limited"
+
+msgid "Linux kernel"
+msgstr "Linux kernel"
+
+msgid "Linux sysctl"
+msgstr "Linux sysctl"
+
+msgid "Local endpoint"
+msgstr "Local endpoint"
+
+msgid "Local path"
+msgstr "Local path"
+
+msgid "Local port capacity"
+msgstr "Local port capacity"
+
+msgid "Local port capacity matters under proxy or high-connection pressure. Reserved ports and existing ownership are preserved, and any change is limited to a performance test."
+msgstr "Local port capacity matters under proxy or high-connection pressure. Reserved ports and existing ownership are preserved, and any change is limited to a performance test."
+
+msgid "Local port range, reserved ports and connection tracking capacity. Relevant under proxy or high connection pressure."
+msgstr "Local port range, reserved ports and connection tracking capacity. Relevant under proxy or high connection pressure."
+
+msgid "Local subprocess"
+msgstr "Local subprocess"
+
+msgid "Locked"
+msgstr "Locked"
+
+msgid "Low"
+msgstr "Low"
+
+msgid "Low available memory"
+msgstr "Low available memory"
+
+msgid "Managed externally"
+msgstr "Managed externally"
+
+msgid "Medium"
+msgstr "Medium"
+
+msgid "Missing evidence: %s"
+msgstr "Missing evidence: %s"
+
+msgid "Model is unhealthy"
+msgstr "Model is unhealthy"
+
+msgid "NIC interrupt coalescing"
+msgstr "NIC interrupt coalescing"
+
+msgid "NIC offload features"
+msgstr "NIC offload features"
+
+msgid "NIC ring buffer"
+msgstr "NIC ring buffer"
+
+msgid "NIC ring buffer (conservative floor)"
+msgstr "NIC ring buffer (conservative floor)"
+
+msgid "NIC transmit queue length"
+msgstr "NIC transmit queue length"
+
+msgid "Native packet steering"
+msgstr "Native packet steering"
+
+msgid "Needs endpoint test"
+msgstr "Needs endpoint test"
+
+msgid "Network driver (ethtool)"
+msgstr "Network driver (ethtool)"
+
+msgid "Network interface"
+msgstr "Network interface"
+
+msgid "Network interface %s"
+msgstr "Network interface %s"
+
+msgid "No action is allowed right now"
+msgstr "No action is allowed right now"
+
+msgid "No change is recommended right now."
+msgstr "No change is recommended right now."
+
+msgid "No data is available"
+msgstr "No data is available"
+
+msgid "No exact decision is available"
+msgstr "No exact decision is available"
+
+msgid "Not connected"
+msgstr "Not connected"
+
+msgid "Not resolved"
+msgstr "Not resolved"
+
+msgid "Observation response was invalid"
+msgstr "Observation response was invalid"
+
+msgid "Observe and analyse only (channel, width and transmit power require an explicit test)"
+msgstr "Observe and analyse only (channel, width and transmit power require an explicit test)"
+
+msgid "Observe hardware offload features of the network card without changing existing settings."
+msgstr "Observe hardware offload features of the network card without changing existing settings."
+
+msgid "Observe only (protect pre-existing configuration)"
+msgstr "Observe only (protect pre-existing configuration)"
+
+msgid "Observe only (respect existing configuration)"
+msgstr "Observe only (respect existing configuration)"
+
+msgid "Observe only; test only; functional correctness is a hard requirement"
+msgstr "Observe only; test only; functional correctness is a hard requirement"
+
+msgid "Observe radios and driver details without changing channel or transmit power."
+msgstr "Observe radios and driver details without changing channel or transmit power."
+
+msgid "Observe software and hardware flow offloading and third-party fast path support."
+msgstr "Observe software and hardware flow offloading and third-party fast path support."
+
+msgid "Observe the receive and transmit ring buffer sizes of the network card."
+msgstr "Observe the receive and transmit ring buffer sizes of the network card."
+
+msgid "Observe third-party Shortcut-FE style fast path support."
+msgstr "Observe third-party Shortcut-FE style fast path support."
+
+msgid "OpenClash proxy"
+msgstr "OpenClash proxy"
+
+msgid "OpenVPN"
+msgstr "OpenVPN"
+
+msgid "OpenWrt netifd"
+msgstr "OpenWrt netifd"
+
+msgid "PBR policy routing"
+msgstr "PBR policy routing"
+
+msgid "PPPoE"
+msgstr "PPPoE"
+
+msgid "PassWall proxy"
+msgstr "PassWall proxy"
+
+msgid "Passive before and after"
+msgstr "Passive before and after"
+
+msgid "Paste the JSON evidence produced by the companion test tool"
+msgstr "Paste the JSON evidence produced by the companion test tool"
+
+msgid "Permission denied"
+msgstr "Permission denied"
+
+msgid "Persistent storage unavailable"
+msgstr "Persistent storage unavailable"
+
+msgid "Plain forwarding"
+msgstr "Plain forwarding"
+
+msgid "Planned"
+msgstr "Planned"
+
+msgid "Pre-existing configuration"
+msgstr "Pre-existing configuration"
+
+msgid "Raise the network card ring buffer to the conservative floor of 1024 to reduce packet drops under load."
+msgstr "Raise the network card ring buffer to the conservative floor of 1024 to reduce packet drops under load."
+
+msgid "Ready"
+msgstr "Ready"
+
+msgid "Recent out-of-memory kill"
+msgstr "Recent out-of-memory kill"
+
+msgid "Recommended for a performance test only"
+msgstr "Recommended for a performance test only"
+
+msgid "Refreshing..."
+msgstr "Refreshing..."
+
+msgid "Replace the network card queueing discipline; no reversible provider is available."
+msgstr "Replace the network card queueing discipline; no reversible provider is available."
+
+msgid "Required capability is missing"
+msgstr "Required capability is missing"
+
+msgid "Required role: %s"
+msgstr "Required role: %s"
+
+msgid "Respect existing configuration"
+msgstr "Respect existing configuration"
+
+msgid "Review supported actions and apply them only after the core recommendation safety checks. Existing user and external settings are preserved."
+msgstr "Review supported actions and apply them only after the core recommendation safety checks. Existing user and external settings are preserved."
+
+msgid "Reward %s · %s"
+msgstr "Reward %s · %s"
+
+msgid "Rill ranks actions that passed the core recommendation review; the core recommendation keeps the final authority to execute them. Confidence and scores are shown as percentages (0–1 maps to 0–100%)."
+msgstr "Rill ranks actions that passed the core recommendation review; the core recommendation keeps the final authority to execute them. Confidence and scores are shown as percentages (0–1 maps to 0–100%)."
+
+msgid "Rill selected an eligible candidate"
+msgstr "Rill selected an eligible candidate"
+
+msgid "Rill smart decisions"
+msgstr "Rill smart decisions"
+
+msgid "Rill smart decisions are turned off"
+msgstr "Rill smart decisions are turned off"
+
+msgid "Rolled back"
+msgstr "Rolled back"
+
+msgid "Rolling back..."
+msgstr "Rolling back..."
+
+msgid "Route %s"
+msgstr "Route %s"
+
+msgid "Router local client"
+msgstr "Router local client"
+
+msgid "Run the companion test tool before any candidate is applied, then paste its JSON result."
+msgstr "Run the companion test tool before any candidate is applied, then paste its JSON result."
+
+msgid "Runtime available"
+msgstr "Runtime available"
+
+msgid "Runtime binary invalid"
+msgstr "Runtime binary invalid"
+
+msgid "Runtime collecting data"
+msgstr "Runtime collecting data"
+
+msgid "Runtime disabled"
+msgstr "Runtime disabled"
+
+msgid "Runtime error"
+msgstr "Runtime error"
+
+msgid "Runtime learning"
+msgstr "Runtime learning"
+
+msgid "Runtime missing capabilities"
+msgstr "Runtime missing capabilities"
+
+msgid "Runtime not provisioned"
+msgstr "Runtime not provisioned"
+
+msgid "Runtime protocol v%s"
+msgstr "Runtime protocol v%s"
+
+msgid "Runtime unavailable"
+msgstr "Runtime unavailable"
+
+msgid "Runtime unhealthy"
+msgstr "Runtime unhealthy"
+
+msgid "Runtime version mismatch"
+msgstr "Runtime version mismatch"
+
+msgid "SQM shaping"
+msgstr "SQM shaping"
+
+msgid "Safe"
+msgstr "Safe"
+
+msgid "See system health, active safeguards, and the latest verified action. Confidence and scores are shown as percentages (0–1 maps to 0–100%)."
+msgstr "See system health, active safeguards, and the latest verified action. Confidence and scores are shown as percentages (0–1 maps to 0–100%)."
+
+msgid "Service"
+msgstr "Service"
+
+msgid "Service %s"
+msgstr "Service %s"
+
+msgid "Snapshot taken"
+msgstr "Snapshot taken"
+
+msgid "Socket buffer limits"
+msgstr "Socket buffer limits"
+
+msgid "Socket busy polling"
+msgstr "Socket busy polling"
+
+msgid "Software flow offloading"
+msgstr "Software flow offloading"
+
+msgid "Starting..."
+msgstr "Starting..."
+
+msgid "State storage unavailable"
+msgstr "State storage unavailable"
+
+msgid "Storage"
+msgstr "Storage"
+
+msgid "Storage service"
+msgstr "Storage service"
+
+msgid "Succeeded"
+msgstr "Succeeded"
+
+msgid "Switch the TCP congestion control algorithm."
+msgstr "Switch the TCP congestion control algorithm."
+
+msgid "System"
+msgstr "System"
+
+msgid "System %s"
+msgstr "System %s"
+
+msgid "System kernel"
+msgstr "System kernel"
+
+msgid "TCP congestion control"
+msgstr "TCP congestion control"
+
+msgid "Technical details"
+msgstr "Technical details"
+
+msgid "Test only"
+msgstr "Test only"
+
+msgid "The Hyper-V hv_netvsc ring buffer is below the conservative floor of 1024 even though the hardware maximum allows raising it."
+msgstr "The Hyper-V hv_netvsc ring buffer is below the conservative floor of 1024 even though the hardware maximum allows raising it."
+
+msgid "The Rill selection requires no change"
+msgstr "The Rill selection requires no change"
+
+msgid "The action is cooling down"
+msgstr "The action is cooling down"
+
+msgid "The backend command is not valid"
+msgstr "The backend command is not valid"
+
+msgid "The backend method does not exist"
+msgstr "The backend method does not exist"
+
+msgid "The backend reported an unknown error"
+msgstr "The backend reported an unknown error"
+
+msgid "The candidate is temporarily active and protected by commit-confirm. Run the same endpoint test now; the core recommendation will restore the original value before validating the result."
+msgstr "The candidate is temporarily active and protected by commit-confirm. Run the same endpoint test now; the core recommendation will restore the original value before validating the result."
+
+msgid "The companion test tool runs on a separate client or on the router itself and produces the evidence JSON this page needs. Only use this path when you must validate a benchmark by hand; it is not required for normal use."
+msgstr "The companion test tool runs on a separate client or on the router itself and produces the evidence JSON this page needs. Only use this path when you must validate a benchmark by hand; it is not required for normal use."
+
+msgid "The compatibility check failed"
+msgstr "The compatibility check failed"
+
+msgid "The evaluation path could not be resolved"
+msgstr "The evaluation path could not be resolved"
+
+msgid "The native OpenWrt provider was detected; existing ownership is preserved."
+msgstr "The native OpenWrt provider was detected; existing ownership is preserved."
+
+msgid "The operation is not supported"
+msgstr "The operation is not supported"
+
+msgid "The operation timed out"
+msgstr "The operation timed out"
+
+msgid "The provider is unavailable on this device"
+msgstr "The provider is unavailable on this device"
+
+msgid "The ranking contains an unknown candidate"
+msgstr "The ranking contains an unknown candidate"
+
+msgid "The reported score is invalid"
+msgstr "The reported score is invalid"
+
+msgid "The request parameters are not valid"
+msgstr "The request parameters are not valid"
+
+msgid "The route could not be resolved"
+msgstr "The route could not be resolved"
+
+msgid "The runtime binary is invalid"
+msgstr "The runtime binary is invalid"
+
+msgid "The runtime is unavailable"
+msgstr "The runtime is unavailable"
+
+msgid "The runtime version does not match"
+msgstr "The runtime version does not match"
+
+msgid "The same attempt was already applied"
+msgstr "The same attempt was already applied"
+
+msgid "The selected candidate no longer exists"
+msgstr "The selected candidate no longer exists"
+
+msgid "The single-variable test contract is disabled"
+msgstr "The single-variable test contract is disabled"
+
+msgid "The target could not be resolved"
+msgstr "The target could not be resolved"
+
+msgid "The target was not found"
+msgstr "The target was not found"
+
+msgid "Third-party fast path"
+msgstr "Third-party fast path"
+
+msgid "This capability was detected on the device."
+msgstr "This capability was detected on the device."
+
+msgid "This capability was detected on the device. Open technical details for the raw output."
+msgstr "This capability was detected on the device. Open technical details for the raw output."
+
+msgid "This goal cannot be validated with a controlled A/B test"
+msgstr "This goal cannot be validated with a controlled A/B test"
+
+msgid "This recommendation is for a performance test only. Open Performance test and complete both detection phases with the companion test tool; it cannot be applied directly."
+msgstr "This recommendation is for a performance test only. Open Performance test and complete both detection phases with the companion test tool; it cannot be applied directly."
+
+msgid "Throughput first"
+msgstr "Throughput first"
+
+msgid "Traffic scheduler replacement"
+msgstr "Traffic scheduler replacement"
+
+msgid "Transaction %s"
+msgstr "Transaction %s"
+
+msgid "Transparent proxy"
+msgstr "Transparent proxy"
+
+msgid "Unavailable"
+msgstr "Unavailable"
+
+msgid "Unknown error, see technical details"
+msgstr "Unknown error, see technical details"
+
+msgid "Unknown state"
+msgstr "Unknown state"
+
+msgid "Use with caution"
+msgstr "Use with caution"
+
+msgid "User configuration"
+msgstr "User configuration"
+
+msgid "Using the deterministic core policy"
+msgstr "Using the deterministic core policy"
+
+msgid "VPN tunnel"
+msgstr "VPN tunnel"
+
+msgid "Validated by a controlled A/B test"
+msgstr "Validated by a controlled A/B test"
+
+msgid "Verified"
+msgstr "Verified"
+
+msgid "Waiting for baseline evidence"
+msgstr "Waiting for baseline evidence"
+
+msgid "Waiting for confirmation"
+msgstr "Waiting for confirmation"
+
+msgid "WireGuard"
+msgstr "WireGuard"
+
+msgid "Wireless observation"
+msgstr "Wireless observation"
+
+msgid "Wireless radio %s"
+msgstr "Wireless radio %s"
+
+msgid "Wireless stack (nl80211/iw)"
+msgstr "Wireless stack (nl80211/iw)"
+
+msgid "Working..."
+msgstr "Working..."
+
+msgid "mwan3 multi-WAN"
+msgstr "mwan3 multi-WAN"
+
+msgid "netifd fallback"
+msgstr "netifd fallback"
+
+msgid "qosify classification"
+msgstr "qosify classification"
+
+msgid "%s candidate"
+msgstr "%s candidate"
+
+msgid "Resolved"
+msgstr "Resolved"

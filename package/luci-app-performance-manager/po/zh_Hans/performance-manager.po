@@ -372,7 +372,7 @@ msgstr "结果"
 
 #: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/rill.js:32
 msgid "RillML (Rill) intelligence"
-msgstr "RillML（Rill）智能决策"
+msgstr "Rill 智能决策"
 
 #: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/rill.js:32
 msgid ""
@@ -679,7 +679,7 @@ msgstr "启动标识"
 
 #: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/overview.js:42
 msgid "Native Packet Steering"
-msgstr "原生数据包分流（Packet Steering）"
+msgstr "原生数据包转向"
 
 #: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/overview.js:43
 #: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/capabilities.js:15
@@ -759,7 +759,7 @@ msgstr ""
 #: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/capabilities.js:22
 #: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/advanced.js:16
 msgid "Capability / Topology / TargetRef JSON"
-msgstr "能力 / 拓扑 / TargetRef JSON"
+msgstr "能力 / 拓扑 / 目标引用 JSON"
 
 #: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/capabilities.js:22
 msgid "Raw capability contract"
@@ -972,7 +972,7 @@ msgid ""
 "same endpoint test now; Core will restore the original value before "
 "validating the result."
 msgstr ""
-"候选项当前临时生效并受提交确认保护。请立即运行相同端点测试；Core 会先恢复原"
+"候选项当前临时生效并受提交确认保护。请立即运行相同端点测试；核心会先恢复原"
 "值，再验证结果。"
 
 #: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/benchmark.js:75
@@ -1036,7 +1036,7 @@ msgstr "符合自动操作条件"
 
 #: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/optimize.js:16
 msgid "Core recommendation"
-msgstr "Core 建议"
+msgstr "核心建议"
 
 #: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/optimize.js:16
 msgid "Deterministic fallback"
@@ -1245,3 +1245,722 @@ msgstr "概览"
 #: package/luci-app-performance-manager/root/usr/share/luci/menu.d/luci-app-performance-manager.json:47
 msgid "Rill intelligence"
 msgstr "Rill 智能决策"
+
+msgid "%s (candidate %s)"
+msgstr "%s（候选 %s）"
+
+msgid "%s, see technical details"
+msgstr "%s，详见技术详情"
+
+msgid "About %s min %s sec"
+msgstr "约 %s 分 %s 秒"
+
+msgid "About %s minutes"
+msgstr "约 %s 分钟"
+
+msgid "About %s seconds"
+msgstr "约 %s 秒"
+
+msgid "Adjust busy polling to reduce latency at the cost of CPU time."
+msgstr "调整忙轮询等待时间，以增加 CPU 占用为代价降低延迟。"
+
+msgid "Adjust how many packets the kernel processes per soft-interrupt poll."
+msgstr "调整内核每次软中断轮询处理的报文数量。"
+
+msgid "Adjust interrupt coalescing to trade latency against CPU usage."
+msgstr "调整中断合并参数，在延迟与 CPU 占用之间取舍。"
+
+msgid "Adjust the CPU frequency governor (performance or schedutil)."
+msgstr "调整 CPU 调频策略（performance 或 schedutil）。"
+
+msgid "Adjust the kernel socket receive buffer limit."
+msgstr "调整内核套接字接收缓冲区上限。"
+
+msgid "Adjust the maximum length of the kernel receive backlog queue."
+msgstr "调整内核接收积压队列的最大长度。"
+
+msgid "Adjust the transmit queue length to absorb traffic bursts."
+msgstr "调整发送队列长度，以吸收突发流量。"
+
+msgid "Advanced: submit evidence manually"
+msgstr "高级：手动提交检测证据"
+
+msgid "Advisory only (never applied automatically)"
+msgstr "仅建议（不会自动应用）"
+
+msgid "Analyse only"
+msgstr "仅分析"
+
+msgid "Applied"
+msgstr "已应用"
+
+msgid "Applying..."
+msgstr "正在应用..."
+
+msgid "Assisted"
+msgstr "辅助"
+
+msgid "Available"
+msgstr "可用"
+
+msgid "Balanced"
+msgstr "均衡"
+
+msgid "Blocked by the current mode policy"
+msgstr "被当前模式策略阻止"
+
+msgid "Boot %s"
+msgstr "启动标识 %s"
+
+msgid "Built-in OpenWrt packet steering. It is observed only; existing ownership is never seized."
+msgstr "OpenWrt 内置的数据包转向能力。仅做观测，不会接管现有所有权。"
+
+msgid "CPU"
+msgstr "CPU"
+
+msgid "CPU efficiency first"
+msgstr "CPU 效率优先"
+
+msgid "CPU frequency governor"
+msgstr "CPU 调频策略"
+
+msgid "Candidate applied"
+msgstr "候选项已启用"
+
+msgid "Capacity test only when conditions are met"
+msgstr "仅在条件满足时进行容量测试"
+
+msgid "Cold start (not enough samples)"
+msgstr "冷启动（样本不足）"
+
+msgid "Collect kernel network parameters and available benchmark candidates for explicit controlled tests."
+msgstr "采集内核网络参数与可用测试项，供显式受控测试使用。"
+
+msgid "Committed"
+msgstr "已提交"
+
+msgid "Compatibility check failed"
+msgstr "兼容性检查未通过"
+
+msgid "Completed"
+msgstr "已完成"
+
+msgid "Confidence is below the policy threshold"
+msgstr "置信度低于策略阈值"
+
+msgid "Confirming..."
+msgstr "正在确认..."
+
+msgid "Connected"
+msgstr "已连接"
+
+msgid "Controlled A/B comparison"
+msgstr "受控 A/B 对比"
+
+msgid "Could not connect to the backend"
+msgstr "无法连接后端服务"
+
+msgid "Decision binding could not be registered"
+msgstr "决策绑定注册失败"
+
+msgid "Device"
+msgstr "设备"
+
+msgid "Device %s"
+msgstr "设备 %s"
+
+msgid "Device temperature too high"
+msgstr "设备温度过高"
+
+msgid "Discover only (requires an explicit controlled A/B test)"
+msgstr "仅发现（需显式受控 A/B 测试）"
+
+msgid "Docker"
+msgstr "Docker"
+
+msgid "Drifted"
+msgstr "已漂移"
+
+msgid "Duplicate candidate identifier"
+msgstr "候选标识重复"
+
+msgid "Enable or disable firewall hardware flow offloading."
+msgstr "启用或停用防火墙硬件流量卸载。"
+
+msgid "Enable or disable firewall software flow offloading."
+msgstr "启用或停用防火墙软件流量卸载。"
+
+msgid "Enable or stop irqbalance, which spreads interrupts across CPU cores."
+msgstr "启用或停用 irqbalance，将中断分散到多个 CPU 核心。"
+
+msgid "Explicit test start is disabled in the configuration"
+msgstr "配置中已关闭显式测试启动"
+
+msgid "Failed"
+msgstr "失败"
+
+msgid "Firewall (firewall4 or third party)"
+msgstr "防火墙（firewall4 或第三方）"
+
+msgid "Firewall fast path"
+msgstr "防火墙快速转发"
+
+msgid "Forwarding path"
+msgstr "转发路径"
+
+msgid "Full routing tools (ip-full with route events)"
+msgstr "完整路由工具（ip-full 并带路由事件）"
+
+msgid "Hardware flow offloading"
+msgstr "硬件流量卸载"
+
+msgid "Health observation only"
+msgstr "仅健康度观测"
+
+msgid "Health regressed during the test"
+msgstr "测试期间健康度下降"
+
+msgid "High"
+msgstr "高"
+
+msgid "High CPU load"
+msgstr "CPU 负载过高"
+
+msgid "High CPU steal from virtualisation"
+msgstr "CPU 被虚拟化抢占过多"
+
+msgid "High performance (x86)"
+msgstr "高性能（x86）"
+
+msgid "High risk"
+msgstr "高风险"
+
+msgid "HomeProxy proxy"
+msgstr "HomeProxy 代理"
+
+msgid "Interrupt balancing service"
+msgstr "中断负载均衡服务"
+
+msgid "Invalid (not adopted)"
+msgstr "无效（未采用）"
+
+msgid "Keep the current configuration"
+msgstr "保持当前配置"
+
+msgid "Kernel network baseline"
+msgstr "内核网络基准观测"
+
+msgid "Kernel polling budget"
+msgstr "内核轮询预算"
+
+msgid "Kernel receive backlog"
+msgstr "内核接收积压队列"
+
+msgid "LAN client"
+msgstr "局域网客户端"
+
+msgid "LAN to %s"
+msgstr "局域网 → %s"
+
+msgid "LAN to WAN"
+msgstr "局域网 → 广域网"
+
+msgid "Latency first"
+msgstr "延迟优先"
+
+msgid "Learning"
+msgstr "学习中"
+
+msgid "Limited"
+msgstr "受限可用"
+
+msgid "Linux kernel"
+msgstr "Linux 内核"
+
+msgid "Linux sysctl"
+msgstr "Linux sysctl"
+
+msgid "Local endpoint"
+msgstr "本机端点"
+
+msgid "Local path"
+msgstr "本机路径"
+
+msgid "Local port capacity"
+msgstr "本机端口容量"
+
+msgid "Local port capacity matters under proxy or high-connection pressure. Reserved ports and existing ownership are preserved, and any change is limited to a performance test."
+msgstr "本机端口容量在代理或高连接压力场景下才有意义。保留端口与现有所有权都会保留，任何变更都仅限性能测试。"
+
+msgid "Local port range, reserved ports and connection tracking capacity. Relevant under proxy or high connection pressure."
+msgstr "本机端口范围、保留端口与连接跟踪容量。仅在代理或高连接压力场景下相关。"
+
+msgid "Local subprocess"
+msgstr "本机子进程"
+
+msgid "Locked"
+msgstr "已加锁"
+
+msgid "Low"
+msgstr "低"
+
+msgid "Low available memory"
+msgstr "可用内存不足"
+
+msgid "Managed externally"
+msgstr "外部管理"
+
+msgid "Medium"
+msgstr "中"
+
+msgid "Missing evidence: %s"
+msgstr "缺少证据：%s"
+
+msgid "Model is unhealthy"
+msgstr "模型状态异常"
+
+msgid "NIC interrupt coalescing"
+msgstr "网卡中断合并"
+
+msgid "NIC offload features"
+msgstr "网卡卸载能力"
+
+msgid "NIC ring buffer"
+msgstr "网卡环形缓冲区"
+
+msgid "NIC ring buffer (conservative floor)"
+msgstr "网卡环形缓冲区（保守下限）"
+
+msgid "NIC transmit queue length"
+msgstr "网卡发送队列长度"
+
+msgid "Native packet steering"
+msgstr "原生数据包转向"
+
+msgid "Needs endpoint test"
+msgstr "需要端点检测"
+
+msgid "Network driver (ethtool)"
+msgstr "网卡驱动（ethtool）"
+
+msgid "Network interface"
+msgstr "网络接口"
+
+msgid "Network interface %s"
+msgstr "网络接口 %s"
+
+msgid "No action is allowed right now"
+msgstr "当前没有可执行的操作"
+
+msgid "No change is recommended right now."
+msgstr "当前无需变更。"
+
+msgid "No data is available"
+msgstr "没有可用数据"
+
+msgid "No exact decision is available"
+msgstr "缺少精确匹配的决策"
+
+msgid "Not connected"
+msgstr "未连接"
+
+msgid "Not resolved"
+msgstr "未解析"
+
+msgid "Observation response was invalid"
+msgstr "观测响应无效"
+
+msgid "Observe and analyse only (channel, width and transmit power require an explicit test)"
+msgstr "仅观测与分析（信道、频宽与发射功率需显式测试）"
+
+msgid "Observe hardware offload features of the network card without changing existing settings."
+msgstr "观测网卡硬件卸载特性，不修改现有配置。"
+
+msgid "Observe only (protect pre-existing configuration)"
+msgstr "仅观测（保护原有配置）"
+
+msgid "Observe only (respect existing configuration)"
+msgstr "仅观测（尊重现有配置）"
+
+msgid "Observe only; test only; functional correctness is a hard requirement"
+msgstr "仅观测；仅用于测试；功能正确性为硬性要求"
+
+msgid "Observe radios and driver details without changing channel or transmit power."
+msgstr "观测无线射频与驱动信息，不修改信道或发射功率。"
+
+msgid "Observe software and hardware flow offloading and third-party fast path support."
+msgstr "观测软件/硬件流量卸载与第三方快速转发支持情况。"
+
+msgid "Observe the receive and transmit ring buffer sizes of the network card."
+msgstr "观测网卡收发环形缓冲区大小。"
+
+msgid "Observe third-party Shortcut-FE style fast path support."
+msgstr "观测第三方 Shortcut-FE 类快速转发支持情况。"
+
+msgid "OpenClash proxy"
+msgstr "OpenClash 代理"
+
+msgid "OpenVPN"
+msgstr "OpenVPN"
+
+msgid "OpenWrt netifd"
+msgstr "OpenWrt netifd"
+
+msgid "PBR policy routing"
+msgstr "PBR 策略路由"
+
+msgid "PPPoE"
+msgstr "PPPoE"
+
+msgid "PassWall proxy"
+msgstr "PassWall 代理"
+
+msgid "Passive before and after"
+msgstr "被动前后对比"
+
+msgid "Paste the JSON evidence produced by the companion test tool"
+msgstr "粘贴配套检测工具生成的 JSON 证据"
+
+msgid "Permission denied"
+msgstr "权限不足"
+
+msgid "Persistent storage unavailable"
+msgstr "持久化存储不可用"
+
+msgid "Plain forwarding"
+msgstr "普通转发"
+
+msgid "Planned"
+msgstr "已计划"
+
+msgid "Pre-existing configuration"
+msgstr "原有配置"
+
+msgid "Raise the network card ring buffer to the conservative floor of 1024 to reduce packet drops under load."
+msgstr "将网卡环形缓冲区提升到 1024 的保守下限，减少高负载下的丢包。"
+
+msgid "Ready"
+msgstr "已就绪"
+
+msgid "Recent out-of-memory kill"
+msgstr "近期发生内存不足终止"
+
+msgid "Recommended for a performance test only"
+msgstr "仅建议用于性能测试"
+
+msgid "Refreshing..."
+msgstr "正在刷新..."
+
+msgid "Replace the network card queueing discipline; no reversible provider is available."
+msgstr "替换网卡队列调度规则；当前没有可逆的提供方。"
+
+msgid "Required capability is missing"
+msgstr "缺少所需能力"
+
+msgid "Required role: %s"
+msgstr "所需角色：%s"
+
+msgid "Respect existing configuration"
+msgstr "尊重现有配置"
+
+msgid "Review supported actions and apply them only after the core recommendation safety checks. Existing user and external settings are preserved."
+msgstr "检查支持的操作，并仅在通过核心建议的安全检查后再应用。用户与外部配置都会保留。"
+
+msgid "Reward %s · %s"
+msgstr "收益 %s · %s"
+
+msgid "Rill ranks actions that passed the core recommendation review; the core recommendation keeps the final authority to execute them. Confidence and scores are shown as percentages (0–1 maps to 0–100%)."
+msgstr "Rill 对通过核心建议审核的操作排序；最终执行权仍由核心建议掌握。置信度与评分均以百分比显示（0–1 映射为 0–100%）。"
+
+msgid "Rill selected an eligible candidate"
+msgstr "Rill 已选出符合条件的候选"
+
+msgid "Rill smart decisions"
+msgstr "Rill 智能决策"
+
+msgid "Rill smart decisions are turned off"
+msgstr "已关闭 Rill 智能决策"
+
+msgid "Rolled back"
+msgstr "已回滚"
+
+msgid "Rolling back..."
+msgstr "正在回滚..."
+
+msgid "Route %s"
+msgstr "路由 %s"
+
+msgid "Router local client"
+msgstr "路由器本机客户端"
+
+msgid "Run the companion test tool before any candidate is applied, then paste its JSON result."
+msgstr "在应用任何候选项之前先运行配套检测工具，然后粘贴其 JSON 结果。"
+
+msgid "Runtime available"
+msgstr "运行时可用"
+
+msgid "Runtime binary invalid"
+msgstr "运行时程序无效"
+
+msgid "Runtime collecting data"
+msgstr "运行时数据采集中"
+
+msgid "Runtime disabled"
+msgstr "运行时已停用"
+
+msgid "Runtime error"
+msgstr "运行时错误"
+
+msgid "Runtime learning"
+msgstr "运行时学习中"
+
+msgid "Runtime missing capabilities"
+msgstr "运行时缺少能力"
+
+msgid "Runtime not provisioned"
+msgstr "运行时未部署"
+
+msgid "Runtime protocol v%s"
+msgstr "运行时协议 v%s"
+
+msgid "Runtime unavailable"
+msgstr "运行时不可用"
+
+msgid "Runtime unhealthy"
+msgstr "运行时状态异常"
+
+msgid "Runtime version mismatch"
+msgstr "运行时版本不匹配"
+
+msgid "SQM shaping"
+msgstr "SQM 流量整形"
+
+msgid "Safe"
+msgstr "安全"
+
+msgid "See system health, active safeguards, and the latest verified action. Confidence and scores are shown as percentages (0–1 maps to 0–100%)."
+msgstr "查看系统健康度、生效中的保护措施与最近一次已验证操作。置信度与评分均以百分比显示（0–1 映射为 0–100%）。"
+
+msgid "Service"
+msgstr "服务"
+
+msgid "Service %s"
+msgstr "服务 %s"
+
+msgid "Snapshot taken"
+msgstr "已生成快照"
+
+msgid "Socket buffer limits"
+msgstr "套接字缓冲区上限"
+
+msgid "Socket busy polling"
+msgstr "套接字忙轮询"
+
+msgid "Software flow offloading"
+msgstr "软件流量卸载"
+
+msgid "Starting..."
+msgstr "正在启动..."
+
+msgid "State storage unavailable"
+msgstr "状态存储不可用"
+
+msgid "Storage"
+msgstr "存储"
+
+msgid "Storage service"
+msgstr "存储服务"
+
+msgid "Succeeded"
+msgstr "成功"
+
+msgid "Switch the TCP congestion control algorithm."
+msgstr "切换 TCP 拥塞控制算法。"
+
+msgid "System"
+msgstr "系统"
+
+msgid "System %s"
+msgstr "系统 %s"
+
+msgid "System kernel"
+msgstr "系统内核"
+
+msgid "TCP congestion control"
+msgstr "TCP 拥塞控制算法"
+
+msgid "Technical details"
+msgstr "技术详情"
+
+msgid "Test only"
+msgstr "仅用于测试"
+
+msgid "The Hyper-V hv_netvsc ring buffer is below the conservative floor of 1024 even though the hardware maximum allows raising it."
+msgstr "Hyper-V hv_netvsc 的环形缓冲区低于 1024 的保守下限，而硬件上限允许提升。"
+
+msgid "The Rill selection requires no change"
+msgstr "Rill 选中的操作无需执行"
+
+msgid "The action is cooling down"
+msgstr "操作处于冷却期"
+
+msgid "The backend command is not valid"
+msgstr "后端命令无效"
+
+msgid "The backend method does not exist"
+msgstr "后端接口方法不存在"
+
+msgid "The backend reported an unknown error"
+msgstr "后端返回未知错误"
+
+msgid "The candidate is temporarily active and protected by commit-confirm. Run the same endpoint test now; the core recommendation will restore the original value before validating the result."
+msgstr "候选项当前临时生效，并受提交确认保护。现在运行相同的端点测试；核心建议会在验证结果前先恢复原值。"
+
+msgid "The companion test tool runs on a separate client or on the router itself and produces the evidence JSON this page needs. Only use this path when you must validate a benchmark by hand; it is not required for normal use."
+msgstr "配套检测工具运行在独立客户端或路由器本机上，用于生成本页所需的证据 JSON。仅在需要手动验证测试时才使用此路径，日常使用无需操作。"
+
+msgid "The compatibility check failed"
+msgstr "兼容性检查未通过"
+
+msgid "The evaluation path could not be resolved"
+msgstr "无法确定评估路径"
+
+msgid "The native OpenWrt provider was detected; existing ownership is preserved."
+msgstr "已检测到 OpenWrt 原生提供方；现有所有权保持不变。"
+
+msgid "The operation is not supported"
+msgstr "不支持该操作"
+
+msgid "The operation timed out"
+msgstr "操作超时"
+
+msgid "The provider is unavailable on this device"
+msgstr "该设备上此提供方不可用"
+
+msgid "The ranking contains an unknown candidate"
+msgstr "排序中出现未知候选"
+
+msgid "The reported score is invalid"
+msgstr "评分无效"
+
+msgid "The request parameters are not valid"
+msgstr "请求参数无效"
+
+msgid "The route could not be resolved"
+msgstr "路由无法解析"
+
+msgid "The runtime binary is invalid"
+msgstr "运行时程序无效"
+
+msgid "The runtime is unavailable"
+msgstr "运行时不可用"
+
+msgid "The runtime version does not match"
+msgstr "运行时版本不匹配"
+
+msgid "The same attempt was already applied"
+msgstr "同一次尝试已应用"
+
+msgid "The selected candidate no longer exists"
+msgstr "选中的候选不存在"
+
+msgid "The single-variable test contract is disabled"
+msgstr "单变量测试契约已关闭"
+
+msgid "The target could not be resolved"
+msgstr "目标无法解析"
+
+msgid "The target was not found"
+msgstr "未找到目标"
+
+msgid "Third-party fast path"
+msgstr "第三方快速转发"
+
+msgid "This capability was detected on the device."
+msgstr "已在设备上检测到该能力。"
+
+msgid "This capability was detected on the device. Open technical details for the raw output."
+msgstr "已在设备上检测到该能力。展开技术详情可查看原始输出。"
+
+msgid "This goal cannot be validated with a controlled A/B test"
+msgstr "该目标无法通过受控 A/B 测试验证"
+
+msgid "This recommendation is for a performance test only. Open Performance test and complete both detection phases with the companion test tool; it cannot be applied directly."
+msgstr "该建议仅用于性能测试。请打开“性能测试”，使用配套检测工具完成两个检测阶段；它不能直接应用。"
+
+msgid "Throughput first"
+msgstr "吞吐优先"
+
+msgid "Traffic scheduler replacement"
+msgstr "流量调度器替换"
+
+msgid "Transaction %s"
+msgstr "事务 %s"
+
+msgid "Transparent proxy"
+msgstr "透明代理"
+
+msgid "Unavailable"
+msgstr "不可用"
+
+msgid "Unknown error, see technical details"
+msgstr "未知错误，详见技术详情"
+
+msgid "Unknown state"
+msgstr "未知状态"
+
+msgid "Use with caution"
+msgstr "需谨慎"
+
+msgid "User configuration"
+msgstr "用户配置"
+
+msgid "Using the deterministic core policy"
+msgstr "使用确定性核心策略"
+
+msgid "VPN tunnel"
+msgstr "VPN 隧道"
+
+msgid "Validated by a controlled A/B test"
+msgstr "已通过受控 A/B 测试验证"
+
+msgid "Verified"
+msgstr "已验证"
+
+msgid "Waiting for baseline evidence"
+msgstr "等待基线证据"
+
+msgid "Waiting for confirmation"
+msgstr "等待确认"
+
+msgid "WireGuard"
+msgstr "WireGuard"
+
+msgid "Wireless observation"
+msgstr "无线观测"
+
+msgid "Wireless radio %s"
+msgstr "无线射频 %s"
+
+msgid "Wireless stack (nl80211/iw)"
+msgstr "无线协议栈（nl80211/iw）"
+
+msgid "Working..."
+msgstr "处理中..."
+
+msgid "mwan3 multi-WAN"
+msgstr "mwan3 多拨"
+
+msgid "netifd fallback"
+msgstr "netifd 回退"
+
+msgid "qosify classification"
+msgstr "qosify 流量分类"
+
+
+msgid "%s candidate"
+msgstr "%s 候选"
+
+msgid "Resolved"
+msgstr "已解析"
+
