@@ -8,9 +8,12 @@ on:
     types: [rill-runtime-qualified]
 
 permissions:
-  contents: read
-  pull-requests: read
-  actions: read
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
   sync:
@@ -34,10 +37,39 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          # The sync may only rewrite the single immutable Runtime contract.
+          changed=$(git status --porcelain --untracked-files=no | cut -c4-)
+          unexpected=$(printf '%s\n' "$changed" | grep -vE '^(contracts/rill-runtime\.json)?$' || true)
+          if [ -n "$unexpected" ]; then
+            echo '::error::Qualified Runtime sync changed files outside contracts/rill-runtime.json.'
+            printf '%s\n' "$unexpected"
+            exit 1
+          fi
+          git diff -- contracts/rill-runtime.json
+      - name: Open update pull request
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
           if git diff --quiet -- contracts/rill-runtime.json; then
             echo 'No new qualified Stable 1.x Runtime is available.'
             exit 0
           fi
-          echo '::error::Qualified Runtime drift detected; automatic branch/PR creation is disabled.'
-          git diff -- contracts/rill-runtime.json
-          exit 1
+          version=$(python3 -c 'import json; print(json.load(open("contracts/rill-runtime.json"))["resolved"]["version"])')
+          branch="chore/rill-${version}"
+          if gh pr list --base main --head "$branch" --state open --json number --jq 'length > 0' | grep -q true; then
+            echo "An open update pull request for ${branch} already exists; nothing to do."
+            exit 0
+          fi
+          if git ls-remote --exit-code --heads origin "$branch" >/dev/null 2>&1; then
+            echo "Generated update branch ${branch} already exists; reusing it."
+          else
+            git config user.name 'github-actions[bot]'
+            git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+            git switch -c "$branch"
+            git add contracts/rill-runtime.json
+            git commit -m "deps(rill): update runtime to v${version}"
+            git push origin "HEAD:${branch}"
+          fi
+          gh pr create --base main --head "$branch" --title "deps(rill): update runtime to v${version}" --body "Updates the single immutable Rill Runtime contract after the matching rill-openwrt-packages qualification passed. The required consumer integration workflow must pass before merge."
