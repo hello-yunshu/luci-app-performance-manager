@@ -1560,3 +1560,9 @@ msgstr "%s candidate"
 
 msgid "Resolved"
 msgstr "Resolved"
+
+msgid "Ranking table"
+msgstr "Ranking table"
+
+msgid "Feedback table"
+msgstr "Feedback table"
