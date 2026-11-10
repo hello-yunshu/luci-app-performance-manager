@@ -2053,6 +2053,9 @@ msgstr "未安装外部 Rill 运行时"
 msgid "The health guard blocked this action"
 msgstr "系统健康保护阻止了该操作"
 
+msgid "The ip command needed for route evidence is missing or cannot emit JSON; install either ip-tiny or ip-full"
+msgstr "缺少可用于路由证据的 ip 命令，或该命令不支持 JSON 输出；安装 ip-tiny 或 ip-full 中的任意一个即可"
+
 msgid "The last result reduced measured performance"
 msgstr "上次结果降低了实测性能"
 

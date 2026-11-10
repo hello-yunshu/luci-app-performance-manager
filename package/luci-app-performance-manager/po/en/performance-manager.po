@@ -2128,6 +2128,9 @@ msgstr "The external Rill runtime is not installed"
 msgid "The health guard blocked this action"
 msgstr "The health guard blocked this action"
 
+msgid "The ip command needed for route evidence is missing or cannot emit JSON; install either ip-tiny or ip-full"
+msgstr "The ip command needed for route evidence is missing or cannot emit JSON; install either ip-tiny or ip-full"
+
 msgid "The last result reduced measured performance"
 msgstr "The last result reduced measured performance"
 
