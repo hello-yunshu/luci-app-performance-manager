@@ -1,0 +1,2168 @@
+msgid ""
+msgstr ""
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-09-04 02:46+0800\n"
+"Project-Id-Version: luci-app-performance-manager\n"
+"PO-Revision-Date: 2026-09-04 03:00+0800\n"
+"Last-Translator: Performance Manager contributors\n"
+"Language-Team: Simplified Chinese\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/settings.js:8
+msgid "Performance Manager settings"
+msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/settings.js:8
+msgid ""
+"Conservative automation is the supported default. Active benchmark "
+"saturation remains disabled by default."
+msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/settings.js:9
+msgid "Core"
+msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/settings.js:10
+msgid "Enable Core"
+msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/settings.js:10
+msgid ""
+"Run the Performance Manager core service. Disable this to stop performance "
+"management."
+msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/settings.js:11
+msgid "Automation mode"
+msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/settings.js:11
+msgid "Manual"
+msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/settings.js:11
+msgid "Conservative"
+msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/settings.js:11
+msgid "Assisted automation (opt-in; safe actions only)"
+msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/settings.js:11
+msgid ""
+"Choose how Core responds: manual, conservative, or assisted automation."
+msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/settings.js:13
+msgid "Enable assisted automation"
+msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/settings.js:13
+msgid "Allow assisted automation to apply only actions on the safe allowlist."
+msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/settings.js:14
+msgid "Maintenance window start"
+msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/settings.js:14
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/settings.js:15
+msgid "Assisted automation may run only within this local time window."
+msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/settings.js:15
+msgid "Maintenance window end"
+msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/settings.js:16
+msgid "Low-traffic threshold (bytes/s)"
+msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/settings.js:19
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/rill.js:31
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/rill.js:38
+msgid "Goal"
+msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/settings.js:20
+msgid "Balanced (requires latency and CPU evidence)"
+msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/settings.js:21
+msgid "Throughput"
+msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/settings.js:22
+msgid "Latency (requires latency evidence)"
+msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/settings.js:23
+msgid "CPU efficiency (requires Core CPU evidence)"
+msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/settings.js:24
+msgid ""
+"Select the outcome used to rank supported actions and evaluate evidence."
+msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/settings.js:25
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/rill.js:38
+msgid "Profile"
+msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/settings.js:25
+msgid "Minimal"
+msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/settings.js:25
+msgid "Recommended"
+msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/settings.js:25
+msgid "Performance x86"
+msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/settings.js:25
+msgid "Wireless"
+msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/settings.js:25
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/advanced.js:20
+msgid "Diagnostics"
+msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/settings.js:25
+msgid ""
+"Load the selected configuration profile and its capability expectations."
+msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/settings.js:26
+msgid "Telemetry"
+msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/settings.js:26
+msgid "Collect measurements used by health checks and decision-making."
+msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/settings.js:27
+msgid "History"
+msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/settings.js:27
+msgid "Store action and runtime events for review and rollback."
+msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/settings.js:28
+msgid "Failsafe"
+msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/settings.js:28
+msgid "Protect changes with locks, health checks, and verified rollback."
+msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/settings.js:29
+msgid "Fast telemetry interval (seconds)"
+msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/settings.js:29
+msgid "How often to collect fast measurements."
+msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/settings.js:30
+msgid "Deep telemetry interval (seconds)"
+msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/settings.js:30
+msgid "How often to collect deeper measurements."
+msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/settings.js:33
+msgid "Rill Runtime"
+msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/settings.js:34
+msgid "Enable Runtime"
+msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/settings.js:34
+msgid ""
+"Enable the optional Rill Runtime integration. Core remains the execution "
+"authority."
+msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/settings.js:35
+msgid "Generic Runtime binary"
+msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/settings.js:35
+msgid "Path to the external generic Rill Runtime binary."
+msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/settings.js:36
+msgid "Use Rill ranking in automatic modes"
+msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/settings.js:36
+msgid ""
+"Let Rill rank Core-approved actions in automatic modes. Core still decides "
+"and executes."
+msgstr ""
+"允许 Rill 在自动模式下对核心引擎已批准的操作排序。决策与执行仍由核心引擎负"
+"责。"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/settings.js:37
+msgid "Minimum validated samples"
+msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/settings.js:37
+msgid ""
+"Minimum validated samples before an action can be considered for automatic "
+"selection."
+msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/settings.js:41
+msgid "Action cooldown (seconds)"
+msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/settings.js:41
+msgid "Minimum time between repeated applications of the same action."
+msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/settings.js:44
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/settings.js:46
+msgid "Settings"
+msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/settings.js:44
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/settings.js:46
+msgid ""
+"Keep conservative automation as the safe default; assisted actions remain "
+"explicitly opt-in."
+msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/settings.js:44
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/settings.js:46
+msgid "Configuration"
+msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/rill.js:11
+msgid "Refresh Rill decision"
+msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/rill.js:16
+msgid "Unable to refresh Rill."
+msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/rill.js:19
+#, javascript-format
+msgid "Unable to refresh Rill: %s. Try again."
+msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/rill.js:25
+msgid "Selected"
+msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/rill.js:25
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/rill.js:44
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/optimize.js:16
+msgid "Eligible"
+msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/rill.js:26
+msgid ""
+"No ranking is available yet. Refresh the decision or wait for the next "
+"evaluation."
+msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/rill.js:27
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/rill.js:48
+msgid "Top ranking"
+msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/rill.js:27
+msgid "Rank"
+msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/rill.js:27
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/rill.js:31
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/benchmark.js:49
+msgid "Candidate"
+msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/rill.js:27
+msgid "Score"
+msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/rill.js:27
+msgid "Eligibility"
+msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/rill.js:27
+msgid "Cooldown"
+msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/rill.js:30
+msgid "Accepted"
+msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/rill.js:30
+msgid "Reconciled"
+msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/rill.js:30
+msgid "No validated feedback yet."
+msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/rill.js:31
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/rill.js:49
+msgid "Recent feedback"
+msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/rill.js:31
+msgid "Reward"
+msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/rill.js:31
+msgid "Quality"
+msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/rill.js:31
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/benchmark.js:50
+msgid "Result"
+msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/rill.js:33
+msgid "Runtime status"
+msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/rill.js:34
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/overview.js:36
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/history.js:34
+msgid "State"
+msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/rill.js:34
+msgid "Version"
+msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/rill.js:34
+msgid "Transport"
+msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/rill.js:34
+msgid "Last decision"
+msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/rill.js:34
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/optimize.js:16
+msgid "Selected action"
+msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/rill.js:34
+msgid "Last outcome"
+msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/rill.js:37
+msgid "Decision context"
+msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/rill.js:38
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/overview.js:48
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/benchmark.js:48
+msgid "Path"
+msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/rill.js:38
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/overview.js:50
+msgid "Workload"
+msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/rill.js:38
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/overview.js:30
+msgid "Topology generation"
+msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/rill.js:38
+msgid "Route identity"
+msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/rill.js:38
+msgid "Integration"
+msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/rill.js:40
+msgid "Selected candidate details"
+msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/rill.js:41
+msgid "Business action"
+msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/rill.js:41
+msgid "Candidate reward mean"
+msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/rill.js:41
+msgid "Candidate successes"
+msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/rill.js:41
+msgid "Candidate failures"
+msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/rill.js:41
+msgid "Candidate rollbacks"
+msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/rill.js:41
+msgid "Cooldown reason"
+msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/rill.js:43
+msgid "Learning status"
+msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/rill.js:44
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/optimize.js:16
+msgid "Learning stage"
+msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/rill.js:44
+msgid "Validated samples"
+msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/rill.js:44
+msgid "Minimum samples"
+msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/rill.js:44
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/capabilities.js:15
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/optimize.js:16
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/optimize.js:39
+msgid "Confidence"
+msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/rill.js:44
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/optimize.js:16
+msgid "Last reward"
+msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/rill.js:44
+msgid "Measurement quality"
+msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/rill.js:44
+msgid "Drift"
+msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/rill.js:44
+msgid "Detected"
+msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/rill.js:44
+msgid "Stable"
+msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/rill.js:44
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/optimize.js:16
+msgid "Auto eligibility"
+msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/rill.js:44
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/optimize.js:16
+msgid "Paused"
+msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/rill.js:51
+msgid "Performance drift detected. Rill Auto temporarily paused."
+msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/rill.js:52
+msgid ""
+"Rill provides observation and recommendations only. It cannot write UCI, "
+"sysctl, or firewall state, execute arbitrary shell commands, or apply "
+"actions."
+msgstr ""
+"Rill 仅提供观察和建议。它不能写入 UCI、sysctl 或防火墙状态，不能执行任意 "
+"Shell 命令，也不能应用操作。"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/rill.js:53
+msgid "Rill details"
+msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/rill.js:53
+msgid "Raw Rill contract"
+msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/overview.js:13
+msgid "System status"
+msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/overview.js:14
+msgid "Running"
+msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/overview.js:14
+msgid "Stopped"
+msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/overview.js:15
+#, javascript-format
+msgid "Automation: %s"
+msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/overview.js:16
+#, javascript-format
+msgid "Goal: %s"
+msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/overview.js:18
+msgid "Telemetry enabled"
+msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/overview.js:18
+msgid "Telemetry disabled"
+msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/overview.js:19
+msgid "Failsafe enabled"
+msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/overview.js:19
+msgid "Failsafe disabled"
+msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/overview.js:20
+msgid "Profile healthy"
+msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/overview.js:20
+msgid "Profile degraded"
+msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/overview.js:20
+msgid "Profile unmet"
+msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/overview.js:23
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/performance-manager/ui.js:5
+msgid "Performance Manager"
+msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/overview.js:26
+msgid "System health guard"
+msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/overview.js:27
+msgid "Health guard passed"
+msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/overview.js:27
+msgid "Blocked by health guard"
+msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/overview.js:29
+msgid "Reasons"
+msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/overview.js:29
+msgid "None"
+msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/overview.js:31
+msgid "Platform"
+msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/overview.js:31
+msgid "Generic x86"
+msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/overview.js:34
+msgid "Recent transaction"
+msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/overview.js:35
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/history.js:34
+msgid "Action"
+msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/overview.js:37
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/history.js:34
+msgid "Target"
+msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/overview.js:38
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/history.js:34
+msgid "Boot identity"
+msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/overview.js:42
+msgid "Native Packet Steering"
+msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/overview.js:43
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/capabilities.js:15
+msgid "Provider"
+msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/overview.js:44
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/capabilities.js:15
+msgid "Availability"
+msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/overview.js:45
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/capabilities.js:15
+msgid "Policy"
+msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/overview.js:46
+msgid "Ownership"
+msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/overview.js:49
+msgid "LAN → WAN"
+msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/overview.js:51
+msgid "Stable targets"
+msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/overview.js:54
+msgid "Advanced details"
+msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/overview.js:54
+msgid "Status and topology JSON"
+msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/capabilities.js:13
+msgid "Unknown"
+msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/capabilities.js:15
+msgid "Scope"
+msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/capabilities.js:15
+msgid "Adjustable"
+msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/capabilities.js:15
+msgid "Yes"
+msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/capabilities.js:15
+msgid "No"
+msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/capabilities.js:19
+msgid "No capabilities are available from the current provider."
+msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/capabilities.js:20
+msgid "Capabilities"
+msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/capabilities.js:20
+msgid ""
+"Review the capabilities available on this device. Unsupported capabilities "
+"are hidden from action controls; expected profile gaps appear as degraded."
+msgstr ""
+"查看此设备可用的能力。不受支持的能力不会出现在操作控件中；配置方案预期能力缺"
+"失时会显示为降级。"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/capabilities.js:22
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/advanced.js:16
+msgid "Capability / Topology / TargetRef JSON"
+msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/capabilities.js:22
+msgid "Raw capability contract"
+msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/history.js:15
+msgid "Confirm"
+msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/history.js:18
+msgid "Transaction confirmed."
+msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/history.js:19
+#, javascript-format
+msgid ""
+"Unable to confirm transaction: %s. Refresh the page and try again if it is "
+"still pending."
+msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/history.js:25
+msgid "Rollback"
+msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/history.js:28
+msgid "Rollback completed and read-back verified."
+msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/history.js:29
+#, javascript-format
+msgid ""
+"Unable to roll back transaction: %s. Check the transaction details and try "
+"again."
+msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/history.js:34
+msgid "Transaction JSON"
+msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/history.js:36
+msgid "No transactions are currently recorded."
+msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/history.js:37
+msgid "History and rollback"
+msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/history.js:37
+msgid ""
+"Review pending confirmations, verified rollbacks, and runtime events with "
+"their safety context."
+msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/history.js:40
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/advanced.js:17
+msgid "Resource locks"
+msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/history.js:40
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/advanced.js:17
+msgid "Locks JSON"
+msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/history.js:41
+msgid "Persistent action history"
+msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/history.js:41
+msgid "History JSON"
+msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/history.js:42
+msgid "Runtime event history"
+msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/history.js:42
+msgid "Runtime History JSON"
+msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/benchmark.js:9
+msgid "Unable to read evidence. Paste valid JSON and try again."
+msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/benchmark.js:14
+msgid "Complete"
+msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/benchmark.js:14
+msgid "Pending"
+msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/benchmark.js:25
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/benchmark.js:93
+msgid "Benchmark action"
+msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/benchmark.js:27
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/benchmark.js:94
+msgid "Evaluation path"
+msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/benchmark.js:35
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/benchmark.js:95
+msgid "Measurement class"
+msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/benchmark.js:36
+msgid "Controlled A/B"
+msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/benchmark.js:37
+msgid "Passive before/after"
+msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/benchmark.js:38
+msgid "Health only"
+msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/benchmark.js:40
+msgid "Start test"
+msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/benchmark.js:45
+msgid "Test blocked"
+msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/benchmark.js:45
+msgid "Details"
+msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/benchmark.js:48
+msgid "Environment"
+msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/benchmark.js:48
+msgid "Compatibility"
+msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/benchmark.js:48
+msgid "Locks / Failsafe"
+msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/benchmark.js:49
+msgid "Baseline"
+msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/benchmark.js:50
+msgid "Commit-confirm"
+msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/benchmark.js:60
+msgid "Validate baseline and apply candidate"
+msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/benchmark.js:60
+msgid "Validate candidate and restore original state"
+msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/benchmark.js:67
+#, javascript-format
+msgid "Unable to submit evidence: %s. Check the evidence and try again."
+msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/benchmark.js:70
+msgid "Baseline evidence"
+msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/benchmark.js:70
+msgid "Candidate evidence"
+msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/benchmark.js:75
+msgid "Benchmark session JSON"
+msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/benchmark.js:87
+msgid "Unable to start test"
+msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/benchmark.js:87
+#, javascript-format
+msgid "Check the selected action and path, then try again: %s"
+msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/benchmark.js:98
+msgid "No benchmark action is currently available for this device."
+msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/benchmark.js:100
+msgid "Performance test"
+msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/benchmark.js:100
+msgid ""
+"Run one explicit test at a time. Controlled A/B results require stable "
+"context, health checks, and verified rollback."
+msgstr ""
+"一次只运行一个明确启动的测试。受控 A/B 结果必须满足上下文稳定、健康检查通过"
+"且回滚已验证。"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/benchmark.js:101
+msgid ""
+"Environment → Path → Compatibility → Locks/Failsafe → Baseline → Candidate "
+"→ Commit-confirm → Result"
+msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/benchmark.js:102
+msgid "Unavailable benchmark providers"
+msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/benchmark.js:102
+msgid "Why benchmark actions are unavailable"
+msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/optimize.js:13
+msgid "Smart policy"
+msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/optimize.js:14
+msgid "Automatic action paused"
+msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/optimize.js:14
+msgid "Eligible for automatic action"
+msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/optimize.js:16
+msgid "Core recommendation"
+msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/optimize.js:16
+msgid "Policy reason"
+msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/optimize.js:19
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/optimize.js:52
+msgid "Rill recommends keeping the current configuration."
+msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/optimize.js:20
+msgid ""
+"Performance drift detected. Automatic Rill decisions are temporarily paused."
+msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/optimize.js:21
+msgid "No conservative changes are needed right now."
+msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/optimize.js:23
+msgid "Apply safely"
+msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/optimize.js:27
+msgid "Action committed after verification."
+msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/optimize.js:29
+#, javascript-format
+msgid ""
+"Unable to apply action: %s. Check the transaction details and try again."
+msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/optimize.js:33
+msgid "Applies to"
+msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/optimize.js:33
+msgid "Affected targets"
+msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/optimize.js:33
+msgid "Evaluation paths"
+msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/optimize.js:33
+msgid "Risk"
+msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/optimize.js:33
+msgid "Reason"
+msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/optimize.js:39
+msgid "Authority"
+msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/optimize.js:39
+msgid "Execution path"
+msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/optimize.js:39
+msgid "Controlled benchmark"
+msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/optimize.js:39
+msgid "No mutation"
+msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/optimize.js:39
+msgid "Safe direct apply"
+msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/optimize.js:41
+msgid "Apply this Rill recommendation"
+msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/optimize.js:45
+msgid "Rill recommendation applied and verified."
+msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/optimize.js:47
+#, javascript-format
+msgid ""
+"Unable to apply Rill recommendation: %s. Review the safety state and try "
+"again."
+msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/optimize.js:56
+#, javascript-format
+msgid "Rill recommendation: %s"
+msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/optimize.js:58
+msgid "Smart optimization"
+msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/optimize.js:58
+msgid ""
+"Review supported actions and apply them only after Core safety checks. "
+"Existing user and external settings are preserved."
+msgstr ""
+"查看受支持的操作，并仅在核心安全检查通过后应用。现有用户设置和外部设置会保"
+"留。"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/advanced.js:11
+msgid "Advanced"
+msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/advanced.js:11
+msgid ""
+"Inspect the read-only contracts and resource state behind the supported "
+"views."
+msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/advanced.js:13
+msgid "Profile contract"
+msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/advanced.js:13
+msgid "Profile status JSON"
+msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/advanced.js:14
+msgid "Build recommendations"
+msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/advanced.js:14
+msgid "Build and provider recommendations"
+msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/advanced.js:15
+msgid "Hidden capabilities"
+msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/advanced.js:15
+msgid "Unavailable capability JSON"
+msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/advanced.js:16
+msgid "Raw topology contract"
+msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/advanced.js:18
+msgid "Transactions"
+msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/advanced.js:18
+msgid "Transactions JSON"
+msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/advanced.js:19
+msgid "Resource usage"
+msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/advanced.js:19
+msgid "Resource usage JSON"
+msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/advanced.js:20
+msgid "Diagnostics JSON"
+msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/performance-manager/ui.js:57
+msgid "Raw JSON"
+msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/performance-manager/ui.js:174
+msgid "Project"
+msgstr ""
+
+msgid "%s, see technical details"
+msgstr ""
+
+msgid "About %s min %s sec"
+msgstr ""
+
+msgid "About %s minutes"
+msgstr ""
+
+msgid "About %s seconds"
+msgstr ""
+
+msgid "Adjust busy polling to reduce latency at the cost of CPU time."
+msgstr ""
+
+msgid "Adjust how many packets the kernel processes per soft-interrupt poll."
+msgstr ""
+
+msgid "Adjust interrupt coalescing to trade latency against CPU usage."
+msgstr ""
+
+msgid "Adjust the CPU frequency governor (performance or schedutil)."
+msgstr ""
+
+msgid "Adjust the kernel socket receive buffer limit."
+msgstr ""
+
+msgid "Adjust the maximum length of the kernel receive backlog queue."
+msgstr ""
+
+msgid "Adjust the transmit queue length to absorb traffic bursts."
+msgstr ""
+
+msgid "Advanced: submit evidence manually"
+msgstr ""
+
+msgid "Advisory only (never applied automatically)"
+msgstr ""
+
+msgid "Analyse only"
+msgstr ""
+
+msgid "Applied"
+msgstr ""
+
+msgid "Applying..."
+msgstr ""
+
+msgid "Assisted"
+msgstr ""
+
+msgid "Available"
+msgstr ""
+
+msgid "Balanced"
+msgstr ""
+
+msgid "Blocked by the current mode policy"
+msgstr ""
+
+msgid ""
+"Built-in OpenWrt packet steering. It is observed only; existing ownership "
+"is never seized."
+msgstr ""
+
+msgid "CPU"
+msgstr ""
+
+msgid "CPU efficiency first"
+msgstr ""
+
+msgid "CPU frequency governor"
+msgstr ""
+
+msgid "Candidate applied"
+msgstr ""
+
+msgid "Capacity test only when conditions are met"
+msgstr ""
+
+msgid "Cold start (not enough samples)"
+msgstr ""
+
+msgid ""
+"Collect kernel network parameters and available benchmark candidates for "
+"explicit controlled tests."
+msgstr ""
+
+msgid "Committed"
+msgstr ""
+
+msgid "Compatibility check failed"
+msgstr ""
+
+msgid "Completed"
+msgstr ""
+
+msgid "Confidence is below the policy threshold"
+msgstr ""
+
+msgid "Confirming..."
+msgstr ""
+
+msgid "Connected"
+msgstr ""
+
+msgid "Controlled A/B comparison"
+msgstr ""
+
+msgid "Could not connect to the backend"
+msgstr ""
+
+msgid "Decision binding could not be registered"
+msgstr ""
+
+msgid "Device"
+msgstr ""
+
+msgid "Device %s"
+msgstr ""
+
+msgid "Device temperature too high"
+msgstr ""
+
+msgid "Discover only (requires an explicit controlled A/B test)"
+msgstr ""
+
+msgid "Docker"
+msgstr ""
+
+msgid "Drifted"
+msgstr ""
+
+msgid "Duplicate candidate identifier"
+msgstr ""
+
+msgid "Enable or disable firewall hardware flow offloading."
+msgstr ""
+
+msgid "Enable or disable firewall software flow offloading."
+msgstr ""
+
+msgid "Enable or stop irqbalance, which spreads interrupts across CPU cores."
+msgstr ""
+
+msgid "Explicit test start is disabled in the configuration"
+msgstr ""
+
+msgid "Failed"
+msgstr ""
+
+msgid "Firewall (firewall4 or third party)"
+msgstr ""
+
+msgid "Firewall fast path"
+msgstr ""
+
+msgid "Forwarding path"
+msgstr ""
+
+msgid "Full routing tools (ip-full with route events)"
+msgstr ""
+
+msgid "Hardware flow offloading"
+msgstr ""
+
+msgid "Health observation only"
+msgstr ""
+
+msgid "Health regressed during the test"
+msgstr ""
+
+msgid "High"
+msgstr ""
+
+msgid "High CPU load"
+msgstr ""
+
+msgid "High CPU steal from virtualisation"
+msgstr ""
+
+msgid "High performance (x86)"
+msgstr ""
+
+msgid "High risk"
+msgstr ""
+
+msgid "HomeProxy proxy"
+msgstr ""
+
+msgid "Interrupt balancing service"
+msgstr ""
+
+msgid "Invalid (not adopted)"
+msgstr ""
+
+msgid "Keep the current configuration"
+msgstr ""
+
+msgid "Kernel network baseline"
+msgstr ""
+
+msgid "Kernel polling budget"
+msgstr ""
+
+msgid "Kernel receive backlog"
+msgstr ""
+
+msgid "LAN client"
+msgstr ""
+
+msgid "LAN to %s"
+msgstr ""
+
+msgid "LAN to WAN"
+msgstr ""
+
+msgid "Latency first"
+msgstr ""
+
+msgid "Learning"
+msgstr ""
+
+msgid "Limited"
+msgstr ""
+
+msgid "Linux kernel"
+msgstr ""
+
+msgid "Linux sysctl"
+msgstr ""
+
+msgid "Local endpoint"
+msgstr ""
+
+msgid "Local path"
+msgstr ""
+
+msgid "Local port capacity"
+msgstr ""
+
+msgid ""
+"Local port capacity matters under proxy or high-connection pressure. "
+"Reserved ports and existing ownership are preserved, and any change is "
+"limited to a performance test."
+msgstr ""
+"本机端口容量在代理或高连接压力场景下才有意义。保留端口与现有所有权都会保留，"
+"任何变更都仅限性能测试。"
+
+msgid ""
+"Local port range, reserved ports and connection tracking capacity. Relevant "
+"under proxy or high connection pressure."
+msgstr ""
+"本机端口范围、保留端口与连接跟踪容量。仅在代理或高连接压力场景下相关。"
+
+msgid "Local subprocess"
+msgstr ""
+
+msgid "Locked"
+msgstr ""
+
+msgid "Low"
+msgstr ""
+
+msgid "Low available memory"
+msgstr ""
+
+msgid "Managed externally"
+msgstr ""
+
+msgid "Medium"
+msgstr ""
+
+msgid "Missing evidence: %s"
+msgstr ""
+
+msgid "Model is unhealthy"
+msgstr ""
+
+msgid "NIC interrupt coalescing"
+msgstr ""
+
+msgid "NIC offload features"
+msgstr ""
+
+msgid "NIC ring buffer"
+msgstr ""
+
+msgid "NIC ring buffer (conservative floor)"
+msgstr ""
+
+msgid "NIC transmit queue length"
+msgstr ""
+
+msgid "Native packet steering"
+msgstr ""
+
+msgid "Needs endpoint test"
+msgstr ""
+
+msgid "Network driver (ethtool)"
+msgstr ""
+
+msgid "Network interface"
+msgstr ""
+
+msgid "Network interface %s"
+msgstr ""
+
+msgid "No action is allowed right now"
+msgstr ""
+
+msgid "No change is recommended right now."
+msgstr ""
+
+msgid "No data is available"
+msgstr ""
+
+msgid "No exact decision is available"
+msgstr ""
+
+msgid "Not connected"
+msgstr ""
+
+msgid "Not resolved"
+msgstr ""
+
+msgid "Observation response was invalid"
+msgstr ""
+
+msgid ""
+"Observe and analyse only (channel, width and transmit power require an "
+"explicit test)"
+msgstr ""
+
+msgid ""
+"Observe hardware offload features of the network card without changing "
+"existing settings."
+msgstr ""
+
+msgid "Observe only (protect pre-existing configuration)"
+msgstr ""
+
+msgid "Observe only (respect existing configuration)"
+msgstr ""
+
+msgid "Observe only; test only; functional correctness is a hard requirement"
+msgstr ""
+
+msgid ""
+"Observe radios and driver details without changing channel or transmit "
+"power."
+msgstr ""
+
+msgid ""
+"Observe software and hardware flow offloading and third-party fast path "
+"support."
+msgstr ""
+
+msgid ""
+"Observe the receive and transmit ring buffer sizes of the network card."
+msgstr ""
+
+msgid "Observe third-party Shortcut-FE style fast path support."
+msgstr ""
+
+msgid "OpenClash proxy"
+msgstr ""
+
+msgid "OpenVPN"
+msgstr ""
+
+msgid "OpenWrt netifd"
+msgstr ""
+
+msgid "PBR policy routing"
+msgstr ""
+
+msgid "PPPoE"
+msgstr ""
+
+msgid "PassWall proxy"
+msgstr ""
+
+msgid "Passive before and after"
+msgstr ""
+
+msgid "Paste the JSON evidence produced by the companion test tool"
+msgstr ""
+
+msgid "Permission denied"
+msgstr ""
+
+msgid "Persistent storage unavailable"
+msgstr ""
+
+msgid "Plain forwarding"
+msgstr ""
+
+msgid "Planned"
+msgstr ""
+
+msgid "Pre-existing configuration"
+msgstr ""
+
+msgid ""
+"Raise the network card ring buffer to the conservative floor of 1024 to "
+"reduce packet drops under load."
+msgstr ""
+
+msgid "Ready"
+msgstr ""
+
+msgid "Recent out-of-memory kill"
+msgstr ""
+
+msgid "Recommended for a performance test only"
+msgstr ""
+
+msgid "Refreshing..."
+msgstr ""
+
+msgid ""
+"Replace the network card queueing discipline; no reversible provider is "
+"available."
+msgstr ""
+
+msgid "Required capability is missing"
+msgstr ""
+
+msgid "Required role: %s"
+msgstr ""
+
+msgid "Respect existing configuration"
+msgstr ""
+
+msgid "Reward %s · %s"
+msgstr ""
+
+msgid "Rill selected an eligible candidate"
+msgstr ""
+
+msgid "Rill smart decisions"
+msgstr ""
+
+msgid "Rill smart decisions are turned off"
+msgstr ""
+
+msgid "Rolled back"
+msgstr ""
+
+msgid "Rolling back..."
+msgstr ""
+
+msgid "Router local client"
+msgstr ""
+
+msgid ""
+"Run the companion test tool before any candidate is applied, then paste its "
+"JSON result."
+msgstr ""
+
+msgid "Runtime available"
+msgstr ""
+
+msgid "Runtime binary invalid"
+msgstr ""
+
+msgid "Runtime disabled"
+msgstr ""
+
+msgid "Runtime error"
+msgstr ""
+
+msgid "Runtime learning"
+msgstr ""
+
+msgid "Runtime missing capabilities"
+msgstr ""
+
+msgid "Runtime not provisioned"
+msgstr ""
+
+msgid "Runtime protocol v%s"
+msgstr ""
+
+msgid "Runtime unavailable"
+msgstr ""
+
+msgid "Runtime unhealthy"
+msgstr ""
+
+msgid "Runtime version mismatch"
+msgstr ""
+
+msgid "SQM shaping"
+msgstr ""
+
+msgid "Safe"
+msgstr ""
+
+msgid ""
+"See system health, active safeguards, and the latest verified action. "
+"Confidence and scores are shown as percentages (0–1 maps to 0–100%)."
+msgstr ""
+"查看系统健康度、生效中的保护措施与最近一次已验证操作。置信度与评分均以百分比"
+"显示（0–1 映射为 0–100%）。"
+
+msgid "Service"
+msgstr ""
+
+msgid "Service %s"
+msgstr ""
+
+msgid "Snapshot taken"
+msgstr ""
+
+msgid "Socket buffer limits"
+msgstr ""
+
+msgid "Socket busy polling"
+msgstr ""
+
+msgid "Software flow offloading"
+msgstr ""
+
+msgid "Starting..."
+msgstr ""
+
+msgid "State storage unavailable"
+msgstr ""
+
+msgid "Storage"
+msgstr ""
+
+msgid "Storage service"
+msgstr ""
+
+msgid "Succeeded"
+msgstr ""
+
+msgid "Switch the TCP congestion control algorithm."
+msgstr ""
+
+msgid "System"
+msgstr ""
+
+msgid "System %s"
+msgstr ""
+
+msgid "System kernel"
+msgstr ""
+
+msgid "TCP congestion control"
+msgstr ""
+
+msgid "Technical details"
+msgstr ""
+
+msgid "Test only"
+msgstr ""
+
+msgid ""
+"The Hyper-V hv_netvsc ring buffer is below the conservative floor of 1024 "
+"even though the hardware maximum allows raising it."
+msgstr ""
+"Hyper-V hv_netvsc 的环形缓冲区低于 1024 的保守下限，而硬件上限允许提升。"
+
+msgid "The Rill selection requires no change"
+msgstr ""
+
+msgid "The action is cooling down"
+msgstr ""
+
+msgid "The backend command is not valid"
+msgstr ""
+
+msgid "The backend method does not exist"
+msgstr ""
+
+msgid "The backend reported an unknown error"
+msgstr ""
+
+msgid ""
+"The companion test tool runs on a separate client or on the router itself "
+"and produces the evidence JSON this page needs. Only use this path when you "
+"must validate a benchmark by hand; it is not required for normal use."
+msgstr ""
+"配套测试工具可运行在独立客户端或路由器本机上，用于生成本页所需的证据 JSON。"
+"仅在需要手动验证性能测试时使用，日常使用无需此步骤。"
+
+msgid "The compatibility check failed"
+msgstr ""
+
+msgid "The evaluation path could not be resolved"
+msgstr ""
+
+msgid ""
+"The native OpenWrt provider was detected; existing ownership is preserved."
+msgstr ""
+
+msgid "The operation is not supported"
+msgstr ""
+
+msgid "The operation timed out"
+msgstr ""
+
+msgid "The provider is unavailable on this device"
+msgstr ""
+
+msgid "The ranking contains an unknown candidate"
+msgstr ""
+
+msgid "The reported score is invalid"
+msgstr ""
+
+msgid "The request parameters are not valid"
+msgstr ""
+
+msgid "The route could not be resolved"
+msgstr ""
+
+msgid "The runtime binary is invalid"
+msgstr ""
+
+msgid "The runtime is unavailable"
+msgstr ""
+
+msgid "The runtime version does not match"
+msgstr ""
+
+msgid "The same attempt was already applied"
+msgstr ""
+
+msgid "The selected candidate no longer exists"
+msgstr ""
+
+msgid "The single-variable test contract is disabled"
+msgstr ""
+
+msgid "The target could not be resolved"
+msgstr ""
+
+msgid "The target was not found"
+msgstr ""
+
+msgid "Third-party fast path"
+msgstr ""
+
+msgid "This capability was detected on the device."
+msgstr ""
+
+msgid ""
+"This capability was detected on the device. Open technical details for the "
+"raw output."
+msgstr ""
+
+msgid "This goal cannot be validated with a controlled A/B test"
+msgstr ""
+
+msgid ""
+"This recommendation is for a performance test only. Open Performance test "
+"and complete both detection phases with the companion test tool; it cannot "
+"be applied directly."
+msgstr ""
+"该建议仅用于性能测试。请打开“性能测试”，使用配套测试工具完成两个测试阶段；该"
+"建议不能直接应用。"
+
+msgid "Throughput first"
+msgstr ""
+
+msgid "Traffic scheduler replacement"
+msgstr ""
+
+msgid "Transparent proxy"
+msgstr ""
+
+msgid "Unavailable"
+msgstr ""
+
+msgid "Unknown error, see technical details"
+msgstr ""
+
+msgid "Unknown state"
+msgstr ""
+
+msgid "Use with caution"
+msgstr ""
+
+msgid "User configuration"
+msgstr ""
+
+msgid "Using the deterministic core policy"
+msgstr ""
+
+msgid "VPN tunnel"
+msgstr ""
+
+msgid "Validated by a controlled A/B test"
+msgstr ""
+
+msgid "Verified"
+msgstr ""
+
+msgid "Waiting for baseline evidence"
+msgstr ""
+
+msgid "Waiting for confirmation"
+msgstr ""
+
+msgid "WireGuard"
+msgstr ""
+
+msgid "Wireless observation"
+msgstr ""
+
+msgid "Wireless radio %s"
+msgstr ""
+
+msgid "Wireless stack (nl80211/iw)"
+msgstr ""
+
+msgid "Working..."
+msgstr ""
+
+msgid "mwan3 multi-WAN"
+msgstr ""
+
+msgid "netifd fallback"
+msgstr ""
+
+msgid "qosify classification"
+msgstr ""
+
+msgid "Resolved"
+msgstr ""
+
+msgid "Ranking table"
+msgstr ""
+
+msgid "Feedback table"
+msgstr ""
+
+msgid "A candidate appears twice in the scores"
+msgstr ""
+
+msgid "A controlled A/B test requires a performance test action"
+msgstr ""
+
+msgid "A performance test action is required"
+msgstr ""
+
+msgid "A performance test already holds the required lock"
+msgstr ""
+
+msgid "A performance test transaction cannot be confirmed manually"
+msgstr ""
+
+msgid "A score row is invalid"
+msgstr ""
+
+msgid "About 1 minute"
+msgstr ""
+
+msgid "About 1 second"
+msgstr ""
+
+msgid ""
+"Action was not committed: %s. Check the transaction details and try again."
+msgstr ""
+
+msgid "Another operation holds the lock needed for the rollback"
+msgstr ""
+
+msgid "Another operation holds the required lock"
+msgstr ""
+
+msgid ""
+"Assisted automation runs only while traffic stays below this threshold. The "
+"default of 1048576 bytes per second is about 1 MiB/s."
+msgstr ""
+"辅助自动化仅在流量低于此阈值时运行。默认值 1048576 字节/秒，约合 1 MiB/s。"
+
+msgid "Assisted minimum confidence (0–1 ratio)"
+msgstr ""
+
+msgid "Candidate identifier"
+msgstr ""
+
+msgid ""
+"Candidate identifiers are kept in technical details so long identifiers do "
+"not crowd the page."
+msgstr ""
+
+msgid "Change transaction"
+msgstr ""
+
+msgid ""
+"Confirmation failed: %s. Refresh the page to check the transaction state."
+msgstr ""
+
+msgid "Conservative minimum confidence (0–1 ratio)"
+msgstr ""
+
+msgid "Cooling down after a health-driven rollback"
+msgstr ""
+
+msgid "Cooling down after a validated success"
+msgstr ""
+
+msgid "Cooling down after an execution failure"
+msgstr ""
+
+msgid ""
+"Identifiers are kept in technical details so long UUIDs do not crowd the "
+"page."
+msgstr ""
+
+msgid "Live state changed, so the stale rollback was refused"
+msgstr ""
+
+msgid "Minimum confidence required by assisted automation. 0.75 means 75%."
+msgstr ""
+
+msgid ""
+"Minimum confidence required by conservative automation. 0.65 means 65%."
+msgstr ""
+
+msgid "No action is available for Rill to rank"
+msgstr ""
+
+msgid "No safe action is available right now"
+msgstr ""
+
+msgid ""
+"Pause automatic Rill decisions when measured performance drifts beyond this "
+"threshold. 0.20 means 20%."
+msgstr ""
+
+msgid "Performance drift threshold (0–1 ratio)"
+msgstr ""
+
+msgid "Protocol"
+msgstr ""
+
+msgid "Recorded, see technical details"
+msgstr ""
+
+msgid ""
+"Replace <WAN_SERVER> with the router WAN address before running the command."
+msgstr ""
+
+msgid "Rill decisions are throttled; try again shortly"
+msgstr ""
+
+msgid ""
+"Rill ranks actions that passed the Core engine review; the Core engine "
+"keeps the final authority to execute them. Confidence and scores are shown "
+"as percentages (0–1 maps to 0–100%)."
+msgstr ""
+"Rill 对通过核心引擎审核的操作排序；最终执行权由核心引擎掌握。置信度和评分按"
+"百分比显示（0–1 对应 0–100%）。"
+
+msgid ""
+"Rill recommendation was not applied: %s. Review the safety state and try "
+"again."
+msgstr ""
+
+msgid ""
+"Rollback could not be completed: %s. Check the transaction details before "
+"trying again."
+msgstr ""
+
+msgid "The Rill mutation journal could not be written"
+msgstr ""
+
+msgid "The Rill outcome could not be armed"
+msgstr ""
+
+msgid "The Rill outcome journal could not be written"
+msgstr ""
+
+msgid "The Rill response did not report a valid status"
+msgstr ""
+
+msgid "The Rill response was not an object"
+msgstr ""
+
+msgid "The Rill runtime could not be started"
+msgstr ""
+
+msgid "The Rill runtime does not support this operation"
+msgstr ""
+
+msgid "The Rill runtime exited with code %s"
+msgstr ""
+
+msgid "The Rill runtime is incompatible"
+msgstr ""
+
+msgid "The Rill runtime is starting"
+msgstr ""
+
+msgid "The Rill runtime is unavailable"
+msgstr ""
+
+msgid "The Rill runtime is unhealthy"
+msgstr ""
+
+msgid "The Rill runtime rejected the outcome"
+msgstr ""
+
+msgid "The Rill runtime returned an empty response"
+msgstr ""
+
+msgid "The Rill runtime returned an unreadable response"
+msgstr ""
+
+msgid "The Rill status response has no version"
+msgstr ""
+
+msgid "The Rill status response is malformed"
+msgstr ""
+
+msgid "The action could not be applied"
+msgstr ""
+
+msgid "The candidate change could not be rolled back"
+msgstr ""
+
+msgid "The candidate change is no longer active"
+msgstr ""
+
+msgid ""
+"The candidate is temporarily active and protected by commit-confirm. Run "
+"the same endpoint test now; the Core engine will restore the original value "
+"before validating the result."
+msgstr ""
+"候选项当前临时生效并受提交确认保护。请立即运行相同端点测试；核心引擎会先恢复"
+"原值，再验证结果。"
+
+msgid "The change could not be written to storage"
+msgstr ""
+
+msgid "The configuration is now owned by another operation"
+msgstr ""
+
+msgid "The decision identifier is invalid"
+msgstr ""
+
+msgid "The device context changed during the performance test"
+msgstr ""
+
+msgid "The device context changed while the evidence was collected"
+msgstr ""
+
+msgid "The evaluation path was not found"
+msgstr ""
+
+msgid "The evaluation route could not be resolved"
+msgstr ""
+
+msgid "The evidence from the companion test tool is not valid"
+msgstr ""
+
+msgid "The evidence was produced for a different test context"
+msgstr ""
+
+msgid "The external Rill runtime is not installed"
+msgstr ""
+
+msgid "The health guard blocked this action"
+msgstr ""
+
+msgid "The ip command needed for route evidence is missing or cannot emit JSON; install either ip-tiny or ip-full"
+msgstr ""
+
+msgid "The last result reduced measured performance"
+msgstr ""
+
+msgid "The last result was validated successfully"
+msgstr ""
+
+msgid "The local context is too large to send to Rill"
+msgstr ""
+
+msgid "The measurement class is not valid"
+msgstr ""
+
+msgid "The performance test action is unknown"
+msgstr ""
+
+msgid "The performance test is not waiting for baseline evidence"
+msgstr ""
+
+msgid "The performance test is not waiting for candidate evidence"
+msgstr ""
+
+msgid "The performance test phase is not valid"
+msgstr ""
+
+msgid "The performance test session expired through inactivity"
+msgstr ""
+
+msgid "The performance test session is not running"
+msgstr ""
+
+msgid "The performance test session no longer exists"
+msgstr ""
+
+msgid "The performance test was stopped by the user"
+msgstr ""
+
+msgid "The pre-change snapshot could not be taken"
+msgstr ""
+
+msgid "The ranking contains a duplicate candidate identifier"
+msgstr ""
+
+msgid "The recommendation is invalid"
+msgstr ""
+
+msgid "The recommended action is unknown"
+msgstr ""
+
+msgid "The reported confidence is invalid"
+msgstr ""
+
+msgid "The reported scores are invalid"
+msgstr ""
+
+msgid "The request was sent but its journal could not be recorded"
+msgstr ""
+
+msgid "The requested limit is not valid"
+msgstr ""
+
+msgid "The rollback could not be applied or verified"
+msgstr ""
+
+msgid "The rollback snapshot belongs to a previous boot"
+msgstr ""
+
+msgid "The rollback target could not be resolved"
+msgstr ""
+
+msgid "The saved Rill runtime state is invalid"
+msgstr ""
+
+msgid "The scores contain an unknown action"
+msgstr ""
+
+msgid "The target changed since the transaction was planned"
+msgstr ""
+
+msgid "The transaction has already been rolled back"
+msgstr ""
+
+msgid "The transaction is not waiting for confirmation"
+msgstr ""
+
+msgid "The transaction no longer exists"
+msgstr ""
+
+msgid "This Rill decision is already reserved by another operation"
+msgstr ""
+
+msgid "This action cannot be applied directly"
+msgstr ""
+
+msgid "Unknown action"
+msgstr ""
+
+msgid "Unknown capability"
+msgstr ""
+
+msgid "Unrecognized reason, see technical details"
+msgstr ""
+
+msgid "Verification after applying the action failed"
+msgstr ""
+
+#: package/luci-app-performance-manager/root/usr/share/luci/menu.d/luci-app-performance-manager.json
+msgid "Overview"
+msgstr ""
+
+#: package/luci-app-performance-manager/root/usr/share/luci/menu.d/luci-app-performance-manager.json
+msgid "Rill intelligence"
+msgstr ""

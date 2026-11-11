@@ -2160,3 +2160,11 @@ msgstr "无法识别的状态，详见技术详情"
 
 msgid "Verification after applying the action failed"
 msgstr "应用操作后的验证失败"
+
+#: package/luci-app-performance-manager/root/usr/share/luci/menu.d/luci-app-performance-manager.json
+msgid "Overview"
+msgstr "概览"
+
+#: package/luci-app-performance-manager/root/usr/share/luci/menu.d/luci-app-performance-manager.json
+msgid "Rill intelligence"
+msgstr "Rill 智能"
