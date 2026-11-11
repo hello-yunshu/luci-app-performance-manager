@@ -91,6 +91,21 @@ let rill_runtime_counters = {
 	runtimeMalformedResponseCount: 0,
 	runtimeNonZeroExitCount: 0
 };
+/* ucode does not hoist declarations.  A function body is bound against the
+ * names that already exist when its own `function` statement runs, so a body
+ * calling a helper that is declared further down keeps an unresolved
+ * reference and raises "access to undeclared variable" the first time that
+ * path executes -- even when the helper is defined long before the call
+ * happens (verified against the shipped ucode 2026.01.16: a forward reference
+ * fails regardless of call order, while an earlier `let` binding works once it
+ * is assigned).  Every helper referenced before its definition is therefore
+ * declared here and assigned where its own dependencies exist. */
+let primary_path = null;
+let goal = null;
+let rill_execution_path = null;
+let rill_execution_finalize_without_outcome = null;
+let rill_finalize_transaction_failure = null;
+let build_reward = null;
 /* Startup diagnostics: a daemon that cannot expose its ubus object must fail
  * closed, but the reported reason has to name the real cause instead of a
  * generic connect/publish failure. */
@@ -418,12 +433,22 @@ function smart_candidate_identity(action) {
 }
 
 function rill_context_scope(paths) {
+	/* primary_path() is declared far below because it needs topology(); it is
+	 * forward-declared at the top of this file.  If that binding is ever
+	 * missing, raising an uncaught expression error here would kill the daemon
+	 * from inside a uloop callback and procd would turn it into a crash loop.
+	 * Fail soft with an explicit status instead so the caller can skip this
+	 * pass. */
+	if (type(primary_path) != 'function')
+		return { ok: false, error: 'path-resolver-unavailable', pathId: null, routeIdentity: null, rows: [] };
 	let rows = [];
 	for (let path_id in paths ?? []) {
 		let path = type(path_id) == 'object' ? path_id : primary_path(path_id);
 		if (path && path.id != 'path:local-endpoint') push(rows, `${path.id}|${path.routeIdentity ?? 'unresolved'}`);
 	}
 	sort(rows);
+	/* Success keeps the exact original field set: this object is embedded in the
+	 * Runtime Observe payload and must not change the wire contract. */
 	return { pathId: stable_list_hash('paths', rows), routeIdentity: stable_list_hash('routes', rows), rows: rows };
 }
 
@@ -1974,10 +1999,10 @@ function benchmark_context_frozen(session) {
  * measurement, drive reward and appear in the Rill request and UI.  A goal
  * with no measurable methodology fails-closed instead of silently degrading
  * to throughput. */
-function goal() {
+goal = function() {
 	let g = cfg('main.goal', 'balanced');
 	return index(GOALS, g) >= 0 ? g : 'balanced';
-}
+};
 
 function goal_measurable(g) {
 	return GOAL_MEASURABLE[g] ?? null;
@@ -2388,9 +2413,9 @@ function rill_binding_peek(decision_id) {
 	return rill_binding_valid(binding) ? binding : null;
 }
 
-function rill_execution_path(decision_id) {
+rill_execution_path = function(decision_id) {
 	return `${persist_dir()}/rill-executions/${safe_name(decision_id)}.json`;
-}
+};
 
 function rill_terminal_sequence() {
 	/* A durable sequence is comparable across reboots; monotonic_ms() is not. */
@@ -2503,7 +2528,7 @@ function rill_binding_consume(binding) {
 	if (rill_advisory?.decisionId == binding.decisionId) rill_advisory = null;
 }
 
-function rill_execution_finalize_without_outcome(binding, terminal_state, reason, detail) {
+rill_execution_finalize_without_outcome = function(binding, terminal_state, reason, detail) {
 	if (index(RILL_EXECUTION_TERMINAL_STATES, terminal_state) < 0) return false;
 	let path = rill_execution_path(binding?.decisionId), journal = json_read(path, null);
 	if (!journal || journal.ownerId != binding?.ownerId || journal.ownerType != binding?.ownerType || journal.mutationStarted !== true)
@@ -2521,9 +2546,9 @@ function rill_execution_finalize_without_outcome(binding, terminal_state, reason
 	rill_binding_consume(binding);
 	runtime_history('rill.execution.terminal', { decisionId: binding.decisionId, ownerId: binding.ownerId, state: terminal_state, reason: journal.terminalReason });
 	return true;
-}
+};
 
-function rill_finalize_transaction_failure(tx, reason) {
+rill_finalize_transaction_failure = function(tx, reason) {
 	if (!tx?.rillDecision) return false;
 	let journal = json_read(rill_execution_path(tx.rillDecision.decisionId), null);
 	if (!journal || journal.executionState != 'executing') return false;
@@ -2531,7 +2556,7 @@ function rill_finalize_transaction_failure(tx, reason) {
 	return rill_execution_finalize_without_outcome(tx.rillDecision,
 		restored ? 'retired-restored-after-failure' : 'intervention-required', reason,
 		{ rollback: restored ? 'exact' : 'failed' });
-}
+};
 
 function rill_binding_retire(binding, reason) {
 	rill_binding_consume(binding);
@@ -2941,7 +2966,7 @@ function dns_health() {
 	return run([ 'nslookup', host ]).rc == 0;
 }
 
-function primary_path(path_id) {
+primary_path = function(path_id) {
 	/* An explicit path id must resolve exactly.  A caller-provided path that
 	 * does not exist is an error, never a silent fallback to the primary path:
 	 * recording one evaluationPath while evaluating another would pollute
@@ -2952,7 +2977,7 @@ function primary_path(path_id) {
 		return null;
 	}
 	return topology().paths?.[0] ?? null;
-}
+};
 
 function workload_for_paths(path_ids) {
 	/* An action's workload is the union of its affected/evaluation paths'
@@ -3606,6 +3631,7 @@ function smart_selector_context() {
 	let caps = capabilities(), topo = topology(), integ = integration_fingerprint([], nft_snapshot()), actions = rill_available_actions(active_selector_mode()), scope_paths = [];
 	for (let action in actions) for (let path_id in action.evaluationPaths ?? []) push_unique(scope_paths, path_id);
 	let scope = rill_context_scope(length(scope_paths) ? scope_paths : topo.paths);
+	if (scope.ok === false) return { ok: false, error: scope.error };
 	return {
 		profile: cfg('main.profile', 'recommended'), pathId: scope.pathId, workloadClass: workload_for_paths(scope_paths), integrationState: integration_state(),
 		contextKey: rill_context_key_build(cfg('main.profile','recommended'), capability_hash(caps), topology_generation,
@@ -3625,6 +3651,7 @@ function apply_action(msg) {
 		let source = msg?.executionSource ?? 'manual', frozen = null, tx = null;
 		if (source == 'rill-advisory') {
 			let bound = rill_binding_peek(msg?.decisionId), current = smart_selector_context();
+			if (current.ok === false) return { ok: false, error: current.error };
 			let candidate_id = smart_candidate_identity(a);
 			if (!bound || bound.actionId != candidate_id || bound.goal != current.goal || bound.contextKey != current.contextKey)
 				return { ok: false, error: 'exact-decision-context-mismatch' };
@@ -3986,7 +4013,7 @@ function smart_selector_action(result, candidates) {
 	return result?.selectedActionId == 'pm.noop' ? { id: 'pm.noop', risk: 'none', executionAuthority: 'none' } : null;
 }
 
-function build_reward(goal_id, control, candidate, control_telemetry, candidate_telemetry, health_regressed) {
+build_reward = function(goal_id, control, candidate, control_telemetry, candidate_telemetry, health_regressed) {
 	let c_bps = smart_num(control?.bitsPerSecond, 0), n_bps = smart_num(candidate?.bitsPerSecond, 0);
 	let components = { throughput: null, latency: null, latencyMedian: null, latencyP95: null, cpuEfficiency: null, cpuBusyInterval: { control: null, candidate: null }, cpuWindowValid: { control: false, candidate: false } };
 	if (c_bps <= 0 || n_bps <= 0 || health_regressed === true)
@@ -4015,7 +4042,7 @@ function build_reward(goal_id, control, candidate, control_telemetry, candidate_
 	else push(missing, 'unsupported-goal');
 	if (length(missing)) return { goal: goal_id, reward: null, components: components, measurementQuality: 'invalid', validated: false, reason: `missing-evidence:${join(',',missing)}` };
 	return { goal: goal_id, reward: reward, components: components, measurementQuality: 'controlled_ab', validated: true, reason: 'validated-controlled-ab' };
-}
+};
 
 function recommendations(allow_observe) {
 	/* Only the explicit recommendations/rill_refresh surfaces may register a
@@ -4039,12 +4066,17 @@ function recommendations(allow_observe) {
 		rill_observation = rill_observe(selector_mode);
 		rill_advisory_live = rill_advisory_get();
 	}
+	let smart_selection = null;
+	if (allow_observe) {
+		let selector_context = smart_selector_context();
+		if (selector_context.ok !== false) smart_selection = select_smart_action(selector_mode, acts, selector_context);
+	}
 	return {
 		topologyGeneration: topology_generation, actions: acts, observations: notes,
 		benchmarkActions: benchmark_catalog(),
 		rill: rill,
 		rillObservation: rill_observation,
-		smartSelection: allow_observe ? select_smart_action(selector_mode, acts, smart_selector_context()) : null,
+		smartSelection: smart_selection,
 		learnedAdvisory: rill_advisory_live ? [rill_advisory_live] : [],
 	};
 }
@@ -4140,7 +4172,12 @@ function assisted_auto_tick(current) {
 	/* Assisted Auto and Conservative share the same Smart Selector.  The
 	 * selector can narrow the safe allowlist, but never expand it to benchmark
 	 * or unknown actuators. */
-	let context = smart_selector_context(), selection = select_smart_action('assisted', actions, context);
+	let context = smart_selector_context();
+	if (context.ok === false) {
+		runtime_history('assisted.context-unavailable', { error: context.error });
+		return { enabled: true, state: 'context-unavailable', error: context.error };
+	}
+	let selection = select_smart_action('assisted', actions, context);
 	let action = smart_selector_action(selection, actions);
 	if (!action || action.id == 'pm.noop') {
 		runtime_history('assisted.noop', { selection: selection });
@@ -4195,7 +4232,15 @@ function conservative_auto_tick() {
 		return { enabled: true, state: 'backoff' };
 	let actions = candidate_actions();
 	if (!length(actions)) return { enabled: true, state: 'no-safe-candidate' };
-	let context = smart_selector_context(), selection = select_smart_action('conservative', actions, context);
+	let context = smart_selector_context();
+	/* A context that could not be scoped is not a licence to act on a guessed
+	 * path: skip this pass and report the reason instead of selecting against a
+	 * degraded context. */
+	if (context.ok === false) {
+		runtime_history('conservative.context-unavailable', { error: context.error });
+		return { enabled: true, state: 'context-unavailable', error: context.error };
+	}
+	let selection = select_smart_action('conservative', actions, context);
 	let action = smart_selector_action(selection, actions);
 	if (!action || action.id == 'pm.noop') {
 		runtime_history('conservative.noop', { selection: selection });
