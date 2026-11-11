@@ -23,9 +23,9 @@ return view.extend({
 		const actions = ((rec && rec.benchmarkActions) || []).filter(function(a) { return a.status !== 'blocked'; });
 		const advisories = (rec && rec.learnedAdvisory) || [];
 		const root = E('div');
-		const action = E('select', { 'class': 'cbi-input-select', 'aria-label': _('Benchmark action') });
+		const action = E('select', { 'aria-label': _('Benchmark action') });
 		actions.forEach(function(a) { action.appendChild(E('option', { value: a.id }, [ labels.actionName(a.id) + ' · ' + labels.evaluationSemantics(a.evaluationSemantics) ])); });
-		const pathSelect = E('select', { 'class': 'cbi-input-select', 'aria-label': _('Evaluation path') });
+		const pathSelect = E('select', { 'aria-label': _('Evaluation path') });
 		function refreshPaths() {
 			pathSelect.replaceChildren();
 			const selected = actions.find(function(a){ return a.id === action.value; });
@@ -33,7 +33,7 @@ return view.extend({
 		}
 		action.addEventListener('change', refreshPaths);
 		refreshPaths();
-		const measurement = E('select', { 'class': 'cbi-input-select', 'aria-label': _('Measurement class') }, [
+		const measurement = E('select', { 'aria-label': _('Measurement class') }, [
 			E('option', { value: 'controlled_ab' }, [ _('Controlled A/B') ]),
 			E('option', { value: 'passive_before_after' }, [ _('Passive before/after') ]),
 			E('option', { value: 'health_only' }, [ _('Health only') ])
@@ -62,8 +62,8 @@ return view.extend({
 				const advanced = E('details', { 'class': 'pm-disclosure' }, [
 					E('summary', {}, [ _('Advanced: submit evidence manually') ]),
 					E('p', {}, [ _('The companion test tool runs on a separate client or on the router itself and produces the evidence JSON this page needs. Only use this path when you must validate a benchmark by hand; it is not required for normal use.') ]),
-					E('p', { 'class': 'pm-control-help' }, [ _('Required role: %s').format(labels.clientRole((s.companion && s.companion.requiredRole) || 'lan-client')) ]),
-					E('p', { 'class': 'pm-control-help' }, [ _('Replace <WAN_SERVER> with the router WAN address before running the command.') ]),
+					E('p', { 'class': 'cbi-value-description' }, [ _('Required role: %s').format(labels.clientRole((s.companion && s.companion.requiredRole) || 'lan-client')) ]),
+					E('p', { 'class': 'cbi-value-description' }, [ _('Replace <WAN_SERVER> with the router WAN address before running the command.') ]),
 					E('pre', {}, [ command ])
 				]);
 				submitEvidence.addEventListener('click', function() {
@@ -77,7 +77,7 @@ return view.extend({
 				});
 				output.appendChild(pu.inset(phase === 'control' ? _('Baseline evidence') : _('Candidate evidence'), E('div', {}, [
 					E('p', {}, [ phase === 'control' ? _('Run the companion test tool before any candidate is applied, then paste its JSON result.') : _('The candidate is temporarily active and protected by commit-confirm. Run the same endpoint test now; the Core engine will restore the original value before validating the result.') ]),
-					evidenceBox, E('div', { 'class': 'pm-toolbar' }, [ submitEvidence ]), advanced
+					evidenceBox, E('div', {}, [ submitEvidence ]), advanced
 				])));
 			}
 			output.appendChild(pu.jsonBox(s, _('Benchmark session JSON')));

@@ -48,16 +48,16 @@ return view.extend({
 				});
 				controls.push(b);
 			}
-			nodes.push(pu.card(labels.transaction(tx.transactionId), E('div', {}, [ pu.kv([ [_('Action'), labels.actionName(tx.actionId)], [_('State'), labels.state(tx.state)], [_('Target'), labels.target(tx.applyTarget)], [_('Boot identity'), labels.reference(tx.bootId)] ]), E('p', { 'class': 'pm-control-help' }, [ _('Identifiers are kept in technical details so long UUIDs do not crowd the page.') ]), controls.length ? E('div', { 'class': 'pm-toolbar' }, controls) : null, pu.jsonBox(tx, _('Transaction JSON')) ]), 'transaction'));
+			nodes.push(pu.card(labels.transaction(tx.transactionId), E('div', {}, [ pu.kv([ [_('Action'), labels.actionName(tx.actionId)], [_('State'), labels.state(tx.state)], [_('Target'), labels.target(tx.applyTarget)], [_('Boot identity'), labels.reference(tx.bootId)] ]), E('p', { 'class': 'cbi-value-description' }, [ _('Identifiers are kept in technical details so long UUIDs do not crowd the page.') ]), controls.length ? E('div', {}, controls) : null, pu.jsonBox(tx, _('Transaction JSON')) ]), 'transaction'));
 		});
 		if (!txs.length) nodes.push(pu.note(_('No transactions are currently recorded.'), 'success'));
 		return pu.page(_('History and rollback'), _('Review pending confirmations, verified rollbacks, and runtime events with their safety context.'), [
-			pu.grid(nodes, 'pm-card-grid--dense'),
+			pu.grid(nodes),
 			pu.grid([
 				pu.card(_('Resource locks'), pu.jsonBox(locks, _('Locks JSON'))),
 				pu.card(_('Persistent action history'), pu.jsonBox(history, _('History JSON'))),
 				pu.card(_('Runtime event history'), pu.jsonBox(runtimeHistory, _('Runtime History JSON')))
-			], 'pm-card-grid--supporting')
+			])
 		]);
 	}
 });

@@ -25,11 +25,11 @@ return view.extend({
 				const blocked = (s.blockedReasons || []).find(function(item) { return item.actionId === row.actionId; });
 				return E('tr', { 'aria-current': row.actionId === s.selectedCandidateId ? 'true' : 'false' }, [ E('td', {}, [ String(i + 1) ]), E('td', {}, [ labels.actionName(row.actionId) ]), E('td', {}, [ labels.percent(row.score) ]), E('td', {}, [ row.actionId === s.selectedCandidateId ? _('Selected') : (blocked ? labels.smartReason(blocked.reason) : _('Eligible')) ]), E('td', {}, [ blocked && blocked.cooldownRemaining ? labels.duration(blocked.cooldownRemaining) : '—' ]) ]);
 			}) : [ E('tr', {}, [ E('td', { 'colspan': '5' }, [ _('No ranking is available yet. Refresh the decision or wait for the next evaluation.') ]) ]) ];
-		const table = E('table', { 'class': 'table pm-ranking-table' }, [ E('caption', { 'class': 'pm-visually-hidden' }, [ _('Ranking table') ]), E('thead', {}, [ E('tr', {}, [ E('th', {}, [ _('Rank') ]), E('th', {}, [ _('Candidate') ]), E('th', {}, [ _('Score') ]), E('th', {}, [ _('Eligibility') ]), E('th', {}, [ _('Cooldown') ]) ]) ]), E('tbody', {}, rows) ]);
+		const table = E('table', { 'class': 'table' }, [ E('caption', { 'class': 'pm-visually-hidden' }, [ _('Ranking table') ]), E('thead', {}, [ E('tr', {}, [ E('th', {}, [ _('Rank') ]), E('th', {}, [ _('Candidate') ]), E('th', {}, [ _('Score') ]), E('th', {}, [ _('Eligibility') ]), E('th', {}, [ _('Cooldown') ]) ]) ]), E('tbody', {}, rows) ]);
 		const context = s.context || {};
 		const feedback = (history.history || []).filter(function(row) { return /^rill\.outcome\.(accepted|reconciled)/.test(row.event || ''); }).slice(-5).reverse();
 		const feedbackRows = feedback.length ? feedback.map(function(row) { const d = row.data || {}; return E('tr', {}, [ E('td', {}, [ labels.actionName(d.actionId) ]), E('td', {}, [ labels.goal(d.goal || s.goal) ]), E('td', {}, [ labels.percent(d.reward) ]), E('td', {}, [ labels.measurementQuality(d.measurementQuality) ]), E('td', {}, [ d.accepted === true ? _('Accepted') : _('Reconciled') ]) ]); }) : [ E('tr', {}, [ E('td', { 'colspan': '5' }, [ _('No validated feedback yet.') ]) ]) ];
-		const feedbackTable = E('table', { 'class': 'table pm-ranking-table' }, [ E('caption', { 'class': 'pm-visually-hidden' }, [ _('Feedback table') ]), E('thead', {}, [ E('tr', {}, [ E('th', {}, [ _('Candidate') ]), E('th', {}, [ _('Goal') ]), E('th', {}, [ _('Reward') ]), E('th', {}, [ _('Quality') ]), E('th', {}, [ _('Result') ]) ]) ]), E('tbody', {}, feedbackRows) ]);
+		const feedbackTable = E('table', { 'class': 'table' }, [ E('caption', { 'class': 'pm-visually-hidden' }, [ _('Feedback table') ]), E('thead', {}, [ E('tr', {}, [ E('th', {}, [ _('Candidate') ]), E('th', {}, [ _('Goal') ]), E('th', {}, [ _('Reward') ]), E('th', {}, [ _('Quality') ]), E('th', {}, [ _('Result') ]) ]) ]), E('tbody', {}, feedbackRows) ]);
 		const outcomeText = s.lastOutcome
 			? _('Reward %s · %s').format(labels.percent(s.lastOutcome.reward), labels.measurementQuality(s.lastOutcome.measurementQuality))
 			: '—';
@@ -70,7 +70,7 @@ return view.extend({
 						[_('Candidate rollbacks'), labels.fmt(candidateHistory.rollbackCount)],
 						[_('Cooldown reason'), labels.smartReason(candidateHistory.cooldownReason)]
 					]),
-					E('p', { 'class': 'pm-control-help' }, [ _('Candidate identifiers are kept in technical details so long identifiers do not crowd the page.') ]),
+					E('p', { 'class': 'cbi-value-description' }, [ _('Candidate identifiers are kept in technical details so long identifiers do not crowd the page.') ]),
 					pu.jsonBox({ candidateHistory: candidateHistory }, _('Technical details'))
 				]), 'muted'),
 				pu.card(_('Learning status'), E('div', {}, [
@@ -87,11 +87,11 @@ return view.extend({
 					]),
 					pu.jsonBox({ learningStage: s.learningStage, confidence: s.confidence, lastReward: s.lastReward, lastRewardComponents: s.lastRewardComponents, reason: s.reason }, _('Technical details'))
 				]), 'muted')
-			], 'pm-card-grid--supporting'),
+			]),
 			pu.grid([
 				pu.card(_('Top ranking'), E('div', {}, [ pu.tableWrap(table), pu.toolbar([ refresh ]) ])),
 				pu.card(_('Recent feedback'), pu.tableWrap(feedbackTable))
-			], 'pm-card-grid--primary'),
+			]),
 			(s.drifted ? pu.note(_('Performance drift detected. Rill Auto temporarily paused.'), 'warning') : null),
 			pu.note(_('Rill provides observation and recommendations only. It cannot write UCI, sysctl, or firewall state, execute arbitrary shell commands, or apply actions.'), 'info'),
 			pu.card(_('Rill details'), pu.jsonBox({ runtime: r, selection: s, advisory: rec.learnedAdvisory || [] }, _('Raw Rill contract')), 'muted')
