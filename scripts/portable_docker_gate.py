@@ -4,7 +4,7 @@
 This is intentionally a different release profile from the historical hardware
 matrix.  It proves the exact same-commit source, Rill, SDK and APK chain plus a
 real Core ucode harness executed inside Docker.  It does not claim Hyper-V,
-router hardware, sysupgrade firmware reboot, or a 24-hour soak.
+router hardware, sysupgrade firmware reboot, or a 12-hour soak.
 """
 from __future__ import annotations
 
@@ -141,7 +141,7 @@ def main(argv=None) -> int:
         "transportVerdict": (package_report.get("fullUpgrade") or {}).get("transportVerdict") if package_report else "NOT_EVALUATED",
         "unsupportedHardwareGates": [
             "Hyper-V/vmbus/hv_netvsc", "KVM hotplug", "LAN-WAN A/B hardware",
-            "router-local A/B hardware", "firmware sysupgrade reboot", "24-hour soak",
+            "router-local A/B hardware", "firmware sysupgrade reboot", "12-hour soak",
         ],
         "disclosure": "Docker/hosted evidence is sufficient for the portable release profile only; it is not hardware certification.",
         "errors": errors,

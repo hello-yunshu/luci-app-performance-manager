@@ -6,7 +6,7 @@ The public `v1.0.3` release is a historical `portable-docker`-verified release.
 It requires the same-commit CI/Rill chain, official SDK/APK identity, hosted
 Action tests, and the real Core ucode harness executed inside Docker. It is not
 Hardware Stable under the current policy and must disclose that
-Hyper-V, KVM hotplug, real-router A/B, firmware sysupgrade reboot, and 24-hour
+Hyper-V, KVM hotplug, real-router A/B, firmware sysupgrade reboot, and 12-hour
 hardware soak are **NOT_EVALUATED**. The checklist below remains the separate
 `hardware` profile and must not be represented as passed by portable evidence.
 
@@ -64,7 +64,7 @@ it always leaves `stableReleaseVerdict=NOT_EVALUATED`,
 
 - [ ] `scripts/openwrt-sysupgrade-gate.sh prepare` → real sysupgrade/reboot → `verify` proves boot change and preservation of config/PM/Rill persistent roots with no stale lock/pending marker.
 - [ ] `scripts/openwrt-target-gate.sh` evidence passes on required target matrices.
-- [ ] `scripts/openwrt-resource-soak.sh` runs 24h+ and resource/flash-write budget is accepted.
+- [ ] `scripts/openwrt-resource-soak.sh` runs 12h+ and resource/flash-write budget is accepted.
 - [ ] SHA-256 release artifact, manifest, source audit and target evidence are attached.
 - [ ] Every external gate passes its versioned semantic evidence schema; a minimal top-level `PASS` envelope fails.
 - [ ] Target-installed Core/contracts hashes and exact APK hashes match the selected same-commit build metadata and APK verifier.

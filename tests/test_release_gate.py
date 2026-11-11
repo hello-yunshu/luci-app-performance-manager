@@ -43,7 +43,7 @@ class ReleaseGateSourceTests(unittest.TestCase):
         gates["hyperV"]["status"] = "BLOCKED"
         self.assertFalse(stable_evidence.stable_authorization("hardware", "PASS", gates))
         gates["hyperV"]["status"] = "PASS"
-        gates["resourceSoak24h"]["status"] = "FAIL"
+        gates["resourceSoak12h"]["status"] = "FAIL"
         self.assertFalse(stable_evidence.stable_authorization("hardware", "PASS", gates))
 
     def test_portable_all_pass_is_not_a_stable_result(self):

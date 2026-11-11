@@ -23,7 +23,7 @@ report={
  },
  'limits':{'rillMaxMessageBytes':65536,'rillRequestsPerSecond':20,'rillCoreTimeoutMs':1000,'historyReadTailLines':512,'rillValidatedOutcomeLines':2048,'rillDecisionLedgerLines':4096,'runtimeStateFileMaxBytes':4194304,'rillBindingCacheEntries':64,'rillExecutionJournalMaxFiles':128,'rillExecutionJournalMaxBytes':2097152,'retiredExecutionRetentionMax':64,'fastTelemetryMinimumSeconds':30,'deepTelemetryMinimumSeconds':300},
  'precommittedStableBudgets':{
-   'minimumElapsedSeconds':86400,
+   'minimumElapsedSeconds':43200,
    'coreMaxRssKiB':65536,
    'coreMeanCpuPercent':5.0,
    'coreRestartCount':0,

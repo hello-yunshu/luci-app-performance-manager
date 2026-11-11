@@ -8,7 +8,7 @@ Planning pack v0.3.2 is contract-frozen. Smart Decision v2 adds the unified Core
 2. Pass booted-target evidence on clean x86_64 OpenWrt 25.12.x VMs, including Core without LuCI/Rill dependency.
 3. Pass Hyper-V and KVM/Proxmox TargetRef, hotplug, replay, rollback and ownership-cleanup tests.
 4. Run explicit LAN→Router→WAN and router-local controlled A/B for supported benchmark providers.
-5. Pass package upgrade/sysupgrade and 24h+ resource/write soak.
+5. Pass package upgrade/sysupgrade and 12h+ resource/write soak.
 6. Treat public `1.0.3` as the historical portable release; do not relabel or
    mutate it as Hardware Stable.
 7. Authorize a current `1.0.4` Stable release only when all hardware evidence

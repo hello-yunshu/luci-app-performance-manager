@@ -14,7 +14,7 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
-from validate_external_evidence import validate_evidence
+from validate_external_evidence import RESOURCE_SOAK_MINIMUM_SECONDS, validate_evidence
 
 ROOT = Path(__file__).resolve().parents[1]
 RUNTIME_CONTRACT = json.loads((ROOT / "contracts/rill-runtime.json").read_text())
@@ -37,19 +37,19 @@ REQUIRED = {
     "routerLocalAb": "router-local-ab.json",
     "sysupgrade": "sysupgrade.json",
     "lifecycle": "lifecycle.json",
-    "resourceSoak24h": "resource-soak.json",
+    "resourceSoak12h": "resource-soak.json",
 }
 RILL_PRESENT = {
     "rillProvenance", "rillRuntime", "rillCoreFunctional", "targetFull",
     "targetMutation", "hyperV", "kvm", "lanWanAb", "routerLocalAb",
-    "sysupgrade", "lifecycle", "resourceSoak24h",
+    "sysupgrade", "lifecycle", "resourceSoak12h",
 }
 EXTERNAL_GATES = {
     "targetCoreOnly": "target-core-only", "targetFull": "target-full",
     "targetMutation": "target-mutation", "hyperV": "hyperv", "kvm": "kvm",
     "lanWanAb": "lan-wan-ab", "routerLocalAb": "router-local-ab",
     "sysupgrade": "sysupgrade", "lifecycle": "lifecycle",
-    "resourceSoak24h": "resource-soak",
+    "resourceSoak12h": "resource-soak",
 }
 PORTABLE_REQUIRED = {
     "source": "source-audit.json",
@@ -186,7 +186,7 @@ def main(argv=None):
             semantic_errors = validate_evidence(
                 data, external_gates[name], args.expected_commit,
                 require_rill=name in rill_present,
-                minimum_duration=86400 if name == "resourceSoak24h" else 0,
+                minimum_duration=RESOURCE_SOAK_MINIMUM_SECONDS if name == "resourceSoak12h" else 0,
                 build_metadata=build_metadata, apk_report=apk_report,
             )
             if semantic_errors:

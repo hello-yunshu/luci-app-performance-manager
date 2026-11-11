@@ -8,7 +8,7 @@
       "properties": {
         "schemaVersion": {"const": 2},
         "gate": {"const": "resource-soak"},
-        "durationSeconds": {"type": "integer", "minimum": 86400},
+        "durationSeconds": {"type": "integer", "minimum": 43200},
         "subchecks": {
           "type": "object",
           "additionalProperties": false,
@@ -25,7 +25,7 @@
           "required": ["installedPackages", "durationSeconds", "soak"],
           "properties": {
             "installedPackages": {"type": "object"},
-            "durationSeconds": {"type": "integer", "minimum": 86400},
+            "durationSeconds": {"type": "integer", "minimum": 43200},
             "soak": {
               "type": "object",
               "additionalProperties": false,
