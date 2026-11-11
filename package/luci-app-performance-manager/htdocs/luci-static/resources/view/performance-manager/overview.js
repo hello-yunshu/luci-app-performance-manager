@@ -18,14 +18,20 @@ return view.extend({
 				? pu.badge(_('Profile degraded'), 'warning')
 				: pu.badge(_('Profile healthy'), 'success'))
 			: pu.badge(_('Profile unmet'), 'danger');
-		const status = E('div', { 'class': 'pm-status-row' }, [
-			E('span', { 'class': 'pm-status-label' }, [ _('System status') ]),
+		const status = E('p', {}, [
+			E('strong', {}, [ _('System status') ]), ' ',
 			pu.badge(s.running ? _('Running') : _('Stopped'), s.running ? 'success' : 'danger'),
+			' ',
 			pu.badge(_('Automation: %s').format(labels.automation(s.automation))),
+			' ',
 			pu.badge(_('Goal: %s').format(labels.goal(s.goal))),
+			' ',
 			pu.badge(labels.runtimeStatus(rill.status)),
+			' ',
 			pu.badge(s.telemetry ? _('Telemetry enabled') : _('Telemetry disabled'), s.telemetry ? 'success' : 'warning'),
+			' ',
 			pu.badge(s.failsafe ? _('Failsafe enabled') : _('Failsafe disabled'), s.failsafe ? 'success' : 'warning'),
+			' ',
 			profileBadge
 		]);
 		const recentTx = txs[0] || {};
@@ -38,7 +44,7 @@ return view.extend({
 			])
 		];
 		if (txs.length)
-			recentBody.push(E('p', { 'class': 'pm-control-help' }, [ _('Identifiers are kept in technical details so long UUIDs do not crowd the page.') ]));
+			recentBody.push(E('p', { 'class': 'cbi-value-description' }, [ _('Identifiers are kept in technical details so long UUIDs do not crowd the page.') ]));
 		if (txs.length)
 			recentBody.push(pu.jsonBox({
 				actionId: recentTx.actionId,
@@ -58,7 +64,7 @@ return view.extend({
 					])
 				]), 'hero'),
 				pu.card(_('Recent transaction'), E('div', {}, recentBody), txs.length ? null : 'muted')
-			], 'pm-card-grid--primary'),
+			]),
 			pu.grid([
 			pu.card(_('Native Packet Steering'), E('div', {}, [
 				pu.kv([
@@ -82,7 +88,7 @@ return view.extend({
 					targetRefs: t.paths[0].targetRefs
 				}, _('Technical details')) : null
 			]))
-			], 'pm-card-grid--supporting'),
+			]),
 			pu.card(_('Advanced details'), pu.jsonBox({ status: s, topology: t }, _('Status and topology JSON')), 'muted')
 		]);
 	}

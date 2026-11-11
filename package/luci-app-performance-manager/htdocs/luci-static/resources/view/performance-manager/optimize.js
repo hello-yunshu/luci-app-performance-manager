@@ -52,7 +52,7 @@ return view.extend({
 				}).finally(restore);
 			});
 			nodes.push(pu.card(labels.actionName(a.id), E('div', {}, [
-				E('p', { 'class': 'pm-control-help' }, [ labels.actionDesc(a.id) ]),
+				E('p', { 'class': 'cbi-value-description' }, [ labels.actionDesc(a.id) ]),
 				pu.kv([
 					[_('Applies to'), labels.target(a.applyTarget)],
 					[_('Affected targets'), (a.affectedTargets || []).map(labels.target).join('、') || _('None')],
@@ -61,7 +61,7 @@ return view.extend({
 					[_('Reason'), labels.actionReason(a.reason)]
 				]),
 				pu.jsonBox({ id: a.id, applyTarget: a.applyTarget, risk: a.risk, reason: a.reason }, _('Technical details')),
-				E('div', { 'class': 'pm-toolbar' }, [ apply ])
+				E('div', {}, [ apply ])
 			]), 'action'));
 		});
 		((r && r.observations) || []).forEach(function(o) {
@@ -88,15 +88,15 @@ return view.extend({
 						ui.addNotification(null, E('p', {}, [ _('Unable to apply Rill recommendation: %s. Review the safety state and try again.').format(labels.errorSummary(error)) ]), 'error');
 					}).finally(restore);
 				});
-				body.appendChild(E('div', { 'class': 'pm-toolbar' }, [ apply ]));
+				body.appendChild(E('div', {}, [ apply ]));
 			} else if (a.kind === 'noop') {
-				body.appendChild(E('p', { 'class': 'pm-control-help' }, [ _('Rill recommends keeping the current configuration.') ]));
+				body.appendChild(E('p', { 'class': 'cbi-value-description' }, [ _('Rill recommends keeping the current configuration.') ]));
 			} else {
-				body.appendChild(E('p', { 'class': 'pm-control-help' }, [ _('This recommendation is for a performance test only. Open Performance test and complete both detection phases with the companion test tool; it cannot be applied directly.') ]));
+				body.appendChild(E('p', { 'class': 'cbi-value-description' }, [ _('This recommendation is for a performance test only. Open Performance test and complete both detection phases with the companion test tool; it cannot be applied directly.') ]));
 			}
 			body.appendChild(pu.jsonBox({ actionId: a.actionId, kind: a.kind, authority: a.authority, decisionId: a.decisionId }, _('Technical details')));
 			nodes.push(pu.card(_('Rill recommendation: %s').format(labels.actionName(a.actionId)), body));
 		});
-		return pu.page(_('Smart optimization'), _('Review supported actions and apply them only after Core safety checks. Existing user and external settings are preserved.'), [ smartCard, pu.grid(nodes, 'pm-card-grid--dense') ]);
+		return pu.page(_('Smart optimization'), _('Review supported actions and apply them only after Core safety checks. Existing user and external settings are preserved.'), [ smartCard, pu.grid(nodes) ]);
 	}
 });

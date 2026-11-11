@@ -12,7 +12,7 @@ return view.extend({
 		(c.capabilities || []).forEach(function(x) {
 			nodes.push(pu.card(labels.capabilityName(x.id) + (x.targetRef ? ' · ' + labels.target(x.targetRef) : ''), E('div', {}, [
 				pu.badge(labels.availability(x.availability), x.availability === 'available' ? 'success' : 'warning'),
-				E('p', { 'class': 'pm-control-help' }, [ labels.capabilityDesc(x.id) ]),
+				E('p', { 'class': 'cbi-value-description' }, [ labels.capabilityDesc(x.id) ]),
 				pu.kv([
 					[_('Provider'), labels.provider(x.provider)],
 					[_('Availability'), labels.availability(x.availability)],
@@ -26,7 +26,7 @@ return view.extend({
 		});
 		if (!nodes.length) nodes.push(pu.note(_('No capabilities are available from the current provider.'), 'warning'));
 		return pu.page(_('Capabilities'), _('Review the capabilities available on this device. Unsupported capabilities are hidden from action controls; expected profile gaps appear as degraded.'), [
-			pu.grid(nodes, 'pm-card-grid--dense'),
+			pu.grid(nodes),
 			pu.card(_('Capability / Topology / TargetRef JSON'), pu.jsonBox({ capabilities: c, topology: t }, _('Raw capability contract')), 'muted')
 		]);
 	}
