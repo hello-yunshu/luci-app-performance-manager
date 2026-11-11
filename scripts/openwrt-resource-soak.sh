@@ -176,7 +176,7 @@ runtime_nonzero=$((runtime_nonzero1-runtime_nonzero0))
 [ "$intervention1" -ge 0 ] && [ "$active1" -ge 0 ] && [ "$executing1" -ge 0 ] || blocked execution-health-measurement-invalid
 cpu_core=$(awk -v t="$core_ticks_total" -v hz="$clk" -v s="$elapsed" 'BEGIN { if (s<=0||hz<=0) print "0.000"; else printf "%.3f", (t/hz)/s*100 }')
 writes_day=$(awk -v w="$core_delta" -v s="$elapsed" 'BEGIN { if (s<=0) print "0.0"; else printf "%.1f", w*86400/s }')
-stable=$([ "$elapsed" -ge 86400 ] && printf true || printf false)
+stable=$([ "$elapsed" -ge "$DURATION" ] && printf true || printf false)
 
 within=true
 [ "$core_max_rss" -le "$B_CORE_RSS" ] || within=false
