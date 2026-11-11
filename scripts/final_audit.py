@@ -179,7 +179,7 @@ external = [
     {"gate": "Hyper-V and KVM TargetRef/hotplug/replay/rollback", "status": "NOT_EVALUATED"},
     {"gate": "LAN-WAN and router-local controlled A/B", "status": "NOT_EVALUATED"},
     {"gate": "real sysupgrade preservation", "status": "NOT_EVALUATED"},
-    {"gate": "24-hour resource, restart, idle-Observe, and persistence soak", "status": "NOT_EVALUATED"},
+    {"gate": "12-hour resource, restart, idle-Observe, and persistence soak", "status": "NOT_EVALUATED"},
 ]
 
 report = {
@@ -279,7 +279,7 @@ generated audit files is treated as a snapshot child, not a new source revision.
 
 The only authority for a Stable verdict is `scripts/final_release_audit.py`,
 which requires same-commit build, runtime, target, hypervisor, testbed,
-sysupgrade, lifecycle, and 24-hour soak evidence.
+sysupgrade, lifecycle, and 12-hour soak evidence.
 """
 (ROOT / "docs/FINAL_AUDIT.md").write_text(markdown)
 print(json.dumps({

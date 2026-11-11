@@ -13,6 +13,11 @@ from typing import Any
 ROOT = Path(__file__).resolve().parents[1]
 SHA256 = re.compile(r"[0-9a-f]{64}")
 
+# Single source of truth for the resource-soak stability floor. Decision
+# 2026-11-11 (user): the gate is 12 hours, not 24. A 12-hour run satisfies the
+# gate but must never be reported as 24-hour-equivalent stability.
+RESOURCE_SOAK_MINIMUM_SECONDS = 43200
+
 GATE_CHECKS = {
     "target-core-only": ["openwrt2512", "x8664", "coreStarted", "ubusReady", "statusValid",
                          "analyzeValid", "topologyValid", "capabilitiesValid", "noStaleLocks",
@@ -588,8 +593,8 @@ def validate_evidence(data: Any, gate: str, expected_commit: str, *, require_ril
             errors.append("sysupgrade firmware identity/transaction proof missing")
     elif gate == "resource-soak":
         soak = _dict(_dict(data.get("rawFacts")).get("soak"))
-        if int(data.get("durationSeconds", 0)) < 86400 or int(soak.get("sampleCount", 0)) <= 0:
-            errors.append("24h soak duration/sample evidence invalid")
+        if int(data.get("durationSeconds", 0)) < RESOURCE_SOAK_MINIMUM_SECONDS or int(soak.get("sampleCount", 0)) <= 0:
+            errors.append("12h soak duration/sample evidence invalid")
         for key in ("idleRillObserveAcceptedDelta", "idleExpectedRuntimePersistenceEventsDelta", "idlePendingOutcomeJournalWrites"):
             if soak.get(key) != 0:
                 errors.append(f"soak {key} must be zero")

@@ -8,7 +8,7 @@ Predecessor audit: `OpenWrt_Performance_Manager_1.0.0-rc.1_Strict_Audit_2026-08-
 
 **SOURCE REMEDIATION PASS — `1.0.0-rc.2` may be treated as a source-complete release candidate, but it is not 1.0 Stable.**
 
-This decision is deliberately narrower than “release passed”. It means the source-level blockers found in the rc.1 strict audit have been closed and the repository now contains the required target-evidence machinery. It does **not** claim OpenWrt SDK/rootfs build, booted VM, Hyper-V/KVM, forwarding A/B, sysupgrade or 24h soak evidence that has not actually run.
+This decision is deliberately narrower than “release passed”. It means the source-level blockers found in the rc.1 strict audit have been closed and the repository now contains the required target-evidence machinery. It does **not** claim OpenWrt SDK/rootfs build, booted VM, Hyper-V/KVM, forwarding A/B, sysupgrade or 12h soak evidence that has not actually run.
 
 ## Independent local evidence
 
@@ -51,7 +51,7 @@ This decision is deliberately narrower than “release passed”. It means the s
 5. **Absent UCI option restoration:** SFO/HFO candidates restore “option absent” as absent rather than inventing `0`.
 6. **Partial multi-write failure:** CPU-governor / firewall-backed candidates restore already-changed components before releasing locks.
 7. **Rill JSON correctness:** parser handles UTF-8/JSON escapes and valid surrogate pairs while rejecting malformed/lone surrogates.
-8. **Resource-gate false positive:** a shortened soak can no longer emit a passing Stable result; `<86400s` yields `stableDurationSatisfied=false`, `passed=false`, and non-zero exit.
+8. **Resource-gate false positive:** a shortened soak can no longer emit a passing Stable result; `<43200s` yields `stableDurationSatisfied=false`, `passed=false`, and non-zero exit.
 9. **Sysupgrade evidence gap:** new two-stage `openwrt-sysupgrade-gate.sh prepare|verify` requires a changed boot ID, validates preserved config/Core/Rill persistent roots, and rejects stale locks/pending markers.
 10. **Core-only target evidence:** target gate can require LuCI and Rill to be absent (`PM_REQUIRE_CORE_ONLY=1`); explicit mutation mode now fails if the expected legal ring candidate is missing instead of silently skipping.
 11. **Companion protocol drift:** remaining v1 documentation/schema compatibility text was removed; current source contract is consistently `pm-companion/v2`.
@@ -86,7 +86,7 @@ The following are **release evidence**, not remaining source implementation task
 6. KVM/Proxmox-compatible guest hotplug/TargetRef/replay behavior must be exercised on a real guest.
 7. Forwarding classes require explicit LAN client → Router → WAN server evidence; local classes require router-local semantics where appropriate.
 8. Run `scripts/openwrt-sysupgrade-gate.sh prepare`, perform the intended real sysupgrade/reboot, then run `verify`.
-9. Run `scripts/openwrt-resource-soak.sh` for at least 86400 seconds; shorter runs cannot pass the Stable gate.
+9. Run `scripts/openwrt-resource-soak.sh` for at least 43200 seconds; shorter runs cannot pass the Stable gate.
 
 Until these pass, **do not rename rc.2 to 1.0 Stable**.
 

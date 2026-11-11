@@ -24,13 +24,13 @@ The sections below are retained as implementation history only. They are not
 the current Runtime contract and must not be used as present-day package or
 integration guidance.
 
-This repository implements the frozen planning pack v0.3.2 through Phase 12 as a **source candidate**. rc.8 closes the exact Rill decision/outcome lifecycle, idle persistence amplification, resource measurement, effective socket access control, and evidence-promotion gaps. “Source candidate” does **not** mean runtime, target, testbed, 24-hour soak, or Stable PASS; those verdicts are exclusively produced by the same-commit Stable aggregator.
+This repository implements the frozen planning pack v0.3.2 through Phase 12 as a **source candidate**. rc.8 closes the exact Rill decision/outcome lifecycle, idle persistence amplification, resource measurement, effective socket access control, and evidence-promotion gaps. “Source candidate” does **not** mean runtime, target, testbed, 12-hour soak, or Stable PASS; those verdicts are exclusively produced by the same-commit Stable aggregator.
 
 ### Historical / Legacy — 1.0.0-rc.8 round (exact lifecycle + Stable evidence closure)
 
 - Production Core freezes the exact Rill decision into a transaction/session, validates strict response envelopes, and reconciles duplicates only after a recorded same-attempt response loss.
 - Unexecuted advisory bindings remain in memory; diagnostics and periodic telemetry are read-only and cannot register decisions.
-- Stable workflows require exact APK/Rill identity across Generic, Hyper-V, KVM, A/B, sysupgrade, lifecycle, and 24-hour Rill-present evidence.
+- Stable workflows require exact APK/Rill identity across Generic, Hyper-V, KVM, A/B, sysupgrade, lifecycle, and 12-hour Rill-present evidence.
 
 ### Historical / Legacy — 1.0.0-rc.7 round (Rill v1.2.0 real wire contract + decision ledger + evidence false-PASS closure)
 
@@ -101,6 +101,6 @@ This repository implements the frozen planning pack v0.3.2 through Phase 12 as a
 2. Core-alone boot/runtime on real OpenWrt must pass.
 3. Hyper-V and KVM hotplug/TargetRef/replay/rollback fixtures must pass.
 4. Explicit forwarding/router-local A/B testbeds must pass.
-5. Sysupgrade and 24h+ resource/write soak must pass.
+5. Sysupgrade and 12h+ resource/write soak must pass.
 
 Use `scripts/openwrt-target-gate.sh`, `scripts/openwrt-sysupgrade-gate.sh`, `scripts/openwrt-resource-soak.sh` and `docs/RELEASE_CHECKLIST.md`. These are target evidence gates, not unresolved source placeholders.

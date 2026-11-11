@@ -24,10 +24,15 @@ class ResourceSoakContractTests(unittest.TestCase):
         self.assertEqual(validate_evidence(self.evidence, "resource-soak", self.commit), [])
         self.assertEqual(set(self.evidence["subchecks"]), set(GATE_CHECKS["resource-soak"]))
 
-    def test_duration_below_24_hours_fails(self):
+    def test_duration_below_12_hours_fails(self):
         broken = copy.deepcopy(self.evidence)
-        broken["durationSeconds"] = broken["rawFacts"]["durationSeconds"] = 86399
+        broken["durationSeconds"] = broken["rawFacts"]["durationSeconds"] = 43199
         self.assertTrue(validate_evidence(broken, "resource-soak", self.commit))
+
+    def test_duration_exactly_12_hours_passes(self):
+        self.assertEqual(self.evidence["durationSeconds"], 43200)
+        self.assertEqual(self.evidence["rawFacts"]["durationSeconds"], 43200)
+        self.assertEqual(validate_evidence(self.evidence, "resource-soak", self.commit), [])
 
     def test_runtime_failures_and_timeouts_fail(self):
         for field in ("runtimeInvocationFailureCount", "runtimeTimeoutCount", "runtimeMalformedResponseCount", "runtimeNonZeroExitCount"):

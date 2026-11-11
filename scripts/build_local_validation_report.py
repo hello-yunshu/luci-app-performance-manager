@@ -106,7 +106,7 @@ def main() -> int:
 - ubus smoke: **{report['ubusSmoke']}**
 - Rill removal smoke: **{report['rillRemovalSmoke']}**
 - Portable verdict: **{report['portableVerdict']}**
-- Portable 24h soak: **NOT_EVALUATED**
+- Portable 12h soak: **NOT_EVALUATED**
 - Hardware coverage: **{report['hardwareCoverage']}**
 - Stable release authorization: **NO**
 

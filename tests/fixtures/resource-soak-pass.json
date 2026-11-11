@@ -43,10 +43,10 @@
       "luci-app-performance-manager-all": {"version": "1.0.4"},
       "rill-runtime": {"version": "1.5.6"}
     },
-    "durationSeconds": 86400,
+    "durationSeconds": 43200,
     "soak": {
       "rillPresent": true,
-      "sampleCount": 1440,
+      "sampleCount": 720,
       "coreRestartCount": 0,
       "idleRillObserveAcceptedDelta": 0,
       "idleExpectedRuntimePersistenceEventsDelta": 0,
@@ -74,7 +74,7 @@
       }
     }
   },
-  "durationSeconds": 86400,
+  "durationSeconds": 43200,
   "primaryPackage": "luci-app-performance-manager-all",
   "primaryPackageSha256": "2222222222222222222222222222222222222222222222222222222222222222",
   "verdict": "PASS",

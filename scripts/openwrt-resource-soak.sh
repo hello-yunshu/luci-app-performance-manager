@@ -5,7 +5,7 @@
 # Missing measurements are BLOCKED; they are never rewritten as numeric zero.
 set -eu
 
-DURATION="${PM_SOAK_SECONDS:-86400}"
+DURATION="${PM_SOAK_SECONDS:-43200}"
 INTERVAL="${PM_SOAK_INTERVAL:-60}"
 OUT="${PM_EVIDENCE_OUT:-/tmp/performance-manager-resource-soak.json}"
 RILL_STATE_DIR="${PM_RILL_STATE_DIR:-/etc/performance-manager/rill}"

@@ -225,7 +225,7 @@ Prerequisites are Docker Desktop, Git, Python 3, an authenticated `gh` CLI, and 
 
 The entry point reuses the existing source audit, OpenWrt ucode harness, artifact identity, package-composition gate, and portable gate. Run evidence is written to untracked `local-evidence/` and bound to the current commit SHA; package artifacts must come from a same-SHA GitHub Actions Build, never from `latest` or an older branch cache.
 
-`Mac Docker PASS != Hardware Stable PASS`. Portable evidence always reports `hardwareCoverage = NOT_EVALUATED` and `stableReleaseAuthorized = false`; it cannot cover real NIC behavior, Hyper-V/KVM, LAN-WAN, sysupgrade, reboot, or a real-router 24-hour soak. If Docker Desktop, linux/amd64 emulation, network downloads, or same-SHA artifacts are unavailable, the entry point reports a diagnostic `BLOCKED` instead of fabricating PASS.
+`Mac Docker PASS != Hardware Stable PASS`. Portable evidence always reports `hardwareCoverage = NOT_EVALUATED` and `stableReleaseAuthorized = false`; it cannot cover real NIC behavior, Hyper-V/KVM, LAN-WAN, sysupgrade, reboot, or a real-router 12-hour soak. If Docker Desktop, linux/amd64 emulation, network downloads, or same-SHA artifacts are unavailable, the entry point reports a diagnostic `BLOCKED` instead of fabricating PASS.
 
 **Data flow**:
 

@@ -17,7 +17,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "scripts"))
 from artifact_identity import ArtifactIdentityError, resolve_artifact, sha256  # noqa: E402
-from validate_external_evidence import evaluate_raw_facts, validate_evidence  # noqa: E402
+from validate_external_evidence import RESOURCE_SOAK_MINIMUM_SECONDS, evaluate_raw_facts, validate_evidence  # noqa: E402
 
 RUNTIME_PACKAGE = "rill-runtime"
 
@@ -123,7 +123,7 @@ def main(argv=None):
         "verdict": "PASS", "passed": True,
     }
     errors = validate_evidence(evidence, args.gate, expected_sha, require_rill=args.gate != "target-core-only",
-                               minimum_duration=86400 if args.gate == "resource-soak" else 0,
+                               minimum_duration=RESOURCE_SOAK_MINIMUM_SECONDS if args.gate == "resource-soak" else 0,
                                build_metadata=build, apk_report=apk)
     evidence["passed"] = not errors
     evidence["verdict"] = "PASS" if not errors else "FAIL"

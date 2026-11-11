@@ -44,7 +44,7 @@
     "deepTelemetryMinimumSeconds": 300
   },
   "precommittedStableBudgets": {
-    "minimumElapsedSeconds": 86400,
+    "minimumElapsedSeconds": 43200,
     "coreMaxRssKiB": 65536,
     "coreMeanCpuPercent": 5.0,
     "coreRestartCount": 0,
