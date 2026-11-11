@@ -100,7 +100,10 @@ let rill_runtime_counters = {
  * fails regardless of call order, while an earlier `let` binding works once it
  * is assigned).  Every helper referenced before its definition is therefore
  * declared here and assigned where its own dependencies exist. */
-let primary_path = null;
+/* path_resolver is bound to primary_path() at its definition further down;
+ * rill_context_scope() runs before that statement, so it must go through this
+ * binding instead of naming the function directly. */
+let path_resolver = null;
 let goal = null;
 let rill_execution_path = null;
 let rill_execution_finalize_without_outcome = null;
@@ -439,11 +442,11 @@ function rill_context_scope(paths) {
 	 * from inside a uloop callback and procd would turn it into a crash loop.
 	 * Fail soft with an explicit status instead so the caller can skip this
 	 * pass. */
-	if (type(primary_path) != 'function')
+	if (type(path_resolver) != 'function')
 		return { ok: false, error: 'path-resolver-unavailable', pathId: null, routeIdentity: null, rows: [] };
 	let rows = [];
 	for (let path_id in paths ?? []) {
-		let path = type(path_id) == 'object' ? path_id : primary_path(path_id);
+		let path = type(path_id) == 'object' ? path_id : path_resolver(path_id);
 		if (path && path.id != 'path:local-endpoint') push(rows, `${path.id}|${path.routeIdentity ?? 'unresolved'}`);
 	}
 	sort(rows);
@@ -2966,7 +2969,7 @@ function dns_health() {
 	return run([ 'nslookup', host ]).rc == 0;
 }
 
-primary_path = function(path_id) {
+function primary_path(path_id) {
 	/* An explicit path id must resolve exactly.  A caller-provided path that
 	 * does not exist is an error, never a silent fallback to the primary path:
 	 * recording one evaluationPath while evaluating another would pollute
@@ -2977,7 +2980,8 @@ primary_path = function(path_id) {
 		return null;
 	}
 	return topology().paths?.[0] ?? null;
-};
+}
+path_resolver = primary_path;
 
 function workload_for_paths(path_ids) {
 	/* An action's workload is the union of its affected/evaluation paths'
