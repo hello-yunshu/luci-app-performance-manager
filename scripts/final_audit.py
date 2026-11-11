@@ -31,6 +31,7 @@ GENERATED_EVIDENCE_PATHS = frozenset({
     "docs/HOST_SYNTAX_REPORT.json",
     "docs/RESOURCE_BUDGET.json",
     "docs/rill-integration-status.json",
+    "docs/apk-verification.json",
 })
 
 
