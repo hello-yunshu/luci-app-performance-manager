@@ -2235,3 +2235,11 @@ msgstr "Unrecognized reason, see technical details"
 
 msgid "Verification after applying the action failed"
 msgstr "Verification after applying the action failed"
+
+#: package/luci-app-performance-manager/root/usr/share/luci/menu.d/luci-app-performance-manager.json
+msgid "Overview"
+msgstr "Overview"
+
+#: package/luci-app-performance-manager/root/usr/share/luci/menu.d/luci-app-performance-manager.json
+msgid "Rill intelligence"
+msgstr "Rill intelligence"
