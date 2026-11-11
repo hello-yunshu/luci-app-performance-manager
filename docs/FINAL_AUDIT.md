@@ -7,7 +7,7 @@
 This is a source-only, non-promotable audit. It does not consume old runtime
 artifacts and cannot claim functional-integration or Stable-release PASS.
 
-Snapshot source commit: **39d43060c6589d5e24529145f2ed5b9cc620fba6**. A commit that only changes
+Snapshot source commit: **a0bd8aed12ba0062520da0492daa2f7ba86bfa2b**. A commit that only changes
 generated audit files is treated as a snapshot child, not a new source revision.
 
 ## Orchestrated local gates
@@ -18,7 +18,7 @@ generated audit files is treated as a snapshot child, not a new source revision.
 - rill-static-contract: **PASS** (source)
 - resource-budget: **PASS** (source)
 
-- Executable unit/contract tests in this checked-in source-audit snapshot: **194**, status **PASS**.
+- Executable unit/contract tests in this checked-in source-audit snapshot: **195**, status **PASS**.
 - Current test counts and conclusions come from the same-SHA CI artifacts, not this historical/generated snapshot.
 - Rill static contract: **PASS**.
 - Rill release-pin structure: **PASS**.
@@ -49,8 +49,8 @@ generated audit files is treated as a snapshot child, not a new source revision.
 - Hyper-V and KVM TargetRef/hotplug/replay/rollback: **NOT_EVALUATED**
 - LAN-WAN and router-local controlled A/B: **NOT_EVALUATED**
 - real sysupgrade preservation: **NOT_EVALUATED**
-- 24-hour resource, restart, idle-Observe, and persistence soak: **NOT_EVALUATED**
+- 12-hour resource, restart, idle-Observe, and persistence soak: **NOT_EVALUATED**
 
 The only authority for a Stable verdict is `scripts/final_release_audit.py`,
 which requires same-commit build, runtime, target, hypervisor, testbed,
-sysupgrade, lifecycle, and 24-hour soak evidence.
+sysupgrade, lifecycle, and 12-hour soak evidence.
