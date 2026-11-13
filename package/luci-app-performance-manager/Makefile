@@ -25,7 +25,7 @@ define Package/luci-app-performance-manager/postinst
 	rm -rf /tmp/luci-modulecache/
 	killall -HUP rpcd 2>/dev/null
 }
-$(SED) 's/@PKG_VERSION@/$(PKG_VERSION)/g' "$${IPKG_INSTROOT}/www/luci-static/resources/performance-manager/ui.js" 2>/dev/null
+sed -i 's/@PKG_VERSION@/$(PKG_VERSION)/g' "$${IPKG_INSTROOT}/www/luci-static/resources/performance-manager/ui.js" 2>/dev/null
 exit 0
 endef
 
