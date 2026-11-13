@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.0.6 — i18n catalog in the main package and shared UI rhythm (2026-11-13)
+
+- Ships the zh-cn catalog from the main package, fails the build when po2lmo is missing, and strips msgid padding so `_()` matches after trimws.
+- Buttons follow the theme spacing scale; tables share one first-column rule (`min-width: 9rem`, left-aligned); the footer is a `div` without `border-top`, so the bootstrap bare `footer` rule cannot draw a line again.
+
 ## 1.0.5 — Unified version footer and native page contracts (2026-11-13)
 
 - Restores the shared `.ys-tool-footer` version bar (same markup/CSS as the other three plugins; project name, repo link and version are per-repo) and hides its title/text labels below 600px.
