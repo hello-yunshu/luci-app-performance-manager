@@ -1,7 +1,7 @@
 'use strict';
 'require baseclass';
 
-var FOOTER_VERSION = '@PKG_VERSION@';
+var FOOTER_VERSION = '@PKG_FULL_VERSION@';
 
 var FOOTER_OPTIONS = {
 	project: _('Performance Manager'),
