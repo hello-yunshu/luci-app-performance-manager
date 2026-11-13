@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.0.5 — Unified version footer and native page contracts (2026-11-13)
+
+- Restores the shared `.ys-tool-footer` version bar (same markup/CSS as the other three plugins; project name, repo link and version are per-repo) and hides its title/text labels below 600px.
+- Moves tables back to the native `.tr/.th/.td` + `data-title` contract so narrow screens stack inside the theme, and adds a load-failure fallback instead of blank pages.
+
 ## 1.0.4 — True architecture-specific All-in-One release closure (2026-09-04)
 
 - Builds one full architecture-specific APK containing Core, LuCI, Simplified Chinese, Rill glue and the exact qualified Rill Runtime.

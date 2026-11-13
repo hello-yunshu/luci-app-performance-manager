@@ -105,7 +105,7 @@ OpenWrt still resolves system libraries such as `luci-base`, `rpcd` and `ucode` 
 |---|---|
 | Recommended package | `performance-manager-all-v<VERSION>-<package-arch>.apk` (one APK) |
 | Target | OpenWrt 25.12.5 / x86_64, aarch64_generic, aarch64_cortex-a53 (package-level); runtime evidence is x86_64 |
-| Current source candidate | `1.0.4` |
+| Current source candidate | `1.0.5` |
 | Service script | `/etc/init.d/performance-manager` |
 | UCI config | `/etc/config/performance-manager` |
 | Core binary | `/usr/sbin/performance-manager.uc` |

@@ -107,7 +107,7 @@ Full APK 仍会从 OpenWrt 软件源解析 `luci-base`、`rpcd`、`ucode` 等系
 |---|---|
 | 推荐包名 | `performance-manager-all-v<VERSION>-<package-arch>.apk`（单 APK） |
 | 目标 | OpenWrt 25.12.5 / x86_64、aarch64_generic、aarch64_cortex-a53（包级）；运行时证据为 x86_64 |
-| 当前源码候选 | `1.0.4` |
+| 当前源码候选 | `1.0.5` |
 | 服务脚本 | `/etc/init.d/performance-manager` |
 | UCI 配置 | `/etc/config/performance-manager` |
 | 核心程序 | `/usr/sbin/performance-manager.uc` |
