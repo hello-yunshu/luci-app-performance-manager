@@ -6,8 +6,17 @@
 'require performance-manager.labels as labels';
 
 return view.extend({
-	load: function() { return Promise.all([ pm.transactions(), pm.locks(), pm.history(100) ]); },
+	load: function() {
+		return Promise.all([ pm.transactions(), pm.locks(), pm.history(100) ].map(function(p) {
+			return p.catch(function(err) {
+				console.error('performance-manager: history load failed', err);
+				return { _loadError: err };
+			});
+		}));
+	},
 	render: function(data) {
+		if ((data || []).some(function(d) { return d && d._loadError; }))
+			return pu.page(_('History and rollback'), null, pu.note(_('Unable to load this page. Retry the page; if it keeps failing, check the service log.'), 'danger'));
 		const txs = (data[0] && data[0].transactions) || [], locks = (data[1] && data[1].locks) || [], history = (data[2] && data[2].history) || [], runtimeHistory = (data[2] && data[2].runtimeHistory) || [];
 		const nodes = [];
 		txs.forEach(function(tx) {

@@ -5,8 +5,17 @@
 'require performance-manager.labels as labels';
 
 return view.extend({
-	load: function() { return Promise.all([ pm.capabilities(), pm.topology() ]); },
+	load: function() {
+		return Promise.all([ pm.capabilities(), pm.topology() ].map(function(p) {
+			return p.catch(function(err) {
+				console.error('performance-manager: capabilities load failed', err);
+				return { _loadError: err };
+			});
+		}));
+	},
 	render: function(data) {
+		if ((data || []).some(function(d) { return d && d._loadError; }))
+			return pu.page(_('Capabilities'), null, pu.note(_('Unable to load this page. Retry the page; if it keeps failing, check the service log.'), 'danger'));
 		const c = data[0] || {}, t = data[1] || {};
 		const nodes = [];
 		(c.capabilities || []).forEach(function(x) {

@@ -6,8 +6,15 @@
 'require performance-manager.labels as labels';
 
 return view.extend({
-	load: function() { return pm.recommendations(); },
+	load: function() {
+		return pm.recommendations().catch(function(err) {
+			console.error('performance-manager: optimize load failed', err);
+			return { _loadError: err };
+		});
+	},
 	render: function(r) {
+		if (r && r._loadError)
+			return pu.page(_('Smart optimization'), null, pu.note(_('Unable to load this page. Retry the page; if it keeps failing, check the service log.'), 'danger'));
 		const actions = (r && r.actions) || [];
 		const nodes = [];
 		const smart = (r && r.smartSelection) || {};

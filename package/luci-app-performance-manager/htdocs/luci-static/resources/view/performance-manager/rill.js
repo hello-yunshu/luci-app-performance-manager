@@ -6,8 +6,17 @@
 'require performance-manager.labels as labels';
 
 return view.extend({
-	load: function() { return Promise.all([ pm.rill(), pm.recommendations(), pm.history(100) ]); },
+	load: function() {
+		return Promise.all([ pm.rill(), pm.recommendations(), pm.history(100) ].map(function(p) {
+			return p.catch(function(err) {
+				console.error('performance-manager: rill load failed', err);
+				return { _loadError: err };
+			});
+		}));
+	},
 	render: function(payload) {
+		if ((payload || []).some(function(d) { return d && d._loadError; }))
+			return pu.page(_('Rill smart decisions'), null, pu.note(_('Unable to load this page. Retry the page; if it keeps failing, check the service log.'), 'danger'));
 		const r = (payload && payload[0]) || {}, rec = (payload && payload[1]) || {}, history = (payload && payload[2]) || {}, s = rec.smartSelection || {};
 		const refresh = E('button', { 'class': 'btn cbi-button cbi-button-action', 'type': 'button' }, [ _('Refresh Rill decision') ]);
 		refresh.addEventListener('click', function() {
@@ -23,13 +32,13 @@ return view.extend({
 		const ranking = (s.ranking || []).slice(0, 5);
 		const rows = ranking.length ? ranking.map(function(row, i) {
 				const blocked = (s.blockedReasons || []).find(function(item) { return item.actionId === row.actionId; });
-				return E('tr', { 'aria-current': row.actionId === s.selectedCandidateId ? 'true' : 'false' }, [ E('td', {}, [ String(i + 1) ]), E('td', {}, [ labels.actionName(row.actionId) ]), E('td', {}, [ labels.percent(row.score) ]), E('td', {}, [ row.actionId === s.selectedCandidateId ? _('Selected') : (blocked ? labels.smartReason(blocked.reason) : _('Eligible')) ]), E('td', {}, [ blocked && blocked.cooldownRemaining ? labels.duration(blocked.cooldownRemaining) : '—' ]) ]);
-			}) : [ E('tr', {}, [ E('td', { 'colspan': '5' }, [ _('No ranking is available yet. Refresh the decision or wait for the next evaluation.') ]) ]) ];
-		const table = E('table', { 'class': 'table' }, [ E('caption', { 'class': 'pm-visually-hidden' }, [ _('Ranking table') ]), E('thead', {}, [ E('tr', {}, [ E('th', {}, [ _('Rank') ]), E('th', {}, [ _('Candidate') ]), E('th', {}, [ _('Score') ]), E('th', {}, [ _('Eligibility') ]), E('th', {}, [ _('Cooldown') ]) ]) ]), E('tbody', {}, rows) ]);
+				return E('tr', { 'class': 'tr', 'aria-current': row.actionId === s.selectedCandidateId ? 'true' : 'false' }, [ E('td', { 'class': 'td', 'data-title': _('Rank') }, [ String(i + 1) ]), E('td', { 'class': 'td', 'data-title': _('Candidate') }, [ labels.actionName(row.actionId) ]), E('td', { 'class': 'td', 'data-title': _('Score') }, [ labels.percent(row.score) ]), E('td', { 'class': 'td', 'data-title': _('Eligibility') }, [ row.actionId === s.selectedCandidateId ? _('Selected') : (blocked ? labels.smartReason(blocked.reason) : _('Eligible')) ]), E('td', { 'class': 'td', 'data-title': _('Cooldown') }, [ blocked && blocked.cooldownRemaining ? labels.duration(blocked.cooldownRemaining) : '—' ]) ]);
+			}) : [ E('tr', { 'class': 'tr' }, [ E('td', { 'class': 'td', 'colspan': '5', 'data-title': _('Rank') }, [ _('No ranking is available yet. Refresh the decision or wait for the next evaluation.') ]) ]) ];
+		const table = E('div', { 'class': 'pu-table-scroll' }, [ E('table', { 'class': 'table' }, [ E('caption', { 'class': 'pm-visually-hidden' }, [ _('Ranking table') ]), E('thead', {}, [ E('tr', {}, [ E('th', {}, [ _('Rank') ]), E('th', {}, [ _('Candidate') ]), E('th', {}, [ _('Score') ]), E('th', {}, [ _('Eligibility') ]), E('th', {}, [ _('Cooldown') ]) ]) ]), E('tbody', {}, rows) ]) ]);
 		const context = s.context || {};
 		const feedback = (history.history || []).filter(function(row) { return /^rill\.outcome\.(accepted|reconciled)/.test(row.event || ''); }).slice(-5).reverse();
-		const feedbackRows = feedback.length ? feedback.map(function(row) { const d = row.data || {}; return E('tr', {}, [ E('td', {}, [ labels.actionName(d.actionId) ]), E('td', {}, [ labels.goal(d.goal || s.goal) ]), E('td', {}, [ labels.percent(d.reward) ]), E('td', {}, [ labels.measurementQuality(d.measurementQuality) ]), E('td', {}, [ d.accepted === true ? _('Accepted') : _('Reconciled') ]) ]); }) : [ E('tr', {}, [ E('td', { 'colspan': '5' }, [ _('No validated feedback yet.') ]) ]) ];
-		const feedbackTable = E('table', { 'class': 'table' }, [ E('caption', { 'class': 'pm-visually-hidden' }, [ _('Feedback table') ]), E('thead', {}, [ E('tr', {}, [ E('th', {}, [ _('Candidate') ]), E('th', {}, [ _('Goal') ]), E('th', {}, [ _('Reward') ]), E('th', {}, [ _('Quality') ]), E('th', {}, [ _('Result') ]) ]) ]), E('tbody', {}, feedbackRows) ]);
+		const feedbackRows = feedback.length ? feedback.map(function(row) { const d = row.data || {}; return E('tr', { 'class': 'tr' }, [ E('td', { 'class': 'td', 'data-title': _('Candidate') }, [ labels.actionName(d.actionId) ]), E('td', { 'class': 'td', 'data-title': _('Goal') }, [ labels.goal(d.goal || s.goal) ]), E('td', { 'class': 'td', 'data-title': _('Reward') }, [ labels.percent(d.reward) ]), E('td', { 'class': 'td', 'data-title': _('Quality') }, [ labels.measurementQuality(d.measurementQuality) ]), E('td', { 'class': 'td', 'data-title': _('Result') }, [ d.accepted === true ? _('Accepted') : _('Reconciled') ]) ]); }) : [ E('tr', { 'class': 'tr' }, [ E('td', { 'class': 'td', 'colspan': '5', 'data-title': _('Candidate') }, [ _('No validated feedback yet.') ]) ]) ];
+		const feedbackTable = E('div', { 'class': 'pu-table-scroll' }, [ E('table', { 'class': 'table' }, [ E('caption', { 'class': 'pm-visually-hidden' }, [ _('Feedback table') ]), E('thead', {}, [ E('tr', {}, [ E('th', {}, [ _('Candidate') ]), E('th', {}, [ _('Goal') ]), E('th', {}, [ _('Reward') ]), E('th', {}, [ _('Quality') ]), E('th', {}, [ _('Result') ]) ]) ]), E('tbody', {}, feedbackRows) ]) ]);
 		const outcomeText = s.lastOutcome
 			? _('Reward %s · %s').format(labels.percent(s.lastOutcome.reward), labels.measurementQuality(s.lastOutcome.measurementQuality))
 			: '—';

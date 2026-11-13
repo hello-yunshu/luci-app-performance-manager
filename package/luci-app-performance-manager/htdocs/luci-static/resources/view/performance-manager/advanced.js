@@ -4,8 +4,17 @@
 'require performance-manager.ui as pu';
 
 return view.extend({
-	load: function() { return Promise.all([ pm.status(), pm.capabilities(), pm.topology(), pm.recommendations(), pm.transactions(), pm.locks(), pm.diagnostics() ]); },
+	load: function() {
+		return Promise.all([ pm.status(), pm.capabilities(), pm.topology(), pm.recommendations(), pm.transactions(), pm.locks(), pm.diagnostics() ].map(function(p) {
+			return p.catch(function(err) {
+				console.error('performance-manager: advanced load failed', err);
+				return { _loadError: err };
+			});
+		}));
+	},
 	render: function(data) {
+		if ((data || []).some(function(d) { return d && d._loadError; }))
+			return pu.page(_('Advanced'), null, pu.note(_('Unable to load this page. Retry the page; if it keeps failing, check the service log.'), 'danger'));
 		const s=data[0]||{}, c=data[1]||{}, t=data[2]||{}, r=data[3]||{}, tx=data[4]||{}, locks=data[5]||{}, d=data[6]||{};
 		const hidden=(c.capabilities||[]).filter(function(x){ return x.availability !== 'available'; });
 		return pu.page(_('Advanced'), _('Inspect the read-only contracts and resource state behind the supported views.'), [

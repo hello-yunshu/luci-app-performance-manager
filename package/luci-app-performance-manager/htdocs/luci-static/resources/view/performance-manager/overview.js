@@ -5,8 +5,17 @@
 'require performance-manager.labels as labels';
 
 return view.extend({
-	load: function() { return Promise.all([ pm.status(), pm.topology(), pm.transactions() ]); },
+	load: function() {
+		return Promise.all([ pm.status(), pm.topology(), pm.transactions() ].map(function(p) {
+			return p.catch(function(err) {
+				console.error('performance-manager: overview load failed', err);
+				return { _loadError: err };
+			});
+		}));
+	},
 	render: function(data) {
+		if ((data || []).some(function(d) { return d && d._loadError; }))
+			return pu.page(_('Performance Manager'), null, pu.note(_('Unable to load this page. Retry the page; if it keeps failing, check the service log.'), 'danger'));
 		const s = data[0] || {}, t = data[1] || {};
 		const txs = (data[2] && data[2].transactions) || [];
 		const profile = s.profile || {}, rill = s.rill || {}, guard = s.healthGuard || {};
