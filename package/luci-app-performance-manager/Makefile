@@ -29,6 +29,16 @@ sed -i 's/@PKG_VERSION@/$(PKG_VERSION)/g' "$${IPKG_INSTROOT}/www/luci-static/res
 exit 0
 endef
 
+# Ship the zh-cn catalog in the main package instead of relying on the
+# separately versioned luci-i18n-performance-manager-zh-cn package.
+# The hook must be registered before luci.mk evaluates BuildPackage.
+define PMBuildLmo
+	mkdir -p $(PKG_BUILD_DIR)/root/usr/lib/lua/luci/i18n
+	[ -x "$(STAGING_DIR_HOSTPKG)/bin/po2lmo" ] || { echo "ERROR: po2lmo not found at $(STAGING_DIR_HOSTPKG)/bin; build luci-base/host first" >&2; exit 1; }
+	"$(STAGING_DIR_HOSTPKG)/bin/po2lmo" $(CURDIR)/po/zh_Hans/performance-manager.po $(PKG_BUILD_DIR)/root/usr/lib/lua/luci/i18n/performance-manager.zh-cn.lmo
+endef
+Hooks/Compile/Post += PMBuildLmo
+
 include $(TOPDIR)/feeds/luci/luci.mk
 
 # call BuildPackage - OpenWrt buildroot signature

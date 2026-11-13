@@ -2168,3 +2168,6 @@ msgstr "概览"
 #: package/luci-app-performance-manager/root/usr/share/luci/menu.d/luci-app-performance-manager.json
 msgid "Rill intelligence"
 msgstr "Rill 智能"
+
+msgid "Unable to load this page. Retry the page; if it keeps failing, check the service log."
+msgstr "无法加载本页。请重试；若仍失败，请检查服务日志。"
