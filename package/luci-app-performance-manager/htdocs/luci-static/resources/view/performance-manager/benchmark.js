@@ -18,8 +18,15 @@ function stageRow(stage, active) {
 }
 
 return view.extend({
-	load: function() { return pm.recommendations(); },
+	load: function() {
+		return pm.recommendations().catch(function(err) {
+			console.error('performance-manager: benchmark load failed', err);
+			return { _loadError: err };
+		});
+	},
 	render: function(rec) {
+		if (rec && rec._loadError)
+			return pu.page(_('Performance test'), null, pu.note(_('Unable to load this page. Retry the page; if it keeps failing, check the service log.'), 'danger'));
 		const actions = ((rec && rec.benchmarkActions) || []).filter(function(a) { return a.status !== 'blocked'; });
 		const advisories = (rec && rec.learnedAdvisory) || [];
 		const root = E('div');
