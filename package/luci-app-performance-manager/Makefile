@@ -1,7 +1,7 @@
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=luci-app-performance-manager
-PKG_VERSION:=1.0.6
+PKG_VERSION:=1.0.7
 PKG_RELEASE:=1
 PKG_LICENSE:=GPL-3.0-only
 PKG_MAINTAINER:=OpenWrt Performance Manager contributors
@@ -25,7 +25,7 @@ define Package/luci-app-performance-manager/postinst
 	rm -rf /tmp/luci-modulecache/
 	killall -HUP rpcd 2>/dev/null
 }
-sed -i 's/@PKG_VERSION@/$(PKG_VERSION)/g' "$${IPKG_INSTROOT}/www/luci-static/resources/performance-manager/ui.js" 2>/dev/null
+sed -i 's/@PKG_FULL_VERSION@/$(PKG_VERSION)-r$(PKG_RELEASE)/g; s/@PKG_VERSION@/$(PKG_VERSION)/g' "$${IPKG_INSTROOT}/www/luci-static/resources/performance-manager/ui.js" 2>/dev/null
 exit 0
 endef
 

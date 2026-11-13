@@ -1,7 +1,7 @@
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=luci-app-performance-manager-all
-PKG_VERSION:=1.0.6
+PKG_VERSION:=1.0.7
 PKG_RELEASE:=1
 PKG_LICENSE:=GPL-3.0-only
 PKG_MAINTAINER:=OpenWrt Performance Manager contributors
@@ -84,6 +84,7 @@ define Package/luci-app-performance-manager-all/install
 
 	$(INSTALL_DIR) $(1)/www $(1)/usr/share/luci $(1)/usr/share/rpcd
 	cp -pR $(CURDIR)/../luci-app-performance-manager/htdocs/* $(1)/www/
+	$(SED) 's/@PKG_FULL_VERSION@/$(PKG_VERSION)-r$(PKG_RELEASE)/g; s/@PKG_VERSION@/$(PKG_VERSION)/g' $(1)/www/luci-static/resources/performance-manager/ui.js
 	cp -pR $(CURDIR)/../luci-app-performance-manager/root/usr/share/luci/* $(1)/usr/share/luci/
 	cp -pR $(CURDIR)/../luci-app-performance-manager/root/usr/share/rpcd/* $(1)/usr/share/rpcd/
 
