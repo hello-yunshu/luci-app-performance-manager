@@ -200,10 +200,12 @@ body.pu-theme-bootstrap .alert-message.info :is(h3,h4,h5,p,b,strong,li) { color:
  * footer that reaches the right edge, so reserve that column for those rows
  * instead of changing the page gutter. */
 @media screen and (max-width: 1319px) {
+	/* 52px = aurora's 40px toolbar + its 12px right inset, so content keeps
+	 * at least 8px clearance instead of touching the toolbar edge. */
 	body:has(.floating-toolbar) #maincontent .cbi-page-actions,
 	body:has(.floating-toolbar) #maincontent .ys-actions,
 	body:has(.floating-toolbar) #maincontent .ys-tool-footer {
-		padding-inline-end: calc(var(--spacing, .25rem) * 10);
+		padding-inline-end: calc(var(--spacing, .25rem) * 13);
 	}
 }
 
