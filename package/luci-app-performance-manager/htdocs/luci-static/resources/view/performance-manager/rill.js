@@ -6,6 +6,10 @@
 'require performance-manager.labels as labels';
 
 return view.extend({
+	handleSave: null,
+	handleSaveApply: null,
+	handleReset: null,
+
 	load: function() {
 		return Promise.all([ pm.rill(), pm.recommendations(), pm.history(100) ].map(function(p) {
 			return p.catch(function(err) {

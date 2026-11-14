@@ -6,6 +6,10 @@
 'require performance-manager.labels as labels';
 
 return view.extend({
+	handleSave: null,
+	handleSaveApply: null,
+	handleReset: null,
+
 	load: function() {
 		return pm.recommendations().catch(function(err) {
 			console.error('performance-manager: optimize load failed', err);

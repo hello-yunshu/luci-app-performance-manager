@@ -18,6 +18,10 @@ function stageRow(stage, active) {
 }
 
 return view.extend({
+	handleSave: null,
+	handleSaveApply: null,
+	handleReset: null,
+
 	load: function() {
 		return pm.recommendations().catch(function(err) {
 			console.error('performance-manager: benchmark load failed', err);

@@ -4,6 +4,10 @@
 'require performance-manager.ui as pu';
 
 return view.extend({
+	handleSave: null,
+	handleSaveApply: null,
+	handleReset: null,
+
 	load: function() {
 		return Promise.all([ pm.status(), pm.capabilities(), pm.topology(), pm.recommendations(), pm.transactions(), pm.locks(), pm.diagnostics() ].map(function(p) {
 			return p.catch(function(err) {
