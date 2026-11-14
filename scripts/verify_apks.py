@@ -16,11 +16,13 @@ package, an exact match on:
 For the `performance-manager` Core package it additionally extracts the shipped
 daemon `/usr/sbin/performance-manager.uc` from the APK's ADB data blocks and
 asserts it is byte-for-byte identical (SHA256) to the repo source that the
-runtime harness and startup smoke execute.  The architecture-specific
-all-in-one APK is checked even more strictly: every repository-owned Core,
-LuCI, rpcd and Rill-glue file must match its source, the compiled Simplified
-Chinese LMO must be present, and its bundled Runtime must be the exact same
-target ELF as the split canonical Runtime package.
+runtime harness and startup smoke execute. The split LuCI APK is checked for
+every repository-owned static UI file so a same-version stale asset package
+cannot pass. The architecture-specific all-in-one APK is checked even more
+strictly: every repository-owned Core, LuCI, rpcd and Rill-glue file must match
+its source, the compiled Simplified Chinese LMO must be present, and its bundled
+Runtime must be the exact same target ELF as the split canonical Runtime
+package.
 
 It fails closed (exit != 0) if any expected package is absent, duplicated, of
 the wrong arch, a stray old-version artifact, or if the APK's Core file does not
@@ -107,6 +109,17 @@ def bundle_source_payloads():
                 if payload in payloads:
                     raise RuntimeError(f'duplicate all-in-one payload mapping: {payload}')
                 payloads[payload] = source
+    return payloads
+
+
+def luci_source_payloads():
+    """Map every LuCI static file shipped by the split UI package."""
+    source_root = ROOT / 'package/luci-app-performance-manager/htdocs'
+    payloads = {}
+    for source in sorted(source_root.rglob('*')):
+        if source.is_file():
+            payload = '/' + str((Path('/www') / source.relative_to(source_root))).lstrip('/')
+            payloads[payload] = source
     return payloads
 
 
@@ -539,11 +552,13 @@ def main(argv):
         }
         # Core, and every repository-owned file in the all-in-one APK, must be
         # byte-for-byte identical to the source exercised by local gates.
-        if name in ('performance-manager', ALL_IN_ONE):
+        if name in ('performance-manager', 'luci-app-performance-manager', ALL_IN_ONE):
             installed_payload = {}
             source_payloads = (
                 {CORE_PATH: CORE_SRC, CONTRACTS_PATH: CONTRACTS_SRC}
-                if name == 'performance-manager' else bundle_source_payloads()
+                if name == 'performance-manager' else
+                luci_source_payloads() if name == 'luci-app-performance-manager' else
+                bundle_source_payloads()
             )
             for payload_path, source_path in source_payloads.items():
                 payload_rec = {'path': payload_path}
@@ -591,7 +606,8 @@ def main(argv):
                                             'apkSha256': hashlib.sha256(translation).hexdigest()})
                 installed_payload[TRANSLATION_PATH] = translation_rec
             report['packages'][name]['installedPayload'] = installed_payload
-            report['packages'][name]['core'] = installed_payload[CORE_PATH]
+            if CORE_PATH in installed_payload:
+                report['packages'][name]['core'] = installed_payload[CORE_PATH]
         if name == 'rill-runtime':
             runtime_payload = apk_file_content(apk, '/usr/bin/rill-runtime')
             split_runtime_sha = hashlib.sha256(runtime_payload).hexdigest() if runtime_payload else None

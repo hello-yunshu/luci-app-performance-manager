@@ -177,6 +177,19 @@ jobs:
           make defconfig
       - name: Build Core
         run: cd "$SDKDIR" && bash "$GITHUB_WORKSPACE/scripts/openwrt-build-diagnostic.sh" package/performance-manager/compile
+      - name: Clean stale LuCI package output
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd "$SDKDIR"
+          make package/luci-app-performance-manager/clean
+          # A pre-existing same-version APK must never survive a failed or
+          # skipped rebuild and then be selected by the exact package verifier.
+          package_version=$(sed -E 's/-rc\./_rc/' "$GITHUB_WORKSPACE/VERSION")
+          find bin -type f \( \
+            -name "luci-app-performance-manager-${package_version}-*.apk" -o \
+            -name "luci-app-performance-manager-all-${package_version}-*.apk" \
+          \) -delete
       - name: Build LuCI
         run: cd "$SDKDIR" && bash "$GITHUB_WORKSPACE/scripts/openwrt-build-diagnostic.sh" package/luci-app-performance-manager/compile
       - name: Download exact qualified Stable Runtime package
