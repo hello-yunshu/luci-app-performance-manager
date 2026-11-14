@@ -785,6 +785,10 @@ msgstr "Runtime History JSON"
 msgid "Unable to read evidence. Paste valid JSON and try again."
 msgstr "Unable to read evidence. Paste valid JSON and try again."
 
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/performance-manager/ui.js
+msgid "Unable to load this page. Retry the page; if it keeps failing, check the service log."
+msgstr "Unable to load this page. Retry the page; if it keeps failing, check the service log."
+
 #: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/benchmark.js:14
 msgid "Complete"
 msgstr "Complete"

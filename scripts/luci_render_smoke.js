@@ -67,7 +67,7 @@ class FakeEl {
       contains: (name) => String(this.attrs['class'] || '').split(/\s+/).includes(name),
     };
     if (this.attrs.class) this.class = this.attrs['class'];
-    (children || []).forEach((c) => this.appendChild(c));
+    (Array.isArray(children) ? children : children == null ? [] : [children]).forEach((c) => this.appendChild(c));
   }
   get value() { return this._value !== undefined ? this._value : (this.options.length ? this.options[0].attrs.value : ''); }
   set value(v) { this._value = v; }
