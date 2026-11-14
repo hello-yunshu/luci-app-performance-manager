@@ -40,6 +40,7 @@ endef
 
 define Package/luci-app-performance-manager-all/postinst
 #!/bin/sh
+sed -i 's/@PKG_FULL_VERSION@/$(PKG_VERSION)-r$(PKG_RELEASE)/g; s/@PKG_VERSION@/$(PKG_VERSION)/g' "$${IPKG_INSTROOT}/www/luci-static/resources/performance-manager/ui.js" 2>/dev/null
 [ -n "$${IPKG_INSTROOT}" ] || {
 	rm -f /tmp/luci-indexcache.*
 	rm -rf /tmp/luci-modulecache/
@@ -84,7 +85,6 @@ define Package/luci-app-performance-manager-all/install
 
 	$(INSTALL_DIR) $(1)/www $(1)/usr/share/luci $(1)/usr/share/rpcd
 	cp -pR $(CURDIR)/../luci-app-performance-manager/htdocs/* $(1)/www/
-	$(SED) 's/@PKG_FULL_VERSION@/$(PKG_VERSION)-r$(PKG_RELEASE)/g; s/@PKG_VERSION@/$(PKG_VERSION)/g' $(1)/www/luci-static/resources/performance-manager/ui.js
 	cp -pR $(CURDIR)/../luci-app-performance-manager/root/usr/share/luci/* $(1)/usr/share/luci/
 	cp -pR $(CURDIR)/../luci-app-performance-manager/root/usr/share/rpcd/* $(1)/usr/share/rpcd/
 
