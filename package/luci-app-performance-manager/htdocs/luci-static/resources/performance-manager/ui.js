@@ -176,12 +176,13 @@ function note(text, kind) {
 }
 
 function field(label, control, help) {
+	var fieldContent = [ control ];
+	if (help)
+		fieldContent.push(E('div', { 'class': 'cbi-value-description' }, [ help ]));
+
 	return E('div', { 'class': 'cbi-value' }, [
 		E('label', { 'class': 'cbi-value-title' }, [ label ]),
-		E('div', { 'class': 'cbi-value-field' }, [
-			control,
-			help ? E('div', { 'class': 'cbi-value-description' }, [ help ]) : null
-		])
+		E('div', { 'class': 'cbi-value-field' }, fieldContent)
 	]);
 }
 

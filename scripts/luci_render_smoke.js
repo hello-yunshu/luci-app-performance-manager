@@ -295,6 +295,17 @@ async function expect(name, fn) {
 const PAGES = ['overview', 'optimize', 'capabilities', 'rill', 'history', 'benchmark', 'settings', 'advanced'];
 const LABELS_SRC = fs.readFileSync(path.join(RES, 'performance-manager', 'labels.js'), 'utf8');
 
+await expect('field without help omits a null DOM child', () => {
+  const strictE = (tag, attrs, children) => {
+    if (Array.isArray(children) && children.includes(null))
+      throw new Error('null passed as a DOM child');
+    return E(tag, attrs, children);
+  };
+  const strictPu = loadModule(path.join(RES, 'performance-manager', 'ui.js'), { E: strictE, _, baseclass });
+  const rendered = strictPu.field('Label', E('select'), undefined);
+  if (!visibleText(rendered).includes('Label')) throw new Error('field label is missing');
+});
+
 /* Read the real mapping tables so coverage is driven by every value the module
  * knows about, not by a hand-picked sample. */
 function tableKeys(name) {
