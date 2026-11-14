@@ -97,4 +97,4 @@ class ReleaseGateSourceTests(unittest.TestCase):
         self.assertIn("gh release upload \"$tag\" release-public/* --clobber", release)
         self.assertIn("release-notes.md", release)
         self.assertNotIn("Hardware-validated", release)
-        self.assertEqual((ROOT / "VERSION").read_text().strip(), "1.0.4")
+        self.assertEqual((ROOT / "VERSION").read_text().strip(), "1.0.7")
