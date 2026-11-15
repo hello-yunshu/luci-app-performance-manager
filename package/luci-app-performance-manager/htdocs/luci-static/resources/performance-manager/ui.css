@@ -203,8 +203,8 @@ body.pu-theme-bootstrap .alert-message.info :is(h3,h4,h5,p,b,strong,li) { color:
 
 /* Shared table contract: every table on the page shares one first-column
  * basis (minimum width + alignment) instead of content-driven widths. */
-/* Keep LuCI's native route tabs reachable on narrow screens. The default
- * theme strip clips later tabs when all eight plugin routes share one row. */
+/* Keep all LuCI route tabs reachable while the theme's content column is
+ * narrower than this plugin's eight-item tab row. */
 @media screen and (max-width: 1279px) {
 	#tabmenu ul.tabs {
 		flex-wrap: wrap;
