@@ -43,40 +43,6 @@
 /* ===== 原生表格滚动容器（例外 E22） ===== */
 .pu-table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
 
-/* ===== Bootstrap 兼容层（例外 E22） ===== */
-/* 仅当 body.pu-theme-bootstrap（由 ui.ensureStyles 按主题样式表探测）时生效，
- * aurora 与其他主题完全不受影响。 */
-
-/* 触摸目标 >= 32px（主题按钮 28–30px，达不到可访问性底线） */
-body.pu-theme-bootstrap .cbi-button,
-body.pu-theme-bootstrap .btn,
-body.pu-theme-bootstrap .cbi-page-actions button { min-height: 32px; line-height: 30px; }
-
-/* 对比度补偿：括号内为按主题实际背景计算的对比度（WCAG AA 正文 >= 4.5） */
-/* Save 在 .cbi-page-actions 内会被主题 `.cbi-button-apply + .cbi-button-save`（0,4,0）
- * 改成浅底白字（3.11:1），这里用 (0,4,1) 压过它。 */
-body.pu-theme-bootstrap .cbi-page-actions .cbi-button-save.cbi-button,
-body.pu-theme-bootstrap .cbi-button-save,
-body.pu-theme-bootstrap .cbi-button-positive { background: #00713d; border-color: #006635; color: #fff; } /* 6.1:1 */
-body.pu-theme-bootstrap .cbi-button-negative { background: #a11414; border-color: #8a1111; color: #fff; } /* 6.4:1 */
-body.pu-theme-bootstrap .cbi-button-reset { color: #b3261e; } /* 6.0:1 */
-html[data-darkmode="true"] body.pu-theme-bootstrap .cbi-button-reset { color: #ff9d97; } /* 8.0:1 */
-body.pu-theme-bootstrap .cbi-dropdown > .open {
-	background: #2a6a80; border-color: #255d70; color: #fff; /* 6.1:1 */
-}
-body.pu-theme-bootstrap .cbi-dropdown > ul > li { background: #2a6a80; color: #fff; } /* 6.1:1 */
-body.pu-theme-bootstrap .label.success { background: #00713d; border-color: #006635; color: #fff; } /* 6.1:1 */
-body.pu-theme-bootstrap .alert-message.success { background: #007a4a; color: #fff; } /* 5.4:1 */
-body.pu-theme-bootstrap .alert-message.success :is(h3,h4,h5,p,b,strong,li) { color: #fff; }
-/* danger 的渐变底在白字下最浅处 ~4.5:1，暗色主题还给深灰字（3.07:1）；统一纯深红白字 */
-body.pu-theme-bootstrap .alert-message.danger { background: #8c1d18; color: #fff; } /* 7.1:1 */
-body.pu-theme-bootstrap .alert-message.danger :is(h3,h4,h5,p,b,strong,li,summary,pre) { color: #fff; }
-body.pu-theme-bootstrap .alert-message.danger .cbi-button {
-	background: rgba(0, 0, 0, 0.28); border-color: rgba(255, 255, 255, 0.45); color: #fff; /* 9.7:1 */
-}
-body.pu-theme-bootstrap .alert-message.info { background: #2a6a80; color: #fff; } /* 6.1:1 */
-body.pu-theme-bootstrap .alert-message.info :is(h3,h4,h5,p,b,strong,li) { color: #fff; }
-
 /* ===== Reduced motion ===== */
 @media (prefers-reduced-motion: reduce) {
 	*, *::before, *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; animation-duration: .01ms !important; }
