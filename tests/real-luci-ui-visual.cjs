@@ -131,6 +131,7 @@ async function capture(page, theme, route, width, height, viewId) {
 		if (!metrics.pluginCssLoaded) failures.push('plugin-css-not-loaded');
 		if (metrics.overflow) failures.push('horizontal-overflow');
 		if (metrics.tabMenu && metrics.tabMenu.activeItems.some(x => !x.visible)) failures.push('active-tab-outside-visible-strip');
+		if (!metrics.tabMenu || metrics.tabMenu.count !== routes.length || metrics.tabMenu.visibleCount !== metrics.tabMenu.count) failures.push('route-tab-outside-visible-strip');
 		if (metrics.truncated.length) failures.push('truncated-non-dropdown-text');
 		if (metrics.darkMode !== theme.dark) failures.push('theme-dark-mode-mismatch');
 		if (metrics.heading !== route.title[langIndex]) failures.push('wrong-view-heading: ' + metrics.heading);
