@@ -17,6 +17,12 @@ function stageRow(stage, active) {
 	]);
 }
 
+function benchmarkField(label, control) {
+	var row = pu.field(label, control);
+	row.classList.add('pm-benchmark-field');
+	return row;
+}
+
 return view.extend({
 	handleSave: null,
 	handleSaveApply: null,
@@ -34,9 +40,9 @@ return view.extend({
 		const actions = ((rec && rec.benchmarkActions) || []).filter(function(a) { return a.status !== 'blocked'; });
 		const advisories = (rec && rec.learnedAdvisory) || [];
 		const root = E('div');
-		const action = E('select', { 'aria-label': _('Benchmark action') });
+		const action = E('select', { 'class': 'pm-benchmark-select', 'aria-label': _('Benchmark action') });
 		actions.forEach(function(a) { action.appendChild(E('option', { value: a.id }, [ labels.actionName(a.id) + ' · ' + labels.evaluationSemantics(a.evaluationSemantics) ])); });
-		const pathSelect = E('select', { 'aria-label': _('Evaluation path') });
+		const pathSelect = E('select', { 'class': 'pm-benchmark-select', 'aria-label': _('Evaluation path') });
 		function refreshPaths() {
 			pathSelect.replaceChildren();
 			const selected = actions.find(function(a){ return a.id === action.value; });
@@ -44,7 +50,7 @@ return view.extend({
 		}
 		action.addEventListener('change', refreshPaths);
 		refreshPaths();
-		const measurement = E('select', { 'aria-label': _('Measurement class') }, [
+		const measurement = E('select', { 'class': 'pm-benchmark-select', 'aria-label': _('Measurement class') }, [
 			E('option', { value: 'controlled_ab' }, [ _('Controlled A/B') ]),
 			E('option', { value: 'passive_before_after' }, [ _('Passive before/after') ]),
 			E('option', { value: 'health_only' }, [ _('Health only') ])
@@ -112,9 +118,9 @@ return view.extend({
 
 		start.disabled = !actions.length;
 		root.appendChild(pu.toolbar([
-			pu.field(_('Benchmark action'), action),
-			pu.field(_('Evaluation path'), pathSelect),
-			pu.field(_('Measurement class'), measurement),
+			benchmarkField(_('Benchmark action'), action),
+			benchmarkField(_('Evaluation path'), pathSelect),
+			benchmarkField(_('Measurement class'), measurement),
 			start
 		]));
 		if (!actions.length) root.appendChild(pu.note(_('No benchmark action is currently available for this device.'), 'warning'));

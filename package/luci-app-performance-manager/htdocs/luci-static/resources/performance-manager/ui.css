@@ -169,6 +169,25 @@
 	}
 }
 
+@media screen and (max-width: 600px) {
+	.ys-actions > .pm-benchmark-field {
+		flex: 1 1 100%;
+		min-width: 0;
+	}
+	.pm-benchmark-field .cbi-value-field {
+		width: 100%;
+		min-width: 0;
+		box-sizing: border-box;
+	}
+	.pm-benchmark-select {
+		display: block;
+		width: 100%;
+		max-width: 100%;
+		min-width: 0;
+		box-sizing: border-box;
+	}
+}
+
 @media screen and (min-width: 48rem) {
 	.table > thead > tr > :first-child,
 	.table > tbody > tr > :first-child,

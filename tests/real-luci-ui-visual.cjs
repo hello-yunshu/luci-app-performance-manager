@@ -99,12 +99,21 @@ async function capture(page, theme, route, width, height, viewId) {
 			const overviewBadges = main
 				? Array.from(main.querySelectorAll('.pm-overview-status .label')).map(el => el.getClientRects().length)
 				: [];
+			const benchmarkSelect = viewId === 'benchmark' && main && main.querySelector('.pm-benchmark-select');
+			const benchmarkField = benchmarkSelect && benchmarkSelect.closest('.pm-benchmark-field');
+			const benchmarkSelectRect = benchmarkSelect && benchmarkSelect.getBoundingClientRect();
+			const benchmarkFieldRect = benchmarkField && benchmarkField.getBoundingClientRect();
+			const benchmarkSelectFits = !benchmarkSelect || !!(benchmarkSelectRect && benchmarkFieldRect &&
+				benchmarkSelectRect.left >= benchmarkFieldRect.left - 1 &&
+				benchmarkSelectRect.right <= benchmarkFieldRect.right + 1 &&
+				benchmarkSelectRect.right <= innerWidth + 1);
 			return {
 				heading: heading ? heading.textContent.trim() : '',
 				hasMain: !!main, mainLength: (main && main.innerText || '').trim().length,
 				loading: !!(main && /Loading view|加载视图/.test(main.innerText)),
 				darkMode: root.getAttribute('data-darkmode'), scrollWidth: root.scrollWidth, width: innerWidth,
 				overflow: root.scrollWidth > innerWidth + 1,
+				benchmarkSelectFits,
 				overviewBadgesIntact: !overviewBadges.length || overviewBadges.every(rects => rects === 1),
 				themeLoaded: resources.some(src => src.includes('/luci-static/' + media + '/')),
 				pluginCssLoaded: resources.some(src => src.includes('performance-manager/ui.css')),
@@ -137,6 +146,7 @@ async function capture(page, theme, route, width, height, viewId) {
 		if (!metrics.themeLoaded) failures.push('theme-assets-not-loaded');
 		if (!metrics.pluginCssLoaded) failures.push('plugin-css-not-loaded');
 		if (metrics.overflow) failures.push('horizontal-overflow');
+		if (route.id === 'benchmark' && width <= 600 && !metrics.benchmarkSelectFits) failures.push('benchmark-action-select-exceeds-available-width');
 		if (!metrics.overviewBadgesIntact) failures.push('overview-status-badge-split-across-lines');
 		if (metrics.tabMenu && metrics.tabMenu.activeItems.some(x => !x.visible)) failures.push('active-tab-outside-visible-strip');
 		if (!metrics.tabMenu || metrics.tabMenu.count !== routes.length || metrics.tabMenu.visibleCount !== metrics.tabMenu.count) failures.push('route-tab-outside-visible-strip');
