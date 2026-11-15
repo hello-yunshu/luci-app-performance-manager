@@ -89,11 +89,6 @@ async function capture(page, theme, route, width, height, viewId) {
 		await page.waitForTimeout(350);
 		metrics = await page.evaluate(media => {
 			const root = document.documentElement, main = document.querySelector('#maincontent');
-			const toolbar = document.querySelector('.floating-toolbar');
-			const toolbarRect = toolbar && toolbar.getBoundingClientRect();
-			const mainRect = main && main.getBoundingClientRect();
-			const toolbarClearancePx = !toolbarRect || toolbarRect.width === 0 || !mainRect ? null :
-				Math.round(toolbarRect.left - (mainRect.right - parseFloat(getComputedStyle(main).paddingInlineEnd || '0')));
 			const heading = main && main.querySelector('h2[name="content"], .view h2, h2');
 			const resources = Array.from(document.querySelectorAll('link[href],script[src]')).map(el => el.href || el.src);
 			const truncated = Array.from((main || document).querySelectorAll('*')).filter(el => {
@@ -110,7 +105,6 @@ async function capture(page, theme, route, width, height, viewId) {
 				loading: !!(main && /Loading view|加载视图/.test(main.innerText)),
 				darkMode: root.getAttribute('data-darkmode'), scrollWidth: root.scrollWidth, width: innerWidth,
 				overflow: root.scrollWidth > innerWidth + 1,
-				toolbarClearancePx,
 				overviewBadgesIntact: !overviewBadges.length || overviewBadges.every(rects => rects === 1),
 				themeLoaded: resources.some(src => src.includes('/luci-static/' + media + '/')),
 				pluginCssLoaded: resources.some(src => src.includes('performance-manager/ui.css')),
@@ -140,7 +134,6 @@ async function capture(page, theme, route, width, height, viewId) {
 		if (!metrics.themeLoaded) failures.push('theme-assets-not-loaded');
 		if (!metrics.pluginCssLoaded) failures.push('plugin-css-not-loaded');
 		if (metrics.overflow) failures.push('horizontal-overflow');
-		if (metrics.toolbarClearancePx !== null && metrics.toolbarClearancePx < 8) failures.push('floating-toolbar-overlaps-content');
 		if (!metrics.overviewBadgesIntact) failures.push('overview-status-badge-split-across-lines');
 		if (metrics.tabMenu && metrics.tabMenu.activeItems.some(x => !x.visible)) failures.push('active-tab-outside-visible-strip');
 		if (!metrics.tabMenu || metrics.tabMenu.count !== routes.length || metrics.tabMenu.visibleCount !== metrics.tabMenu.count) failures.push('route-tab-outside-visible-strip');

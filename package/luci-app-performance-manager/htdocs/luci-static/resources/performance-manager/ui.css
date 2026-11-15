@@ -201,13 +201,6 @@ body.pu-theme-bootstrap .alert-message.info :is(h3,h4,h5,p,b,strong,li) { color:
 .cbi-page-actions > form,
 .cbi-page-actions > button { margin: 0; }
 
-/* Reserve the Aurora floating toolbar column for all page content. */
-@media screen and (max-width: 1319px) {
-	body:has(.floating-toolbar) #maincontent {
-		padding-inline-end: calc(var(--spacing, .25rem) * 15);
-	}
-}
-
 /* Shared table contract: every table on the page shares one first-column
  * basis (minimum width + alignment) instead of content-driven widths. */
 /* Keep LuCI's native route tabs reachable on narrow screens. The default
