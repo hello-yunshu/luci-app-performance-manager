@@ -41,6 +41,7 @@ jobs:
     timeout-minutes: 90
     strategy:
       fail-fast: false
+      max-parallel: 1
       matrix:
         language: ${{ inputs.language == 'en' && fromJSON('["en"]') || inputs.language == 'zh_cn' && fromJSON('["zh_cn"]') || fromJSON('["en","zh_cn"]') }}
     steps:
