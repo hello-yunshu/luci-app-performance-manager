@@ -44,7 +44,7 @@ jobs:
       matrix:
         language: ${{ inputs.language == 'en' && fromJSON('["en"]') || inputs.language == 'zh_cn' && fromJSON('["zh_cn"]') || fromJSON('["en","zh_cn"]') }}
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/checkout@v7
       - name: Start a real OpenWrt and LuCI container
         run: |
           set -euo pipefail
@@ -105,7 +105,7 @@ jobs:
           NODE_PATH="$RUNNER_TEMP/ui/node_modules" PM_UI_CONTAINER=pm-ui-gate \
             PM_UI_LANG="$language" PM_VISUAL_OUT="$GITHUB_WORKSPACE/real-luci-ui-evidence/visual/$language" \
             node tests/real-luci-ui-visual.cjs
-      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+      - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: real-luci-ui-evidence-run-${{ github.run_id }}-attempt-${{ github.run_attempt }}
