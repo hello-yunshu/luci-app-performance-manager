@@ -132,10 +132,17 @@ def luci_packaged_source_variants(source: Path, sdk_dir: Path):
     """
     raw = source.read_bytes()
     variants = [raw]
-    host_bin = sdk_dir / 'staging_dir/host/bin'
+    # Host build dependencies provided by LuCI (jsmin/csstidy) are installed
+    # under hostpkg/bin in OpenWrt SDKs; native build utilities are under
+    # host/bin. Search both so the verifier reproduces the tools actually used
+    # by `luci.mk` instead of silently checking raw source on hostpkg builds.
+    host_bins = (
+        sdk_dir / 'staging_dir/hostpkg/bin',
+        sdk_dir / 'staging_dir/host/bin',
+    )
     if source.suffix == '.js':
-        jsmin = host_bin / 'jsmin'
-        if jsmin.is_file():
+        jsmin = next((root / 'jsmin' for root in host_bins if (root / 'jsmin').is_file()), None)
+        if jsmin is not None:
             try:
                 result = subprocess.run([str(jsmin)], input=raw, capture_output=True, check=True)
                 variants.append(result.stdout)
@@ -144,8 +151,8 @@ def luci_packaged_source_variants(source: Path, sdk_dir: Path):
                 # its optional minification command fails.
                 pass
     elif source.suffix == '.css':
-        csstidy = host_bin / 'csstidy'
-        if csstidy.is_file():
+        csstidy = next((root / 'csstidy' for root in host_bins if (root / 'csstidy').is_file()), None)
+        if csstidy is not None:
             with tempfile.TemporaryDirectory(prefix='pm-csstidy-') as tmp:
                 src = Path(tmp) / source.name
                 out = Path(tmp) / (source.name + '.min')
