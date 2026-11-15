@@ -32,7 +32,7 @@ Usage:
   python3 scripts/verify_apks.py <sdk_dir> <expected_version> <arch> [rill_runtime_version]
 """
 from __future__ import annotations
-import gzip, hashlib, io, json, os, struct, subprocess, sys, tarfile, zlib
+import gzip, hashlib, io, json, os, struct, subprocess, sys, tarfile, tempfile, zlib
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -121,6 +121,45 @@ def luci_source_payloads():
             payload = '/' + str((Path('/www') / source.relative_to(source_root))).lstrip('/')
             payloads[payload] = source
     return payloads
+
+
+def luci_packaged_source_variants(source: Path, sdk_dir: Path):
+    """Return repository bytes and the exact default LuCI minifier output.
+
+    OpenWrt's LuCI package rules minify JavaScript and CSS by default. Compare
+    against both forms so this gate catches stale UI assets without rejecting a
+    valid package solely because its normal build transform changed whitespace.
+    """
+    raw = source.read_bytes()
+    variants = [raw]
+    host_bin = sdk_dir / 'staging_dir/host/bin'
+    if source.suffix == '.js':
+        jsmin = host_bin / 'jsmin'
+        if jsmin.is_file():
+            try:
+                result = subprocess.run([str(jsmin)], input=raw, capture_output=True, check=True)
+                variants.append(result.stdout)
+            except subprocess.CalledProcessError:
+                # LuCI's install rule leaves the original file in place when
+                # its optional minification command fails.
+                pass
+    elif source.suffix == '.css':
+        csstidy = host_bin / 'csstidy'
+        if csstidy.is_file():
+            with tempfile.TemporaryDirectory(prefix='pm-csstidy-') as tmp:
+                src = Path(tmp) / source.name
+                out = Path(tmp) / (source.name + '.min')
+                src.write_bytes(raw)
+                try:
+                    subprocess.run([
+                        str(csstidy), str(src), '--template=highest',
+                        '--remove_last_semicolon=true', str(out)
+                    ], capture_output=True, check=True)
+                    variants.append(out.read_bytes())
+                except subprocess.CalledProcessError:
+                    # Match the upstream LuCI install macro's fallback.
+                    pass
+    return variants
 
 
 def _pm_commit():
@@ -550,8 +589,9 @@ def main(argv):
             'requiredDepends': sorted(REQUIRED_DEPENDS[name]),
             'missingDepends': missing_deps,
         }
-        # Core, and every repository-owned file in the all-in-one APK, must be
-        # byte-for-byte identical to the source exercised by local gates.
+        # Core, split LuCI UI assets, and the all-in-one package must all match
+        # the source exercised by local gates. The split package may contain
+        # the exact default LuCI JS/CSS minifier output.
         if name in ('performance-manager', 'luci-app-performance-manager', ALL_IN_ONE):
             installed_payload = {}
             source_payloads = (
@@ -574,10 +614,22 @@ def main(argv):
                     failures.append(f'{name}: cannot compare payload (repo source {source_path.name} missing)')
                 else:
                     apk_sha = hashlib.sha256(apk_payload).hexdigest()
-                    payload_rec.update({'status': 'match' if apk_sha == src_sha else 'mismatch',
-                                        'size': len(apk_payload), 'apkSha256': apk_sha, 'sourceSha256': src_sha})
-                    if apk_sha != src_sha:
-                        failures.append(f'{name}: APK {payload_path} sha256 != shipped source ({apk_sha} vs {src_sha})')
+                    variants = ([source_path.read_bytes()]
+                                if name != 'luci-app-performance-manager' else
+                                luci_packaged_source_variants(source_path, sdk_dir))
+                    variant_hashes = {hashlib.sha256(data).hexdigest() for data in variants}
+                    matched = apk_sha in variant_hashes
+                    payload_rec.update({
+                        'status': 'match' if matched else 'mismatch',
+                        'size': len(apk_payload),
+                        'apkSha256': apk_sha,
+                        'sourceSha256': src_sha,
+                        'acceptedPackageSha256': sorted(variant_hashes),
+                    })
+                    if not matched:
+                        failures.append(
+                            f'{name}: APK {payload_path} sha256 matches neither repository source nor LuCI-minified source'
+                        )
                 installed_payload[payload_path] = payload_rec
                 print(f"PAYLOAD {name}: {payload_path} {payload_rec.get('status')} "
                       f"apk={payload_rec.get('apkSha256', '-')} src={payload_rec.get('sourceSha256', '-')}")
