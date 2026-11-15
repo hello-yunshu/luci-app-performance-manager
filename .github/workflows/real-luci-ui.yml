@@ -1,6 +1,15 @@
 name: Real LuCI UI Gate
 
 on:
+  push:
+    paths:
+      - 'package/luci-app-performance-manager/htdocs/**'
+      - 'package/luci-app-performance-manager/root/usr/share/luci/**'
+      - 'package/luci-app-performance-manager/root/usr/share/rpcd/**'
+      - 'package/luci-app-performance-manager/po/**'
+      - 'package/performance-manager/files/**'
+      - 'tests/real-luci-ui*'
+      - '.github/workflows/real-luci-ui.yml'
   pull_request:
     paths:
       - 'package/luci-app-performance-manager/htdocs/**'
@@ -14,10 +23,10 @@ on:
     inputs:
       language:
         description: LuCI language for the full screenshot matrix
-        required: true
+        required: false
         type: choice
-        options: [en, zh_cn]
-        default: en
+        options: [all, en, zh_cn]
+        default: all
 
 permissions:
   contents: read
@@ -30,6 +39,10 @@ jobs:
   real-luci-ui:
     runs-on: ubuntu-latest
     timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        language: ${{ inputs.language == 'en' && fromJSON('["en"]') || inputs.language == 'zh_cn' && fromJSON('["zh_cn"]') || fromJSON('["en","zh_cn"]') }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - name: Start a real OpenWrt and LuCI container
@@ -54,7 +67,7 @@ jobs:
             for command in bash jq curl ucode ubus openssl; do command -v "$command" >/dev/null; done
           '
       - name: Compile Simplified Chinese LuCI catalog
-        if: ${{ inputs.language == 'zh_cn' }}
+        if: ${{ matrix.language == 'zh_cn' }}
         run: |
           set -euo pipefail
           source_dir="$RUNNER_TEMP/luci-po2lmo"
@@ -68,7 +81,7 @@ jobs:
           test -s "$RUNNER_TEMP/performance-manager.zh-cn.lmo"
           echo "PM_UI_LMO=$RUNNER_TEMP/performance-manager.zh-cn.lmo" >> "$GITHUB_ENV"
       - name: Provision current source into real LuCI
-        run: PM_UI_LANG='${{ inputs.language || 'en' }}' bash tests/real-luci-ui-provision.sh pm-ui-gate 18080
+        run: PM_UI_LANG='${{ matrix.language }}' bash tests/real-luci-ui-provision.sh pm-ui-gate 18080
       - name: Install Playwright and locate Chrome
         run: |
           set -euo pipefail
@@ -87,7 +100,7 @@ jobs:
       - name: Capture all views, themes, and viewport matrix
         run: |
           set -euo pipefail
-          language='${{ inputs.language || 'en' }}'
+          language='${{ matrix.language }}'
           docker exec pm-ui-gate sh -c "uci set luci.main.lang='$language'; uci commit luci; rm -rf /tmp/luci-indexcache* /tmp/luci-modulecache*"
           NODE_PATH="$RUNNER_TEMP/ui/node_modules" PM_UI_CONTAINER=pm-ui-gate \
             PM_UI_LANG="$language" PM_VISUAL_OUT="$GITHUB_WORKSPACE/real-luci-ui-evidence/visual/$language" \
