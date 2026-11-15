@@ -205,7 +205,7 @@ body.pu-theme-bootstrap .alert-message.info :is(h3,h4,h5,p,b,strong,li) { color:
  * basis (minimum width + alignment) instead of content-driven widths. */
 /* Keep LuCI's native route tabs reachable on narrow screens. The default
  * theme strip clips later tabs when all eight plugin routes share one row. */
-@media screen and (max-width: 900px) {
+@media screen and (max-width: 1200px) {
 	#tabmenu ul.tabs {
 		flex-wrap: wrap;
 		overflow-x: visible;
