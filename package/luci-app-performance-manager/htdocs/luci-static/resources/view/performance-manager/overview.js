@@ -31,7 +31,7 @@ return view.extend({
 				? pu.badge(_('Profile degraded'), 'warning')
 				: pu.badge(_('Profile healthy'), 'success'))
 			: pu.badge(_('Profile unmet'), 'danger');
-		const status = E('p', {}, [
+		const status = E('div', { 'class': 'pm-overview-status' }, [
 			E('strong', {}, [ _('System status') ]), ' ',
 			pu.badge(s.running ? _('Running') : _('Stopped'), s.running ? 'success' : 'danger'),
 			' ',

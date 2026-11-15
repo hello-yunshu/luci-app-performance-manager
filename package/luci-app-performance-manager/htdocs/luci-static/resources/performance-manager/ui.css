@@ -4,6 +4,12 @@
 .pm-button--busy { cursor: progress; opacity: .78; }
 .pm-button--busy:disabled { cursor: not-allowed; opacity: .62; }
 
+/* Keep each overview status badge intact while allowing the group to wrap. */
+.pm-overview-status {
+	display: flex; flex-wrap: wrap; align-items: center; gap: .35rem; margin: .5em 0;
+}
+.pm-overview-status .label { white-space: nowrap; }
+
 /* ===== Benchmark Stage List ===== */
 .pm-stage-list {
 	display: grid; grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
@@ -213,7 +219,7 @@ body.pu-theme-bootstrap .alert-message.info :is(h3,h4,h5,p,b,strong,li) { color:
  * basis (minimum width + alignment) instead of content-driven widths. */
 /* Keep LuCI's native route tabs reachable on narrow screens. The default
  * theme strip clips later tabs when all eight plugin routes share one row. */
-@media screen and (max-width: 700px) {
+@media screen and (max-width: 900px) {
 	#tabmenu ul.tabs {
 		flex-wrap: wrap;
 		overflow-x: visible;

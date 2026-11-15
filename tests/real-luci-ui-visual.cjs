@@ -26,7 +26,7 @@ const routes = [
 	{ path: 'advanced', id: 'advanced', title: ['Advanced', '高级'] }
 ];
 const commonWidths = [320, 360, 375, 390, 430, 640, 768, 1024, 1280, 1440, 1920];
-const breakpoints = [600, 700, 768, 1048, 1319];
+const breakpoints = [600, 700, 768, 900, 1048, 1319];
 const allWidths = [...new Set([...commonWidths, ...breakpoints.flatMap(w => [w - 1, w, w + 1])])].sort((a, b) => a - b);
 const shortViewports = [{ width: 320, height: 568 }, { width: 568, height: 320 }];
 const themes = [
@@ -96,12 +96,16 @@ async function capture(page, theme, route, width, height, viewId) {
 				const css = getComputedStyle(el);
 				return css.whiteSpace === 'nowrap' && el.clientWidth > 0 && el.scrollWidth > el.clientWidth + 2;
 			}).slice(0, 8).map(el => ({ tag: el.tagName, text: (el.innerText || '').trim().slice(0, 80) }));
+			const overviewBadges = main
+				? Array.from(main.querySelectorAll('.pm-overview-status .label')).map(el => el.getClientRects().length)
+				: [];
 			return {
 				heading: heading ? heading.textContent.trim() : '',
 				hasMain: !!main, mainLength: (main && main.innerText || '').trim().length,
 				loading: !!(main && /Loading view|加载视图/.test(main.innerText)),
 				darkMode: root.getAttribute('data-darkmode'), scrollWidth: root.scrollWidth, width: innerWidth,
 				overflow: root.scrollWidth > innerWidth + 1,
+				overviewBadgesIntact: !overviewBadges.length || overviewBadges.every(rects => rects === 1),
 				themeLoaded: resources.some(src => src.includes('/luci-static/' + media + '/')),
 				pluginCssLoaded: resources.some(src => src.includes('performance-manager/ui.css')),
 				tabMenu: (() => {
@@ -130,6 +134,7 @@ async function capture(page, theme, route, width, height, viewId) {
 		if (!metrics.themeLoaded) failures.push('theme-assets-not-loaded');
 		if (!metrics.pluginCssLoaded) failures.push('plugin-css-not-loaded');
 		if (metrics.overflow) failures.push('horizontal-overflow');
+		if (!metrics.overviewBadgesIntact) failures.push('overview-status-badge-split-across-lines');
 		if (metrics.tabMenu && metrics.tabMenu.activeItems.some(x => !x.visible)) failures.push('active-tab-outside-visible-strip');
 		if (!metrics.tabMenu || metrics.tabMenu.count !== routes.length || metrics.tabMenu.visibleCount !== metrics.tabMenu.count) failures.push('route-tab-outside-visible-strip');
 		if (metrics.truncated.length) failures.push('truncated-non-dropdown-text');
