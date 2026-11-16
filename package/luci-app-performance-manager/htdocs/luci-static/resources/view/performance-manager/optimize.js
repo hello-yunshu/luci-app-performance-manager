@@ -45,7 +45,7 @@ return view.extend({
 		]), smart.drifted ? 'warning' : 'hero');
 		if (smart.selectedActionId === 'pm.noop') nodes.push(pu.note(_('Rill recommends keeping the current configuration.'), 'success'));
 		if (smart.drifted) nodes.push(pu.note(_('Performance drift detected. Automatic Rill decisions are temporarily paused.'), 'warning'));
-		if (!actions.length) nodes.push(pu.note(_('No conservative changes are needed right now.'), 'success'));
+		if (!actions.length && smart.selectedActionId !== 'pm.noop') nodes.push(pu.note(_('No conservative changes are needed right now.'), 'success'));
 		actions.forEach(function(a) {
 			const apply = E('button', { 'class': 'btn cbi-button cbi-button-action', 'type': 'button' }, [ _('Apply safely') ]);
 			apply.addEventListener('click', function() {
