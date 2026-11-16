@@ -5,7 +5,7 @@
 
 return view.extend({
 	render: function() {
-		let m = new form.Map('performance-manager', _('Performance Manager settings'), _('Conservative automation is the supported default. Active benchmark saturation remains disabled by default.'));
+		let m = new form.Map('performance-manager', null, null);
 		let s = m.section(form.NamedSection, 'main', 'core', _('Core'));
 		let o = s.option(form.Flag, 'enabled', _('Enable Core')); o.default = o.enabled; o.description = _('Run the Performance Manager core service. Disable this to stop performance management.');
 		o = s.option(form.ListValue, 'automation', _('Automation mode')); o.value('manual', _('Manual')); o.value('conservative', _('Conservative')); o.value('assisted', _('Assisted automation (opt-in; safe actions only)')); o.default = 'conservative'; o.description = _('Choose how Core responds: manual, conservative, or assisted automation.');
