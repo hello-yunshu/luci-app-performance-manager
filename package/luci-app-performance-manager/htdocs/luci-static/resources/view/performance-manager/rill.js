@@ -102,7 +102,7 @@ return view.extend({
 				]), 'muted')
 			]),
 			pu.grid([
-				pu.card(_('Top ranking'), E('div', {}, [ pu.tableWrap(table), pu.toolbar([ refresh ]) ])),
+				pu.card(_('Top ranking'), E('div', {}, [ pu.tableWrap(table), E('div', { 'class': 'pm-rill-ranking-actions' }, [ pu.toolbar([ refresh ]) ]) ])),
 				pu.card(_('Recent feedback'), pu.tableWrap(feedbackTable))
 			]),
 			(s.drifted ? pu.note(_('Performance drift detected. Rill Auto temporarily paused.'), 'warning') : null),

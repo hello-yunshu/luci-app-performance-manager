@@ -153,6 +153,8 @@
 	gap: var(--ys-action-gap, calc(var(--spacing, .25rem) * 3));
 }
 #maincontent .ys-actions { gap: var(--ys-action-gap); }
+/* Keep the last ranking action visually separate from the next card. */
+.pm-rill-ranking-actions { margin-block-end: calc(var(--spacing, .25rem) * 3); }
 .ys-actions > .cbi-button,
 .ys-actions > button,
 .ys-actions > select,
