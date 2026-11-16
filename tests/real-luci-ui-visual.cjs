@@ -137,6 +137,11 @@ async function capture(page, theme, route, width, height, viewId) {
 			};
 		}, { media: theme.media, viewId });
 		await page.screenshot({ path: file, fullPage: true, animations: 'disabled' });
+		if (height < 900) {
+			const viewportFile = file.replace(/\.png$/, '-viewport.png');
+			await page.screenshot({ path: viewportFile, fullPage: false, animations: 'disabled' });
+			var viewportScreenshot = path.basename(viewportFile);
+		}
 	} catch (e) { navigationError = e.message; }
 	finally { page.off('console', onConsole); page.off('pageerror', onPageError); }
 	const failures = [];
@@ -159,7 +164,7 @@ async function capture(page, theme, route, width, height, viewId) {
 	const row = {
 		theme: theme.id, language, route: 'admin/network/performance-manager/' + route.path,
 		view: viewId, viewport: `${width}x${height}`, result: failures.length ? 'FAIL' : 'PASS',
-		failures, metrics, screenshot: fileName, browserErrors: browserErrors.slice(0, 8)
+		failures, metrics, screenshot: fileName, viewportScreenshot: typeof viewportScreenshot === 'undefined' ? undefined : viewportScreenshot, browserErrors: browserErrors.slice(0, 8)
 	};
 	report.rows.push(row);
 	if (failures.length) report.errors.push({ route: row.route, theme: theme.id, viewport: row.viewport, failures, browserErrors: browserErrors.slice(0, 8) });
