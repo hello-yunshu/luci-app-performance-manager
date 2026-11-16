@@ -83,11 +83,11 @@ jobs:
           set -euo pipefail
           cd "$SDK_DIR"
           make package/luci-app-performance-manager/compile -j"$(nproc)" V=s
-          find bin -type f -name 'luci-app-performance-manager_*.apk' -print -quit | grep -q .
+          find bin -type f -name 'luci-app-performance-manager-*.apk' -print -quit | grep -q .
 
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: performance-manager-luci-ui-x86_64-${{ github.run_id }}-${{ github.run_attempt }}
-          path: ${{ env.SDK_DIR }}/bin/packages/**/luci-app-performance-manager_*.apk
+          path: ${{ env.SDK_DIR }}/bin/packages/**/luci-app-performance-manager-*.apk
           if-no-files-found: error
           retention-days: 14
