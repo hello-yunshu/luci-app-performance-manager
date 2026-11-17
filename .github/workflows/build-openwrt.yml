@@ -225,11 +225,6 @@ jobs:
           test -f "$runtime_apk"
           built_apk=$(find "$SDKDIR/bin" -type f -name 'rill-runtime-preview-*.apk' -print -quit)
           test -n "$built_apk"
-          cmp -s "$runtime_apk" "$built_apk" || {
-            echo 'SDK-built shared Runtime differs from the exact qualified package bytes' >&2
-            exit 1
-          }
-          runtime_version=$(sed -n 's/^PKG_VERSION:=//p' "$GITHUB_WORKSPACE/rill-openwrt-packages/package/rill-runtime-preview/Makefile")
           runtime_sha=$(python3 - "$runtime_apk" <<'PY'
           import hashlib, sys
           from pathlib import Path
@@ -241,7 +236,22 @@ jobs:
           print(hashlib.sha256(payload).hexdigest())
           PY
           )
+          built_sha=$(python3 - "$built_apk" <<'PY'
+          import hashlib, sys
+          from pathlib import Path
+          sys.path.insert(0, 'scripts')
+          from verify_apks import apk_file_content
+          payload = apk_file_content(Path(sys.argv[1]), '/usr/bin/rill-runtime')
+          if not payload:
+              raise SystemExit('SDK-built Runtime APK lacks /usr/bin/rill-runtime')
+          print(hashlib.sha256(payload).hexdigest())
+          PY
+          )
           test "$runtime_sha" = "$RILL_QUALIFIED_BINARY_SHA256"
+          test "$built_sha" = "$runtime_sha" || {
+            echo "SDK-built Runtime binary differs from qualified payload: $built_sha != $runtime_sha" >&2
+            exit 1
+          }
           echo "RILL_SHARED_BINARY_SHA256=$runtime_sha" >> "$GITHUB_ENV"
       - name: Build full architecture-specific All-in-One APK
         run: cd "$SDKDIR" && bash "$GITHUB_WORKSPACE/scripts/openwrt-build-diagnostic.sh" package/luci-app-performance-manager-all/compile
