@@ -160,22 +160,8 @@ jobs:
             echo 'OpenWrt Rust feed still enables CI LLVM downloads' >&2
             exit 1
           fi
-          rill_toolchain=$(python3 "$GITHUB_WORKSPACE/rill-openwrt-packages/scripts/build_toolchain.py")
-          (
-            cd "$GITHUB_WORKSPACE/rill-openwrt-packages"
-            GITHUB_WORKSPACE="$GITHUB_WORKSPACE/rill-openwrt-packages" \
-              RUST_TOOLCHAIN="$rill_toolchain" RUST_TARGET="$RUST_TARGET" \
-              RUSTUP_HOME="$RUNNER_TEMP/rustup" CARGO_HOME="$RUNNER_TEMP/cargo" \
-              RUST_STAGING_DIR="$SDKDIR/staging_dir/host" \
-              ./scripts/prepare_rust_toolchain.sh
-          )
-          "$SDKDIR/staging_dir/host/bin/rustc" --version | grep -F "rustc $rill_toolchain "
           mkdir -p package/openwrt-performance-manager
           cp -a "$GITHUB_WORKSPACE"/package/* package/openwrt-performance-manager/
-          # Include the exact shared Preview recipe so PM package dependencies
-          # resolve through the same provider package as other Rill consumers.
-          cp -a "$GITHUB_WORKSPACE/rill-openwrt-packages/package/rill-runtime-preview" package/
-          echo 'CONFIG_PACKAGE_rill-runtime-preview=y' >> .config
           make defconfig
       - name: Build Core
         run: cd "$SDKDIR" && bash "$GITHUB_WORKSPACE/scripts/openwrt-build-diagnostic.sh" package/performance-manager/compile
@@ -213,18 +199,14 @@ jobs:
             echo "RILL_QUALIFIED_PACKAGE=$(jq -r .package "$RUNNER_TEMP/qualified-rill-selection.json")"
             echo "RILL_QUALIFIED_BINARY_SHA256=$(jq -r .qualifiedTarget.binarySha256 "$RUNNER_TEMP/qualified-rill-selection.json")"
           } >> "$GITHUB_ENV"
-      - name: Build shared Preview Runtime package
-        run: cd "$SDKDIR" && bash "$GITHUB_WORKSPACE/scripts/openwrt-build-diagnostic.sh" package/rill-runtime-preview/compile
       - name: Build Rill integration package (glue payload only)
         run: cd "$SDKDIR" && bash "$GITHUB_WORKSPACE/scripts/openwrt-build-diagnostic.sh" package/performance-manager-rill/compile
-      - name: Verify locally built Runtime matches its qualified package
+      - name: Stage exact qualified Runtime package
         shell: bash
         run: |
           set -euo pipefail
           runtime_apk="$RILL_QUALIFIED_PACKAGE"
           test -f "$runtime_apk"
-          built_apk=$(find "$SDKDIR/bin" -type f -name 'rill-runtime-preview-*.apk' -print -quit)
-          test -n "$built_apk"
           runtime_sha=$(python3 - "$runtime_apk" <<'PY'
           import hashlib, sys
           from pathlib import Path
@@ -236,22 +218,11 @@ jobs:
           print(hashlib.sha256(payload).hexdigest())
           PY
           )
-          built_sha=$(python3 - "$built_apk" <<'PY'
-          import hashlib, sys
-          from pathlib import Path
-          sys.path.insert(0, 'scripts')
-          from verify_apks import apk_file_content
-          payload = apk_file_content(Path(sys.argv[1]), '/usr/bin/rill-runtime')
-          if not payload:
-              raise SystemExit('SDK-built Runtime APK lacks /usr/bin/rill-runtime')
-          print(hashlib.sha256(payload).hexdigest())
-          PY
-          )
           test "$runtime_sha" = "$RILL_QUALIFIED_BINARY_SHA256"
-          test "$built_sha" = "$runtime_sha" || {
-            echo "SDK-built Runtime binary differs from qualified payload: $built_sha != $runtime_sha" >&2
-            exit 1
-          }
+          runtime_dir="$SDKDIR/bin/packages/$PACKAGE_ARCH/base"
+          mkdir -p "$runtime_dir"
+          cp "$runtime_apk" "$runtime_dir/$(basename "$runtime_apk")"
+          test "$(find "$SDKDIR/bin" -type f -name 'rill-runtime-preview-*.apk' | wc -l | tr -d ' ')" -eq 1
           echo "RILL_SHARED_BINARY_SHA256=$runtime_sha" >> "$GITHUB_ENV"
       - name: Build full architecture-specific All-in-One APK
         run: cd "$SDKDIR" && bash "$GITHUB_WORKSPACE/scripts/openwrt-build-diagnostic.sh" package/luci-app-performance-manager-all/compile
