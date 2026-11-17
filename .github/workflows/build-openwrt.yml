@@ -173,7 +173,12 @@ jobs:
           "$SDKDIR/staging_dir/host/bin/rustc" --version | grep -F "rustc $rill_toolchain "
           mkdir -p package/openwrt-performance-manager
           cp -a "$GITHUB_WORKSPACE"/package/* package/openwrt-performance-manager/
-          cp -a "$GITHUB_WORKSPACE"/rill-openwrt-packages/package/rill-runtime package/rill-runtime
+          # Keep the external Runtime out of this SDK's local package graph.
+          # The integration package records a runtime dependency, while the
+          # exact qualified Runtime APK is resolved below and consumed as an
+          # immutable artifact. Copying the source recipe here makes OpenWrt
+          # rebuild the provider as an incidental dependency and bypasses the
+          # qualified package bytes.
           make defconfig
       - name: Build Core
         run: cd "$SDKDIR" && bash "$GITHUB_WORKSPACE/scripts/openwrt-build-diagnostic.sh" package/performance-manager/compile
