@@ -54,6 +54,7 @@
 	display: flex; align-items: flex-start; gap: calc(var(--spacing, .25rem) * 2);
 	min-width: 0; overflow-wrap: anywhere;
 }
+.pm-stage > .label { flex: 0 0 auto; white-space: nowrap; }
 
 /* ===== Disclosure ===== */
 .pm-disclosure summary { padding: .75rem 0 .25rem; cursor: pointer; font-weight: 700; }

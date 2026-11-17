@@ -797,6 +797,22 @@ msgstr "被动前后对比"
 msgid "Health only"
 msgstr "仅健康检查"
 
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/benchmark.js
+msgid "Health snapshot"
+msgstr "健康快照"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/benchmark.js
+msgid "Passive observation"
+msgstr "被动观察"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/benchmark.js
+msgid "Health snapshot captured. This is not a performance result."
+msgstr "已采集健康状态；这不是性能测试结果。"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/benchmark.js
+msgid "Passive observation captured. No settings were changed."
+msgstr "已完成被动观测；没有修改任何设置。"
+
 #: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/benchmark.js:40
 msgid "Start test"
 msgstr "开始测试"

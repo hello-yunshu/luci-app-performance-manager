@@ -64,12 +64,32 @@ return view.extend({
 			output.replaceChildren();
 			if (!res || !res.ok) { output.appendChild(pu.inset(_('Test blocked'), E('div', {}, [ E('p', {}, [ labels.errorSummary(res) ]), pu.jsonBox(res || {}, _('Details')) ]), 'warning')); return; }
 			const s = res.session || {};
-			const stages = E('ol', { 'class': 'pm-stage-list' }, [
-				stageRow(_('Environment'), true), stageRow(_('Path'), true), stageRow(_('Compatibility'), true), stageRow(_('Locks / Failsafe'), s.state !== 'awaiting_control'),
-				stageRow(_('Baseline'), !!s.controlEvidence), stageRow(_('Candidate'), s.state === 'candidate_applied' || s.state === 'completed'),
-				stageRow(_('Commit-confirm'), s.state === 'candidate_applied'), stageRow(_('Result'), s.state === 'completed')
-			]);
+			let stageItems;
+			if (s.measurementClass === 'controlled_ab') {
+				stageItems = [
+					stageRow(_('Environment'), true), stageRow(_('Path'), true), stageRow(_('Compatibility'), true), stageRow(_('Locks / Failsafe'), s.state !== 'awaiting_control'),
+					stageRow(_('Baseline'), !!s.controlEvidence), stageRow(_('Candidate'), s.state === 'candidate_applied' || s.state === 'completed'),
+					stageRow(_('Commit-confirm'), s.state === 'candidate_applied'), stageRow(_('Result'), s.state === 'completed')
+				];
+			}
+			else if (s.measurementClass === 'passive_before_after') {
+				stageItems = [
+					stageRow(_('Environment'), true), stageRow(_('Path'), true), stageRow(_('Compatibility'), true), stageRow(_('Locks / Failsafe'), true),
+					stageRow(_('Passive observation'), !!s.before && !!s.after), stageRow(_('Result'), s.state === 'completed')
+				];
+			}
+			else {
+				stageItems = [
+					stageRow(_('Environment'), true), stageRow(_('Path'), true), stageRow(_('Compatibility'), true), stageRow(_('Locks / Failsafe'), true),
+					stageRow(_('Health snapshot'), !!s.after), stageRow(_('Result'), s.state === 'completed')
+				];
+			}
+			const stages = E('ol', { 'class': 'pm-stage-list' }, stageItems);
 			output.appendChild(stages);
+			if (s.measurementClass === 'health_only' && s.result)
+				output.appendChild(pu.note(_('Health snapshot captured. This is not a performance result.'), 'info'));
+			else if (s.measurementClass === 'passive_before_after' && s.result)
+				output.appendChild(pu.note(_('Passive observation captured. No settings were changed.'), 'info'));
 			if (s.state === 'awaiting_control' || s.state === 'candidate_applied') {
 				const phase = s.state === 'awaiting_control' ? 'control' : 'candidate';
 				const meta = (s.companion && s.companion.metadata) || {};

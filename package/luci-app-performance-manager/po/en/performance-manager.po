@@ -824,6 +824,22 @@ msgstr "Passive before/after"
 msgid "Health only"
 msgstr "Health only"
 
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/benchmark.js
+msgid "Health snapshot"
+msgstr "Health snapshot"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/benchmark.js
+msgid "Passive observation"
+msgstr "Passive observation"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/benchmark.js
+msgid "Health snapshot captured. This is not a performance result."
+msgstr "Health snapshot captured. This is not a performance result."
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/benchmark.js
+msgid "Passive observation captured. No settings were changed."
+msgstr "Passive observation captured. No settings were changed."
+
 #: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/benchmark.js:40
 msgid "Start test"
 msgstr "Start test"

@@ -14,7 +14,7 @@ function ensureStyles() {
 		const link = document.createElement('link');
 		link.rel = 'stylesheet';
 		link.dataset.performanceManagerStyle = 'true';
-		link.href = (typeof L !== 'undefined' && L.resource) ? L.resource('performance-manager/ui.css') : '/luci-static/resources/performance-manager/ui.css';
+		link.href = ((typeof L !== 'undefined' && L.resource) ? L.resource('performance-manager/ui.css') : '/luci-static/resources/performance-manager/ui.css') + '?ui=benchmark-flow-v2';
 		document.head.appendChild(link);
 	}
 
