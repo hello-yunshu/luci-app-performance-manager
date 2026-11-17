@@ -299,34 +299,6 @@ function json_compact(value) {
 	return out;
 }
 
-function rill_state_checksum(snapshot) {
-	let h = snapshot.handlerSnapshot ?? {}, handler = {
-		stateSchemaVersion: h.stateSchemaVersion, stateGeneration: h.stateGeneration,
-		state: h.state, checksumSha256: h.checksumSha256
-	};
-	let canonical_entry = function(entry) {
-		let out = { decisionId: entry.decisionId, modelGeneration: entry.modelGeneration,
-			stateGeneration: entry.stateGeneration, createdAtUnixMs: entry.createdAtUnixMs };
-		if (entry.selectedActionId != null) out.selectedActionId = entry.selectedActionId;
-		if (entry.selectedActionFeatures != null) out.selectedActionFeatures = entry.selectedActionFeatures;
-		if (entry.reward != null) out.reward = entry.reward;
-		if (entry.outcomeTimeUnixMs != null) out.outcomeTimeUnixMs = entry.outcomeTimeUnixMs;
-		return out;
-	};
-	let canonical_map = function(input) {
-		let out = {}, names = keys(input ?? {});
-		sort(names);
-		for (let name in names) out[name] = canonical_entry(input[name]);
-		return out;
-	};
-	let wire = json_compact([ handler, canonical_map(snapshot.pendingDecisions), canonical_map(snapshot.completedDecisions) ]);
-	let p = fs.popen(`printf '%s' ${shell_quote(wire)} | sha256sum`, 'r');
-	if (!p) return null;
-	let out = trimstr(p.read('all') ?? ''), rc = p.close() ?? 127;
-	if (rc != 0) return null;
-	return split(out, /\s+/)[0] ?? null;
-}
-
 function note_persistent_write(path, bytes) {
 	let root=persist_dir();
 	if (path == root || substr(path,0,length(root)+1) == `${root}/`) {
@@ -2088,11 +2060,19 @@ function rill_state_generation() {
 	if (raw == null || !length(trimstr(raw))) return { ok: true, generation: 0, reason: 'state-absent' };
 	let snapshot = null;
 	try { snapshot = json(raw); } catch (e) { return { ok: false, generation: null, reason: 'state-invalid-json' }; }
-	if (type(snapshot) != 'object' || snapshot.formatVersion != 1 || type(snapshot.handlerSnapshot) != 'object' ||
-		type(snapshot.pendingDecisions) != 'object' || type(snapshot.completedDecisions) != 'object' ||
-		!match(snapshot.checksumSha256 ?? '', /^[0-9a-f]{64}$/) || rill_state_checksum(snapshot) != snapshot.checksumSha256)
+	if (type(snapshot) != 'object' || snapshot.formatVersion != 1 || type(snapshot.partitions) != 'array' ||
+		!match(snapshot.checksumSha256 ?? '', /^[0-9a-f]{64}$/))
 		return { ok: false, generation: null, reason: 'state-schema-incompatible' };
-	let generation = snapshot.handlerSnapshot.stateGeneration;
+	let partition = null;
+	for (let item in snapshot.partitions)
+		if (item.clientIdentityName == 'performance-manager' && item.partitionKey == 'performance-manager') {
+			partition = item;
+			break;
+		}
+	if (!partition || type(partition.handlerSnapshot) != 'object' ||
+		type(partition.pendingDecisions) != 'object' || type(partition.completedDecisions) != 'object')
+		return { ok: false, generation: null, reason: 'state-namespace-missing' };
+	let generation = partition.handlerSnapshot.stateGeneration;
 	if (type(generation) != 'int' || generation < 0) return { ok: false, generation: null, reason: 'state-generation-invalid' };
 	return { ok: true, generation: generation, reason: 'state-valid' };
 }

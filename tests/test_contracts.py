@@ -116,6 +116,12 @@ class ContractTests(unittest.TestCase):
         self.assertIn('"partitionKey": "performance-manager"', harness)
         self.assertNotIn('clientIdentityName', core[core.index('let request = {'):core.index("if (op == 'status')")])
 
+    def test_runtime_state_is_read_from_the_performance_manager_partition(self):
+        core = (ROOT / 'package/performance-manager/files/usr/sbin/performance-manager.uc').read_text()
+        self.assertIn("type(snapshot.partitions) != 'array'", core)
+        self.assertIn("item.clientIdentityName == 'performance-manager' && item.partitionKey == 'performance-manager'", core)
+        self.assertIn('partition.handlerSnapshot.stateGeneration', core)
+
     def test_github_actions_follow_readable_refs(self):
         expected = {
             "actions/checkout": "v7",
