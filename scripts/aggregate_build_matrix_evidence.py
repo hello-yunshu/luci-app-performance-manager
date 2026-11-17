@@ -107,7 +107,8 @@ def main(argv: list[str] | None = None) -> int:
             })
         package_matrix[name] = {"status": "ok", "targets": targets}
         if name == "luci-app-performance-manager-all":
-            package_matrix[name]["runtimeBundled"] = True
+            package_matrix[name]["runtimeBundled"] = False
+            package_matrix[name]["runtimeSharedDependency"] = True
 
     first = pairs[0][2]
     target_records = [{

@@ -145,7 +145,7 @@ rill_mk=(ROOT/'package/performance-manager-rill/Makefile').read_text()
 if (ROOT/'package/performance-manager-rill/src').exists(): fail('bundled Rill source must not exist (external runtime)')
 for token in ['rust/host','rust-package.mk','RUST_PKG_LOCKED:=1','cargo']:
     if token in rill_mk: fail(f'Rill build invariant must NOT be present (external runtime): {token}')
-for token in ['Build/Compile','+rill-runtime','/usr/bin/rill-runtime']:
+for token in ['Build/Compile','+rill-runtime-preview','/usr/bin/rill-runtime']:
     if token not in rill_mk: fail(f'external Runtime package dependency mechanism missing: {token}')
 for token in ['const RILL_RUNTIME_API_VERSION = 3','RILL_RUNTIME_CAPABILITIES','preview-serve','binary-invalid','external-runtime-not-provisioned','RILL_RESOLVED_VERSION']:
     if token not in core: fail(f'Core generic Runtime v3 gate mechanism missing: {token}')
@@ -184,12 +184,12 @@ for token in ['po2lmo','/usr/sbin/performance-manager.uc','luci-app-performance-
 bundle_pkg=re.search(r'define Package/luci-app-performance-manager-all\n(.*?)\nendef',bundle,re.S)
 if not bundle_pkg: fail('all-in-one package definition missing')
 else:
-    for forbidden in ['+performance-manager ', '+luci-app-performance-manager', '+performance-manager-rill', '+rill-runtime']:
+    for forbidden in ['+performance-manager ', '+luci-app-performance-manager', '+performance-manager-rill', '+rill-runtime ']:
         if forbidden in bundle_pkg.group(1): fail(f'all-in-one meta dependency forbidden: {forbidden}')
     owner_source=re.search(r'^PM_ALL_CONFLICTS:=(.*)$',bundle,re.M)
     owners=set(owner_source.group(1).split()) if owner_source else set()
     for conflict in ['performance-manager','luci-app-performance-manager',
-                     'performance-manager-rill', 'rill-runtime', 'rill-runtime-preview',
+                     'performance-manager-rill', 'rill-runtime',
                      'luci-i18n-performance-manager-zh-cn']:
         if conflict not in owners: fail(f'all-in-one split-owner conflict missing: {conflict}')
     if 'CONFLICTS:=$(PM_ALL_CONFLICTS)' not in bundle_pkg.group(1):
@@ -197,9 +197,13 @@ else:
     if 'EXTRA_DEPENDS:=$(if $(CONFIG_USE_APK),$(foreach conflict,$(PM_ALL_CONFLICTS),!$(conflict) (>=0)$(comma)))' not in bundle_pkg.group(1):
         fail('all-in-one APK negative dependencies must consume the same owner source')
     if re.search(r'^\s*PKGARCH:=all\s*$', bundle, re.M): fail('all-in-one must be architecture-specific')
-    for token in ['RILL_RUNTIME_BINARY', '/usr/bin/rill-runtime',
+    if '+rill-runtime-preview' not in bundle_pkg.group(1):
+        fail('all-in-one must depend on the shared Preview Runtime provider')
+    if '$(INSTALL_BIN) $(RILL_RUNTIME_BINARY)' in bundle or 'RILL_RUNTIME_BINARY?=' in bundle:
+        fail('all-in-one must not own or stage a duplicate Runtime binary')
+    for token in ['/usr/bin/rill-runtime',
                   'performance-manager-rill/files/lib/upgrade/keep.d/performance-manager-rill']:
-        if token not in bundle: fail(f'all-in-one bundled Runtime mechanism missing: {token}')
+        if token not in bundle: fail(f'all-in-one shared Runtime contract missing: {token}')
 if 'PROVIDES:=performance-manager-core' not in bundle: fail('all-in-one virtual core capability missing')
 if re.search(r'^\s*PROVIDES:=performance-manager\s*$', bundle, re.M) or re.search(r'^\s*PROVIDES:=luci-app-performance-manager\s*$', bundle, re.M):
     fail('all-in-one must not alias split package names through APK PROVIDES')

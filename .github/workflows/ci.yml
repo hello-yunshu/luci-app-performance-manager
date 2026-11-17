@@ -87,7 +87,7 @@ jobs:
           bash scripts/prepare_runtime_test_rootfs.sh "$RILL_TEST_OPENWRT_VERSION" "$RUNNER_TEMP/runtime-userspace"
           echo "RILL_TEST_LOADER=$RUNNER_TEMP/runtime-userspace/rootfs/lib/ld-musl-x86_64.so.1" >> "$GITHUB_ENV"
           echo "RILL_TEST_LIBRARY_PATH=$RUNNER_TEMP/runtime-userspace/rootfs/lib:$RUNNER_TEMP/runtime-userspace/rootfs/usr/lib" >> "$GITHUB_ENV"
-      - name: Download and extract exact qualified Stable package
+      - name: Download and extract exact qualified shared Preview package
         env:
           GH_TOKEN: ${{ github.token }}
         shell: bash
@@ -95,7 +95,7 @@ jobs:
           set -euo pipefail
           mkdir -p rill-evidence rill-runtime-bin
           python3 rill-openwrt-packages/scripts/qualified_runtime_artifacts.py \
-            --channel stable --contract "$GITHUB_WORKSPACE/contracts/rill-runtime.json" \
+            --channel preview --contract "$GITHUB_WORKSPACE/contracts/rill-runtime.json" \
             --package-dir "$GITHUB_WORKSPACE/rill-openwrt-packages" \
             --openwrt-version "$RILL_TEST_OPENWRT_VERSION" --architecture x86_64 --pkgtype apk \
             --apk "$RUNNER_TEMP/runtime-userspace/apk-inspector" --output "$RUNNER_TEMP/qualified-rill" \
@@ -106,7 +106,7 @@ jobs:
           sys.path.insert(0, 'rill-openwrt-packages/scripts')
           from inspect_runtime_package import apk
           data = json.loads(Path('rill-evidence/qualified-rill-selection.json').read_text())
-          _, payload = apk(Path(data['package']), str(Path(__import__('os').environ['RUNNER_TEMP']) / 'runtime-userspace/apk-inspector'), 'rill-runtime')
+          _, payload = apk(Path(data['package']), str(Path(__import__('os').environ['RUNNER_TEMP']) / 'runtime-userspace/apk-inspector'), 'rill-runtime-preview')
           binary = payload['usr/bin/rill-runtime']
           if hashlib.sha256(binary).hexdigest() != data['qualifiedTarget']['binarySha256']:
               raise SystemExit('qualified payload changed before integration')

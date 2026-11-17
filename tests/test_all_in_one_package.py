@@ -12,19 +12,19 @@ CORE = ROOT / "package/performance-manager/Makefile"
 
 
 class AllInOnePackageTests(unittest.TestCase):
-    def test_bundle_is_target_specific_and_contains_runtime_glue(self):
+    def test_bundle_is_target_specific_and_uses_shared_runtime_glue(self):
         makefile = BUNDLE.read_text()
         for token in (
             "po2lmo", "/usr/sbin/performance-manager.uc",
             "luci-app-performance-manager/htdocs",
             "luci-app-performance-manager/root/usr/share/rpcd",
             "performance-manager-rill/files/lib/upgrade/keep.d/performance-manager-rill",
-            "RILL_RUNTIME_BINARY", "$(INSTALL_BIN) $(RILL_RUNTIME_BINARY) $(1)/usr/bin/rill-runtime",
+            "+rill-runtime-preview", "/usr/bin/rill-runtime",
         ):
             self.assertIn(token, makefile)
         self.assertNotIn("PKGARCH:=all", makefile)
-        self.assertNotIn("+rill-runtime", makefile)
-        self.assertIn("exact qualified", makefile)
+        self.assertNotIn("$(INSTALL_BIN) $(RILL_RUNTIME_BINARY)", makefile)
+        self.assertNotIn("+rill-runtime ", makefile)
 
     def test_split_and_full_packages_declare_timeout_dependency(self):
         self.assertIn("+coreutils-timeout", CORE.read_text())
@@ -83,7 +83,7 @@ class AllInOnePackageTests(unittest.TestCase):
                          if line.strip().startswith("PM_ALL_CONFLICTS:=") )
         self.assertEqual(set(conflicts), {
             "performance-manager", "luci-app-performance-manager",
-            "performance-manager-rill", "rill-runtime", "rill-runtime-preview",
+            "performance-manager-rill", "rill-runtime",
             "luci-i18n-performance-manager-zh-cn",
         })
         self.assertIn('CONFLICTS:=$(PM_ALL_CONFLICTS)', makefile)
@@ -96,7 +96,7 @@ class AllInOnePackageTests(unittest.TestCase):
         # it contains no Runtime payload and is not qualification evidence.
         metadata = apk_pkginfo(ROOT / 'tests/fixtures/apk-negative-dependency.apk')
         self.assertEqual(metadata['depend'], ['!rill-runtime>=0'])
-        ok, missing = dependency_check('rill-runtime', ['!libc>=0'])
+        ok, missing = dependency_check('rill-runtime-preview', ['!libc>=0'])
         self.assertFalse(ok)
         self.assertEqual(missing, ['libc'])
 
@@ -104,7 +104,7 @@ class AllInOnePackageTests(unittest.TestCase):
         sys.path.insert(0, str(ROOT / 'scripts'))
         from verify_apks import dependency_check, REQUIRED_DEPENDS, ALL_IN_ONE
         required = REQUIRED_DEPENDS[ALL_IN_ONE]
-        self.assertEqual(len([item for item in required if item.startswith('!')]), 6)
+        self.assertEqual(len([item for item in required if item.startswith('!')]), 5)
         for conflict in [item for item in required if item.startswith('!')]:
             with self.subTest(conflict=conflict):
                 ok, missing = dependency_check(ALL_IN_ONE, required - {conflict})
@@ -113,7 +113,7 @@ class AllInOnePackageTests(unittest.TestCase):
 
     def test_split_rill_still_consumes_external_runtime(self):
         rill = (ROOT / "package/performance-manager-rill/Makefile").read_text()
-        self.assertIn("DEPENDS:=+performance-manager +rill-runtime", rill)
+        self.assertIn("DEPENDS:=+performance-manager +rill-runtime-preview", rill)
         self.assertNotIn("cargo", rill.lower())
 
     def test_full_payload_map_includes_glue_keep_rule(self):
@@ -152,7 +152,7 @@ class AllInOnePackageTests(unittest.TestCase):
                     "packages": {"luci-app-performance-manager-all": {
                         "status": "ok", "filename": source_name, "sha256": digest,
                         "arch": arch, "runtimeBinary": {
-                            "status": "present", "matchesSplitRuntime": True,
+                            "status": "shared-dependency", "package": "rill-runtime-preview",
                         },
                     }},
                 }
@@ -212,7 +212,7 @@ class AllInOnePackageTests(unittest.TestCase):
             "PM_DEPENDENCY_CLOSURE=PASS",
             "PM_FULL_RILL_FAULT_SMOKE=PASS", "PM_FULL_UNINSTALL_SMOKE=PASS",
             "PM_FULL_RUNTIME_IDENTITY=PASS", "PM_FULL_CONFLICT_SMOKE=PASS",
-            "apk del luci-app-performance-manager-all", "test ! -e /usr/bin/rill-runtime",
+            "apk del luci-app-performance-manager-all", "test -x /usr/bin/rill-runtime",
             "PM_APK_REPOSITORY_TRANSPORT=https", "full_upgrade_gate",
         ):
             self.assertIn(token, gate)
@@ -226,7 +226,7 @@ class AllInOnePackageTests(unittest.TestCase):
     def test_portable_mac_installs_full_apk_once(self):
         script = (ROOT / "tools/docker-validate/run-local-macos.sh").read_text()
         self.assertIn("PM_FULL_APK", script)
-        self.assertIn("one-file-installed bundled Rill Runtime v3 integration", script)
+        self.assertIn("one-file-installed shared Rill Runtime v3 integration", script)
         self.assertNotIn("PM_RILL_APK", script)
         self.assertNotIn("apk add --no-check-certificate ucode ucode-mod-fs ucode-mod-ubus ucode-mod-uci ucode-mod-rtnl ucode-mod-uloop ucode-mod-socket ucode-mod-log coreutils-timeout", script)
 

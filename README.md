@@ -49,8 +49,8 @@
 |---|---|
 | `performance-manager` | procd 管理的 ucode/ubus Core：contracts、discovery、telemetry、事务引擎与安全动作 |
 | `luci-app-performance-manager` | Supported-first LuCI 界面（简体中文） |
-| `performance-manager-rill` | Developer / split package 的 Rill glue；通过依赖消费外部 `rill-runtime` |
-| `rill-runtime` | Canonical external Runtime source/package；full APK 内置其 exact target binary |
+| `performance-manager-rill` | Developer / split package 的 Rill glue；依赖共享的外部 `rill-runtime-preview` |
+| `rill-runtime-preview` | Canonical external Preview Runtime package；由 PM、CFI 等消费者共享并唯一拥有 `/usr/bin/rill-runtime` |
 | `luci-app-performance-manager-all` | 用户推荐的 architecture-specific full APK：包含 Core、LuCI、ACL/menu、简体中文、Rill glue、keep rules 与 Runtime |
 
 ## 安装
@@ -73,12 +73,12 @@ cd /path/to/openwrt-sdk
 mkdir -p package/openwrt-performance-manager
 cp -a /path/to/openwrt-performance-manager/package/* package/openwrt-performance-manager/
 make defconfig
-make package/rill-runtime/compile V=s
+make package/rill-runtime-preview/compile V=s
 make package/performance-manager/compile V=s
 make package/luci-app-performance-manager/compile V=s
 make package/performance-manager-rill/compile V=s
 mkdir -p package/openwrt-performance-manager/luci-app-performance-manager-all/files/usr/bin
-# 将已资格验证的 rill-runtime APK 解出的 /usr/bin/rill-runtime 放入上面的临时路径
+# 从已资格验证的 rill-runtime-preview APK 解出对应目标架构的 Runtime binary
 make package/luci-app-performance-manager-all/compile V=s
 ```
 
@@ -90,7 +90,7 @@ make package/luci-app-performance-manager-all/compile V=s
 
 从 [GitHub Releases](https://github.com/hello-yunshu/luci-app-performance-manager/releases) 根据设备架构只下载一个 `performance-manager-all-v<VERSION>-<package-arch>.apk`。
 
-每台设备只需安装一个 All-in-One APK。该安装包已包含 Performance Manager Core、LuCI、简体中文、Rill 集成与 exact qualified Runtime；无需另外下载 `rill-runtime` 或 `performance-manager-rill`。
+All-in-One APK 包含 Performance Manager Core、LuCI、简体中文和 Rill 集成；Rill Runtime 由共享的 `rill-runtime-preview` 依赖提供。设备需配置含该 exact qualified provider 的软件源，或先安装同一目标架构的 provider APK。不要同时安装 Stable `rill-runtime`。
 
 ```sh
 apk --print-arch
@@ -99,7 +99,7 @@ apk add --allow-untrusted /tmp/performance-manager-all-v<VERSION>-x86_64.apk
 
 架构映射：`x86_64` → `x86_64`；`aarch64_generic` → ARM64 通用；`aarch64_cortex-a53` → Filogic / MT7981 / MT7986。将命令中的文件名替换为对应架构的唯一 APK。
 
-Full APK 仍会从 OpenWrt 软件源解析 `luci-base`、`rpcd`、`ucode` 等系统运行库；它与所有 split owners（包括 `performance-manager-rill` 和 `rill-runtime`）互斥。已有 split 版设备应先备份 `/etc/config/performance-manager`，再在维护窗口切换包形态。
+Full APK 仍会从 OpenWrt 软件源解析系统运行库和共享 `rill-runtime-preview`；它与 PM split owners（包括 `performance-manager-rill`）及 Stable `rill-runtime` 互斥。Preview Runtime 可继续供 CFI 等独立消费者使用。已有 split 版设备应先备份 `/etc/config/performance-manager`，再在维护窗口切换包形态。
 
 ### 包信息
 
@@ -212,7 +212,7 @@ package/luci-app-performance-manager-all/Makefile  # 将上述自有运行内容
                           └────────────────────────┘
 ```
 
-> **所有权边界。** Rill Runtime 源码与 canonical package 仍由 `hello-yunshu/rill-openwrt-packages` 拥有；full APK 只重新分发已资格验证的 exact binary，并在包内拥有 `/usr/bin/rill-runtime`。Runtime v3 只返回排序/反馈结果，没有设备执行权；缺失、不兼容或状态恢复失败时 fail-closed。
+> **所有权边界。** Rill Runtime 源码与 canonical package 由 `hello-yunshu/rill-openwrt-packages` 拥有；PM、CFI 等消费者依赖同一个已资格验证的 Preview provider，由它唯一拥有 `/usr/bin/rill-runtime`。Runtime v3 只返回排序/反馈结果，没有设备执行权；缺失、不兼容或状态恢复失败时 fail-closed。
 
 ## MacBook + Docker 本地 Portable 验证
 

@@ -1,4 +1,4 @@
-name: Sync qualified Rill Runtime
+name: Sync qualified shared Rill Preview Runtime
 
 on:
   schedule:
@@ -28,7 +28,7 @@ jobs:
       - uses: actions/setup-python@v7
         with:
           python-version: '3.13'
-      - name: Resolve latest qualified Stable 1.x
+      - name: Resolve latest exact qualified shared Preview Runtime
         env:
           GITHUB_TOKEN: ${{ github.token }}
           GH_TOKEN: ${{ github.token }}
@@ -53,7 +53,7 @@ jobs:
         run: |
           set -euo pipefail
           if git diff --quiet -- contracts/rill-runtime.json; then
-            echo 'No new qualified Stable 1.x Runtime is available.'
+            echo 'No new qualified shared Preview Runtime is available.'
             exit 0
           fi
           version=$(python3 -c 'import json; print(json.load(open("contracts/rill-runtime.json"))["resolved"]["version"])')
@@ -72,4 +72,4 @@ jobs:
             git commit -m "deps(rill): update runtime to v${version}"
             git push origin "HEAD:${branch}"
           fi
-          gh pr create --base main --head "$branch" --title "deps(rill): update runtime to v${version}" --body "Updates the single immutable Rill Runtime contract after the matching rill-openwrt-packages qualification passed. The required consumer integration workflow must pass before merge."
+          gh pr create --base main --head "$branch" --title "deps(rill): update shared Preview runtime to v${version}" --body "Updates the exact-qualified generic Preview Runtime provider pin after its rill-openwrt-packages qualification passed. PM and independent consumers continue to resolve the same package; the required consumer integration workflow must pass before merge."

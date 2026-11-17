@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Validate the one immutable, qualified Rill Runtime identity for PM."""
+"""Validate the shared exact-qualified Rill Preview Runtime identity for PM."""
 
 from __future__ import annotations
 
@@ -40,17 +40,17 @@ def check(package_dir: Path | None) -> list[str]:
 
 def check_data(data: dict, package_dir: Path | None) -> list[str]:
     errors: list[str] = []
-    if data.get("schemaVersion") != 1:
-        errors.append("schemaVersion must be 1")
+    if data.get("schemaVersion") != 2:
+        errors.append("schemaVersion must be 2")
     policy = data.get("policy", {})
-    if any(policy.get(key) != value for key,value in {"major":1,"track":"latest-qualified-stable"}.items()):
-        errors.append("policy must be latest-qualified-stable major 1")
+    if any(policy.get(key) != value for key,value in {"major":1,"track":"shared-exact-qualified-preview"}.items()):
+        errors.append("policy must be shared-exact-qualified-preview major 1")
     resolved = data.get("resolved", {})
     package = data.get("openwrtPackage", {})
     qualification = data.get("qualification", {})
     version = resolved.get("version")
     if not isinstance(version, str) or not SEMVER.fullmatch(version):
-        errors.append("resolved.version must be a Stable 1.x SemVer")
+        errors.append("resolved.version must be an exact 1.x SemVer")
     if resolved.get("tag") != f"v{version}":
         errors.append("resolved.tag must match resolved.version")
     if not SHA1.fullmatch(str(resolved.get("upstreamCommit", ""))):
@@ -61,8 +61,8 @@ def check_data(data: dict, package_dir: Path | None) -> list[str]:
         errors.append("openwrtPackage.repository is not canonical")
     if not SHA1.fullmatch(str(package.get("commit", ""))):
         errors.append("openwrtPackage.commit must be immutable")
-    if package.get("package") != "rill-runtime":
-        errors.append("openwrtPackage.package must be rill-runtime")
+    if package.get("package") != "rill-runtime-preview":
+        errors.append("openwrtPackage.package must be rill-runtime-preview")
     if package.get("packageVersion") != version or package.get("binary") != "/usr/bin/rill-runtime":
         errors.append("package version or canonical binary drifted")
     if type(package.get("packageRelease")) is not int or package["packageRelease"]<=0:
@@ -74,22 +74,35 @@ def check_data(data: dict, package_dir: Path | None) -> list[str]:
     if qualification.get("required") is not True or qualification.get("verdict") != "PASS":
         errors.append("qualification is not required and PASS")
     if package_dir:
-        makefile = package_dir / "package/rill-runtime/Makefile"
-        metadata = package_dir / "metadata/rill-runtime.json"
+        makefile = package_dir / "package/rill-runtime-preview/Makefile"
+        metadata = package_dir / "metadata/rill-runtime-preview.json"
+        stable_metadata = package_dir / "metadata/rill-runtime.json"
         if not makefile.is_file() or not metadata.is_file():
             errors.append("package checkout is missing canonical Runtime metadata")
         else:
             make = makefile.read_text(encoding="utf-8")
             meta = json.loads(metadata.read_text(encoding="utf-8"))
-            if f"PKG_VERSION:={version}" not in make or "PKG_NAME:=rill-runtime" not in make:
+            if f"PKG_VERSION:={version}" not in make or "PKG_NAME:=rill-runtime-preview" not in make:
                 errors.append("package Makefile identity does not match contract")
             if meta.get("package",{}).get("release")!=package.get("packageRelease") or f"PKG_RELEASE:={package.get('packageRelease')}\n" not in make:
                 errors.append("package release differs from contract")
+            preview = data.get("preview", {})
             upstream = meta.get("upstream", {})
-            if upstream.get("version") != version or upstream.get("commit") != resolved.get("upstreamCommit"):
-                errors.append("package metadata upstream identity does not match contract")
-            if upstream.get("archiveSha256") != resolved.get("sourceArchiveSha256"):
-                errors.append("package metadata source hash does not match contract")
+            if (upstream.get("version") != version or upstream.get("commit") != preview.get("commit")
+                    or meta.get("channel") != "preview-exact-commit"):
+                errors.append("Preview package source identity does not match contract")
+            if meta.get("package", {}).get("name") != "rill-runtime-preview":
+                errors.append("Preview package metadata name is not generic canonical package")
+            if not stable_metadata.is_file():
+                errors.append("canonical Stable package metadata is missing")
+            else:
+                stable = json.loads(stable_metadata.read_text(encoding="utf-8"))
+                stable_upstream = stable.get("upstream", {})
+                if (stable.get("package", {}).get("name") != "rill-runtime"
+                        or stable_upstream.get("version") != resolved.get("version")
+                        or stable_upstream.get("commit") != resolved.get("upstreamCommit")
+                        or stable_upstream.get("archiveSha256") != resolved.get("sourceArchiveSha256")):
+                    errors.append("Stable package provenance identity differs from the frozen contract")
             try:
                 if git_head(package_dir) != package.get("commit"):
                     errors.append("package checkout HEAD does not match contract")
@@ -134,46 +147,45 @@ def qualified_manifest(run, attempt, commit, package_dir):
 
 def sync(package_dir: Path) -> int:
     old=json.loads(CONTRACT.read_text())
-    if check_data(old,None):raise ValueError('existing Runtime contract requires explicit repair')
-    releases = api("repos/hello-yunshu/rill-ml/releases?per_page=100")
-    stable = [r for r in releases if not r.get("draft") and not r.get("prerelease") and SEMVER.fullmatch(str(r.get("tag_name", ""))[1:])]
-    if not stable:
-        raise RuntimeError("no published Stable Rill 1.x release")
-    latest = max(stable, key=lambda r: tuple(int(x) for x in r["tag_name"][1:].split(".")))
-    metadata = json.loads((package_dir / "metadata/rill-runtime.json").read_text(encoding="utf-8"))
-    upstream = metadata.get("upstream", {})
-    version = str(latest["tag_name"])[1:]
-    if upstream.get("version") != version:
-        print(f"WAIT: package qualification is not ready for latest Stable {version}; package has {upstream.get('version')}")
-        return 0
+    if check_data(old,None):raise ValueError('existing shared Preview contract requires explicit repair')
     package_commit = git_head(package_dir)
+    metadata = json.loads((package_dir / "metadata/rill-runtime-preview.json").read_text(encoding="utf-8"))
+    upstream = metadata.get("upstream", {})
+    package = metadata.get("package", {})
+    if metadata.get("channel") != "preview-exact-commit":
+        raise ValueError("Preview package is not pinned to an exact source commit")
     runs = api(f"repos/hello-yunshu/rill-openwrt-packages/actions/workflows/qualify.yml/runs?head_sha={package_commit}&status=completed&per_page=100").get("workflow_runs", [])
     passed = next((run for run in runs if run.get("conclusion") == "success"), None)
     if not passed:
-        print(f"WAIT: no successful qualify.yml run for package commit {package_commit}")
+        print(f"WAIT: no successful qualify.yml run for Preview package commit {package_commit}")
         return 0
     attempt=passed.get('run_attempt')
     if type(attempt) is not int or attempt<=0:raise ValueError('qualification has no exact attempt')
     evidence,raw,_=qualified_manifest(passed['id'],attempt,package_commit,package_dir)
-    if evidence['upstream']['commit']!=upstream['commit'] or evidence['upstream']['archiveSha256']!=upstream['archiveSha256']:
-        raise ValueError('qualified source differs from package metadata')
-    if any(evidence['package'][key]!=metadata['package'][key] for key in ('name','version','release','binary')):
-        raise ValueError('qualified package differs from package metadata')
-    contract = {
-        "schemaVersion": 1,
-        "policy": {"major": 1, "track": "latest-qualified-stable"},
-        "resolved": {"version": version, "tag": latest["tag_name"], "upstreamCommit": upstream["commit"], "sourceArchiveSha256": upstream["archiveSha256"]},
-        "openwrtPackage": {"repository": "hello-yunshu/rill-openwrt-packages", "commit": package_commit, "package": "rill-runtime", "packageVersion": version, "packageRelease": metadata["package"]["release"], "binary": "/usr/bin/rill-runtime"},
-        "qualification": {"required": True, "workflow": "qualify.yml", "runId": passed["id"], "runAttempt":attempt, "manifestSha256":hashlib.sha256(raw).hexdigest(), "verdict": "PASS"},
-    }
+    preview=evidence.get('previewPackage',{})
+    if preview.get('upstream',{}).get('commit') != upstream.get('commit'):
+        raise ValueError('qualified Preview source differs from package metadata')
+    if any(preview.get(key)!=package.get(field) for key,field in [('name','name'),('version','version'),('release','release')]):
+        raise ValueError('qualified Preview package differs from package metadata')
     candidate=copy.deepcopy(old)
-    for section,updates in contract.items():
-        if isinstance(updates,dict):candidate[section].update(updates)
-        else:candidate[section]=updates
+    candidate['preview'].update({
+        'repository': 'hello-yunshu/rill-ml', 'commit': upstream['commit'],
+        'channel': metadata['channel'], 'featureSchemaVersion': old['preview']['featureSchemaVersion'],
+        'modelGeneration': old['preview']['modelGeneration'],
+    })
+    candidate['openwrtPackage'].update({
+        'repository': 'hello-yunshu/rill-openwrt-packages', 'commit': package_commit,
+        'package': package['name'], 'packageVersion': package['version'],
+        'packageRelease': package['release'], 'binary': package['binary'],
+    })
+    candidate['qualification'] = {
+        'required': True, 'workflow': 'qualify.yml', 'runId': passed['id'],
+        'runAttempt': attempt, 'manifestSha256': hashlib.sha256(raw).hexdigest(), 'verdict': 'PASS',
+    }
     errors=check_data(candidate,package_dir)
     if errors:raise ValueError('; '.join(errors))
     if candidate==old:
-        print('No qualified Runtime contract change.')
+        print('No new qualified shared Preview Runtime contract.')
         return 0
     descriptor,name=tempfile.mkstemp(prefix='.rill-contract-',dir=CONTRACT.parent)
     try:
@@ -206,7 +218,7 @@ def main() -> int:
             print(f"FAIL: {error}", file=sys.stderr)
         return 1
     data = json.loads(CONTRACT.read_text(encoding="utf-8"))
-    print(f"PASS: qualified rill-runtime {data['resolved']['version']} from {data['openwrtPackage']['commit']}")
+    print(f"PASS: shared qualified rill-runtime-preview {data['resolved']['version']} from {data['openwrtPackage']['commit']}")
     return 0
 
 

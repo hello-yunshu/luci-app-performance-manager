@@ -50,7 +50,7 @@ def forbidden_api_gates():
                 mutable_actions.append(f'{workflow.name}:{line_no}:{match.group(1)}')
     return [
       ('retired private adapter has no tracked files', not legacy),
-      ('integration Makefile consumes external Runtime', 'Build/Compile' in rill_make and '+rill-runtime' in rill_make and 'cargo' not in rill_make and 'rust' not in rill_make.lower()),
+      ('integration Makefile consumes external Runtime', 'Build/Compile' in rill_make and '+rill-runtime-preview' in rill_make and 'cargo' not in rill_make and 'rust' not in rill_make.lower()),
       ('v3 Runtime contract gate is wired', 'check_rill_dependency.py' in ''.join(p.read_text() for p in workflow_files if p.is_file())),
       ('all third-party Actions use readable refs', not mutable_actions),
     ]
@@ -66,8 +66,8 @@ phases['0'].update({'evidence':'structural: schema files + frozen contract field
 phases['1']=gate('Bootstrap',[(f'package {x}',(ROOT/'package'/x/'Makefile').exists()) for x in ['performance-manager','luci-app-performance-manager','performance-manager-rill','luci-app-performance-manager-all']]+[
  ('Core ubus daemon wiring','ubusmod.connect()' in CORE and 'conn.publish(UBUS_NAME' in CORE and 'rpc_args()' in CORE and 'call: function' in CORE),
  ('full package is architecture-specific','PKGARCH:=all' not in BUNDLE_MAKE),
- ('full package embeds qualified Runtime','RILL_RUNTIME_BINARY' in BUNDLE_MAKE and '/usr/bin/rill-runtime' in BUNDLE_MAKE),
- ('full package has no Runtime dependency','+rill-runtime' not in BUNDLE_MAKE),
+ ('full package depends on shared qualified Preview Runtime','+rill-runtime-preview' in BUNDLE_MAKE and '$(1)/usr/bin/rill-runtime' not in BUNDLE_MAKE),
+ ('full package does not embed Runtime','RILL_RUNTIME_BINARY' not in BUNDLE_MAKE),
  ('full package conflicts with split owners',all_tokens(BUNDLE_MAKE,['CONFLICTS:=','performance-manager-rill','rill-runtime','luci-i18n-performance-manager-zh-cn'])),
  ('full package carries Rill keep rule','performance-manager-rill/files/lib/upgrade/keep.d/performance-manager-rill' in BUNDLE_MAKE)])
 phases['1'].update({'evidence':'structural: package Makefiles + Core service wiring present'})
@@ -95,7 +95,7 @@ phases['7']=gate('Benchmark',[
 phases['7'].update({'evidence':'structural: state machine + fingerprint wiring present; methodology-mismatch and nft candidate-mask behavior are verified by the runtime harness [4]-[5]'})
 phases['8']=gate('Rill Intelligence (external runtime)',[
  ('no PM-owned adapter source',not any('performance-manager-rill-adapter' in p.as_posix() for p in ROOT.rglob('*') if p.is_file() and '.git' not in p.parts and 'target' not in p.parts)),
- ('integration package consumes generic Runtime',all_tokens(RILL_MAKE,['Build/Compile','+rill-runtime','/usr/bin/rill-runtime']) and 'cargo' not in RILL_MAKE and 'rust' not in RILL_MAKE.lower()),
+ ('integration package consumes generic Runtime',all_tokens(RILL_MAKE,['Build/Compile','+rill-runtime-preview','/usr/bin/rill-runtime']) and 'cargo' not in RILL_MAKE and 'rust' not in RILL_MAKE.lower()),
  ('v3 protocol gate wiring',all_tokens(CORE,['const RILL_RUNTIME_API_VERSION = 3','RILL_RUNTIME_CAPABILITIES','preview-serve','runtime-version-mismatch'])),
  ('external runtime fail-closed wiring',all_tokens(CORE,['binary-invalid','rill_binary_path','external-runtime-not-provisioned'])),
  ('no apply/uci op in protocol',"'apply' not in RILL_SCHEMA and 'uci' not in RILL_SCHEMA"),

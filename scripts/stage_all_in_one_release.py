@@ -34,8 +34,8 @@ def main(argv=None) -> int:
     if record.get("status") != "ok" or not expected_name or not expected_sha:
         raise RuntimeError("all-in-one APK lacks exact verified identity")
     runtime = record.get("runtimeBinary") or {}
-    if runtime.get("status") != "present" or runtime.get("matchesSplitRuntime") is not True:
-        raise RuntimeError("all-in-one APK lacks the exact bundled canonical Runtime")
+    if runtime.get("status") != "shared-dependency" or runtime.get("package") != "rill-runtime-preview":
+        raise RuntimeError("all-in-one APK lacks the shared qualified Runtime dependency")
 
     try:
         identity = resolve_artifact(PACKAGE, expected_sha, [sdk_dir], expected_name)
@@ -71,9 +71,10 @@ def main(argv=None) -> int:
             ),
         },
         "externalRuntime": {
-            "package": "rill-runtime",
+            "package": "rill-runtime-preview",
             "binary": "/usr/bin/rill-runtime",
-            "bundled": True,
+            "bundled": False,
+            "sharedDependency": True,
             "standaloneReleaseIncluded": False,
             "sha256": runtime.get("sha256"),
         },

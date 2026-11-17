@@ -6,12 +6,7 @@ PKG_RELEASE:=1
 PKG_LICENSE:=GPL-3.0-only
 PKG_MAINTAINER:=OpenWrt Performance Manager contributors
 PKG_BUILD_DEPENDS:=luci-base/host
-# The build workflow stages this file from the exact, qualified canonical
-# rill-runtime APK before compiling this package.  A missing binary is a hard
-# build error; the full package must never silently degrade to Core + LuCI.
-RILL_RUNTIME_BINARY?=$(CURDIR)/files/usr/bin/rill-runtime
-THIRD_PARTY_NOTICES_SOURCE?=$(CURDIR)/../../THIRD_PARTY_NOTICES
-PM_ALL_CONFLICTS:=performance-manager luci-app-performance-manager performance-manager-rill rill-runtime rill-runtime-preview luci-i18n-performance-manager-zh-cn
+PM_ALL_CONFLICTS:=performance-manager luci-app-performance-manager performance-manager-rill rill-runtime luci-i18n-performance-manager-zh-cn
 
 include $(INCLUDE_DIR)/package.mk
 
@@ -21,17 +16,18 @@ define Package/luci-app-performance-manager-all
   SUBMENU:=3. Applications
   TITLE:=OpenWrt 性能管理器全功能单包 / Performance Manager all-in-one APK
   PROVIDES:=performance-manager-core
-  DEPENDS:=+luci-base +rpcd +luci-i18n-base-zh-cn +ubus +uci +ucode +ucode-mod-fs +ucode-mod-ubus +ucode-mod-uci +ucode-mod-rtnl +ucode-mod-uloop +ucode-mod-socket +ucode-mod-log +coreutils-timeout
+  DEPENDS:=+luci-base +rpcd +luci-i18n-base-zh-cn +ubus +uci +ucode +ucode-mod-fs +ucode-mod-ubus +ucode-mod-uci +ucode-mod-rtnl +ucode-mod-uloop +ucode-mod-socket +ucode-mod-log +coreutils-timeout +rill-runtime-preview
   CONFLICTS:=$(PM_ALL_CONFLICTS)
   EXTRA_DEPENDS:=$(if $(CONFIG_USE_APK),$(foreach conflict,$(PM_ALL_CONFLICTS),!$(conflict) (>=0)$(comma)))
 endef
 
 define Package/luci-app-performance-manager-all/description
- 一个按目标架构构建的完整单包，物理包含 Core、LuCI、ACL/menu、简体中文、
- Rill glue、升级保留规则和已资格验证的 exact Runtime。
+ 一个按目标架构构建的完整 PM 单包，物理包含 Core、LuCI、ACL/menu、简体中文、
+ Rill glue 和升级保留规则；Runtime 由 PM 与其他消费者共享的依赖包提供。
  / Architecture-specific full package containing Core, LuCI, ACL/menu,
- / Simplified Chinese, Rill glue, upgrade keep rules and the exact qualified
- / Runtime binary. It has no external rill-runtime dependency.
+ / Simplified Chinese, Rill glue and upgrade keep rules. The exact qualified
+ / generic Runtime remains a shared dependency, so multiple consumers have
+ / one package owner for /usr/bin/rill-runtime.
 endef
 
 define Package/luci-app-performance-manager-all/conffiles
@@ -62,14 +58,13 @@ endef
 
 define Build/Compile
 	$(INSTALL_DIR) $(PKG_BUILD_DIR)
-	test -x $(RILL_RUNTIME_BINARY)
 	po2lmo $(CURDIR)/../luci-app-performance-manager/po/zh_Hans/performance-manager.po \
 		$(PKG_BUILD_DIR)/performance-manager.zh-cn.lmo
 endef
 
 define Package/luci-app-performance-manager-all/install
 	$(INSTALL_DIR) $(1)/etc/init.d $(1)/etc/config $(1)/etc/uci-defaults
-	$(INSTALL_DIR) $(1)/usr/sbin $(1)/usr/bin $(1)/usr/share/performance-manager/profiles $(1)/usr/share/licenses/performance-manager
+	$(INSTALL_DIR) $(1)/usr/sbin $(1)/usr/share/performance-manager/profiles
 	$(INSTALL_DIR) $(1)/usr/share/performance-manager/schemas $(1)/lib/upgrade/keep.d
 	$(INSTALL_BIN) $(CURDIR)/../performance-manager/files/etc/init.d/performance-manager $(1)/etc/init.d/performance-manager
 	$(INSTALL_CONF) $(CURDIR)/../performance-manager/files/etc/config/performance-manager $(1)/etc/config/performance-manager
@@ -80,8 +75,6 @@ define Package/luci-app-performance-manager-all/install
 	$(CP) $(CURDIR)/../performance-manager/files/usr/share/performance-manager/schemas/* $(1)/usr/share/performance-manager/schemas/
 	$(INSTALL_DATA) $(CURDIR)/../performance-manager/files/lib/upgrade/keep.d/performance-manager $(1)/lib/upgrade/keep.d/performance-manager
 	$(INSTALL_DATA) $(CURDIR)/../performance-manager-rill/files/lib/upgrade/keep.d/performance-manager-rill $(1)/lib/upgrade/keep.d/performance-manager-rill
-	$(INSTALL_BIN) $(RILL_RUNTIME_BINARY) $(1)/usr/bin/rill-runtime
-	$(INSTALL_DATA) $(THIRD_PARTY_NOTICES_SOURCE) $(1)/usr/share/licenses/performance-manager/THIRD_PARTY_NOTICES
 
 	$(INSTALL_DIR) $(1)/www $(1)/usr/share/luci $(1)/usr/share/rpcd
 	cp -pR $(CURDIR)/../luci-app-performance-manager/htdocs/* $(1)/www/

@@ -23,23 +23,23 @@ class BuildMatrixEvidenceTests(unittest.TestCase):
                 target_dir.mkdir()
                 runtime_sha = ("1" if arch == "x86_64" else "2") * 64
                 common = {
-                    "status": "ok", "apkFilename": f"rill-runtime-{arch}.apk",
-                    "apkSha256": runtime_sha, "releaseFilename": f"rill-runtime-{arch}.apk",
+                    "status": "ok", "apkFilename": f"rill-runtime-preview-{arch}.apk",
+                    "apkSha256": runtime_sha, "releaseFilename": f"rill-runtime-preview-{arch}.apk",
                 }
                 build = {
                     "repository": "hello-yunshu/luci-app-performance-manager",
                     "repositoryCommitSha": commit, "openwrtVersion": "25.12.5",
                     "target": target, "architecture": arch, "packageManagerFormat": fmt,
                     "sdkIdentity": f"sdk-{arch}", "sdkArchiveSha256": "3" * 64,
-                    "expectedApkPackages": ["rill-runtime"],
+                    "expectedApkPackages": ["rill-runtime-preview"],
                     "packages": {
-                        "rill-runtime": common,
+                        "rill-runtime-preview": common,
                     }, "verdict": "PASS",
                 }
                 report = {
                     "schemaVersion": 1, "pmCommitSha": commit, "expectedVersion": "1.0.3",
                     "arch": arch, "packages": {
-                        "rill-runtime": {
+                        "rill-runtime-preview": {
                             "status": "ok", "filename": common["apkFilename"], "sha256": runtime_sha,
                             "releaseFilename": common["releaseFilename"],
                         },
@@ -55,7 +55,7 @@ class BuildMatrixEvidenceTests(unittest.TestCase):
             metadata = json.loads((out / "build-metadata.json").read_text())
             self.assertEqual(metadata["matrixCoverage"]["targetCount"], 2)
             self.assertEqual(
-                len(metadata["packages"]["rill-runtime"]["targets"]), 2
+                len(metadata["packages"]["rill-runtime-preview"]["targets"]), 2
             )
             self.assertEqual(json.loads((out / "apk-verification.json").read_text())["verdict"], "PASS")
 

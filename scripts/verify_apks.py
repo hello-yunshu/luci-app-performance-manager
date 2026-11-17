@@ -20,9 +20,9 @@ runtime harness and startup smoke execute. The split LuCI APK is checked for
 every repository-owned static UI file so a same-version stale asset package
 cannot pass. The architecture-specific all-in-one APK is checked even more
 strictly: every repository-owned Core, LuCI, rpcd and Rill-glue file must match
-its source, the compiled Simplified Chinese LMO must be present, and its bundled
-Runtime must be the exact same target ELF as the split canonical Runtime
-package.
+its source, the compiled Simplified Chinese LMO must be present, and the full
+package must depend on the exact shared Preview provider without owning its
+Runtime binary.
 
 It fails closed (exit != 0) if any expected package is absent, duplicated, of
 the wrong arch, a stray old-version artifact, or if the APK's Core file does not
@@ -40,7 +40,7 @@ EXPECTED = [
     'performance-manager',
     'luci-app-performance-manager',
     'performance-manager-rill',
-    'rill-runtime',
+    'rill-runtime-preview',
     'luci-app-performance-manager-all',
 ]
 ALL_IN_ONE = 'luci-app-performance-manager-all'
@@ -60,14 +60,15 @@ REQUIRED_DEPENDS = {
     },
     # The glue consumes the shared virtual capability so either the split Core
     # package or the physical all-in-one package can satisfy the same graph.
-    'performance-manager-rill': {'performance-manager', 'rill-runtime'},
-    'rill-runtime': {'libc'},
+    'performance-manager-rill': {'performance-manager', 'rill-runtime-preview'},
+    'rill-runtime-preview': {'libc'},
     ALL_IN_ONE: {
         'luci-base', 'rpcd', 'luci-i18n-base-zh-cn', 'ubus', 'uci', 'ucode',
         'ucode-mod-fs', 'ucode-mod-ubus', 'ucode-mod-uci', 'ucode-mod-rtnl',
         'ucode-mod-uloop', 'ucode-mod-socket', 'ucode-mod-log', 'coreutils-timeout',
+        'rill-runtime-preview',
         '!performance-manager>=0', '!luci-app-performance-manager>=0',
-        '!performance-manager-rill>=0', '!rill-runtime>=0', '!rill-runtime-preview>=0',
+        '!performance-manager-rill>=0', '!rill-runtime>=0',
         '!luci-i18n-performance-manager-zh-cn>=0',
     },
 }
@@ -574,7 +575,7 @@ def main(argv):
         # pkgver is "<version>-r<release>"; the version part must equal the repo
         # version (e.g. 1.0.0_rc10) so a stale candidate can never pass.
         ver_part = pkgver.split('-r')[0]
-        package_version = rill_runtime_version if name == 'rill-runtime' else expected_version
+        package_version = rill_runtime_version if name == 'rill-runtime-preview' else expected_version
         # Core/LuCI/glue remain noarch split packages. The full package is
         # intentionally target-specific because it owns a native Runtime ELF.
         arch_ok = (pkgarch in ('noarch', 'all') if name in ARCH_INDEPENDENT else pkgarch == arch)
@@ -682,7 +683,7 @@ def main(argv):
             report['packages'][name]['installedPayload'] = installed_payload
             if CORE_PATH in installed_payload:
                 report['packages'][name]['core'] = installed_payload[CORE_PATH]
-        if name == 'rill-runtime':
+        if name == 'rill-runtime-preview':
             runtime_payload = apk_file_content(apk, '/usr/bin/rill-runtime')
             split_runtime_sha = hashlib.sha256(runtime_payload).hexdigest() if runtime_payload else None
             report['packages'][name]['runtimeBinary'] = {
@@ -691,34 +692,29 @@ def main(argv):
                 'sha256': split_runtime_sha,
             }
             if runtime_payload is None:
-                failures.append('rill-runtime: /usr/bin/rill-runtime not found inside APK')
+                failures.append('rill-runtime-preview: /usr/bin/rill-runtime not found inside APK')
             elif runtime_payload[:4] != b'\x7fELF' or len(runtime_payload) < 20 \
                     or int.from_bytes(runtime_payload[18:20], 'little') != ELF_MACHINES.get(arch):
-                failures.append(f'rill-runtime: ELF machine does not match {arch}')
+                failures.append(f'rill-runtime-preview: ELF machine does not match {arch}')
+            if apk_file_content(apk, '/usr/share/rill/runtime-channel') != b'preview\n':
+                failures.append('rill-runtime-preview: channel marker must be Preview')
         if name == ALL_IN_ONE:
-            bundled = apk_file_content(apk, '/usr/bin/rill-runtime')
-            bundled_sha = hashlib.sha256(bundled).hexdigest() if bundled else None
             installed_payload = report['packages'][name].setdefault('installedPayload', {})
             installed_payload['/usr/bin/rill-runtime'] = {
                 'path': '/usr/bin/rill-runtime',
-                'status': 'match' if bundled_sha == split_runtime_sha and bundled_sha else 'mismatch',
-                'sha256': bundled_sha,
-                'expectedSha256': split_runtime_sha,
+                'status': 'shared-dependency',
+                'sharedPackage': 'rill-runtime-preview',
             }
             report['packages'][name]['runtimeBinary'] = {
                 'path': '/usr/bin/rill-runtime',
-                'status': 'present' if bundled else 'missing',
-                'sha256': bundled_sha,
-                'matchesSplitRuntime': bundled_sha == split_runtime_sha and bundled_sha is not None,
-                'elfMachine': int.from_bytes(bundled[18:20], 'little') if bundled and len(bundled) >= 20 else None,
+                'status': 'shared-dependency',
+                'sha256': split_runtime_sha,
+                'matchesSplitRuntime': split_runtime_sha is not None,
+                'package': 'rill-runtime-preview',
             }
-            if not bundled:
-                failures.append(f'{name}: bundled /usr/bin/rill-runtime is missing or empty')
-            elif bundled_sha != split_runtime_sha:
-                failures.append(f'{name}: bundled Runtime SHA differs from canonical split Runtime')
-            elif bundled[:4] != b'\x7fELF' or len(bundled) < 20 \
-                    or int.from_bytes(bundled[18:20], 'little') != ELF_MACHINES.get(arch):
-                failures.append(f'{name}: bundled Runtime ELF machine does not match {arch}')
+            if apk_file_content(apk, '/usr/bin/rill-runtime') is not None:
+                installed_payload['/usr/bin/rill-runtime']['status'] = 'duplicate-owner'
+                failures.append(f'{name}: must not own the shared Runtime payload')
         print(f"OK {name}: {apk.name} pkgver={pkgver} arch={pkgarch} sha256={report['packages'][name]['sha256']}")
 
     # Reject any stray APK that is not one of the expected packages but

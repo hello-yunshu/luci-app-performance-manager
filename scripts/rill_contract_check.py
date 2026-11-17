@@ -29,7 +29,7 @@ def release_pin_structure(contract: dict) -> tuple[str, list[dict]]:
     package = contract.get("openwrtPackage", {})
     qualification = contract.get("qualification", {})
     checks = [
-        ("schemaVersion is 1", contract.get("schemaVersion") == 1),
+        ("schemaVersion is 2", contract.get("schemaVersion") == 2),
         ("package commit is a 40-hex SHA-1", bool(SHA1.fullmatch(str(package.get("commit", ""))))),
         ("package release is a positive integer",
          type(package.get("packageRelease")) is int and package.get("packageRelease") > 0),
@@ -60,7 +60,7 @@ def main() -> int:
     checks = [
         ("canonical pinned Runtime contract", not contract_errors),
         ("release pin structure", pin_verdict == "PASS"),
-        ("consumer dependency", "+rill-runtime" in RILL_MAKE and "performance-manager-rill-adapter" not in RILL_MAKE),
+        ("consumer dependency", "+rill-runtime-preview" in RILL_MAKE and "performance-manager-rill-adapter" not in RILL_MAKE),
         ("core v3", "const RILL_RUNTIME_API_VERSION = 3" in CORE and "/usr/bin/rill-runtime" in CORE),
         ("core exact version", f"const RILL_RESOLVED_VERSION = '{version}'" in CORE),
         ("no legacy resolver", all(token not in CORE for token in ("performance-manager-rill-adapter", "rill-pm-adapter"))),

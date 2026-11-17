@@ -200,7 +200,7 @@ class ContractTests(unittest.TestCase):
         self.assertIn('git -C rill-openwrt-packages fetch --depth=1 origin "$package_commit"', ci)
         self.assertIn('test "$(git -C rill-openwrt-packages rev-parse HEAD)" = "$package_commit"', ci)
         self.assertIn('scripts/qualified_runtime_artifacts.py', ci)
-        self.assertIn('--channel stable --contract', ci)
+        self.assertIn('--channel preview --contract', ci)
         self.assertIn('.qualifiedTarget.binarySha256', ci)
         self.assertNotIn('cargo build', ci)
         rootfs = (ROOT / 'scripts/prepare_runtime_test_rootfs.sh').read_text()
@@ -273,8 +273,8 @@ class ContractTests(unittest.TestCase):
 class AuditConvergenceTests(unittest.TestCase):
     def test_single_authoritative_rill_contract(self):
         contract = json.loads((ROOT / "contracts/rill-runtime.json").read_text())
-        self.assertEqual(contract.get("schemaVersion"), 1)
-        for section in ("runtime", "protocol", "security", "resolved", "openwrtPackage", "qualification"):
+        self.assertEqual(contract.get("schemaVersion"), 2)
+        for section in ("resolved", "preview", "openwrtPackage", "qualification", "consumer"):
             with self.subTest(section=section):
                 self.assertIn(section, contract)
         self.assertFalse((ROOT / "contracts/rill-dependency.json").exists())

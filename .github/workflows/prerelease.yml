@@ -102,7 +102,7 @@ jobs:
           python3 - "$version" <<'PY'
           import pathlib, sys
           version=sys.argv[1]
-          pathlib.Path('release-notes.md').write_text(f'''## 下载\n\n每台设备只需要下载并安装一个 APK。该安装包已包含 Performance Manager Core、LuCI、简体中文、Rill 集成和 exact qualified Runtime；无需另外下载 `rill-runtime` 或 `performance-manager-rill`。\n\n- x86_64：`performance-manager-all-v{version}-x86_64.apk`\n- ARM64 通用：`performance-manager-all-v{version}-aarch64_generic.apk`\n- Filogic / MT7981 / MT7986：`performance-manager-all-v{version}-aarch64_cortex-a53.apk`\n\n当前状态：Portable validated；Hardware Stable not yet qualified。\n''')
+          pathlib.Path('release-notes.md').write_text(f'''## 下载\n\nAll-in-One APK 包含 Performance Manager Core、LuCI、简体中文和 Rill 集成；`rill-runtime-preview` 是共享依赖，由 PM、CFI 等消费者共用。请配置提供该 exact qualified provider 的软件源，或先安装同架构 provider APK。不要同时安装 Stable `rill-runtime`。\n\n- x86_64：`performance-manager-all-v{version}-x86_64.apk`\n- ARM64 通用：`performance-manager-all-v{version}-aarch64_generic.apk`\n- Filogic / MT7981 / MT7986：`performance-manager-all-v{version}-aarch64_cortex-a53.apk`\n\n当前状态：Portable validated；Hardware Stable not yet qualified。\n''')
           PY
           gh release create "$tag" release-public/* \
             --verify-tag --prerelease \

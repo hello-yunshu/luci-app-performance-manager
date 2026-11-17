@@ -1,33 +1,8 @@
 {
-  "schemaVersion": 1,
-  "contract": "rill-runtime-dependency",
-  "description": "External generic Rill Runtime v3 dependency consumed by Performance Manager Core.",
+  "schemaVersion": 2,
   "policy": {
     "major": 1,
-    "track": "latest-qualified-stable"
-  },
-  "runtime": {
-    "owner": "hello-yunshu/rill-ml",
-    "packageOwner": "hello-yunshu/rill-openwrt-packages",
-    "package": "rill-runtime",
-    "binary": "/usr/bin/rill-runtime",
-    "authority": "ranking-and-learning-only",
-    "hostMutation": false
-  },
-  "protocol": {
-    "owner": "generic Rill Runtime",
-    "apiVersion": 3,
-    "schemaFile": "contracts/rill-ipc.schema.json",
-    "methods": ["handshake", "health", "decide", "feedback"],
-    "featureSchemaFile": "contracts/rill-feature-schema.json",
-    "featureSchemaVersion": 2,
-    "featureVectorWidth": 20,
-    "modelGeneration": 2
-  },
-  "security": {
-    "coreOwns": ["authorize", "govern", "apply", "verify", "rollback"],
-    "runtimeOwns": ["rank", "learn", "report"],
-    "directMutation": false
+    "track": "shared-exact-qualified-preview"
   },
   "resolved": {
     "version": "1.5.6",
@@ -35,20 +10,35 @@
     "upstreamCommit": "b990cd7043d313b0ff29c9693f091a94a5bdaf47",
     "sourceArchiveSha256": "c06a792811d1f08aa7b640c10ee36047c44f825cf7272aa0f75c42ab60806a84"
   },
+  "preview": {
+    "repository": "hello-yunshu/rill-ml",
+    "commit": "da8389fec7f879b826d8d17cbc6bb98c03ef8462",
+    "channel": "preview-exact-commit",
+    "featureSchemaVersion": 2,
+    "modelGeneration": 2
+  },
   "openwrtPackage": {
     "repository": "hello-yunshu/rill-openwrt-packages",
-    "commit": "dcfdb9060e41f2bf10b7eff33c042e3ca9646546",
-    "package": "rill-runtime",
+    "commit": "0567336375f4cd3cae29c013699ca9279d0ace52",
+    "package": "rill-runtime-preview",
     "packageVersion": "1.5.6",
-    "packageRelease": 2,
+    "packageRelease": 6,
     "binary": "/usr/bin/rill-runtime"
   },
   "qualification": {
     "required": true,
     "workflow": "qualify.yml",
-    "runId": 38928695476,
+    "runId": 42169166493,
     "verdict": "PASS",
     "runAttempt": 1,
-    "manifestSha256": "22a69fb3ee030372ac224de9ca426a79b289c731296692838752b712472cc156"
+    "manifestSha256": "2b98f49d3154a3388876181f6ced9a923870a2e528061f36abf5b3fda0ae2517"
+  },
+  "packageMigration": {
+    "legacyVersion": "2.6.0-r2",
+    "sourceTag": "v2.6.0-2",
+    "sourceSHA": "652476bd3cdc410bc16e3a47ee96b685c84acbbb"
+  },
+  "consumer": {
+    "purpose": "Shared generic Rill Runtime v3 contract for Performance Manager and other independent consumers."
   }
 }

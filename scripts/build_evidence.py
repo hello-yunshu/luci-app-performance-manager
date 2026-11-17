@@ -178,7 +178,7 @@ def main(argv):
         'performance-manager',
         'luci-app-performance-manager',
         'performance-manager-rill',
-        'rill-runtime',
+        'rill-runtime-preview',
         'luci-app-performance-manager-all',
     ]
     package_shas = {}
@@ -273,8 +273,10 @@ def main(argv):
                     for path, payload in rec['installedPayload'].items()
                     if payload.get('status') in ('match', 'compiled')
                 }
-            if name == 'luci-app-performance-manager-all' and rec.get('runtimeBinary'):
+            if name in ('rill-runtime-preview', 'luci-app-performance-manager-all') and rec.get('runtimeBinary'):
                 entry['runtimeBinary'] = rec['runtimeBinary']
+            if rec.get('depends'):
+                entry['depends'] = rec['depends']
         packages_meta[name] = entry
 
     metadata = {
@@ -305,13 +307,14 @@ def main(argv):
         'rillConsumedArtifactSha256': rill_checksum,
         'rillUpstreamStatus': rill_status,
         'externalRuntime': {
-            'package': 'rill-runtime',
+            'package': 'rill-runtime-preview',
             'repository': 'hello-yunshu/rill-openwrt-packages',
             'commit': env('RILL_OPENWRT_PACKAGE_COMMIT'),
             'qualificationArtifact': 'qualification-evidence',
             'qualificationRequired': True,
             'publicReleaseIncluded': False,
-            'bundledInFullAllInOne': True,
+            'bundledInFullAllInOne': False,
+            'sharedDependency': True,
         },
         'fullPackage': {
             'package': 'luci-app-performance-manager-all',
@@ -322,8 +325,9 @@ def main(argv):
             'runtimeVersion': rill_version,
             'runtimeSourceRepository': 'hello-yunshu/rill-openwrt-packages',
             'runtimeSourceCommit': env('RILL_OPENWRT_PACKAGE_COMMIT'),
-            'runtimeSha256': ((packages_meta.get('luci-app-performance-manager-all') or {}).get('runtimeBinary') or {}).get('sha256'),
-            'runtimeBundled': ((packages_meta.get('luci-app-performance-manager-all') or {}).get('runtimeBinary') or {}).get('matchesSplitRuntime') is True,
+            'runtimeSha256': ((packages_meta.get('rill-runtime-preview') or {}).get('runtimeBinary') or {}).get('sha256'),
+            'runtimeBundled': False,
+            'runtimeSharedDependency': 'rill-runtime-preview' in (packages_meta.get('luci-app-performance-manager-all') or {}).get('depends', []),
         },
         'rillArtifactProvenanceReason': rill_provenance_reason,
         'evidenceSources': {

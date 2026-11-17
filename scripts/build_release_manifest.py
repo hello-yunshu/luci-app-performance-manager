@@ -57,9 +57,10 @@ def main(argv=None) -> int:
         "targets": targets,
         "externalRuntime": {
             **first,
-            "package": "rill-runtime",
+            "package": "rill-runtime-preview",
             "repository": "hello-yunshu/rill-openwrt-packages",
-            "bundledInFullAllInOne": True,
+            "bundledInFullAllInOne": False,
+            "sharedDependency": True,
             "standalonePublicReleaseIncluded": False,
         },
     }

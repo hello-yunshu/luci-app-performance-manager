@@ -298,6 +298,19 @@ print(Path(identity['canonicalPath']).relative_to(root))
 PY
                 )
                 if [ ! -f "$ARTIFACTS/$full_apk" ]; then artifact_verdict=FAIL; reason='exact full All-in-One APK filename is missing'; fi
+                runtime_apk=$("$PY" - "$ARTIFACTS" <<'PY'
+import json, sys
+from pathlib import Path
+sys.path.insert(0, str(Path.cwd() / 'scripts'))
+from artifact_identity import resolve_artifact
+root = Path(sys.argv[1]).resolve()
+build = json.loads((root / 'build-metadata.json').read_text())
+item = build['packages']['rill-runtime-preview']
+identity = resolve_artifact('rill-runtime-preview', item['apkSha256'], [root], item.get('apkFilename'))
+print(Path(identity['canonicalPath']).relative_to(root))
+PY
+                )
+                if [ ! -f "$ARTIFACTS/$runtime_apk" ]; then artifact_verdict=FAIL; reason='exact shared Runtime provider APK is missing'; fi
             fi
         fi
     fi
@@ -311,9 +324,10 @@ fi
 
 if run_logged "$DOCKER/runtime-v3.log" docker run --rm --privileged --platform "$DOCKER_PLATFORM" \
     -e PM_FULL_APK="/workspace/local-artifacts/x86_64/$full_apk" \
+    -e PM_RUNTIME_APK="/workspace/local-artifacts/x86_64/$runtime_apk" \
     -v "$ROOT:/workspace" -w /workspace ubuntu:24.04 bash -lc \
-    'set -eu; apt-get update >/dev/null; apt-get install -y --no-install-recommends python3 musl >/dev/null; rm -rf .portable-runtime-rootfs; cp -a .portable-rootfs .portable-runtime-rootfs; cp "$PM_FULL_APK" .portable-runtime-rootfs/tmp/; chroot .portable-runtime-rootfs /bin/sh -c "apk add --allow-untrusted --no-cache /tmp/$(basename "$PM_FULL_APK")"; LD_LIBRARY_PATH=/workspace/.portable-runtime-rootfs/lib:/workspace/.portable-runtime-rootfs/usr/lib:/lib:/usr/lib python3 scripts/rill_runtime_v3_integration.py --binary /workspace/.portable-runtime-rootfs/usr/bin/rill-runtime --out /workspace/local-evidence/docker/runtime-v3.json'; then runtime_verdict=PASS
-else runtime_verdict=FAIL; reason='one-file-installed bundled Rill Runtime v3 integration failed'; fi
+    'set -eu; apt-get update >/dev/null; apt-get install -y --no-install-recommends python3 musl >/dev/null; rm -rf .portable-runtime-rootfs; cp -a .portable-rootfs .portable-runtime-rootfs; cp "$PM_FULL_APK" "$PM_RUNTIME_APK" .portable-runtime-rootfs/tmp/; chroot .portable-runtime-rootfs /bin/sh -c "apk add --allow-untrusted --no-cache /tmp/$(basename "$PM_FULL_APK") /tmp/$(basename "$PM_RUNTIME_APK")"; LD_LIBRARY_PATH=/workspace/.portable-runtime-rootfs/lib:/workspace/.portable-runtime-rootfs/usr/lib:/lib:/usr/lib python3 scripts/rill_runtime_v3_integration.py --binary /workspace/.portable-runtime-rootfs/usr/bin/rill-runtime --out /workspace/local-evidence/docker/runtime-v3.json'; then runtime_verdict=PASS
+else runtime_verdict=FAIL; reason='one-file-installed shared Rill Runtime v3 integration failed'; fi
 
 if [ "$runtime_verdict" = PASS ] && run_logged "$PACKAGE/package-composition.log" docker run --rm --privileged --platform "$DOCKER_PLATFORM" \
     -v "$ROOT:/workspace" -w /workspace ubuntu:24.04 bash -lc \

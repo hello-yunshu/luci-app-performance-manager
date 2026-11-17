@@ -160,11 +160,11 @@ class BehavioralRegressions(unittest.TestCase):
     def test_rill_dependency_contract_is_external_and_qualified(self):
         dep = json.loads((ROOT / 'contracts/rill-runtime.json').read_text())
         self.assertEqual(dep['resolved']['version'], '1.5.6')
-        self.assertEqual(dep['openwrtPackage']['package'], 'rill-runtime')
+        self.assertEqual(dep['openwrtPackage']['package'], 'rill-runtime-preview')
         self.assertEqual(dep['openwrtPackage']['binary'], '/usr/bin/rill-runtime')
         self.assertEqual(dep['qualification']['verdict'], 'PASS')
         makefile = (ROOT / 'package/performance-manager-rill/Makefile').read_text()
-        self.assertIn('+rill-runtime', makefile)
+        self.assertIn('+rill-runtime-preview', makefile)
 
     def test_rill_outcome_requires_context_binding(self):
         from contract_model import rill_outcome_context_binding

@@ -77,8 +77,8 @@ def _full_record(build: dict, report: dict, arch: str) -> tuple[str, str]:
     if (verified.get("status") != "ok" or built.get("status") != "ok"
             or verified.get("sha256") != built.get("apkSha256")
             or verified.get("arch") != arch or not filename or not digest
-            or runtime.get("status") != "present"
-            or runtime.get("matchesSplitRuntime") is not True):
+            or runtime.get("status") != "shared-dependency"
+            or runtime.get("package") != "rill-runtime-preview"):
         raise ArtifactIdentityError(f"{PACKAGE} full identity is incomplete for {arch}")
     return filename, digest
 

@@ -295,19 +295,19 @@ class LocalValidationTests(unittest.TestCase):
             out, commit = Path(sys.argv[1]), sys.argv[2]
             root = out / 'x86-64-x86_64-packages-and-evidence'
             (root / 'docs').mkdir(parents=True)
-            names = ('performance-manager', 'luci-app-performance-manager', 'performance-manager-rill', 'rill-runtime', 'luci-app-performance-manager-all')
+            names = ('performance-manager', 'luci-app-performance-manager', 'performance-manager-rill', 'rill-runtime-preview', 'luci-app-performance-manager-all')
             packages = {}
             for name in names:
-                path = root / ('nested-sdk/base' if name == 'rill-runtime' else '') / f'{name}-mock.apk'
+                path = root / ('nested-sdk/base' if name == 'rill-runtime-preview' else '') / f'{name}-mock.apk'
                 path.parent.mkdir(parents=True, exist_ok=True)
                 path.write_bytes(name.encode())
                 digest = hashlib.sha256(path.read_bytes()).hexdigest()
                 packages[name] = {'status': 'ok', 'apkFilename': path.name, 'apkSha256': digest, 'pkgver': '1', 'installedPayload': {}}
             packages['luci-app-performance-manager-all'].update({'arch': 'x86_64'})
-            packages['luci-app-performance-manager-all']['runtimeBinary'] = {'status': 'present', 'matchesSplitRuntime': True, 'sha256': 'a' * 64}
+            packages['luci-app-performance-manager-all']['runtimeBinary'] = {'status': 'shared-dependency', 'package': 'rill-runtime-preview', 'sha256': 'a' * 64}
             build = {'verdict': 'PASS', 'repositoryCommitSha': commit, 'architecture': 'x86_64',
                      'target': 'x86/64', 'rillConsumedVersion': '1.5.6',
-                     'externalRuntime': {'commit': 'b' * 40}, 'fullPackage': {'runtimeBundled': True},
+                     'externalRuntime': {'commit': 'b' * 40}, 'fullPackage': {'runtimeBundled': False, 'runtimeSharedDependency': True},
                      'packages': packages}
             (root / 'build-metadata.json').write_text(json.dumps(build))
             verified = {name: {'status': 'ok', 'sha256': item['apkSha256'], 'arch': 'x86_64' if name == 'luci-app-performance-manager-all' else 'noarch'} for name, item in packages.items()}

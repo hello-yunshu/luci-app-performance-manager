@@ -16,15 +16,14 @@ define Package/performance-manager-rill
   CATEGORY:=Network
   SUBMENU:=Routing and Redirection
   TITLE:=OpenWrt 性能管理器 Rill 集成层 / PM Rill integration glue
-  # Keep the split package concrete so OpenWrt never resolves the virtual
-  # capability to the full all-in-one provider while compiling glue.
-  DEPENDS:=+performance-manager +rill-runtime
+  # The shared Preview Runtime package is the canonical provider for PM/CFI.
+  DEPENDS:=+performance-manager +rill-runtime-preview
   PKGARCH:=all
   USERID:=performance-manager-rill=5666:performance-manager-rill=5666
 endef
 
 define Package/performance-manager-rill/description
- PM integration glue and sysupgrade keep rule. The generic rill-runtime
+ PM integration glue and sysupgrade keep rule. The generic rill-runtime-preview
  package owns /usr/bin/rill-runtime and is consumed through package
  dependency resolution. PM does not ship a private Runtime or daemon.
  / PM 集成 glue 与升级保留规则；通用 rill-runtime 包拥有

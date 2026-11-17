@@ -47,7 +47,7 @@ GATE_CHECKS = {
 }
 RILL_GATES = set(GATE_CHECKS) - {"target-core-only"}
 PRIMARY_PACKAGE = "luci-app-performance-manager-all"
-RUNTIME_PACKAGE = "rill-runtime"
+RUNTIME_PACKAGE = "rill-runtime-preview"
 PACKAGE_NAMES = ("performance-manager", "luci-app-performance-manager", "performance-manager-rill", RUNTIME_PACKAGE, PRIMARY_PACKAGE)
 CORE_PAYLOAD = ("/usr/sbin/performance-manager.uc", "/usr/share/performance-manager/contracts.uc")
 ALL_IN_ONE_PAYLOAD = CORE_PAYLOAD + (
@@ -56,7 +56,6 @@ ALL_IN_ONE_PAYLOAD = CORE_PAYLOAD + (
     "/usr/share/luci/menu.d/luci-app-performance-manager.json",
     "/www/luci-static/resources/view/performance-manager/overview.js",
     "/usr/lib/lua/luci/i18n/performance-manager.zh-cn.lmo",
-    "/usr/bin/rill-runtime",
     "/lib/upgrade/keep.d/performance-manager-rill",
 )
 
@@ -165,10 +164,9 @@ def _package_layout_ok(packages: dict[str, Any], gate: str) -> bool:
         return present == {"performance-manager"}
     if gate == "lifecycle":
         return True
-    # The full package owns the Runtime binary, so a hardware run may install
-    # only the user-facing APK. Keep accepting the split layout for legacy
-    # evidence and developer migration runs.
-    return present in ({PRIMARY_PACKAGE}, {PRIMARY_PACKAGE, RUNTIME_PACKAGE})
+    # The full package depends on the same canonical Runtime package as every
+    # other consumer, so both identities should be installed together.
+    return present == {PRIMARY_PACKAGE, RUNTIME_PACKAGE}
 
 
 def evaluate_raw_facts(raw: dict[str, Any], gate: str) -> dict[str, bool]:
@@ -432,8 +430,8 @@ def _artifact_errors(data: dict[str, Any], gate: str, build: dict[str, Any] | No
     errors: list[str] = []
     full_build = (build or {}).get("fullPackage") or {}
     full_report = ((apk_report or {}).get("packages") or {}).get(PRIMARY_PACKAGE) or {}
-    bundled_runtime = full_build.get("runtimeBundled") is True or \
-        (full_report.get("runtimeBinary") or {}).get("matchesSplitRuntime") is True
+    shared_runtime = full_build.get("runtimeSharedDependency") is True or \
+        (full_report.get("runtimeBinary") or {}).get("status") == "shared-dependency"
     build_artifacts = data.get("buildArtifacts")
     installed_artifacts = data.get("installedArtifacts")
     if not isinstance(build_artifacts, dict):
@@ -456,10 +454,8 @@ def _artifact_errors(data: dict[str, Any], gate: str, build: dict[str, Any] | No
             elif gate != "lifecycle" and name not in {PRIMARY_PACKAGE, RUNTIME_PACKAGE}:
                 if rec not in (None, "not-installed"):
                     errors.append(f"installedArtifacts.{name} must be absent")
-            elif gate != "lifecycle" and name == RUNTIME_PACKAGE and not bundled_runtime:
-                errors.append(f"installedArtifacts.{name} missing")
-            elif gate != "lifecycle" and name == RUNTIME_PACKAGE and bundled_runtime:
-                pass
+            elif gate != "lifecycle" and name == RUNTIME_PACKAGE and not shared_runtime:
+                errors.append(f"installedArtifacts.{name} missing; Full must use the shared Runtime package")
             elif gate != "lifecycle":
                 errors.append(f"installedArtifacts.{name} missing")
             continue

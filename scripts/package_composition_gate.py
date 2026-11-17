@@ -3,8 +3,8 @@
 
 The package verifier proves each APK's metadata and payload. This gate proves
 both the developer split install and the user-facing one-file full install as
-the package manager sees them. The full matrix deliberately installs one APK:
-the bundled Runtime is not an external dependency.
+the package manager sees them. The application is one APK and its shared
+Runtime provider is resolved once for PM and independent consumers.
 """
 from __future__ import annotations
 
@@ -23,11 +23,10 @@ from full_upgrade_gate import execute as execute_full_upgrade
 
 
 SPLIT = ("performance-manager", "luci-app-performance-manager",
-         "performance-manager-rill", "rill-runtime")
+         "performance-manager-rill", "rill-runtime-preview")
 ALL_IN_ONE = ("luci-app-performance-manager-all",)
 PM_OWNED_PATHS = (
     "/usr/sbin/performance-manager.uc",
-    "/usr/bin/rill-runtime",
     "/usr/share/performance-manager",
     "/www/luci-static/resources/view/performance-manager",
     "/usr/share/luci/menu.d/luci-app-performance-manager.json",
@@ -161,7 +160,7 @@ def execute(rootfs: Path, packages: dict[str, Path], names: tuple[str, ...],
             runtime_identity_check = ""
             if names == ALL_IN_ONE:
                 if not isinstance(expected_runtime_sha, str) or not re.fullmatch(r"[0-9a-f]{64}", expected_runtime_sha):
-                    raise RuntimeError("all-in-one build metadata lacks a valid bundled Runtime SHA256")
+                    raise RuntimeError("all-in-one build metadata lacks a valid shared Runtime SHA256")
                 runtime_identity_check = (
                     "test -x /usr/bin/rill-runtime; "
                     f"test \"$(sha256sum /usr/bin/rill-runtime | awk '{{print $1}}')\" = {shlex.quote(expected_runtime_sha)}; "
@@ -182,7 +181,7 @@ def execute(rootfs: Path, packages: dict[str, Path], names: tuple[str, ...],
                 "echo PM_FULL_RILL_FAULT_SMOKE=PASS; "
                 "apk del luci-app-performance-manager-all; "
                 "test ! -x /usr/sbin/performance-manager.uc; "
-                "test ! -e /usr/bin/rill-runtime; "
+                "test -x /usr/bin/rill-runtime; "
                 "test ! -e /www/luci-static/resources/view/performance-manager/overview.js; "
                 "test ! -e /usr/share/luci/menu.d/luci-app-performance-manager.json; "
                 "test ! -e /usr/share/rpcd/acl.d/luci-app-performance-manager.json; "
@@ -190,7 +189,7 @@ def execute(rootfs: Path, packages: dict[str, Path], names: tuple[str, ...],
                 "test ! -e /lib/upgrade/keep.d/performance-manager-rill; "
                 "echo PM_FULL_UNINSTALL_SMOKE=PASS; "
                 if names == ALL_IN_ONE else
-                "apk del performance-manager-rill rill-runtime; "
+                "apk del performance-manager-rill rill-runtime-preview; "
                 "test -x /usr/sbin/performance-manager.uc; "
                 "status_after=$(ubus call performance-manager status '{}'); "
                 "printf '%s' \"$status_after\" | grep -q '\"running\": true'; "
@@ -414,9 +413,9 @@ def main(argv=None) -> int:
               "repositoryTransport": "https" if transport_verdict == "PASS" else "NOT_EVALUATED",
               "transportVerdict": transport_verdict,
               "dependencyGraph": {
-                  "performance-manager-rill": ["performance-manager", "rill-runtime"],
+                  "performance-manager-rill": ["performance-manager", "rill-runtime-preview"],
                   "performance-manager": ["performance-manager-core"],
-                  "luci-app-performance-manager-all": ["provides:performance-manager-core"],
+                  "luci-app-performance-manager-all": ["provides:performance-manager-core", "rill-runtime-preview"],
               }}
     args.out.parent.mkdir(parents=True, exist_ok=True)
     args.out.write_text(json.dumps(report, ensure_ascii=False, indent=2) + "\n")

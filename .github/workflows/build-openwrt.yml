@@ -16,9 +16,8 @@ jobs:
   # Official OpenWrt SDK build for the packages this repository OWNS:
   # performance-manager (Core), luci-app-performance-manager (UI), the
   # performance-manager-rill integration package, plus the physical,
-  # architecture-specific full all-in-one APK. The generic rill-runtime
-  # package is downloaded from one exact qualified run/attempt and its exact
-  # executable payload is embedded once into the full package.
+  # architecture-specific full all-in-one APK. PM split/full and independent
+  # consumers share one exact-qualified rill-runtime-preview package owner.
   # Real build evidence comes from this remote Action — never a local mock.
   openwrt-sdk-build:
     permissions:
@@ -173,12 +172,10 @@ jobs:
           "$SDKDIR/staging_dir/host/bin/rustc" --version | grep -F "rustc $rill_toolchain "
           mkdir -p package/openwrt-performance-manager
           cp -a "$GITHUB_WORKSPACE"/package/* package/openwrt-performance-manager/
-          # Keep the external Runtime out of this SDK's local package graph.
-          # The integration package records a runtime dependency, while the
-          # exact qualified Runtime APK is resolved below and consumed as an
-          # immutable artifact. Copying the source recipe here makes OpenWrt
-          # rebuild the provider as an incidental dependency and bypasses the
-          # qualified package bytes.
+          # Include the exact shared Preview recipe so PM package dependencies
+          # resolve through the same provider package as other Rill consumers.
+          cp -a "$GITHUB_WORKSPACE/rill-openwrt-packages/package/rill-runtime-preview" package/
+          echo 'CONFIG_PACKAGE_rill-runtime-preview=y' >> .config
           make defconfig
       - name: Build Core
         run: cd "$SDKDIR" && bash "$GITHUB_WORKSPACE/scripts/openwrt-build-diagnostic.sh" package/performance-manager/compile
@@ -197,7 +194,7 @@ jobs:
           \) -delete
       - name: Build LuCI
         run: cd "$SDKDIR" && bash "$GITHUB_WORKSPACE/scripts/openwrt-build-diagnostic.sh" package/luci-app-performance-manager/compile
-      - name: Download exact qualified Stable Runtime package
+      - name: Download exact qualified shared Preview Runtime package
         env:
           GH_TOKEN: ${{ github.token }}
         shell: bash
@@ -206,7 +203,7 @@ jobs:
           package_commit=$(git -C "$GITHUB_WORKSPACE/rill-openwrt-packages" rev-parse HEAD)
           python3 scripts/check_rill_dependency.py --package-dir rill-openwrt-packages
           python3 rill-openwrt-packages/scripts/qualified_runtime_artifacts.py \
-            --channel stable --contract "$GITHUB_WORKSPACE/contracts/rill-runtime.json" \
+            --channel preview --contract "$GITHUB_WORKSPACE/contracts/rill-runtime.json" \
             --package-dir "$GITHUB_WORKSPACE/rill-openwrt-packages" \
             --openwrt-version "$OPENWRT_VERSION" --architecture "$PACKAGE_ARCH" --pkgtype apk \
             --apk "$SDKDIR/staging_dir/host/bin/apk" --output "$RUNNER_TEMP/qualified-rill" \
@@ -216,22 +213,23 @@ jobs:
             echo "RILL_QUALIFIED_PACKAGE=$(jq -r .package "$RUNNER_TEMP/qualified-rill-selection.json")"
             echo "RILL_QUALIFIED_BINARY_SHA256=$(jq -r .qualifiedTarget.binarySha256 "$RUNNER_TEMP/qualified-rill-selection.json")"
           } >> "$GITHUB_ENV"
+      - name: Build shared Preview Runtime package
+        run: cd "$SDKDIR" && bash "$GITHUB_WORKSPACE/scripts/openwrt-build-diagnostic.sh" package/rill-runtime-preview/compile
       - name: Build Rill integration package (glue payload only)
         run: cd "$SDKDIR" && bash "$GITHUB_WORKSPACE/scripts/openwrt-build-diagnostic.sh" package/performance-manager-rill/compile
-      - name: Stage exact Runtime payload into the full package workspace
+      - name: Verify locally built Runtime matches its qualified package
         shell: bash
         run: |
           set -euo pipefail
           runtime_apk="$RILL_QUALIFIED_PACKAGE"
           test -f "$runtime_apk"
-          # Incidental SDK dependency rebuilds are diagnostic bytes, never inherited qualification.
-          mkdir -p "$RUNNER_TEMP/unqualified-runtime-builds" "$SDKDIR/bin/qualified-rill"
-          while IFS= read -r rebuilt; do
-            digest=$(sha256sum "$rebuilt" | awk '{print $1}')
-            mv "$rebuilt" "$RUNNER_TEMP/unqualified-runtime-builds/$digest-$(basename "$rebuilt")"
-          done < <(find "$SDKDIR/bin" -type f -name 'rill-runtime-*.apk')
-          cp "$runtime_apk" "$SDKDIR/bin/qualified-rill/$(basename "$runtime_apk")"
-          runtime_version=$(sed -n 's/^PKG_VERSION:=//p' "$GITHUB_WORKSPACE/rill-openwrt-packages/package/rill-runtime/Makefile")
+          built_apk=$(find "$SDKDIR/bin" -type f -name 'rill-runtime-preview-*.apk' -print -quit)
+          test -n "$built_apk"
+          cmp -s "$runtime_apk" "$built_apk" || {
+            echo 'SDK-built shared Runtime differs from the exact qualified package bytes' >&2
+            exit 1
+          }
+          runtime_version=$(sed -n 's/^PKG_VERSION:=//p' "$GITHUB_WORKSPACE/rill-openwrt-packages/package/rill-runtime-preview/Makefile")
           runtime_sha=$(python3 - "$runtime_apk" <<'PY'
           import hashlib, sys
           from pathlib import Path
@@ -244,15 +242,7 @@ jobs:
           PY
           )
           test "$runtime_sha" = "$RILL_QUALIFIED_BINARY_SHA256"
-          full_dir="$SDKDIR/package/openwrt-performance-manager/luci-app-performance-manager-all"
-          python3 "$GITHUB_WORKSPACE/scripts/stage_bundled_runtime.py" \
-            --apk "$runtime_apk" --runtime-version "$runtime_version" \
-            --package-arch "$PACKAGE_ARCH" --sha256 "$runtime_sha" \
-            --out "$full_dir/files/usr/bin/rill-runtime"
-          # The source notice is copied beside the temporary package tree so
-          # the full package can install it without vendoring Runtime source.
-          cp "$GITHUB_WORKSPACE/THIRD_PARTY_NOTICES" "$SDKDIR/package/THIRD_PARTY_NOTICES"
-          echo "RILL_BUNDLED_BINARY_SHA256=$runtime_sha" >> "$GITHUB_ENV"
+          echo "RILL_SHARED_BINARY_SHA256=$runtime_sha" >> "$GITHUB_ENV"
       - name: Build full architecture-specific All-in-One APK
         run: cd "$SDKDIR" && bash "$GITHUB_WORKSPACE/scripts/openwrt-build-diagnostic.sh" package/luci-app-performance-manager-all/compile
       - name: Assert expected packages present (exact APK metadata match)
@@ -263,7 +253,7 @@ jobs:
           find bin -name '*.apk' -o -name '*.ipk' | sort
           # Version part of the APK pkgver is derived from VERSION.
           apk_version="$(sed -E 's/-rc\./_rc/' "$GITHUB_WORKSPACE/VERSION")"
-          rill_runtime_version="$(sed -n 's/^PKG_VERSION:=//p' "$GITHUB_WORKSPACE/rill-openwrt-packages/package/rill-runtime/Makefile")"
+          rill_runtime_version="$(sed -n 's/^PKG_VERSION:=//p' "$GITHUB_WORKSPACE/rill-openwrt-packages/package/rill-runtime-preview/Makefile")"
           # Exact verification reads package metadata (pkgname/pkgver/arch/deps) instead
           # of filename prefix, so performance-manager and performance-manager-rill
           # can never be confused and a stale rc.3 artifact can never pass.
@@ -274,22 +264,7 @@ jobs:
           # zstd, so verify_apks.py needs the zstandard module.
           python3 -m pip install --disable-pip-version-check zstandard
           python3 "$GITHUB_WORKSPACE/scripts/verify_apks.py" "$PWD" "$apk_version" "$PACKAGE_ARCH" "$rill_runtime_version"
-      - name: Download same-qualified Preview for ownership rejection only
-        env:
-          GH_TOKEN: ${{ github.token }}
-        shell: bash
-        run: |
-          set -euo pipefail
-          python3 -B scripts/download_conflict_preview.py \
-            --contract contracts/rill-runtime.json \
-            --qualified-manifest "$RUNNER_TEMP/qualified-rill/qualification.json" \
-            --package-dir rill-openwrt-packages \
-            --openwrt-version "$OPENWRT_VERSION" --architecture "$PACKAGE_ARCH" \
-            --apk "$SDKDIR/staging_dir/host/bin/apk" \
-            --output "$RUNNER_TEMP/preview-conflict-fixture" \
-            > "$RUNNER_TEMP/preview-conflict-selection.json"
-          echo "RILL_CONFLICT_PREVIEW_PACKAGE=$(jq -r .package "$RUNNER_TEMP/preview-conflict-selection.json")" >> "$GITHUB_ENV"
-      - name: Verify real Full, split and Runtime package ownership
+      - name: Verify Full, split and independent consumer share Runtime
         shell: bash
         run: |
           set -euo pipefail
@@ -312,9 +287,8 @@ jobs:
           if any(len(paths) != 1 for paths in found.values()):
               raise SystemExit('ownership input packages must resolve exactly once')
           command = ['sudo', 'python3', '-B', 'scripts/verify_runtime_package_ownership.py',
-                     '--apk', str(sdk/'staging_dir/host/bin/apk'), '--sdk', str(sdk),
-                     '--stable', os.environ['RILL_QUALIFIED_PACKAGE'],
-                     '--preview', os.environ['RILL_CONFLICT_PREVIEW_PACKAGE'],
+                     '--apk', str(sdk/'staging_dir/host/bin/apk'),
+                     '--preview', os.environ['RILL_QUALIFIED_PACKAGE'],
                      '--runtime-sha256', os.environ['RILL_QUALIFIED_BINARY_SHA256'],
                      '--output', str(Path(os.environ['RUNNER_TEMP'])/'runtime-ownership')]
           for role, paths in found.items():
@@ -366,6 +340,7 @@ jobs:
           # assembly or public asset staging step.
           python3 scripts/build_synthetic_prior_fixture.py \
             --sdk-dir "$SDKDIR" \
+            --runtime-apk "$RILL_QUALIFIED_PACKAGE" \
             --out full-upgrade-prior/synthetic-prior \
             --version 1.0.3 --release 1 --package-arch "$PACKAGE_ARCH" \
             --commit "$GITHUB_SHA"
