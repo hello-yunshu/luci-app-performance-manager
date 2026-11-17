@@ -10,7 +10,7 @@ import re
 import shutil
 import subprocess
 import tempfile
-from verify_apks import apk_file_content
+from verify_apks import apk_file_content, apk_pkginfo
 
 
 def digest(path: Path) -> str:
@@ -37,9 +37,8 @@ def verify(args):
                 'glue': 'performance-manager-rill'}
     packages = {}
     products = {}
-    for role, path in inputs.items():
+    def add_to_feed(path: Path) -> tuple[dict, Path]:
         info = pkginfo(tool, path)
-        assert info['name'] == expected[role], (role, info)
         filename = f"{info['name']}-{info['version']}.apk"
         if not re.fullmatch(r'[A-Za-z0-9+_.~-]+\.apk', filename):
             raise ValueError('unsafe APK repository filename')
@@ -48,9 +47,24 @@ def verify(args):
             raise ValueError('different APK bytes share one repository identity: ' + filename)
         if not target.exists():
             shutil.copyfile(path, target)
+        return info, target
+
+    for role, path in inputs.items():
+        info, target = add_to_feed(path)
+        assert info['name'] == expected[role], (role, info)
         packages[role] = target
-        products[role] = {'file': filename, 'sha256': digest(path), 'pkgver': info['version'],
+        products[role] = {'file': target.name, 'sha256': digest(path), 'pkgver': info['version'],
                           'arch': info['arch'], 'depends': info.get('depends', info.get('depend', []))}
+
+    # Resolve against the real dependency APKs built or shipped in this SDK,
+    # not a partial repo containing only the consumer packages. This keeps the
+    # install simulation meaningful for required OpenWrt libraries as well as
+    # the shared Runtime provider.
+    for path in sorted(args.sdk_dir.resolve().joinpath('bin').rglob('*.apk')):
+        info = apk_pkginfo(path)
+        if not info:
+            continue
+        add_to_feed(path)
 
     runtime = apk_file_content(inputs['preview'], '/usr/bin/rill-runtime')
     assert runtime and hashlib.sha256(runtime).hexdigest() == args.runtime_sha256
@@ -125,7 +139,7 @@ def verify(args):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    for key in ('apk', 'full', 'preview', 'core', 'luci', 'glue', 'output'):
+    for key in ('apk', 'full', 'preview', 'core', 'luci', 'glue', 'output', 'sdk-dir'):
         parser.add_argument('--' + key, type=Path, required=True)
     parser.add_argument('--runtime-sha256', required=True)
     args = parser.parse_args()

@@ -269,6 +269,7 @@ jobs:
               raise SystemExit('ownership input packages must resolve exactly once')
           command = ['sudo', 'python3', '-B', 'scripts/verify_runtime_package_ownership.py',
                      '--apk', str(sdk/'staging_dir/host/bin/apk'),
+                     '--sdk-dir', str(sdk),
                      '--preview', os.environ['RILL_QUALIFIED_PACKAGE'],
                      '--runtime-sha256', os.environ['RILL_QUALIFIED_BINARY_SHA256'],
                      '--output', str(Path(os.environ['RUNNER_TEMP'])/'runtime-ownership')]
