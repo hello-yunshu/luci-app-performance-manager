@@ -139,12 +139,14 @@ return view.extend({
 		});
 
 		start.disabled = !actions.length;
-		root.appendChild(pu.toolbar([
+		const controls = pu.toolbar([
 			benchmarkField(_('Benchmark action'), action),
 			benchmarkField(_('Evaluation path'), pathSelect),
 			benchmarkField(_('Measurement class'), measurement),
 			start
-		]));
+		]);
+		controls.classList.add('pm-benchmark-toolbar');
+		root.appendChild(controls);
 		if (!actions.length) root.appendChild(pu.note(_('No benchmark action is currently available for this device.'), 'warning'));
 		root.appendChild(output);
 		const content = [ pu.card(_('Test setup and progress'), root) ];
