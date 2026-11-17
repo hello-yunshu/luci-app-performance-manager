@@ -37,7 +37,7 @@ docker exec "$CONTAINER" sh -c "
 	chmod +x /etc/init.d/performance-manager /etc/uci-defaults/90-performance-manager /usr/sbin/performance-manager.uc
 	sed -i 's|@PKG_VERSION@|$PKG_VERSION|g; s|@PKG_RELEASE@|$PKG_RELEASE|g; s|@PKG_FULL_VERSION@|$PKG_FULL_VERSION|g' \
 		/www/luci-static/resources/performance-manager/ui.js
-	uci set uhttpd.main.listen_http='127.0.0.1:$PORT'
+	uci set uhttpd.main.listen_http='0.0.0.0:$PORT'
 	uci set uhttpd.main.listen_https=''
 	uci set luci.main.mediaurlbase='/luci-static/bootstrap'
 	uci set luci.main.lang='$LANG_CODE'

@@ -49,10 +49,18 @@ jobs:
       - name: Start a real OpenWrt and LuCI container
         run: |
           set -euo pipefail
-          docker run -d --name pm-ui-gate --network host --cap-add=NET_ADMIN \
+          docker run -d --name pm-ui-gate --publish 127.0.0.1:18080:18080 --cap-add=NET_ADMIN \
             openwrt/rootfs:x86_64-24.10.8 /sbin/init
           for _ in $(seq 1 30); do
-            docker exec pm-ui-gate true 2>/dev/null && exit 0
+            if docker exec pm-ui-gate true 2>/dev/null && docker exec pm-ui-gate ip link show br-lan >/dev/null 2>&1; then
+              network_info="$(docker inspect --format '{{range .NetworkSettings.Networks}}{{.IPAddress}} {{.Gateway}} {{.IPPrefixLen}}{{end}}' pm-ui-gate)"
+              read -r container_ip gateway prefix_len <<< "$network_info"
+              test -n "$container_ip" && test -n "$gateway" && test -n "$prefix_len"
+              docker exec pm-ui-gate ip address replace "$container_ip/$prefix_len" dev br-lan
+              docker exec pm-ui-gate ip route replace default via "$gateway" dev br-lan
+              docker exec pm-ui-gate sh -c 'ip route; cat /etc/resolv.conf; uclient-fetch -O /dev/null https://downloads.openwrt.org/releases/24.10.8/packages/x86_64/base/Packages.gz'
+              exit 0
+            fi
             sleep 2
           done
           echo 'OpenWrt container did not start' >&2
