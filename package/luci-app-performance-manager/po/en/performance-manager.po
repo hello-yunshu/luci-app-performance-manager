@@ -2373,3 +2373,30 @@ msgstr "Unavailable benchmark providers and reasons"
 
 msgid "Why"
 msgstr "Why"
+
+msgid "No change needed"
+msgstr "No change needed"
+
+msgid "The current configuration meets the policy."
+msgstr "The current configuration meets the policy."
+
+msgid "No decision reason is available yet."
+msgstr "No decision reason is available yet."
+
+msgid "Needs attention"
+msgstr "Needs attention"
+
+msgid "Runtime needs attention"
+msgstr "Runtime needs attention"
+
+msgid "Network adapter tuning"
+msgstr "Network adapter tuning"
+
+msgid "Network adapter features are grouped here to keep repeated hardware details out of the main list."
+msgstr "Network adapter features are grouped here to keep repeated hardware details out of the main list."
+
+msgid "Adapter capabilities and details"
+msgstr "Adapter capabilities and details"
+
+msgid "Network adapter"
+msgstr "Network adapter"

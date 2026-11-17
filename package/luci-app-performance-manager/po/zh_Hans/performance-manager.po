@@ -2297,3 +2297,30 @@ msgstr "不可用的基准测试提供方及原因"
 
 msgid "Why"
 msgstr "原因"
+
+msgid "No change needed"
+msgstr "无需更改"
+
+msgid "The current configuration meets the policy."
+msgstr "当前配置符合策略要求。"
+
+msgid "No decision reason is available yet."
+msgstr "暂时没有可用的决策原因。"
+
+msgid "Needs attention"
+msgstr "需要处理"
+
+msgid "Runtime needs attention"
+msgstr "运行时需要处理"
+
+msgid "Network adapter tuning"
+msgstr "网卡调优能力"
+
+msgid "Network adapter features are grouped here to keep repeated hardware details out of the main list."
+msgstr "网卡相关功能集中显示，避免重复的硬件信息占据主列表。"
+
+msgid "Adapter capabilities and details"
+msgstr "网卡能力与详情"
+
+msgid "Network adapter"
+msgstr "网络适配器"

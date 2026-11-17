@@ -47,7 +47,7 @@ return view.extend({
 		const stats = E('div', { 'class': 'pm-overview-stats' }, [
 			statCard(_('System profile'), profile.healthy
 				? (profile.degraded ? _('Degraded') : _('Healthy'))
-				: _('Unmet')),
+				: _('Needs attention')),
 			statCard(_('Health guard'), guard.pass ? _('Passed') : _('Blocked')),
 			statCard(_('Automation mode'), labels.automation(s.automation))
 		]);

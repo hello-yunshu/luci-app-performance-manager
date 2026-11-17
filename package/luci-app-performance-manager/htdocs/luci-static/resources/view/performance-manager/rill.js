@@ -49,6 +49,7 @@ return view.extend({
 			: '—';
 		const candidateHistory = s.candidateHistory || {};
 		const eligible = s.autoEligible === true ? _('Ready') : (s.autoEligible === false ? _('Paused') : _('Not evaluated'));
+		const decisionReason = s.reason ? labels.smartReason(s.reason) : (s.selectedActionId === 'pm.noop' ? _('The current configuration meets the policy.') : _('No decision reason is available yet.'));
 		return pu.page(_('Rill smart decisions'), _('Rill ranks actions that passed the Core engine review; the Core engine keeps the final authority to execute them.'), [
 			pu.card(_('Current decision'), E('div', {}, [
 				pu.badge(labels.runtimeStatus(r.status)),
@@ -58,7 +59,7 @@ return view.extend({
 					[_('Confidence'), labels.percent(s.confidence)],
 					[_('Learning stage'), labels.learningStage(s.learningStage)],
 					[_('Last outcome'), outcomeText],
-					[_('Why'), labels.smartReason(s.reason)]
+					[_('Why'), decisionReason]
 				])
 			])),
 			(s.drifted ? pu.note(_('Performance drift detected. Rill Auto temporarily paused.'), 'warning') : null),

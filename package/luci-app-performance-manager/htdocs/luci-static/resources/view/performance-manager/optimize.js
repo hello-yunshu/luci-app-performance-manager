@@ -22,13 +22,13 @@ return view.extend({
 		const actions = (r && r.actions) || [];
 		const nodes = [];
 		const smart = (r && r.smartSelection) || {};
-		const autoState = smart.autoEligible === true ? _('Ready') : (smart.autoEligible === false ? _('Paused') : _('Not evaluated'));
+		const noChangeNeeded = smart.selectedActionId === 'pm.noop';
+		const autoState = noChangeNeeded ? _('No change needed') : (smart.autoEligible === true ? _('Ready') : (smart.autoEligible === false ? _('Paused') : _('Not evaluated')));
 		const smartCard = pu.card(_('Smart policy'), E('div', {}, [
-			pu.badge(smart.autoEligible === true ? _('Ready for automatic action') : (smart.autoEligible === false ? _('Automatic action paused') : _('Automatic action not evaluated')), smart.autoEligible === true ? 'success' : (smart.autoEligible === false ? 'warning' : 'neutral')),
+			pu.badge(noChangeNeeded ? _('No change needed') : (smart.autoEligible === true ? _('Ready for automatic action') : (smart.autoEligible === false ? _('Automatic action paused') : _('Automatic action not evaluated'))), noChangeNeeded ? 'neutral' : (smart.autoEligible === true ? 'success' : (smart.autoEligible === false ? 'warning' : 'neutral'))),
 			pu.kv([
 				[_('Selected action'), labels.actionName(smart.selectedActionId)],
-				[_('Automatic action'), autoState],
-				[_('Why'), labels.smartReason(smart.reason)]
+				[_('Automatic action'), autoState]
 			]),
 			pu.jsonBox({
 				learningStage: smart.learningStage,
@@ -40,7 +40,6 @@ return view.extend({
 				reason: smart.reason
 			}, _('Learning and policy details'))
 		]));
-		if (smart.selectedActionId === 'pm.noop') nodes.push(pu.note(_('Rill recommends keeping the current configuration.'), 'success'));
 		if (smart.drifted) nodes.push(pu.note(_('Performance drift detected. Automatic Rill decisions are temporarily paused.'), 'warning'));
 		if (!actions.length && smart.selectedActionId !== 'pm.noop') nodes.push(pu.note(_('No conservative changes are needed right now.'), 'success'));
 		actions.forEach(function(a) {

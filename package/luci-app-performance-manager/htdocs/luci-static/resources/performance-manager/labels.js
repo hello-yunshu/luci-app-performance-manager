@@ -40,7 +40,7 @@ const RUNTIME_STATUS = {
 	'Runtime · Not provisioned': _('Runtime not provisioned'),
 	'Runtime · Unavailable': _('Runtime unavailable'),
 	'Runtime · Version mismatch': _('Runtime version mismatch'),
-	'Runtime · Error': _('Runtime error'),
+	'Runtime · Error': _('Runtime needs attention'),
 	'Runtime · Missing capabilities': _('Runtime missing capabilities'),
 	'Runtime · Unhealthy': _('Runtime unhealthy'),
 	'Runtime · Learning': _('Runtime learning'),
@@ -80,6 +80,7 @@ const RILL_REASON = {
 	starting: _('The Rill runtime is starting'),
 	'unavailable': _('Runtime unavailable'),
 	'incompatible': _('The Rill runtime is incompatible'),
+	incompatibleRuntime: _('The Rill runtime is incompatible'),
 	unhealthy: _('The Rill runtime is unhealthy'),
 	'runtime-version-mismatch': _('Runtime version mismatch'),
 	'runtime-unavailable': _('The Rill runtime is unavailable'),
@@ -577,6 +578,7 @@ function target(value) {
 	const idx = ref.indexOf(':');
 	if (idx < 0) return UNKNOWN;
 	const kind = ref.slice(0, idx), name = ref.slice(idx + 1);
+	if (kind === 'nic') return _('Network adapter');
 	if (kind === 'netdev') return _('Network interface %s').format(name);
 	if (kind === 'service') return _('Service %s').format(name);
 	if (kind === 'system' && name === 'kernel') return _('System kernel');
