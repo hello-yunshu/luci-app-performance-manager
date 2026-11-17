@@ -155,7 +155,8 @@ async function capture(page, theme, route, width, height, viewId) {
 		if (!metrics.overviewBadgesIntact) failures.push('overview-status-badge-split-across-lines');
 		if (metrics.tabMenu && metrics.tabMenu.activeItems.some(x => !x.visible)) failures.push('active-tab-outside-visible-strip');
 		if (!metrics.tabMenu || metrics.tabMenu.count !== routes.length || metrics.tabMenu.visibleCount !== metrics.tabMenu.count) failures.push('route-tab-outside-visible-strip');
-		if (route.id === 'rill' && (!metrics.rillHeaders || metrics.rillHeaders.length !== 2 || metrics.rillHeaders.some(row => !row.native) || (width <= 600 && metrics.rillHeaders.some(row => row.visible)))) failures.push('mobile-rill-table-headers-not-native');
+		// The feedback table is mounted only after its collapsed details section opens.
+		if (route.id === 'rill' && (!metrics.rillHeaders || metrics.rillHeaders.length < 1 || metrics.rillHeaders.length > 2 || metrics.rillHeaders.some(row => !row.native) || (width <= 600 && metrics.rillHeaders.some(row => row.visible)))) failures.push('rill-table-headers-not-native-or-count-unexpected');
 		if (metrics.truncated.length) failures.push('truncated-non-dropdown-text');
 		if (metrics.darkMode !== theme.dark) failures.push('theme-dark-mode-mismatch');
 		if (metrics.heading !== route.title[langIndex]) failures.push('wrong-view-heading: ' + metrics.heading);
