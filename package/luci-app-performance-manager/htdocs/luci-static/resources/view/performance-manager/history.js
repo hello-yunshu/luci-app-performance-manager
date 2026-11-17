@@ -11,7 +11,7 @@ return view.extend({
 	handleReset: null,
 
 	load: function() {
-		return Promise.all([ pm.transactions(), pm.locks(), pm.history(100) ].map(function(p) {
+		return Promise.all([ pm.transactions(), pm.locks() ].map(function(p) {
 			return p.catch(function(err) {
 				console.error('performance-manager: history load failed', err);
 				return { _loadError: err };
@@ -21,7 +21,30 @@ return view.extend({
 	render: function(data) {
 		if ((data || []).some(function(d) { return d && d._loadError; }))
 			return pu.page(_('History and rollback'), null, pu.note(_('Unable to load this page. Retry the page; if it keeps failing, check the service log.'), 'danger'));
-		const txs = (data[0] && data[0].transactions) || [], locks = (data[1] && data[1].locks) || [], history = (data[2] && data[2].history) || [], runtimeHistory = (data[2] && data[2].runtimeHistory) || [];
+		const txs = (data[0] && data[0].transactions) || [], locks = (data[1] && data[1].locks) || [];
+		const historyOutput = E('div', {}, [ _('Expand to load detailed history and runtime events.') ]);
+		const historyDetails = E('details', { 'class': 'pm-disclosure' }, [
+			E('summary', {}, [ _('Locks and event records') ]),
+			historyOutput
+		]);
+		let historyLoaded = false;
+		historyDetails.addEventListener('toggle', function() {
+			if (!historyDetails.open || historyLoaded) return;
+			historyLoaded = true;
+			historyOutput.replaceChildren(_('Loading diagnostics…'));
+			pm.history(100).then(function(result) {
+				historyOutput.replaceChildren(E('pre', {}, [ JSON.stringify({
+					resourceLocks: locks,
+					actionHistory: (result && result.history) || [],
+					runtimeHistory: (result && result.runtimeHistory) || []
+				}, null, 2) ]));
+			}).catch(function(error) {
+				historyOutput.replaceChildren(E('p', { 'class': 'alert-message warning', 'role': 'status' }, [
+					_('Unable to load diagnostic records: %s').format(error.message || error)
+				]));
+				historyLoaded = false;
+			});
+		});
 		const nodes = [];
 		txs.forEach(function(tx) {
 			const controls = [];
@@ -66,7 +89,7 @@ return view.extend({
 		if (!txs.length) nodes.push(pu.note(_('No transactions are currently recorded.'), 'success'));
 		return pu.page(_('History and rollback'), _('Review pending confirmations, verified rollbacks, and runtime events with their safety context.'), [
 			pu.grid(nodes),
-			pu.card(_('Advanced history details'), pu.jsonBox({ resourceLocks: locks, actionHistory: history, runtimeHistory: runtimeHistory }, _('Locks and event records')))
+			pu.card(_('Advanced history details'), historyDetails)
 		]);
 	}
 });

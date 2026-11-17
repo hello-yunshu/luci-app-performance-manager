@@ -2373,3 +2373,12 @@ msgstr "诊断记录"
 
 msgid "Not reported"
 msgstr "无数据"
+
+msgid "Expand to load recent validated feedback."
+msgstr "展开后加载近期已验证的反馈记录。"
+
+msgid "Show recent validated feedback"
+msgstr "查看近期已验证的反馈"
+
+msgid "Expand to load detailed history and runtime events."
+msgstr "展开后加载详细历史和运行时事件。"

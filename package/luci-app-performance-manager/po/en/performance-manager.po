@@ -2449,3 +2449,12 @@ msgstr "Diagnostic records"
 
 msgid "Not reported"
 msgstr "Not reported"
+
+msgid "Expand to load recent validated feedback."
+msgstr "Expand to load recent validated feedback."
+
+msgid "Show recent validated feedback"
+msgstr "Show recent validated feedback"
+
+msgid "Expand to load detailed history and runtime events."
+msgstr "Expand to load detailed history and runtime events."

@@ -2277,3 +2277,12 @@ msgstr ""
 
 msgid "Not reported"
 msgstr ""
+
+msgid "Expand to load recent validated feedback."
+msgstr ""
+
+msgid "Show recent validated feedback"
+msgstr ""
+
+msgid "Expand to load detailed history and runtime events."
+msgstr ""
