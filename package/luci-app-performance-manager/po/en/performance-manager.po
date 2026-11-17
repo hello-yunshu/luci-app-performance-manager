@@ -2247,3 +2247,59 @@ msgstr "Overview"
 #: package/luci-app-performance-manager/root/usr/share/luci/menu.d/luci-app-performance-manager.json
 msgid "Rill intelligence"
 msgstr "Rill intelligence"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/overview.js:35
+msgid "Performance Manager is running"
+msgstr "Performance Manager is running"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/overview.js:35
+msgid "Performance Manager is stopped"
+msgstr "Performance Manager is stopped"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/overview.js:36
+msgid "Review safeguards and system information below."
+msgstr "Review safeguards and system information below."
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/overview.js:48
+msgid "System profile"
+msgstr "System profile"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/overview.js:49
+msgid "Degraded"
+msgstr "Degraded"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/overview.js:49
+msgid "Healthy"
+msgstr "Healthy"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/overview.js:50
+msgid "Unmet"
+msgstr "Unmet"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/overview.js:51
+msgid "Health guard"
+msgstr "Health guard"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/overview.js:51
+msgid "Passed"
+msgstr "Passed"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/overview.js:51
+msgid "Blocked"
+msgstr "Blocked"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/overview.js:66
+msgid "System Information"
+msgstr "System Information"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/overview.js:70
+msgid "Rill runtime"
+msgstr "Rill runtime"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/overview.js:103
+msgid "No transactions are available yet."
+msgstr "No transactions are available yet."
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/overview.js:130
+msgid "Review system health, current safeguards, and network path status."
+msgstr "Review system health, current safeguards, and network path status."

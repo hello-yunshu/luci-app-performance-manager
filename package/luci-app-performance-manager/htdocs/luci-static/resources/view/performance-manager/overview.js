@@ -26,28 +26,55 @@ return view.extend({
 		/* degraded means "healthy but a recommended package is missing"; an
 		 * unhealthy profile is a different state and must not be labelled
 		 * degraded. */
-		const profileBadge = profile.healthy
-			? (profile.degraded
-				? pu.badge(_('Profile degraded'), 'warning')
-				: pu.badge(_('Profile healthy'), 'success'))
-			: pu.badge(_('Profile unmet'), 'danger');
-		const status = E('div', { 'class': 'pm-overview-status' }, [
-			E('strong', {}, [ _('System status') ]), ' ',
-			pu.badge(s.running ? _('Running') : _('Stopped'), s.running ? 'success' : 'danger'),
-			' ',
-			pu.badge(_('Automation: %s').format(labels.automation(s.automation))),
-			' ',
-			pu.badge(_('Goal: %s').format(labels.goal(s.goal))),
-			' ',
-			pu.badge(labels.runtimeStatus(rill.status)),
-			' ',
-			pu.badge(s.telemetry ? _('Telemetry enabled') : _('Telemetry disabled'), s.telemetry ? 'success' : 'warning'),
-			' ',
-			pu.badge(s.failsafe ? _('Failsafe enabled') : _('Failsafe disabled'), s.failsafe ? 'success' : 'warning'),
-			' ',
-			profileBadge
-		]);
 		const recentTx = txs[0] || {};
+		const overview = [];
+		const statusBanner = E('div', {
+			'class': 'alert-message ' + (s.running ? 'success' : 'warning'),
+			'role': 'status'
+		}, [
+			E('h3', {}, s.running ? _('Performance Manager is running') : _('Performance Manager is stopped')),
+			E('p', {}, _('Review safeguards and system information below.'))
+		]);
+		overview.push(statusBanner);
+
+		function statCard(label, value) {
+			return E('div', { 'class': 'cbi-section pm-overview-stat-card' }, [
+				E('div', { 'class': 'pm-overview-stat-value' }, [ value ]),
+				E('div', { 'class': 'pm-overview-stat-label' }, [ label ])
+			]);
+		}
+
+		const stats = E('div', { 'class': 'pm-overview-stats' }, [
+			statCard(_('System profile'), profile.healthy
+				? (profile.degraded ? _('Degraded') : _('Healthy'))
+				: _('Unmet')),
+			statCard(_('Health guard'), guard.pass ? _('Passed') : _('Blocked')),
+			statCard(_('Topology generation'), s.topologyGeneration == null ? '—' : String(s.topologyGeneration))
+		]);
+		overview.push(stats);
+
+		function table(rows, className) {
+			return E('table', { 'class': 'table ' + (className || '') }, rows.map(function(row) {
+				return E('tr', { 'class': 'tr' }, [
+					E('th', { 'class': 'th', 'scope': 'row' }, [ row[0] ]),
+					E('td', { 'class': 'td' }, [ row[1] == null || row[1] === '' ? '—' : row[1] ])
+				]);
+			}));
+		}
+
+		const serviceInfo = E('div', { 'class': 'cbi-section' }, [
+			E('h3', {}, [ _('System Information') ]),
+			table([
+				[_('Automation mode'), labels.automation(s.automation)],
+				[_('Goal'), labels.goal(s.goal)],
+				[_('Rill runtime'), pu.badge(labels.runtimeStatus(rill.status))],
+				[_('Telemetry'), pu.badge(s.telemetry ? _('Telemetry enabled') : _('Telemetry disabled'), s.telemetry ? 'success' : 'warning')],
+				[_('Failsafe'), pu.badge(s.failsafe ? _('Failsafe enabled') : _('Failsafe disabled'), s.failsafe ? 'success' : 'warning')],
+				[_('Platform'), s.platform && (s.platform.hyperv ? 'Hyper-V' : (s.platform.kvm ? 'KVM' : _('Generic x86')))]
+			], 'pm-overview-info-table')
+		]);
+		overview.push(serviceInfo);
+
 		const recentBody = [
 			pu.kv([
 				[_('Action'), labels.actionName(recentTx.actionId)],
@@ -65,44 +92,41 @@ return view.extend({
 				applyTarget: recentTx.applyTarget,
 				bootId: recentTx.bootId
 			}, _('Technical details')));
-		return pu.page(_('Performance Manager'), _('See system health, active safeguards, and the latest verified action. Confidence and scores are shown as percentages (0–1 maps to 0–100%).'), [
-			status,
-			pu.grid([
-				pu.card(_('System health guard'), E('div', {}, [
-					pu.badge(guard.pass ? _('Health guard passed') : _('Blocked by health guard'), guard.pass ? 'success' : 'warning'),
-					pu.kv([
-						[_('Reasons'), (guard.reasons || []).map(labels.guardReason).join('、') || _('None')],
-						[_('Topology generation'), s.topologyGeneration],
-						[_('Platform'), s.platform && (s.platform.hyperv ? 'Hyper-V' : (s.platform.kvm ? 'KVM' : _('Generic x86')))]
-					])
-				]), 'hero'),
-				pu.card(_('Recent transaction'), E('div', {}, recentBody), txs.length ? null : 'muted')
+
+		overview.push(pu.card(_('System health guard'), E('div', {}, [
+			pu.badge(guard.pass ? _('Health guard passed') : _('Blocked by health guard'), guard.pass ? 'success' : 'warning'),
+			pu.kv([
+				[_('Reasons'), (guard.reasons || []).map(labels.guardReason).join('、') || _('None')]
+			])
+		])));
+
+		overview.push(pu.card(_('Recent transaction'), txs.length ? E('div', {}, recentBody) : pu.note(_('No transactions are available yet.'), 'info')));
+
+		overview.push(pu.card(_('Native Packet Steering'), E('div', {}, [
+			pu.kv([
+				[_('Provider'), labels.provider(s.nativePacketSteering && s.nativePacketSteering.provider)],
+				[_('Availability'), labels.availability(s.nativePacketSteering && s.nativePacketSteering.availability)],
+				[_('Policy'), labels.nativeSteeringPolicy()],
+				[_('Ownership'), labels.ownership(s.nativePacketSteering && s.nativePacketSteering.ownership)]
 			]),
-			pu.grid([
-			pu.card(_('Native Packet Steering'), E('div', {}, [
-				pu.kv([
-					[_('Provider'), labels.provider(s.nativePacketSteering && s.nativePacketSteering.provider)],
-					[_('Availability'), labels.availability(s.nativePacketSteering && s.nativePacketSteering.availability)],
-					[_('Policy'), labels.nativeSteeringPolicy()],
-					[_('Ownership'), labels.ownership(s.nativePacketSteering && s.nativePacketSteering.ownership)]
-				]),
-				s.nativePacketSteering ? pu.jsonBox(s.nativePacketSteering, _('Technical details')) : null
-			])),
-			pu.card(_('Path'), E('div', {}, [
-				pu.kv([
-					[_('LAN → WAN'), labels.routeIdentity(t.paths && t.paths[0] && t.paths[0].routeIdentity)],
-					[_('Workload'), ((t.paths && t.paths[0] && t.paths[0].workloadClass) || []).map(labels.workloadClass).join('、') || _('None')],
-					[_('Stable targets'), ((t.paths && t.paths[0] && t.paths[0].targetRefs) || []).map(labels.target).join('、') || _('None')]
-				]),
-				t.paths && t.paths[0] ? pu.jsonBox({
-					routeIdentity: t.paths[0].routeIdentity,
-					routeProvider: t.paths[0].routeProvider,
-					workloadClass: t.paths[0].workloadClass,
-					targetRefs: t.paths[0].targetRefs
-				}, _('Technical details')) : null
-			]))
+			s.nativePacketSteering ? pu.jsonBox(s.nativePacketSteering, _('Technical details')) : null
+		])));
+
+		overview.push(pu.card(_('Path'), E('div', {}, [
+			pu.kv([
+				[_('LAN → WAN'), labels.routeIdentity(t.paths && t.paths[0] && t.paths[0].routeIdentity)],
+				[_('Workload'), ((t.paths && t.paths[0] && t.paths[0].workloadClass) || []).map(labels.workloadClass).join('、') || _('None')],
+				[_('Stable targets'), ((t.paths && t.paths[0] && t.paths[0].targetRefs) || []).map(labels.target).join('、') || _('None')]
 			]),
-			pu.card(_('Advanced details'), pu.jsonBox({ status: s, topology: t }, _('Status and topology JSON')), 'muted')
-		]);
+			t.paths && t.paths[0] ? pu.jsonBox({
+				routeIdentity: t.paths[0].routeIdentity,
+				routeProvider: t.paths[0].routeProvider,
+				workloadClass: t.paths[0].workloadClass,
+				targetRefs: t.paths[0].targetRefs
+			}, _('Technical details')) : null
+		])));
+
+		overview.push(pu.card(_('Advanced details'), pu.jsonBox({ status: s, topology: t }, _('Status and topology JSON'))));
+		return pu.page(_('Performance Manager'), _('Review system health, current safeguards, and network path status.'), overview);
 	}
 });

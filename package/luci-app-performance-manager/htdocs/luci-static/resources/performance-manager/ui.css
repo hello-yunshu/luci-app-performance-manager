@@ -4,12 +4,29 @@
 .pm-button--busy { cursor: progress; opacity: .78; }
 .pm-button--busy:disabled { cursor: not-allowed; opacity: .62; }
 
-/* Keep each overview status badge intact while allowing the group to wrap. */
-.pm-overview-status {
-	display: flex; flex-wrap: wrap; align-items: center; gap: .35rem; margin: .5em 0;
+/* Match the sibling plugin overviews: theme-native CBI summary surfaces in a
+ * compact responsive grid, with the theme retaining the card appearance. */
+.pm-overview-stats {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+	gap: 1em;
+	margin-bottom: 1em;
 }
-.pm-overview-status .label { white-space: nowrap; }
-
+#maincontent .pm-overview-stats > .pm-overview-stat-card { margin: 0; }
+.pm-overview-stat-card {
+	min-width: 0;
+	text-align: center;
+}
+.pm-overview-stat-value {
+	font-size: 1.8em;
+	font-weight: bold;
+	line-height: 1.2;
+	overflow-wrap: anywhere;
+}
+.pm-overview-stat-label {
+	margin-top: .3em;
+	font-size: .85em;
+}
 /* ===== Benchmark Stage List ===== */
 .pm-stage-list {
 	display: grid; grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
