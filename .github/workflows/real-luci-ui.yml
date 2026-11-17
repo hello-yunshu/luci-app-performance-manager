@@ -58,12 +58,19 @@ jobs:
           echo 'OpenWrt container did not start' >&2
           exit 1
       - name: Install real LuCI and Performance Manager runtime dependencies
+        timeout-minutes: 12
         run: |
           set -euo pipefail
+          echo 'Checking OpenWrt release feed from the runner host'
+          curl -fsSI --max-time 15 \
+            https://downloads.openwrt.org/releases/24.10.8/packages/x86_64/base/Packages.gz \
+            >/dev/null
+          echo 'Checking OpenWrt container network configuration'
+          docker exec pm-ui-gate sh -c 'ip route; cat /etc/resolv.conf; command -v uclient-fetch'
           updated=false
           for attempt in 1 2 3; do
             echo "OpenWrt opkg update attempt $attempt"
-            if timeout --kill-after=10s 300s docker exec pm-ui-gate opkg update; then
+            if timeout --foreground --kill-after=10s 120s docker exec pm-ui-gate opkg update; then
               updated=true
               break
             fi
