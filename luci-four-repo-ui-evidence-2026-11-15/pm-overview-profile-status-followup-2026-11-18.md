@@ -1,0 +1,9 @@
+# PM overview: profile status clarity follow-up
+
+- Device: OpenWrt 25.12.5 x86/64, LuCI 25.12.5; Aurora Dark, Chinese, Edge desktop viewport about 1298×768.
+- Installed overview JavaScript SHA-256 matches the checked-out candidate `a31feb46d369356709d4bab93839901a0f0a8090` (`385ff9d673da147e6104f164e2073af49fcfd03996b7b0378806a978cb59fa1b`).
+- Live overview showed `系统配置方案: 需要处理` beside `健康保护: 已通过`. Read-only `ubus call performance-manager status` confirmed this was real profile state, not a theme rendering defect: no required packages were missing, while recommended `tc-tiny`, `ss`, `nstat`, and `kmod-sched-core` were absent and the corresponding `tc`, `ss`, and `nstat` commands were unavailable. The core service was running and the health guard passed.
+- UX issue: the profile card did not explain the reason for its warning, so it looked inconsistent with the passing health guard. The overview now labels the profile `Incomplete` / `未完整配置` and adds a short reason for missing recommended testing and diagnostic tools. It also covers required components, unavailable capabilities, and degraded optional components. No device configuration or package state was changed during the read-only audit.
+- Styling uses a small native `<small>` note and spacing-only CSS; no theme colors or surfaces are overridden. The CSS cache key was advanced.
+- Local checks after the change: `tests/test_contracts.py` (31 passed), `tests/test_profiles.py` (3 passed), English and Chinese `msgfmt --check`, and `git diff --check` all passed.
+- Pending: build this exact revision with GitHub Actions, install its artifact on OpenWrt, verify the live Chinese status explanation and English translation, then complete the existing theme/language/viewport visual gate and manually review its screenshots. This is not yet a device acceptance result.

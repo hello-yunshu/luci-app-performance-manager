@@ -27,6 +27,11 @@
 	margin-top: .3em;
 	font-size: .85em;
 }
+.pm-overview-stat-note {
+	display: block;
+	margin-top: .35em;
+	line-height: 1.35;
+}
 
 /* Related CBI sections share a responsive grid; card surfaces and typography
  * remain entirely owned by the active LuCI theme. */

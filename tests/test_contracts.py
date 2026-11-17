@@ -371,7 +371,10 @@ class AuditConvergenceTests(unittest.TestCase):
         ui = (ROOT / "package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/overview.js").read_text()
         self.assertIn("profile.healthy", ui)
         self.assertIn("profile.degraded ? _('Degraded') : _('Healthy')", ui)
-        self.assertIn("_('Needs attention')", ui)
+        self.assertIn("_('Incomplete')", ui)
+        self.assertIn("_('Some recommended testing and diagnostic tools are missing.')", ui)
+        self.assertIn("profile.missingCommands", ui)
+        self.assertNotIn("_('Needs attention')", ui)
         self.assertNotIn("profile.healthy ? _('Healthy') : _('Degraded')", ui)
 
 

@@ -2212,6 +2212,30 @@ msgstr "已降级"
 msgid "Healthy"
 msgstr "健康"
 
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/overview.js
+msgid "Incomplete"
+msgstr "未完整配置"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/overview.js
+msgid "Required components are unavailable."
+msgstr "必需组件当前不可用。"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/overview.js
+msgid "Some recommended testing and diagnostic tools are missing."
+msgstr "部分推荐的测试和诊断工具尚未安装。"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/overview.js
+msgid "Some profile capabilities are unavailable."
+msgstr "部分方案能力当前不可用。"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/overview.js
+msgid "Review profile details for unavailable components."
+msgstr "请查看方案详情，了解不可用的组件。"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/overview.js
+msgid "Some optional components are missing."
+msgstr "部分可选组件尚未安装。"
+
 #: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/overview.js:50
 msgid "Unmet"
 msgstr "未满足"

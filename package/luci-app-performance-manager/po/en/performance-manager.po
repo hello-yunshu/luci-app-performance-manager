@@ -2288,6 +2288,30 @@ msgstr "Degraded"
 msgid "Healthy"
 msgstr "Healthy"
 
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/overview.js
+msgid "Incomplete"
+msgstr "Incomplete"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/overview.js
+msgid "Required components are unavailable."
+msgstr "Required components are unavailable."
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/overview.js
+msgid "Some recommended testing and diagnostic tools are missing."
+msgstr "Some recommended testing and diagnostic tools are missing."
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/overview.js
+msgid "Some profile capabilities are unavailable."
+msgstr "Some profile capabilities are unavailable."
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/overview.js
+msgid "Review profile details for unavailable components."
+msgstr "Review profile details for unavailable components."
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/overview.js
+msgid "Some optional components are missing."
+msgstr "Some optional components are missing."
+
 #: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/overview.js:50
 msgid "Unmet"
 msgstr "Unmet"

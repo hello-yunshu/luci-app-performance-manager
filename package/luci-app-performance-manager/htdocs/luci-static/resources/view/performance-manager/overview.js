@@ -37,17 +37,36 @@ return view.extend({
 		]);
 		overview.push(statusBanner);
 
-		function statCard(label, value) {
-			return E('div', { 'class': 'cbi-section pm-overview-stat-card' }, [
+		function statCard(label, value, note) {
+			const children = [
 				E('div', { 'class': 'pm-overview-stat-value' }, [ value ]),
 				E('div', { 'class': 'pm-overview-stat-label' }, [ label ])
-			]);
+			];
+			if (note)
+				children.push(E('small', { 'class': 'pm-overview-stat-note' }, [ note ]));
+			return E('div', { 'class': 'cbi-section pm-overview-stat-card' }, children);
+		}
+
+		let profileValue = profile.healthy
+			? (profile.degraded ? _('Degraded') : _('Healthy'))
+			: _('Incomplete');
+		let profileNote = '';
+		if (!profile.healthy) {
+			if ((profile.missingRequiredPackages || []).length)
+				profileNote = _('Required components are unavailable.');
+			else if ((profile.missingCommands || []).length || (profile.missingRecommendedPackages || []).length)
+				profileNote = _('Some recommended testing and diagnostic tools are missing.');
+			else if ((profile.missingCapabilities || []).length || (profile.missingConditionalPackages || []).length)
+				profileNote = _('Some profile capabilities are unavailable.');
+			else
+				profileNote = _('Review profile details for unavailable components.');
+		}
+		else if (profile.degraded) {
+			profileNote = _('Some optional components are missing.');
 		}
 
 		const stats = E('div', { 'class': 'pm-overview-stats' }, [
-			statCard(_('System profile'), profile.healthy
-				? (profile.degraded ? _('Degraded') : _('Healthy'))
-				: _('Needs attention')),
+			statCard(_('System profile'), profileValue, profileNote),
 			statCard(_('Health guard'), guard.pass ? _('Passed') : _('Blocked')),
 			statCard(_('Automation mode'), labels.automation(s.automation))
 		]);
