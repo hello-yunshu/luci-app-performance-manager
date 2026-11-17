@@ -110,6 +110,6 @@ return view.extend({
 			topology: t,
 			nativePacketSteering: s.nativePacketSteering || {}
 		}, _('Status, path and provider details'))));
-		return pu.page(_('Performance Manager'), _('Review system health, current safeguards, and network path status.'), overview);
+		return pu.page(_('Performance Manager'), null, overview);
 	}
 });
