@@ -122,10 +122,14 @@ function badge(text, kind) {
 function page(title, description, content) {
 	ensureStyles();
 	const body = (Array.isArray(content) ? content : [ content ]).filter(function(node) { return node != null; });
+	const header = [ E('h2', { 'name': 'content' }, [ title ]) ];
+	if (description)
+		header.push(E('p', { 'class': 'cbi-map-descr' }, [ description ]));
 	return E('div', { 'class': 'cbi-map' }, [
-		E('h2', { 'name': 'content' }, [ title ]),
-		description ? E('p', { 'class': 'cbi-map-descr' }, [ description ]) : null
-	].concat(body).concat([ renderFooter(FOOTER_OPTIONS) ]));
+		...header,
+		...body,
+		renderFooter(FOOTER_OPTIONS)
+	]);
 }
 
 function card(title, body) {
