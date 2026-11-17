@@ -2404,5 +2404,20 @@ msgstr "展开后加载近期已验证的反馈记录。"
 msgid "Show recent validated feedback"
 msgstr "查看近期已验证的反馈"
 
+msgid "Loading feedback…"
+msgstr "正在加载反馈记录…"
+
+msgid "Loading history…"
+msgstr "正在加载历史记录…"
+
+msgid "Expand to view recent history summaries."
+msgstr "展开后查看近期历史摘要。"
+
+msgid "Unable to load history records: %s"
+msgstr "无法加载历史记录：%s"
+
+msgid "Unable to load feedback records: %s"
+msgstr "无法加载反馈记录：%s"
+
 msgid "Expand to load detailed history and runtime events."
 msgstr "展开后加载详细历史和运行时事件。"

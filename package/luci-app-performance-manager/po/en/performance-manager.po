@@ -2480,5 +2480,20 @@ msgstr "Expand to load recent validated feedback."
 msgid "Show recent validated feedback"
 msgstr "Show recent validated feedback"
 
+msgid "Loading feedback…"
+msgstr "Loading feedback…"
+
+msgid "Loading history…"
+msgstr "Loading history…"
+
+msgid "Expand to view recent history summaries."
+msgstr "Expand to view recent history summaries."
+
+msgid "Unable to load history records: %s"
+msgstr "Unable to load history records: %s"
+
+msgid "Unable to load feedback records: %s"
+msgstr "Unable to load feedback records: %s"
+
 msgid "Expand to load detailed history and runtime events."
 msgstr "Expand to load detailed history and runtime events."

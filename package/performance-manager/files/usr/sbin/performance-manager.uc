@@ -581,6 +581,53 @@ function read_lines(path, max_lines) {
 	return out;
 }
 
+function rill_feedback_list(limit) {
+	let rows = read_lines(`${state_dir()}/history.jsonl`, MAX_HISTORY_LINES);
+	rows = filter(rows, function(row) {
+		return match(row?.event ?? '', /^rill\.outcome\.(accepted|reconciled)$/);
+	});
+	if (length(rows) > limit)
+		rows = slice(rows, length(rows) - limit);
+	let feedback = [];
+	for (let row in rows) {
+		let data = row.data ?? {};
+		push(feedback, {
+			event: row.event,
+			data: {
+				actionId: data.actionId ?? null,
+				goal: data.goal ?? null,
+				reward: data.reward ?? null,
+				measurementQuality: data.measurementQuality ?? null,
+				accepted: data.accepted === true || row.event == 'rill.outcome.accepted'
+			}
+		});
+	}
+	return feedback;
+}
+
+function history_summary_row(row) {
+	let data = row.data ?? {};
+	return {
+		bootId: row.bootId ?? null,
+		monotonicMs: row.monotonicMs ?? null,
+		event: row.event ?? null,
+		data: {
+			transactionId: data.transactionId ?? data.id ?? null,
+			actionId: data.actionId ?? null,
+			state: data.state ?? null,
+			target: data.applyTarget ?? data.target ?? null,
+			phase: data.phase ?? null,
+			measurementClass: data.measurementClass ?? null,
+			ok: data.ok ?? null,
+			reason: type(data.reason ?? data.error) == 'string' ? substr(data.reason ?? data.error, 0, 160) : null
+		}
+	};
+}
+
+function history_summary(path, limit) {
+	return map(read_lines(path, limit), history_summary_row);
+}
+
 function stable_target(runtime) {
 	let base = `/sys/class/net/${runtime}`;
 	let devlink = fs.realpath(`${base}/device`);
@@ -4507,6 +4554,19 @@ let obj = conn.publish(UBUS_NAME, {
 		let clamped = limit > MAX_HISTORY_LINES;
 		if (clamped) limit = MAX_HISTORY_LINES;
 		reply(req, { history: read_lines(`${persist_dir()}/history.jsonl`, limit), runtimeHistory: read_lines(`${state_dir()}/history.jsonl`, limit), limit:limit, clamped:clamped });
+	} },
+	history_summary: { args: rpc_args({ limit: 0 }), call: function(req) {
+		let limit = min(50, max(1, int(req.args?.limit ?? 50)));
+		reply(req, {
+			resourceLocks: lock_list(),
+			actionHistory: history_summary(`${persist_dir()}/history.jsonl`, limit),
+			runtimeHistory: history_summary(`${state_dir()}/history.jsonl`, limit),
+			limit: limit
+		});
+	} },
+	rill_feedback: { args: rpc_args({ limit: 0 }), call: function(req) {
+		let requested = int(req.args?.limit ?? 5), limit = min(5, max(1, requested));
+		reply(req, { feedback: rill_feedback_list(limit), limit: limit });
 	} },
 	apply: { args: rpc_args({ actionId: 'string', target: 'string', executionSource: 'string', decisionId: 'string' }), call: function(req) { reply(req, apply_action(req.args ?? {})); } },
 	confirm: { args: rpc_args({ transactionId: 'string' }), call: function(req) { reply(req, confirm_transaction(req.args?.transactionId)); } },

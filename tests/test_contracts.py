@@ -377,6 +377,24 @@ class AuditConvergenceTests(unittest.TestCase):
         self.assertNotIn("_('Needs attention')", ui)
         self.assertNotIn("profile.healthy ? _('Healthy') : _('Degraded')", ui)
 
+    def test_rill_feedback_uses_a_small_runtime_only_contract(self):
+        ui = (ROOT / "package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/rill.js").read_text()
+        history_ui = (ROOT / "package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/history.js").read_text()
+        api = (ROOT / "package/luci-app-performance-manager/htdocs/luci-static/resources/performance-manager/api.js").read_text()
+        core = (ROOT / "package/performance-manager/files/usr/sbin/performance-manager.uc").read_text()
+        acl = json.loads((ROOT / "package/luci-app-performance-manager/root/usr/share/rpcd/acl.d/luci-app-performance-manager.json").read_text())
+        self.assertIn("pm.rillFeedback(5)", ui)
+        self.assertNotIn("pm.history(50)", ui)
+        self.assertIn("method: 'rill_feedback'", api)
+        self.assertIn("pm.historySummary(50)", history_ui)
+        self.assertNotIn("pm.history(100)", history_ui)
+        self.assertIn("method: 'history_summary'", api)
+        self.assertIn("read_lines(`${state_dir()}/history.jsonl`, MAX_HISTORY_LINES)", core)
+        self.assertIn(r"rill\.outcome\.(accepted|reconciled)", core)
+        self.assertIn("function history_summary_row(row)", core)
+        self.assertIn("rill_feedback", acl["luci-app-performance-manager"]["read"]["ubus"]["performance-manager"])
+        self.assertIn("history_summary", acl["luci-app-performance-manager"]["read"]["ubus"]["performance-manager"])
+
 
     def test_harness_strips_multiline_ubus_startup_guard(self):
         import subprocess

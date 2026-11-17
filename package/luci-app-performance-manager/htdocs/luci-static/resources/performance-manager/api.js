@@ -11,6 +11,8 @@ return baseclass.extend({
 		this.transactions = rpc.declare({ object: 'performance-manager', method: 'transactions', params: [] });
 		this.locks = rpc.declare({ object: 'performance-manager', method: 'locks', params: [] });
 		this.history = rpc.declare({ object: 'performance-manager', method: 'history', params: [ 'limit' ] });
+		this.historySummary = rpc.declare({ object: 'performance-manager', method: 'history_summary', params: [ 'limit' ] });
+		this.rillFeedback = rpc.declare({ object: 'performance-manager', method: 'rill_feedback', params: [ 'limit' ] });
 		this.rill = rpc.declare({ object: 'performance-manager', method: 'rill_status', params: [] });
 		this.rillRefresh = rpc.declare({ object: 'performance-manager', method: 'rill_refresh', params: [] });
 		this.resources = rpc.declare({ object: 'performance-manager', method: 'resources', params: [] });

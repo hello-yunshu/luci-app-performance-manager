@@ -50,11 +50,9 @@ return view.extend({
 		feedbackDetails.addEventListener('toggle', function() {
 			if (!feedbackDetails.open || feedbackLoaded) return;
 			feedbackLoaded = true;
-			feedbackOutput.replaceChildren(_('Loading diagnostics…'));
-			pm.history(50).then(function(history) {
-				const feedback = ((history && history.history) || []).filter(function(row) {
-					return /^rill\.outcome\.(accepted|reconciled)/.test(row.event || '');
-				}).slice(-5).reverse();
+			feedbackOutput.replaceChildren(_('Loading feedback…'));
+			pm.rillFeedback(5).then(function(result) {
+				const feedback = ((result && result.feedback) || []).slice().reverse();
 				const feedbackRows = feedback.length ? feedback.map(function(row) {
 					const d = row.data || {};
 					return E('tr', { 'class': 'tr' }, [
@@ -77,7 +75,7 @@ return view.extend({
 				feedbackOutput.replaceChildren(feedbackTable);
 			}).catch(function(error) {
 				feedbackOutput.replaceChildren(E('p', { 'class': 'alert-message warning', 'role': 'status' }, [
-					_('Unable to load diagnostic records: %s').format(error.message || error)
+					_('Unable to load feedback records: %s').format(error.message || error)
 				]));
 				feedbackLoaded = false;
 			});

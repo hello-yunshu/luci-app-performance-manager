@@ -22,7 +22,7 @@ return view.extend({
 		if ((data || []).some(function(d) { return d && d._loadError; }))
 			return pu.page(_('History and rollback'), null, pu.note(_('Unable to load this page. Retry the page; if it keeps failing, check the service log.'), 'danger'));
 		const txs = (data[0] && data[0].transactions) || [], locks = (data[1] && data[1].locks) || [];
-		const historyOutput = E('div', {}, [ _('Expand to load detailed history and runtime events.') ]);
+		const historyOutput = E('div', {}, [ _('Expand to view recent history summaries.') ]);
 		const historyDetails = E('details', { 'class': 'pm-disclosure' }, [
 			E('summary', {}, [ _('Locks and event records') ]),
 			historyOutput
@@ -31,16 +31,16 @@ return view.extend({
 		historyDetails.addEventListener('toggle', function() {
 			if (!historyDetails.open || historyLoaded) return;
 			historyLoaded = true;
-			historyOutput.replaceChildren(_('Loading diagnostics…'));
-			pm.history(100).then(function(result) {
+			historyOutput.replaceChildren(_('Loading history…'));
+			pm.historySummary(50).then(function(result) {
 				historyOutput.replaceChildren(E('pre', {}, [ JSON.stringify({
-					resourceLocks: locks,
-					actionHistory: (result && result.history) || [],
+					resourceLocks: (result && result.resourceLocks) || locks,
+					actionHistory: (result && result.actionHistory) || [],
 					runtimeHistory: (result && result.runtimeHistory) || []
 				}, null, 2) ]));
 			}).catch(function(error) {
 				historyOutput.replaceChildren(E('p', { 'class': 'alert-message warning', 'role': 'status' }, [
-					_('Unable to load diagnostic records: %s').format(error.message || error)
+					_('Unable to load history records: %s').format(error.message || error)
 				]));
 				historyLoaded = false;
 			});
