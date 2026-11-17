@@ -112,7 +112,7 @@ class ContractTests(unittest.TestCase):
         self.assertIn('featureSchemaHash', core)
         self.assertIn('featureSchemaHash', harness)
         self.assertIn('"featureSchemaHash": schema_hash', harness)
-        self.assertIn('partitionKey: "performance-manager"', core)
+        self.assertIn("partitionKey: 'performance-manager'", core)
         self.assertIn('"partitionKey": "performance-manager"', harness)
         self.assertNotIn('clientIdentityName', core[core.index('let request = {'):core.index("if (op == 'status')")])
 
