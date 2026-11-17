@@ -2400,3 +2400,6 @@ msgstr "Adapter capabilities and details"
 
 msgid "Network adapter"
 msgstr "Network adapter"
+
+msgid "Rill unavailable"
+msgstr "Rill unavailable"

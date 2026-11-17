@@ -23,9 +23,21 @@ return view.extend({
 		const nodes = [];
 		const smart = (r && r.smartSelection) || {};
 		const noChangeNeeded = smart.selectedActionId === 'pm.noop';
-		const autoState = noChangeNeeded ? _('No change needed') : (smart.autoEligible === true ? _('Ready') : (smart.autoEligible === false ? _('Paused') : _('Not evaluated')));
+		const rillUnavailable = !!smart.rillState && smart.rillState !== 'available' && smart.rillState !== 'learning';
+		const autoState = rillUnavailable ? _('Rill unavailable') :
+			noChangeNeeded ? _('No change needed') :
+			smart.autoEligible === true ? _('Ready') :
+			smart.autoEligible === false ? _('Paused') : _('Not evaluated');
+		const statusText = rillUnavailable ? _('Rill unavailable') :
+			noChangeNeeded ? _('No change needed') :
+			smart.autoEligible === true ? _('Ready for automatic action') :
+			smart.autoEligible === false ? _('Automatic action paused') : _('Automatic action not evaluated');
+		const statusTone = rillUnavailable ? 'warning' :
+			noChangeNeeded ? 'neutral' :
+			smart.autoEligible === true ? 'success' :
+			smart.autoEligible === false ? 'warning' : 'neutral';
 		const smartCard = pu.card(_('Smart policy'), E('div', {}, [
-			pu.badge(noChangeNeeded ? _('No change needed') : (smart.autoEligible === true ? _('Ready for automatic action') : (smart.autoEligible === false ? _('Automatic action paused') : _('Automatic action not evaluated'))), noChangeNeeded ? 'neutral' : (smart.autoEligible === true ? 'success' : (smart.autoEligible === false ? 'warning' : 'neutral'))),
+			pu.badge(statusText, statusTone),
 			pu.kv([
 				[_('Selected action'), labels.actionName(smart.selectedActionId)],
 				[_('Automatic action'), autoState]
