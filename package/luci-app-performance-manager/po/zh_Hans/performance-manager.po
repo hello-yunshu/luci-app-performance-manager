@@ -2370,3 +2370,6 @@ msgstr "无法加载诊断记录：%s"
 
 msgid "Diagnostic records"
 msgstr "诊断记录"
+
+msgid "Not reported"
+msgstr "无数据"
