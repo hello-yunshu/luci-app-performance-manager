@@ -39,6 +39,7 @@ return view.extend({
 				return E('tr', { 'class': 'tr', 'aria-current': row.actionId === s.selectedCandidateId ? 'true' : 'false' }, [ E('td', { 'class': 'td', 'data-title': _('Rank') }, [ String(i + 1) ]), E('td', { 'class': 'td', 'data-title': _('Candidate') }, [ labels.actionName(row.actionId) ]), E('td', { 'class': 'td', 'data-title': _('Score') }, [ labels.percent(row.score) ]), E('td', { 'class': 'td', 'data-title': _('Eligibility') }, [ row.actionId === s.selectedCandidateId ? _('Selected') : (blocked ? labels.smartReason(blocked.reason) : _('Eligible')) ]), E('td', { 'class': 'td', 'data-title': _('Cooldown') }, [ blocked && blocked.cooldownRemaining ? labels.duration(blocked.cooldownRemaining) : '—' ]) ]);
 			}) : [ E('tr', { 'class': 'tr' }, [ E('td', { 'class': 'td', 'colspan': '5', 'data-title': _('Rank') }, [ _('No ranking is available yet. Refresh the decision or wait for the next evaluation.') ]) ]) ];
 		const table = E('div', { 'class': 'pu-table-scroll' }, [ E('table', { 'class': 'table' }, [ E('caption', { 'class': 'pm-visually-hidden' }, [ _('Ranking table') ]), E('thead', {}, [ E('tr', { 'class': 'tr cbi-section-table-titles' }, [ E('th', { 'class': 'th' }, [ _('Rank') ]), E('th', { 'class': 'th' }, [ _('Candidate') ]), E('th', { 'class': 'th' }, [ _('Score') ]), E('th', { 'class': 'th' }, [ _('Eligibility') ]), E('th', { 'class': 'th' }, [ _('Cooldown') ]) ]) ]), E('tbody', {}, rows) ]) ]);
+		const rankingActions = pu.toolbar([ refresh ]);
 		const context = s.context || {};
 		const feedback = (history.history || []).filter(function(row) { return /^rill\.outcome\.(accepted|reconciled)/.test(row.event || ''); }).slice(-5).reverse();
 		const feedbackRows = feedback.length ? feedback.map(function(row) { const d = row.data || {}; return E('tr', { 'class': 'tr' }, [ E('td', { 'class': 'td', 'data-title': _('Candidate') }, [ labels.actionName(d.actionId) ]), E('td', { 'class': 'td', 'data-title': _('Goal') }, [ labels.goal(d.goal || s.goal) ]), E('td', { 'class': 'td', 'data-title': _('Reward') }, [ labels.percent(d.reward) ]), E('td', { 'class': 'td', 'data-title': _('Quality') }, [ labels.measurementQuality(d.measurementQuality) ]), E('td', { 'class': 'td', 'data-title': _('Result') }, [ d.accepted === true ? _('Accepted') : _('Reconciled') ]) ]); }) : [ E('tr', { 'class': 'tr' }, [ E('td', { 'class': 'td', 'colspan': '5', 'data-title': _('Candidate') }, [ _('No validated feedback yet.') ]) ]) ];
@@ -59,7 +60,9 @@ return view.extend({
 					[_('Last outcome'), outcomeText]
 				]),
 				pu.jsonBox({ runtime: r, decisionId: s.decisionId, selectedCandidateId: s.selectedCandidateId, lastOutcome: s.lastOutcome }, _('Technical details'))
-			]), 'hero'),
+			])),
+			(s.drifted ? pu.note(_('Performance drift detected. Rill Auto temporarily paused.'), 'warning') : null),
+			pu.note(_('Rill provides observation and recommendations only. It cannot write UCI, sysctl, or firewall state, execute arbitrary shell commands, or apply actions.'), 'info'),
 			pu.grid([
 				pu.card(_('Decision context'), E('div', {}, [
 					pu.kv([
@@ -72,7 +75,7 @@ return view.extend({
 						[_('Integration'), labels.integrationSummary(context.integrationState)]
 					]),
 					pu.jsonBox({ context: context }, _('Technical details'))
-				]), 'muted'),
+				])),
 				pu.card(_('Selected candidate details'), E('div', {}, [
 					pu.kv([
 						[_('Business action'), labels.actionName(s.selectedActionId)],
@@ -85,7 +88,7 @@ return view.extend({
 					]),
 					E('p', { 'class': 'cbi-value-description' }, [ _('Candidate identifiers are kept in technical details so long identifiers do not crowd the page.') ]),
 					pu.jsonBox({ candidateHistory: candidateHistory }, _('Technical details'))
-				]), 'muted'),
+				])),
 				pu.card(_('Learning status'), E('div', {}, [
 					pu.kv([
 						[_('Learning stage'), labels.learningStage(s.learningStage)],
@@ -99,15 +102,13 @@ return view.extend({
 						[_('Policy reason'), labels.smartReason(s.reason)]
 					]),
 					pu.jsonBox({ learningStage: s.learningStage, confidence: s.confidence, lastReward: s.lastReward, lastRewardComponents: s.lastRewardComponents, reason: s.reason }, _('Technical details'))
-				]), 'muted')
+				]))
 			]),
 			pu.grid([
-				pu.card(_('Top ranking'), E('div', {}, [ pu.tableWrap(table), E('div', { 'class': 'pm-rill-ranking-actions' }, [ pu.toolbar([ refresh ]) ]) ])),
+				pu.card(_('Top ranking'), E('div', {}, [ rankingActions, pu.tableWrap(table) ])),
 				pu.card(_('Recent feedback'), pu.tableWrap(feedbackTable))
 			]),
-			(s.drifted ? pu.note(_('Performance drift detected. Rill Auto temporarily paused.'), 'warning') : null),
-			pu.note(_('Rill provides observation and recommendations only. It cannot write UCI, sysctl, or firewall state, execute arbitrary shell commands, or apply actions.'), 'info'),
-			pu.card(_('Rill details'), pu.jsonBox({ runtime: r, selection: s, advisory: rec.learnedAdvisory || [] }, _('Raw Rill contract')), 'muted')
+			pu.card(_('Rill details'), pu.jsonBox({ runtime: r, selection: s, advisory: rec.learnedAdvisory || [] }, _('Raw Rill contract')))
 		]);
 	}
 });

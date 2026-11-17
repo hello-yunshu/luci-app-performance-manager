@@ -2226,3 +2226,7 @@ msgstr ""
 #: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/overview.js:130
 msgid "Review system health, current safeguards, and network path status."
 msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/benchmark.js:130
+msgid "Test setup and progress"
+msgstr ""

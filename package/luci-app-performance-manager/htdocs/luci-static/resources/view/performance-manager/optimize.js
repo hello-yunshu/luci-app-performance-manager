@@ -42,7 +42,7 @@ return view.extend({
 				coreRecommendation: smart.coreRecommendation,
 				reason: smart.reason
 			}, _('Technical details'))
-		]), smart.drifted ? 'warning' : 'hero');
+		]));
 		if (smart.selectedActionId === 'pm.noop') nodes.push(pu.note(_('Rill recommends keeping the current configuration.'), 'success'));
 		if (smart.drifted) nodes.push(pu.note(_('Performance drift detected. Automatic Rill decisions are temporarily paused.'), 'warning'));
 		if (!actions.length && smart.selectedActionId !== 'pm.noop') nodes.push(pu.note(_('No conservative changes are needed right now.'), 'success'));
@@ -73,7 +73,7 @@ return view.extend({
 				]),
 				pu.jsonBox({ id: a.id, applyTarget: a.applyTarget, risk: a.risk, reason: a.reason }, _('Technical details')),
 				E('div', {}, [ apply ])
-			]), 'action'));
+			])));
 		});
 		((r && r.observations) || []).forEach(function(o) {
 			nodes.push(pu.card(labels.capabilityName(o.id), E('div', {}, [

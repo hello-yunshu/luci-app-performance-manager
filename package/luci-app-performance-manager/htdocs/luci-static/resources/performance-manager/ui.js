@@ -150,7 +150,7 @@ function jsonBox(obj, label) {
 }
 
 function grid(items) {
-	return E('div', {}, items);
+	return E('div', { 'class': 'pm-grid' }, items);
 }
 
 function toolbar(items) {
@@ -173,9 +173,13 @@ function field(label, control, help) {
 	]);
 }
 
-function inset(title, body) {
-	return E('div', { 'class': 'cbi-section' }, [
-		title ? E('h4', {}, [ title ]) : null,
+function inset(title, body, kind) {
+	const alertKind = ({ warning: 'warning', danger: 'danger', info: 'info', success: 'success' })[kind];
+	const attrs = { 'class': alertKind ? 'alert-message ' + alertKind : 'cbi-section' };
+	if (alertKind)
+		attrs.role = 'status';
+	return E('div', attrs, [
+		title ? E(alertKind ? 'h3' : 'h4', {}, [ title ]) : null,
 		body
 	]);
 }

@@ -27,19 +27,29 @@
 	margin-top: .3em;
 	font-size: .85em;
 }
+
+/* Related CBI sections share a responsive grid; card surfaces and typography
+ * remain entirely owned by the active LuCI theme. */
+.pm-grid {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(min(100%, 20rem), 1fr));
+	gap: calc(var(--spacing, .25rem) * 4);
+	align-items: start;
+}
+#maincontent .pm-grid > .cbi-section {
+	min-width: 0;
+	margin: 0;
+}
+.pm-grid > .alert-message { grid-column: 1 / -1; }
+
 /* ===== Benchmark Stage List ===== */
 .pm-stage-list {
 	display: grid; grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
-	gap: .75rem; margin: .9rem 0 0; padding: 0; list-style: none;
+	gap: calc(var(--spacing, .25rem) * 3); margin: .9rem 0 0; padding: 0; list-style: none;
 }
 .pm-stage {
-	display: flex; flex-direction: column; justify-content: space-between;
-	gap: .45rem; padding: .7rem; border: 1px solid; border-radius: 6px;
-	font-size: .8em; overflow-wrap: anywhere;
-}
-.pm-stage--active { outline: 2px solid currentColor; }
-.pm-stage-status {
-	font-size: .72em; font-weight: 700; letter-spacing: .04em; text-transform: uppercase;
+	display: flex; align-items: flex-start; gap: calc(var(--spacing, .25rem) * 2);
+	min-width: 0; overflow-wrap: anywhere;
 }
 
 /* ===== Disclosure ===== */
@@ -185,8 +195,6 @@
 	gap: var(--ys-action-gap, calc(var(--spacing, .25rem) * 3));
 }
 #maincontent .ys-actions { gap: var(--ys-action-gap); }
-/* Keep the last ranking action visually separate from the next card. */
-.pm-rill-ranking-actions { margin-block-end: calc(var(--spacing, .25rem) * 3); }
 .ys-actions > .cbi-button,
 .ys-actions > button,
 .ys-actions > select,

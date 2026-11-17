@@ -2227,3 +2227,7 @@ msgstr "暂无事务记录。"
 #: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/overview.js:130
 msgid "Review system health, current safeguards, and network path status."
 msgstr "查看系统健康、当前保护措施和网络路径状态。"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/benchmark.js:130
+msgid "Test setup and progress"
+msgstr "测试设置与进度"

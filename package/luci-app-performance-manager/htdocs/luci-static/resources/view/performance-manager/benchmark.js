@@ -11,8 +11,8 @@ function parseEvidence(text) {
 }
 
 function stageRow(stage, active) {
-	return E('li', { 'class': 'pm-stage' + (active ? ' pm-stage--active' : '') }, [
-		E('span', { 'class': 'pm-stage-status' }, [ active ? _('Complete') : _('Pending') ]),
+	return E('li', { 'class': 'pm-stage' }, [
+		pu.badge(active ? _('Complete') : _('Pending'), active ? 'success' : 'neutral'),
 		E('span', {}, [ stage ])
 	]);
 }
@@ -37,7 +37,9 @@ return view.extend({
 	render: function(rec) {
 		if (rec && rec._loadError)
 			return pu.page(_('Performance test'), null, pu.note(_('Unable to load this page. Retry the page; if it keeps failing, check the service log.'), 'danger'));
-		const actions = ((rec && rec.benchmarkActions) || []).filter(function(a) { return a.status !== 'blocked'; });
+		const benchmarkActions = (rec && rec.benchmarkActions) || [];
+		const actions = benchmarkActions.filter(function(a) { return a.status !== 'blocked'; });
+		const blockedActions = benchmarkActions.filter(function(a) { return a.status === 'blocked'; });
 		const advisories = (rec && rec.learnedAdvisory) || [];
 		const root = E('div');
 		const action = E('select', { 'class': 'pm-benchmark-select', 'aria-label': _('Benchmark action') });
@@ -125,9 +127,9 @@ return view.extend({
 		]));
 		if (!actions.length) root.appendChild(pu.note(_('No benchmark action is currently available for this device.'), 'warning'));
 		root.appendChild(output);
-		return pu.page(_('Performance test'), _('Run one explicit test at a time. Controlled A/B results require stable context, health checks, and verified rollback.'), [
-			pu.card(_('Environment → Path → Compatibility → Locks/Failsafe → Baseline → Candidate → Commit-confirm → Result'), root),
-			pu.card(_('Unavailable benchmark providers'), pu.jsonBox(((rec && rec.benchmarkActions) || []).filter(function(a){ return a.status === 'blocked'; }), _('Why benchmark actions are unavailable')), 'muted')
-		]);
+		const content = [ pu.card(_('Test setup and progress'), root) ];
+		if (blockedActions.length)
+			content.push(pu.card(_('Unavailable benchmark providers'), pu.jsonBox(blockedActions, _('Why benchmark actions are unavailable'))));
+		return pu.page(_('Performance test'), _('Run one explicit test at a time. Controlled A/B results require stable context, health checks, and verified rollback.'), content);
 	}
 });
