@@ -36,6 +36,9 @@
 	gap: calc(var(--spacing, .25rem) * 4);
 	align-items: start;
 }
+#maincontent .pm-grid + .pm-grid {
+	margin-top: calc(var(--spacing, .25rem) * 4);
+}
 #maincontent .pm-grid > .cbi-section {
 	min-width: 0;
 	margin: 0;
