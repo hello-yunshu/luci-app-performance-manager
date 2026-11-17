@@ -2343,3 +2343,30 @@ msgstr "网络适配器"
 
 msgid "Rill unavailable"
 msgstr "Rill 暂不可用"
+
+msgid "Runtime and profile"
+msgstr "运行状态与系统配置"
+
+msgid "Core memory"
+msgstr "核心引擎内存"
+
+msgid "Stored history"
+msgstr "历史记录占用"
+
+msgid "Active Rill operations"
+msgstr "正在执行的 Rill 操作"
+
+msgid "Detailed diagnostics"
+msgstr "详细诊断信息"
+
+msgid "Expand to load detailed capability, topology, transaction and lock records."
+msgstr "展开后加载能力、网络拓扑、事务和资源锁的详细记录。"
+
+msgid "Loading diagnostics…"
+msgstr "正在加载诊断信息…"
+
+msgid "Unable to load diagnostic records: %s"
+msgstr "无法加载诊断记录：%s"
+
+msgid "Diagnostic records"
+msgstr "诊断记录"

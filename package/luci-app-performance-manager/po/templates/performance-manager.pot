@@ -2246,3 +2246,31 @@ msgstr ""
 #: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/benchmark.js:130
 msgid "Test setup and progress"
 msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/advanced.js
+msgid "Runtime and profile"
+msgstr ""
+
+msgid "Core memory"
+msgstr ""
+
+msgid "Stored history"
+msgstr ""
+
+msgid "Active Rill operations"
+msgstr ""
+
+msgid "Detailed diagnostics"
+msgstr ""
+
+msgid "Expand to load detailed capability, topology, transaction and lock records."
+msgstr ""
+
+msgid "Loading diagnostics…"
+msgstr ""
+
+msgid "Unable to load diagnostic records: %s"
+msgstr ""
+
+msgid "Diagnostic records"
+msgstr ""

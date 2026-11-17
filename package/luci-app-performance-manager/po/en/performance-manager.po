@@ -2419,3 +2419,30 @@ msgstr "Network adapter"
 
 msgid "Rill unavailable"
 msgstr "Rill unavailable"
+
+msgid "Runtime and profile"
+msgstr "Runtime and profile"
+
+msgid "Core memory"
+msgstr "Core memory"
+
+msgid "Stored history"
+msgstr "Stored history"
+
+msgid "Active Rill operations"
+msgstr "Active Rill operations"
+
+msgid "Detailed diagnostics"
+msgstr "Detailed diagnostics"
+
+msgid "Expand to load detailed capability, topology, transaction and lock records."
+msgstr "Expand to load detailed capability, topology, transaction and lock records."
+
+msgid "Loading diagnostics…"
+msgstr "Loading diagnostics…"
+
+msgid "Unable to load diagnostic records: %s"
+msgstr "Unable to load diagnostic records: %s"
+
+msgid "Diagnostic records"
+msgstr "Diagnostic records"
