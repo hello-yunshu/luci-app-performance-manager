@@ -29,7 +29,7 @@ return view.extend({
 		const recentTx = txs[0] || {};
 		const overview = [];
 		const statusBanner = E('div', {
-			'class': 'alert-message ' + (s.running ? 'success' : 'warning'),
+			'class': 'cbi-section alert-message ' + (s.running ? 'success' : 'warning'),
 			'role': 'status'
 		}, [
 			E('h3', {}, s.running ? _('Performance Manager is running') : _('Performance Manager is stopped')),
