@@ -56,7 +56,6 @@
 }
 
 /* ===== Disclosure ===== */
-.pm-disclosure { border-top: 1px solid; }
 .pm-disclosure summary { padding: .75rem 0 .25rem; cursor: pointer; font-weight: 700; }
 .pm-disclosure pre {
 	max-width: 100%; max-height: 26rem; margin: .5rem 0 0; padding: .8rem; overflow: auto;
