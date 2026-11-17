@@ -363,11 +363,10 @@ class AuditConvergenceTests(unittest.TestCase):
 
     def test_profile_badge_has_distinct_unhealthy_state(self):
         ui = (ROOT / "package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/overview.js").read_text()
-        self.assertIn("_('Profile unmet')", ui)
-        self.assertIn("profile.degraded", ui)
-        self.assertIn("_('Profile degraded')", ui)
-        self.assertIn("_('Profile healthy')", ui)
-        self.assertNotIn("profile.healthy ? _('Profile healthy') : _('Profile degraded')", ui)
+        self.assertIn("profile.healthy", ui)
+        self.assertIn("profile.degraded ? _('Degraded') : _('Healthy')", ui)
+        self.assertIn("_('Needs attention')", ui)
+        self.assertNotIn("profile.healthy ? _('Healthy') : _('Degraded')", ui)
 
 
     def test_harness_strips_multiline_ubus_startup_guard(self):
