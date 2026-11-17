@@ -2274,3 +2274,6 @@ msgstr ""
 
 msgid "Diagnostic records"
 msgstr ""
+
+msgid "Not reported"
+msgstr ""

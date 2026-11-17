@@ -2,6 +2,7 @@
 'require view';
 'require performance-manager.api as pm';
 'require performance-manager.ui as pu';
+'require performance-manager.labels as labels';
 
 return view.extend({
 	handleSave: null,
@@ -52,7 +53,7 @@ return view.extend({
 						[_('Service'), s.running ? _('Running') : _('Stopped')],
 						[_('System profile'), profile.healthy ? (profile.degraded ? _('Degraded') : _('Healthy')) : _('Needs attention')],
 						[_('Health guard'), (s.healthGuard || {}).pass ? _('Passed') : _('Blocked')],
-						[_('Automation mode'), s.automation || _('Not reported')]
+						[_('Automation mode'), s.automation ? labels.automation(s.automation) : _('Not reported')]
 					]),
 					pu.jsonBox({ profile: profile, healthGuard: s.healthGuard || {} }, _('Technical details'))
 				])),

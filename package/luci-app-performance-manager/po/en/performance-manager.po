@@ -2446,3 +2446,6 @@ msgstr "Unable to load diagnostic records: %s"
 
 msgid "Diagnostic records"
 msgstr "Diagnostic records"
+
+msgid "Not reported"
+msgstr "Not reported"
