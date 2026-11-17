@@ -177,6 +177,8 @@ function Sec(title) {
   this.title = title;
   this._opts = [];
   this.option = function (kind, key, label) { const o = new Opt(label); this._opts.push(o); return o; };
+  this.tab = function () {};
+  this.taboption = function (tab, kind, key, label) { return this.option(kind, key, label); };
 }
 function FormMap(title, description) {
   this.title = title;
@@ -222,8 +224,9 @@ const mockTx = {
 const mockStatus = {
   version: '1.0.0-rc', running: true, automation: 'conservative', goal: 'balanced',
   telemetry: true, failsafe: true, topologyGeneration: 9,
-  platform: { hyperv: true, kvm: false }, profile: { healthy: true, degraded: false },
+  platform: { hyperv: true, kvm: false },
   rill: { status: 'Runtime · Available', version: '0.9.1' }, healthGuard: { pass: true, reasons: ['high-cpu-load'] },
+  profile: { id: 'recommended', healthy: true, degraded: false },
   nativePacketSteering: { provider: 'openwrt-netifd', availability: 'available', ownership: 'user' },
 };
 const mockTopology = {

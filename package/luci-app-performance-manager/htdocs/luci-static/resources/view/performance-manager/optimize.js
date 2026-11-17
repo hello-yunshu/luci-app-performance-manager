@@ -22,16 +22,13 @@ return view.extend({
 		const actions = (r && r.actions) || [];
 		const nodes = [];
 		const smart = (r && r.smartSelection) || {};
+		const autoState = smart.autoEligible === true ? _('Ready') : (smart.autoEligible === false ? _('Paused') : _('Not evaluated'));
 		const smartCard = pu.card(_('Smart policy'), E('div', {}, [
-			pu.badge(smart.autoEligible === false ? _('Automatic action paused') : _('Eligible for automatic action'), smart.autoEligible === false ? 'warning' : 'success'),
+			pu.badge(smart.autoEligible === true ? _('Ready for automatic action') : (smart.autoEligible === false ? _('Automatic action paused') : _('Automatic action not evaluated')), smart.autoEligible === true ? 'success' : (smart.autoEligible === false ? 'warning' : 'neutral')),
 			pu.kv([
-				[_('Learning stage'), labels.learningStage(smart.learningStage)],
 				[_('Selected action'), labels.actionName(smart.selectedActionId)],
-				[_('Confidence'), labels.percent(smart.confidence)],
-				[_('Last reward'), labels.percent(smart.lastReward)],
-				[_('Auto eligibility'), smart.autoEligible === false ? _('Paused') : _('Eligible')],
-				[_('Core recommendation'), labels.actionName(smart.coreRecommendation)],
-				[_('Policy reason'), labels.smartReason(smart.reason)]
+				[_('Automatic action'), autoState],
+				[_('Why'), labels.smartReason(smart.reason)]
 			]),
 			pu.jsonBox({
 				learningStage: smart.learningStage,
@@ -41,7 +38,7 @@ return view.extend({
 				autoEligible: smart.autoEligible,
 				coreRecommendation: smart.coreRecommendation,
 				reason: smart.reason
-			}, _('Technical details'))
+			}, _('Learning and policy details'))
 		]));
 		if (smart.selectedActionId === 'pm.noop') nodes.push(pu.note(_('Rill recommends keeping the current configuration.'), 'success'));
 		if (smart.drifted) nodes.push(pu.note(_('Performance drift detected. Automatic Rill decisions are temporarily paused.'), 'warning'));
@@ -66,12 +63,10 @@ return view.extend({
 				E('p', { 'class': 'cbi-value-description' }, [ labels.actionDesc(a.id) ]),
 				pu.kv([
 					[_('Applies to'), labels.target(a.applyTarget)],
-					[_('Affected targets'), (a.affectedTargets || []).map(labels.target).join('、') || _('None')],
-					[_('Evaluation paths'), (a.evaluationPaths || []).map(labels.path).join('、') || _('None')],
 					[_('Risk'), labels.risk(a.risk)],
-					[_('Reason'), labels.actionReason(a.reason)]
+					[_('Why'), labels.actionReason(a.reason)]
 				]),
-				pu.jsonBox({ id: a.id, applyTarget: a.applyTarget, risk: a.risk, reason: a.reason }, _('Technical details')),
+				pu.jsonBox({ id: a.id, applyTarget: a.applyTarget, affectedTargets: a.affectedTargets, evaluationPaths: a.evaluationPaths, reason: a.reason }, _('Affected targets and evaluation details')),
 				E('div', {}, [ apply ])
 			])));
 		});

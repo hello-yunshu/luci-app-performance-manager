@@ -129,7 +129,7 @@ return view.extend({
 		root.appendChild(output);
 		const content = [ pu.card(_('Test setup and progress'), root) ];
 		if (blockedActions.length)
-			content.push(pu.card(_('Unavailable benchmark providers'), pu.jsonBox(blockedActions, _('Why benchmark actions are unavailable'))));
+			content.push(pu.jsonBox(blockedActions, _('Unavailable benchmark providers and reasons')));
 		return pu.page(_('Performance test'), _('Run one explicit test at a time. Controlled A/B results require stable context, health checks, and verified rollback.'), content);
 	}
 });

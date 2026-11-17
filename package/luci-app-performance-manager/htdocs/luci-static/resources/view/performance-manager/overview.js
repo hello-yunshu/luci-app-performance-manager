@@ -49,7 +49,7 @@ return view.extend({
 				? (profile.degraded ? _('Degraded') : _('Healthy'))
 				: _('Unmet')),
 			statCard(_('Health guard'), guard.pass ? _('Passed') : _('Blocked')),
-			statCard(_('Topology generation'), s.topologyGeneration == null ? '—' : String(s.topologyGeneration))
+			statCard(_('Automation mode'), labels.automation(s.automation))
 		]);
 		overview.push(stats);
 
@@ -65,12 +65,10 @@ return view.extend({
 		const serviceInfo = E('div', { 'class': 'cbi-section' }, [
 			E('h3', {}, [ _('System Information') ]),
 			table([
-				[_('Automation mode'), labels.automation(s.automation)],
 				[_('Goal'), labels.goal(s.goal)],
+				[_('Profile'), labels.profile(profile.id)],
 				[_('Rill runtime'), pu.badge(labels.runtimeStatus(rill.status))],
-				[_('Telemetry'), pu.badge(s.telemetry ? _('Telemetry enabled') : _('Telemetry disabled'), s.telemetry ? 'success' : 'warning')],
-				[_('Failsafe'), pu.badge(s.failsafe ? _('Failsafe enabled') : _('Failsafe disabled'), s.failsafe ? 'success' : 'warning')],
-				[_('Platform'), s.platform && (s.platform.hyperv ? 'Hyper-V' : (s.platform.kvm ? 'KVM' : _('Generic x86')))]
+				[_('Failsafe'), pu.badge(s.failsafe ? _('Enabled') : _('Disabled'), s.failsafe ? 'success' : 'warning')]
 			], 'pm-overview-info-table')
 		]);
 		overview.push(serviceInfo);
@@ -79,19 +77,11 @@ return view.extend({
 			pu.kv([
 				[_('Action'), labels.actionName(recentTx.actionId)],
 				[_('State'), labels.state(recentTx.state)],
-				[_('Target'), labels.target(recentTx.applyTarget)],
-				[_('Boot identity'), labels.reference(recentTx.bootId)]
+			[_('Target'), labels.target(recentTx.applyTarget)]
 			])
 		];
 		if (txs.length)
-			recentBody.push(E('p', { 'class': 'cbi-value-description' }, [ _('Identifiers are kept in technical details so long UUIDs do not crowd the page.') ]));
-		if (txs.length)
-			recentBody.push(pu.jsonBox({
-				actionId: recentTx.actionId,
-				state: recentTx.state,
-				applyTarget: recentTx.applyTarget,
-				bootId: recentTx.bootId
-			}, _('Technical details')));
+			recentBody.push(pu.jsonBox(recentTx, _('Technical details')));
 
 		overview.push(pu.card(_('System health guard'), E('div', {}, [
 			pu.badge(guard.pass ? _('Health guard passed') : _('Blocked by health guard'), guard.pass ? 'success' : 'warning'),
@@ -102,21 +92,10 @@ return view.extend({
 
 		overview.push(pu.card(_('Recent transaction'), txs.length ? E('div', {}, recentBody) : pu.note(_('No transactions are available yet.'), 'info')));
 
-		overview.push(pu.card(_('Native Packet Steering'), E('div', {}, [
-			pu.kv([
-				[_('Provider'), labels.provider(s.nativePacketSteering && s.nativePacketSteering.provider)],
-				[_('Availability'), labels.availability(s.nativePacketSteering && s.nativePacketSteering.availability)],
-				[_('Policy'), labels.nativeSteeringPolicy()],
-				[_('Ownership'), labels.ownership(s.nativePacketSteering && s.nativePacketSteering.ownership)]
-			]),
-			s.nativePacketSteering ? pu.jsonBox(s.nativePacketSteering, _('Technical details')) : null
-		])));
-
 		overview.push(pu.card(_('Path'), E('div', {}, [
 			pu.kv([
 				[_('LAN → WAN'), labels.routeIdentity(t.paths && t.paths[0] && t.paths[0].routeIdentity)],
-				[_('Workload'), ((t.paths && t.paths[0] && t.paths[0].workloadClass) || []).map(labels.workloadClass).join('、') || _('None')],
-				[_('Stable targets'), ((t.paths && t.paths[0] && t.paths[0].targetRefs) || []).map(labels.target).join('、') || _('None')]
+				[_('Workload'), ((t.paths && t.paths[0] && t.paths[0].workloadClass) || []).map(labels.workloadClass).join('、') || _('None')]
 			]),
 			t.paths && t.paths[0] ? pu.jsonBox({
 				routeIdentity: t.paths[0].routeIdentity,
@@ -126,7 +105,11 @@ return view.extend({
 			}, _('Technical details')) : null
 		])));
 
-		overview.push(pu.card(_('Advanced details'), pu.jsonBox({ status: s, topology: t }, _('Status and topology JSON'))));
+		overview.push(pu.card(_('Advanced details'), pu.jsonBox({
+			status: s,
+			topology: t,
+			nativePacketSteering: s.nativePacketSteering || {}
+		}, _('Status, path and provider details'))));
 		return pu.page(_('Performance Manager'), _('Review system health, current safeguards, and network path status.'), overview);
 	}
 });

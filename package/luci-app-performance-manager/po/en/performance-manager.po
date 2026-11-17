@@ -2307,3 +2307,69 @@ msgstr "Review system health, current safeguards, and network path status."
 #: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/benchmark.js:130
 msgid "Test setup and progress"
 msgstr "Test setup and progress"
+
+msgid "Advanced history details"
+msgstr "Advanced history details"
+
+msgid "Advanced settings"
+msgstr "Advanced settings"
+
+msgid "Affected targets and evaluation details"
+msgstr "Affected targets and evaluation details"
+
+msgid "Automatic action"
+msgstr "Automatic action"
+
+msgid "Automatic action not evaluated"
+msgstr "Automatic action not evaluated"
+
+msgid "Basic settings"
+msgstr "Basic settings"
+
+msgid "Current decision"
+msgstr "Current decision"
+
+msgid "Disabled"
+msgstr "Disabled"
+
+msgid "Enabled"
+msgstr "Enabled"
+
+msgid "Learning and policy details"
+msgstr "Learning and policy details"
+
+msgid "Locks and event records"
+msgstr "Locks and event records"
+
+msgid "Not evaluated"
+msgstr "Not evaluated"
+
+msgid "Provider and policy details"
+msgstr "Provider and policy details"
+
+msgid "Ready for automatic action"
+msgstr "Ready for automatic action"
+
+msgid "Rill provides observations and recommendations. Core checks safety and keeps final control over every change."
+msgstr "Rill provides observations and recommendations. Core checks safety and keeps final control over every change."
+
+msgid "Rill ranks actions that passed the Core engine review; the Core engine keeps the final authority to execute them."
+msgstr "Rill ranks actions that passed the Core engine review; the Core engine keeps the final authority to execute them."
+
+msgid "Runtime, decision and candidate details"
+msgstr "Runtime, decision and candidate details"
+
+msgid "Status, path and provider details"
+msgstr "Status, path and provider details"
+
+msgid "Transaction details"
+msgstr "Transaction details"
+
+msgid "Tune measurement, learning and assisted-automation thresholds. The recommended defaults are suitable for most users."
+msgstr "Tune measurement, learning and assisted-automation thresholds. The recommended defaults are suitable for most users."
+
+msgid "Unavailable benchmark providers and reasons"
+msgstr "Unavailable benchmark providers and reasons"
+
+msgid "Why"
+msgstr "Why"

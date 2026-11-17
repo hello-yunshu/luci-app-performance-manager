@@ -48,67 +48,32 @@ return view.extend({
 			? _('Reward %s · %s').format(labels.percent(s.lastOutcome.reward), labels.measurementQuality(s.lastOutcome.measurementQuality))
 			: '—';
 		const candidateHistory = s.candidateHistory || {};
-		return pu.page(_('Rill smart decisions'), _('Rill ranks actions that passed the Core engine review; the Core engine keeps the final authority to execute them. Confidence and scores are shown as percentages (0–1 maps to 0–100%).'), [
-			pu.card(_('Runtime status'), E('div', {}, [
+		const eligible = s.autoEligible === true ? _('Ready') : (s.autoEligible === false ? _('Paused') : _('Not evaluated'));
+		return pu.page(_('Rill smart decisions'), _('Rill ranks actions that passed the Core engine review; the Core engine keeps the final authority to execute them.'), [
+			pu.card(_('Current decision'), E('div', {}, [
+				pu.badge(labels.runtimeStatus(r.status)),
 				pu.kv([
-					[_('State'), labels.runtimeStatus(r.status)],
-					[_('Version'), labels.fmt(r.rillVersion || r.resolvedRillVersion)],
-					[_('Transport'), labels.transport(r.transport)],
-					[_('Protocol'), r.protocolVersion == null ? '—' : _('Runtime protocol v%s').format(r.protocolVersion)],
-					[_('Last decision'), labels.reference(s.decisionId)],
 					[_('Selected action'), labels.actionName(s.selectedActionId)],
-					[_('Last outcome'), outcomeText]
-				]),
-				pu.jsonBox({ runtime: r, decisionId: s.decisionId, selectedCandidateId: s.selectedCandidateId, lastOutcome: s.lastOutcome }, _('Technical details'))
+					[_('Automatic action'), eligible],
+					[_('Confidence'), labels.percent(s.confidence)],
+					[_('Learning stage'), labels.learningStage(s.learningStage)],
+					[_('Last outcome'), outcomeText],
+					[_('Why'), labels.smartReason(s.reason)]
+				])
 			])),
 			(s.drifted ? pu.note(_('Performance drift detected. Rill Auto temporarily paused.'), 'warning') : null),
-			pu.note(_('Rill provides observation and recommendations only. It cannot write UCI, sysctl, or firewall state, execute arbitrary shell commands, or apply actions.'), 'info'),
-			pu.grid([
-				pu.card(_('Decision context'), E('div', {}, [
-					pu.kv([
-						[_('Profile'), labels.profile(context.profile)],
-						[_('Goal'), labels.goal(s.goal || context.goal)],
-						[_('Path'), labels.path(context.pathId)],
-						[_('Workload'), (context.workloadClass || []).map(labels.workloadClass).join('、') || '—'],
-						[_('Topology generation'), context.topologyGeneration == null ? '—' : String(context.topologyGeneration)],
-						[_('Route identity'), labels.routeIdentity(context.routeIdentity)],
-						[_('Integration'), labels.integrationSummary(context.integrationState)]
-					]),
-					pu.jsonBox({ context: context }, _('Technical details'))
-				])),
-				pu.card(_('Selected candidate details'), E('div', {}, [
-					pu.kv([
-						[_('Business action'), labels.actionName(s.selectedActionId)],
-						[_('Candidate identifier'), labels.reference(s.selectedCandidateId)],
-						[_('Candidate reward mean'), labels.percent(candidateHistory.recentRewardMean)],
-						[_('Candidate successes'), labels.fmt(candidateHistory.successCount)],
-						[_('Candidate failures'), labels.fmt(candidateHistory.failureCount)],
-						[_('Candidate rollbacks'), labels.fmt(candidateHistory.rollbackCount)],
-						[_('Cooldown reason'), labels.smartReason(candidateHistory.cooldownReason)]
-					]),
-					E('p', { 'class': 'cbi-value-description' }, [ _('Candidate identifiers are kept in technical details so long identifiers do not crowd the page.') ]),
-					pu.jsonBox({ candidateHistory: candidateHistory }, _('Technical details'))
-				])),
-				pu.card(_('Learning status'), E('div', {}, [
-					pu.kv([
-						[_('Learning stage'), labels.learningStage(s.learningStage)],
-						[_('Validated samples'), s.validatedSamples == null ? '0' : String(s.validatedSamples)],
-						[_('Minimum samples'), labels.fmt(s.minimumSamples)],
-						[_('Confidence'), labels.percent(s.confidence)],
-						[_('Last reward'), labels.percent(s.lastReward)],
-						[_('Measurement quality'), labels.measurementQuality((s.lastOutcome && s.lastOutcome.measurementQuality) || s.measurementQuality)],
-						[_('Drift'), s.drifted ? _('Detected') : _('Stable')],
-						[_('Auto eligibility'), s.autoEligible === false ? _('Paused') : _('Eligible')],
-						[_('Policy reason'), labels.smartReason(s.reason)]
-					]),
-					pu.jsonBox({ learningStage: s.learningStage, confidence: s.confidence, lastReward: s.lastReward, lastRewardComponents: s.lastRewardComponents, reason: s.reason }, _('Technical details'))
-				]))
-			]),
+			pu.note(_('Rill provides observations and recommendations. Core checks safety and keeps final control over every change.'), 'info'),
 			pu.grid([
 				pu.card(_('Top ranking'), E('div', {}, [ rankingActions, pu.tableWrap(table) ])),
 				pu.card(_('Recent feedback'), pu.tableWrap(feedbackTable))
 			]),
-			pu.card(_('Rill details'), pu.jsonBox({ runtime: r, selection: s, advisory: rec.learnedAdvisory || [] }, _('Raw Rill contract')))
+			pu.card(_('Advanced details'), pu.jsonBox({
+				runtime: r,
+				context: context,
+				selection: s,
+				candidateHistory: candidateHistory,
+				advisory: rec.learnedAdvisory || []
+			}, _('Runtime, decision and candidate details')))
 		]);
 	}
 });

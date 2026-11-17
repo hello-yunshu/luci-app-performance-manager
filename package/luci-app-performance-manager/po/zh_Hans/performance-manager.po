@@ -2231,3 +2231,69 @@ msgstr "查看系统健康、当前保护措施和网络路径状态。"
 #: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/benchmark.js:130
 msgid "Test setup and progress"
 msgstr "测试设置与进度"
+
+msgid "Advanced history details"
+msgstr "高级历史详情"
+
+msgid "Advanced settings"
+msgstr "高级设置"
+
+msgid "Affected targets and evaluation details"
+msgstr "受影响目标与评估详情"
+
+msgid "Automatic action"
+msgstr "自动操作状态"
+
+msgid "Automatic action not evaluated"
+msgstr "尚未评估自动操作"
+
+msgid "Basic settings"
+msgstr "基本设置"
+
+msgid "Current decision"
+msgstr "当前决策"
+
+msgid "Disabled"
+msgstr "已禁用"
+
+msgid "Enabled"
+msgstr "已启用"
+
+msgid "Learning and policy details"
+msgstr "学习与策略详情"
+
+msgid "Locks and event records"
+msgstr "锁与事件记录"
+
+msgid "Not evaluated"
+msgstr "尚未评估"
+
+msgid "Provider and policy details"
+msgstr "提供方与策略详情"
+
+msgid "Ready for automatic action"
+msgstr "符合自动操作条件"
+
+msgid "Rill provides observations and recommendations. Core checks safety and keeps final control over every change."
+msgstr "Rill 只提供观察与建议。核心引擎会检查安全性，并始终保留所有变更的最终控制权。"
+
+msgid "Rill ranks actions that passed the Core engine review; the Core engine keeps the final authority to execute them."
+msgstr "Rill 会为通过核心引擎审核的操作排序；是否执行仍由核心引擎最终决定。"
+
+msgid "Runtime, decision and candidate details"
+msgstr "运行时、决策与候选项详情"
+
+msgid "Status, path and provider details"
+msgstr "状态、路径与提供方详情"
+
+msgid "Transaction details"
+msgstr "事务详情"
+
+msgid "Tune measurement, learning and assisted-automation thresholds. The recommended defaults are suitable for most users."
+msgstr "调整测量、学习和辅助自动化阈值。推荐默认值适合大多数用户。"
+
+msgid "Unavailable benchmark providers and reasons"
+msgstr "不可用的基准测试提供方及原因"
+
+msgid "Why"
+msgstr "原因"
