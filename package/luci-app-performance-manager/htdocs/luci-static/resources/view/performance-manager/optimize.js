@@ -114,6 +114,9 @@ return view.extend({
 			body.appendChild(pu.jsonBox({ actionId: a.actionId, kind: a.kind, authority: a.authority, decisionId: a.decisionId }, _('Technical details')));
 			nodes.push(pu.card(_('Rill recommendation: %s').format(labels.actionName(a.actionId)), body));
 		});
-		return pu.page(_('Smart optimization'), _('Review supported actions and apply them only after Core safety checks. Existing user and external settings are preserved.'), [ smartCard, pu.grid(nodes) ]);
+		/* Keep the policy summary and its related actions/observations in one
+		 * native-theme grid. A lone observation otherwise expands to a full-width
+		 * card below the policy and leaves most of the desktop row unused. */
+		return pu.page(_('Smart optimization'), _('Review supported actions and apply them only after Core safety checks. Existing user and external settings are preserved.'), [ pu.grid([ smartCard, ...nodes ]) ]);
 	}
 });
