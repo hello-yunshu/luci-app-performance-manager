@@ -52,6 +52,7 @@
 	margin: 0;
 }
 .pm-grid > .alert-message { grid-column: 1 / -1; }
+.pm-overview-details { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .pm-rill-ranking-actions { margin-bottom: .75em; }
 
 /* ===== Benchmark Stage List ===== */
@@ -253,6 +254,10 @@
 		min-width: 0;
 		box-sizing: border-box;
 	}
+}
+
+@media screen and (max-width: 47.99rem) {
+	.pm-overview-details { grid-template-columns: minmax(0, 1fr); }
 }
 
 @media screen and (min-width: 48rem) {
