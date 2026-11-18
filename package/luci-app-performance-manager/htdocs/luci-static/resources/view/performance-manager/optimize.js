@@ -36,7 +36,7 @@ return view.extend({
 			noChangeNeeded ? 'neutral' :
 			smart.autoEligible === true ? 'success' :
 			smart.autoEligible === false ? 'warning' : 'neutral';
-		const smartCard = pu.card(_('Smart policy'), E('div', {}, [
+		const smartBody = E('div', {}, [
 			pu.badge(statusText, statusTone),
 			pu.kv([
 				[_('Selected action'), labels.actionName(smart.selectedActionId)],
@@ -51,7 +51,8 @@ return view.extend({
 				coreRecommendation: smart.coreRecommendation,
 				reason: smart.reason
 			}, _('Learning and policy details'))
-		]));
+		]);
+		const smartCard = pu.card(_('Smart policy'), smartBody);
 		if (smart.drifted) nodes.push(pu.note(_('Performance drift detected. Automatic Rill decisions are temporarily paused.'), 'warning'));
 		if (!actions.length && smart.selectedActionId !== 'pm.noop') nodes.push(pu.note(_('No conservative changes are needed right now.'), 'success'));
 		actions.forEach(function(a) {
@@ -107,16 +108,18 @@ return view.extend({
 				});
 				body.appendChild(E('div', {}, [ apply ]));
 			} else if (a.kind === 'noop') {
-				body.appendChild(E('p', { 'class': 'cbi-value-description' }, [ _('Rill recommends keeping the current configuration.') ]));
+				/* The selected-action summary already communicates the no-change
+				 * outcome; avoid repeating the same sentence in a second card. */
 			} else {
 				body.appendChild(E('p', { 'class': 'cbi-value-description' }, [ _('This recommendation is for a performance test only. Open Performance test and complete both detection phases with the companion test tool; it cannot be applied directly.') ]));
 			}
 			body.appendChild(pu.jsonBox({ actionId: a.actionId, kind: a.kind, authority: a.authority, decisionId: a.decisionId }, _('Technical details')));
-			nodes.push(pu.card(_('Rill recommendation: %s').format(labels.actionName(a.actionId)), body));
+			smartBody.appendChild(E('h4', {}, [ _('Rill recommendation: %s').format(labels.actionName(a.actionId)) ]));
+			smartBody.appendChild(body);
 		});
-		/* Keep the policy summary and its related actions/observations in one
-		 * native-theme grid. A lone observation otherwise expands to a full-width
-		 * card below the policy and leaves most of the desktop row unused. */
+		/* Keep policy and observations in one native-theme grid. Rill's advisory
+		 * details stay inside the policy card to avoid repeating its selected
+		 * action and leaving an orphan card in the responsive grid. */
 		return pu.page(_('Smart optimization'), _('Review supported actions and apply them only after Core safety checks. Existing user and external settings are preserved.'), [ pu.grid([ smartCard, ...nodes ]) ]);
 	}
 });
