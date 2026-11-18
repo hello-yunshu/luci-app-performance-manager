@@ -68,7 +68,8 @@ return view.extend({
 		const stats = E('div', { 'class': 'pm-overview-stats' }, [
 			statCard(_('System profile'), profileValue, profileNote),
 			statCard(_('Health guard'), guard.pass ? _('Passed') : _('Blocked')),
-			statCard(_('Automation mode'), labels.automation(s.automation))
+			statCard(_('Automation mode'), labels.automation(s.automation)),
+			statCard(_('Rill runtime'), labels.runtimeStatusOverview(rill.status))
 		]);
 		overview.push(stats);
 
@@ -86,7 +87,6 @@ return view.extend({
 			table([
 				[_('Goal'), labels.goal(s.goal)],
 				[_('Profile'), labels.profile(profile.id)],
-				[_('Rill runtime'), pu.badge(labels.runtimeStatusOverview(rill.status))],
 				[_('Failsafe'), pu.badge(s.failsafe ? _('Enabled') : _('Disabled'), s.failsafe ? 'success' : 'warning')]
 			], 'pm-overview-info-table')
 		]);

@@ -48,7 +48,8 @@ const RUNTIME_STATUS = {
 };
 
 const RUNTIME_STATUS_OVERVIEW = {
-	'Runtime · Not provisioned': _('Not provisioned')
+	'Runtime · Not provisioned': _('Not provisioned'),
+	'Runtime · Available': _('Available')
 };
 
 const GUARD_REASON = {

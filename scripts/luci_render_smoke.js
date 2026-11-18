@@ -386,6 +386,8 @@ await expect('every Rill runtime status maps to text', () => {
   }
   if (labels.runtimeStatusOverview('Runtime · Not provisioned') !== _('Not provisioned'))
     throw new Error('overview runtime status should use its concise translated label');
+  if (labels.runtimeStatusOverview('Runtime · Available') !== _('Available'))
+    throw new Error('overview available runtime status should be concise');
   if (labels.runtimeStatus('Runtime · Not provisioned') !== _('Runtime not provisioned'))
     throw new Error('Rill runtime detail should retain its full status label');
 });
