@@ -20,9 +20,9 @@ const themes = [
 	{ id: 'aurora-light', media: 'aurora', theme: 'aurora', colorScheme: 'light', dark: 'false', aurora: 'light' },
 	{ id: 'aurora-dark', media: 'aurora', theme: 'aurora', colorScheme: 'dark', dark: 'true', aurora: 'dark' }
 ];
-const widths = [431, 432, 433];
+const widths = [431, 432, 433, 1023, 1024, 1025];
 const report = { schemaVersion: 1, sha: process.env.GITHUB_SHA || 'unknown', language,
-	method: 'Real LuCI Overview screenshots at 431/432/433px, adjacent to the 27rem summary-card grid breakpoint; six supported theme modes.',
+	method: 'Real LuCI Overview screenshots at 431/432/433px and 1023/1024/1025px, adjacent to the 27rem and 64rem summary-card grid breakpoints; six supported theme modes.',
 	widths, rows: [], errors: [] };
 fs.mkdirSync(output, { recursive: true });
 
@@ -82,7 +82,7 @@ async function login(page) {
 							darkMode: root.getAttribute('data-darkmode'), expectedDarkMode: dark,
 							themeLoaded: resources.some(src => src.includes('/luci-static/' + media + '/')),
 							pluginCssLoaded: resources.some(src => src.includes('performance-manager/ui.css')) };
-					}, { media: theme.media, expectedColumns: width < 432 ? 1 : 2, dark: theme.dark });
+					}, { media: theme.media, expectedColumns: width < 432 ? 1 : width < 1024 ? 2 : 4, dark: theme.dark });
 					if (metrics.columns !== metrics.expectedColumns) failures.push('unexpected-grid-column-count');
 					if (metrics.cardCount !== 4) failures.push('expected-four-summary-cards');
 					if (metrics.horizontalOverflow) failures.push('horizontal-overflow');

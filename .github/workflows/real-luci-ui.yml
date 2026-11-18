@@ -154,7 +154,7 @@ jobs:
           NODE_PATH="$RUNNER_TEMP/ui/node_modules" PM_UI_CONTAINER=pm-ui-gate \
             PM_UI_LANG="$language" PM_VISUAL_OUT="$GITHUB_WORKSPACE/real-luci-ui-evidence/visual/$language" \
             node tests/real-luci-ui-visual.cjs
-      - name: Capture PM Overview 27rem breakpoint neighbors
+      - name: Capture PM Overview 27rem and 64rem breakpoint neighbors
         run: |
           set -euo pipefail
           language='${{ matrix.language }}'
