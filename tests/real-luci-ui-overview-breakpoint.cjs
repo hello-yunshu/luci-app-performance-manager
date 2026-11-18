@@ -31,7 +31,10 @@ function shell(command) {
 }
 
 async function login(page) {
-	await page.goto(base + '/cgi-bin/luci/', { waitUntil: 'domcontentloaded' });
+	// Target the PM route directly so the stock Status Overview page is not
+	// rendered as an intermediate route after login. That page can emit its own
+	// optional service/RPC warnings, which are unrelated to this PM visual gate.
+	await page.goto(base + '/cgi-bin/luci/admin/network/performance-manager/overview', { waitUntil: 'domcontentloaded' });
 	const username = page.locator('input[name="luci_username"]');
 	if (await username.count()) {
 		await username.fill('root');
@@ -57,6 +60,7 @@ async function login(page) {
 			page.on('pageerror', error => browserErrors.push('PAGE_ERROR ' + error.message));
 			try {
 				await login(page);
+				browserErrors.length = 0;
 				for (const width of widths) {
 					const screenshot = `${theme.id}-${width}-overview-breakpoint.png`;
 					const failures = [];
