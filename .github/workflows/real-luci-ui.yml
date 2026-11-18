@@ -27,6 +27,11 @@ on:
         type: choice
         options: [all, en, zh_cn]
         default: all
+      benchmark_result_only:
+        description: Run only the controlled benchmark result-state visual matrix
+        required: false
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -147,6 +152,7 @@ jobs:
           docker cp "$RUNNER_TEMP/luci-theme-aurora.ipk" pm-ui-gate:/tmp/luci-theme-aurora.ipk
           docker exec pm-ui-gate opkg install /tmp/luci-theme-aurora.ipk
       - name: Capture all views, themes, and viewport matrix
+        if: ${{ !inputs.benchmark_result_only }}
         run: |
           set -euo pipefail
           language='${{ matrix.language }}'
@@ -155,6 +161,7 @@ jobs:
             PM_UI_LANG="$language" PM_VISUAL_OUT="$GITHUB_WORKSPACE/real-luci-ui-evidence/visual/$language" \
             node tests/real-luci-ui-visual.cjs
       - name: Capture PM Overview 27rem and 64rem breakpoint neighbors
+        if: ${{ !inputs.benchmark_result_only }}
         run: |
           set -euo pipefail
           language='${{ matrix.language }}'

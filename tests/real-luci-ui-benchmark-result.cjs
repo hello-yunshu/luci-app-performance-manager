@@ -25,6 +25,7 @@ const themes = [
 	{ id: 'aurora-dark', media: 'aurora', theme: 'aurora', colorScheme: 'dark', aurora: 'dark' }
 ];
 const commonWidths = [320, 360, 375, 390, 430, 640, 768, 1024, 1280, 1440, 1920];
+const rpcEndpointGlob = '**/ubus/**';
 const breakpoints = [600, 700, 768, 900, 991, 1048, 1100, 1200, 1280, 1319];
 const widths = [...new Set([...commonWidths, ...breakpoints.flatMap(w => [w - 1, w, w + 1])])].sort((a, b) => a - b);
 const shortViewports = [{ width: 320, height: 568 }, { width: 568, height: 320 }];
@@ -92,11 +93,19 @@ function fixture(scenario) {
 }
 
 async function installRpcFixture(page, fixtureState) {
-	await page.route('**/cgi-bin/luci/admin/ubus**', async route => {
+	await page.route(rpcEndpointGlob, async route => {
 		let body;
 		try { body = route.request().postDataJSON(); }
 		catch (_) { return route.continue(); }
 		const messages = Array.isArray(body) ? body : [body];
+		for (const message of messages) {
+			if (!message || message.method !== 'call' || !Array.isArray(message.params) || message.params[1] !== 'performance-manager') continue;
+			fixtureState.observed.push({
+				method: message.params[2] || null,
+				phase: message.params[3] && message.params[3].phase || null,
+				parameterKeys: message.params[3] && typeof message.params[3] === 'object' ? Object.keys(message.params[3]).sort() : []
+			});
+		}
 		const matched = messages.filter(message => message && message.method === 'call' && Array.isArray(message.params) &&
 			message.params[1] === 'performance-manager' && message.params[2] === 'benchmark_start');
 		if (!matched.length) return route.continue();
@@ -106,6 +115,7 @@ async function installRpcFixture(page, fixtureState) {
 		if (matched.length !== messages.length || matched.some(message => !message.params[3] || message.params[3].phase !== 'begin')) {
 			throw new Error('Refusing an unexpected benchmark_start request in the visual fixture');
 		}
+		fixtureState.intercepted.push({ scenario: fixtureState.scenario, count: matched.length, phase: matched[0].params[3].phase });
 		const replacement = new Map(matched.map(message => [message.id, {
 			jsonrpc: '2.0', id: message.id, result: [0, fixture(fixtureState.scenario)]
 		}]));
@@ -144,7 +154,7 @@ async function capture(page, theme, scenario, width, height) {
 			return r.left >= field.left - 1 && r.right <= field.right + 1 && r.right <= innerWidth + 1;
 		});
 		const rollback = stages.find(el => el.innerText.includes('Rollback protection') || el.innerText.includes('回滚保护'));
-		const rollbackComplete = !!rollback && /Complete|已完成/.test(rollback.innerText);
+		const rollbackComplete = !!rollback && /complete|已完成/i.test(rollback.innerText);
 		const resources = Array.from(document.querySelectorAll('link[href],script[src]')).map(el => el.href || el.src);
 		return {
 			hasMain: !!main,
@@ -155,7 +165,7 @@ async function capture(page, theme, scenario, width, height) {
 			stageCount: stages.length,
 			stageText,
 			rollbackComplete,
-			allStagesComplete: stages.every(el => /Complete|已完成/.test(el.innerText)),
+			allStagesComplete: stages.every(el => /complete|已完成/i.test(el.innerText)),
 			selectsFit: fits,
 			themeLoaded: resources.some(src => src.includes('/luci-static/' + media + '/')),
 			pluginCssLoaded: resources.some(src => src.includes('performance-manager/ui.css')),
@@ -197,8 +207,24 @@ async function capture(page, theme, scenario, width, height) {
 			if (theme.aurora) await context.addInitScript(mode => localStorage.setItem('aurora.theme', mode), theme.aurora);
 			const page = await context.newPage();
 			try {
+				const browserErrors = [];
+				const postRequests = [];
+				page.on('pageerror', error => browserErrors.push(error.message));
+				page.on('console', message => { if (message.type() === 'error') browserErrors.push(message.text()); });
+				page.on('request', request => {
+					if (request.method() !== 'POST') return;
+					let calls = [];
+					try {
+						const body = request.postDataJSON();
+						for (const message of Array.isArray(body) ? body : [body])
+							if (message && message.method === 'call' && Array.isArray(message.params))
+								calls.push({ object: message.params[1] || null, method: message.params[2] || null });
+					}
+					catch (_) {}
+					if (calls.length || /ubus|rpc/i.test(request.url())) postRequests.push({ url: request.url(), calls });
+				});
 				await login(page);
-				const fixtureState = { scenario: null };
+				const fixtureState = { scenario: null, observed: [], intercepted: [] };
 				await installRpcFixture(page, fixtureState);
 				for (const scenario of selectedScenarios) {
 					fixtureState.scenario = scenario;
@@ -211,7 +237,25 @@ async function capture(page, theme, scenario, width, height) {
 					const expectedNote = language === 'en'
 						? (scenario === 'validated' ? 'Test complete. The candidate was rolled back and health checks passed.' : 'Test complete, but the result was not validated. Review the details below.')
 						: (scenario === 'validated' ? '测试已完成，候选项已回滚，健康检查通过。' : '测试已完成，但结果未通过验证。请查看下方详情。');
-					await page.getByText(expectedNote, { exact: true }).waitFor({ state: 'visible', timeout: 20000 });
+					try {
+						await page.getByText(expectedNote, { exact: true }).waitFor({ state: 'visible', timeout: 20000 });
+					}
+					catch (error) {
+						const diagnostic = {
+							language, scenario, expectedNote, url: page.url(),
+							mainText: await page.locator('#maincontent').innerText().catch(() => ''),
+							observedRpc: fixtureState.observed,
+							interceptedRpc: fixtureState.intercepted,
+							postRequests,
+							routePattern: rpcEndpointGlob,
+							browserErrors
+						};
+						const stem = `debug-${language}-${scenario}`;
+						fs.writeFileSync(path.join(output, stem + '.json'), JSON.stringify(diagnostic, null, 2) + '\n');
+						await page.screenshot({ path: path.join(output, stem + '.png'), fullPage: true, animations: 'disabled' }).catch(() => {});
+						console.error('BENCHMARK_RESULT_DIAGNOSTIC ' + JSON.stringify(diagnostic));
+						throw error;
+					}
 					for (const width of selectedWidths) await capture(page, theme, scenario, width, 900);
 					for (const viewport of selectedViewports) await capture(page, theme, scenario, viewport.width, viewport.height);
 				}
