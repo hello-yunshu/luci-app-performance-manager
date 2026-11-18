@@ -1062,6 +1062,14 @@ msgstr ""
 msgid "Rill recommendation: %s"
 msgstr "Rill recommendation: %s"
 
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/optimize.js
+msgid "Rill recommendation"
+msgstr "Rill recommendation"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/optimize.js
+msgid "Observations"
+msgstr "Observations"
+
 #: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/optimize.js:58
 msgid "Smart optimization"
 msgstr "Smart optimization"

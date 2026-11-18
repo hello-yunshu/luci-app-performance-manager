@@ -21,6 +21,7 @@ return view.extend({
 			return pu.page(_('Smart optimization'), null, pu.note(_('Unable to load this page. Retry the page; if it keeps failing, check the service log.'), 'danger'));
 		const actions = (r && r.actions) || [];
 		const nodes = [];
+		const observationItems = [];
 		const smart = (r && r.smartSelection) || {};
 		const noChangeNeeded = smart.selectedActionId === 'pm.noop';
 		const rillUnavailable = !!smart.rillState && smart.rillState !== 'available' && smart.rillState !== 'learning';
@@ -83,11 +84,14 @@ return view.extend({
 			])));
 		});
 		((r && r.observations) || []).forEach(function(o) {
-			nodes.push(pu.card(labels.capabilityName(o.id), E('div', {}, [
-				E('p', {}, [ labels.observationDetail(o.detail) ]),
+			observationItems.push(E('div', {}, [
+				E('h4', {}, [ labels.capabilityName(o.id) ]),
+				E('p', { 'class': 'cbi-value-description' }, [ labels.observationDetail(o.detail) ]),
 				pu.jsonBox(o, _('Technical details'))
-			])));
+			]));
 		});
+		if (observationItems.length)
+			nodes.push(pu.card(_('Observations'), E('div', {}, observationItems)));
 		((r && r.learnedAdvisory) || []).forEach(function(a) {
 			const body = E('div', {}, [ pu.kv([ [_('Authority'), labels.authority(a.authority)], [_('Execution path'), a.kind === 'benchmark' ? _('Controlled benchmark') : (a.kind === 'noop' ? _('No mutation') : _('Safe direct apply'))], [_('Confidence'), labels.percent(a.confidence)] ]) ]);
 			if (a.kind === 'safe-direct') {
@@ -114,12 +118,13 @@ return view.extend({
 				body.appendChild(E('p', { 'class': 'cbi-value-description' }, [ _('This recommendation is for a performance test only. Open Performance test and complete both detection phases with the companion test tool; it cannot be applied directly.') ]));
 			}
 			body.appendChild(pu.jsonBox({ actionId: a.actionId, kind: a.kind, authority: a.authority, decisionId: a.decisionId }, _('Technical details')));
-			smartBody.appendChild(E('h4', {}, [ _('Rill recommendation: %s').format(labels.actionName(a.actionId)) ]));
+			const advisoryTitle = a.kind === 'noop' ? _('Rill recommendation') : _('Rill recommendation: %s').format(labels.actionName(a.actionId));
+			smartBody.appendChild(E('h4', {}, [ advisoryTitle ]));
 			smartBody.appendChild(body);
 		});
-		/* Keep policy and observations in one native-theme grid. Rill's advisory
-		 * details stay inside the policy card to avoid repeating its selected
-		 * action and leaving an orphan card in the responsive grid. */
+		/* Keep the policy and grouped observations in the native-theme grid.
+		 * Rill's advisory stays inside policy so it does not repeat a no-op action
+		 * or leave a lone card in themes whose content column fits two cards. */
 		return pu.page(_('Smart optimization'), _('Review supported actions and apply them only after Core safety checks. Existing user and external settings are preserved.'), [ pu.grid([ smartCard, ...nodes ]) ]);
 	}
 });

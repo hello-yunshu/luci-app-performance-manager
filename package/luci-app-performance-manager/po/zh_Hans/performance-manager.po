@@ -1029,6 +1029,14 @@ msgstr "无法应用 Rill 建议：%s。请检查安全状态后重试。"
 msgid "Rill recommendation: %s"
 msgstr "Rill 建议：%s"
 
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/optimize.js
+msgid "Rill recommendation"
+msgstr "Rill 建议"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/optimize.js
+msgid "Observations"
+msgstr "系统观察"
+
 #: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/optimize.js:58
 msgid "Smart optimization"
 msgstr "智能优化"
