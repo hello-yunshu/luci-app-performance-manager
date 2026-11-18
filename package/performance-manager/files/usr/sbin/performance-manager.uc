@@ -476,7 +476,7 @@ function smart_record_validated_outcome(context_key, goal_id, candidate_id, rewa
 	/* Only controlled A/B with complete, health-clean evidence changes learning.
 	 * Passive and health-only observations are intentionally not labels. */
 	if (measurement_quality != 'controlled_ab' || health_regressed === true || smart_num(reward, null) == null) return false;
-	let row = smart_context_stats(context_key, candidate_id, true), ctx = row.context, stats = row.stats, value = smart_num(reward, null);
+	let row = smart_context_stats(context_key, candidate_id, true), state = row.state, ctx = row.context, stats = row.stats, value = smart_num(reward, null);
 	if (!ctx || !stats || value == null) return false;
 	stats.validatedOutcomeCount = (stats.validatedOutcomeCount ?? 0) + 1;
 	ctx.validatedSamples = (ctx.validatedSamples ?? 0) + 1;
@@ -2081,6 +2081,34 @@ function companion_evidence_valid(e, session, phase) {
 function benchmark_list() {
 	let out=[]; for (let p in fs.glob(`${state_dir()}/benchmarks/*.json`) ?? []) { let x=json_read(p,null); if (x) push(out,x); }
 	sort(out,function(a,b){return (b.sessionId??'') > (a.sessionId??'') ? 1 : -1;}); return out;
+}
+
+/* The frozen nftables snapshot is needed internally to attribute and verify a
+ * fastpath candidate, but the parsed ruleset is not useful in routine UI
+ * responses. Keep the authoritative snapshot in the on-disk session and
+ * expose only the fields needed to render the session and its result. */
+function benchmark_session_response(session) {
+	if (type(session) != 'object') return session;
+	let response = {};
+	for (let key in keys(session))
+		if (key != 'nftSnapshot') response[key] = session[key];
+	return response;
+}
+
+function benchmark_response(result) {
+	if (type(result) != 'object') return result;
+	let response = {};
+	for (let key in keys(result)) {
+		let value = result[key];
+		if (key == 'session') value = benchmark_session_response(value);
+		else if (key == 'sessions') {
+			let sessions = [];
+			for (let session in value ?? []) push(sessions, benchmark_session_response(session));
+			value = sessions;
+		}
+		response[key] = value;
+	}
+	return response;
 }
 
 function benchmark_stop(session_id) {
@@ -4571,13 +4599,13 @@ let obj = conn.publish(UBUS_NAME, {
 	apply: { args: rpc_args({ actionId: 'string', target: 'string', executionSource: 'string', decisionId: 'string' }), call: function(req) { reply(req, apply_action(req.args ?? {})); } },
 	confirm: { args: rpc_args({ transactionId: 'string' }), call: function(req) { reply(req, confirm_transaction(req.args?.transactionId)); } },
 	rollback: { args: rpc_args({ transactionId: 'string' }), call: function(req) { reply(req, rollback_transaction(req.args?.transactionId, 'manual')); } },
-	benchmark_start: { args: rpc_args({ phase: 'string', actionId: 'string', pathId: 'string', measurementClass: 'string', executionSource: 'string', decisionId: 'string', sessionId: 'string', evidence: {}, target: 'string' }), call: function(req) { reply(req, benchmark_start(req.args ?? {})); } },
+	benchmark_start: { args: rpc_args({ phase: 'string', actionId: 'string', pathId: 'string', measurementClass: 'string', executionSource: 'string', decisionId: 'string', sessionId: 'string', evidence: {}, target: 'string' }), call: function(req) { reply(req, benchmark_response(benchmark_start(req.args ?? {}))); } },
 	benchmark_status: { args: rpc_args({ sessionId: 'string' }), call: function(req) {
 		let msg=req.args ?? {};
 		if (msg?.sessionId) {
 			let s = json_read(benchmark_path(msg.sessionId), null);
-			reply(req, s ? { found: true, session: s } : { found: false });
-		} else reply(req, { found: length(benchmark_list()) > 0, sessions: benchmark_list() });
+			reply(req, s ? { found: true, session: benchmark_session_response(s) } : { found: false });
+		} else reply(req, { found: length(benchmark_list()) > 0, sessions: benchmark_response({ sessions: benchmark_list() }).sessions });
 	} },
 	benchmark_stop: { args: rpc_args({ sessionId: 'string' }), call: function(req) { reply(req, benchmark_stop(req.args?.sessionId)); } },
 	rill_status: { args: rpc_args(), call: function(req, msg) { reply(req, rill_status()); } },

@@ -821,6 +821,14 @@ msgstr "开始测试"
 msgid "Test blocked"
 msgstr "测试已阻止"
 
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/benchmark.js
+msgid "Test complete. The candidate was rolled back and health checks passed."
+msgstr "测试已完成，候选项已回滚，健康检查通过。"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/benchmark.js
+msgid "Test complete, but the result was not validated. Review the details below."
+msgstr "测试已完成，但结果未通过验证。请查看下方详情。"
+
 #: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/benchmark.js:45
 msgid "Details"
 msgstr "详情"
@@ -844,6 +852,10 @@ msgstr "基线"
 #: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/benchmark.js:50
 msgid "Commit-confirm"
 msgstr "提交确认"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/benchmark.js
+msgid "Rollback protection"
+msgstr "回滚保护"
 
 #: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/benchmark.js:60
 msgid "Validate baseline and apply candidate"

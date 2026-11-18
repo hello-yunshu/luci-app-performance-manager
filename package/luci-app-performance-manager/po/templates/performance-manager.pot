@@ -843,6 +843,18 @@ msgstr ""
 msgid "Commit-confirm"
 msgstr ""
 
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/benchmark.js
+msgid "Test complete. The candidate was rolled back and health checks passed."
+msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/benchmark.js
+msgid "Test complete, but the result was not validated. Review the details below."
+msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/benchmark.js
+msgid "Rollback protection"
+msgstr ""
+
 #: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/benchmark.js:60
 msgid "Validate baseline and apply candidate"
 msgstr ""

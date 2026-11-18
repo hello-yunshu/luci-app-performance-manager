@@ -69,7 +69,8 @@ return view.extend({
 				stageItems = [
 					stageRow(_('Environment'), true), stageRow(_('Path'), true), stageRow(_('Compatibility'), true), stageRow(_('Locks / Failsafe'), s.state !== 'awaiting_control'),
 					stageRow(_('Baseline'), !!s.controlEvidence), stageRow(_('Candidate'), s.state === 'candidate_applied' || s.state === 'completed'),
-					stageRow(_('Commit-confirm'), s.state === 'candidate_applied'), stageRow(_('Result'), s.state === 'completed')
+					stageRow(_('Rollback protection'), s.state === 'candidate_applied' || (s.state === 'completed' && s.result?.rolledBack === true)),
+					stageRow(_('Result'), s.state === 'completed')
 				];
 			}
 			else if (s.measurementClass === 'passive_before_after') {
@@ -86,7 +87,13 @@ return view.extend({
 			}
 			const stages = E('ol', { 'class': 'pm-stage-list' }, stageItems);
 			output.appendChild(stages);
-			if (s.measurementClass === 'health_only' && s.result)
+			if (s.measurementClass === 'controlled_ab' && s.state === 'completed' && s.result) {
+				const validated = s.result.validated === true && s.result.rolledBack === true && s.result.health?.pass === true;
+				output.appendChild(pu.note(validated
+					? _('Test complete. The candidate was rolled back and health checks passed.')
+					: _('Test complete, but the result was not validated. Review the details below.'), validated ? 'success' : 'warning'));
+			}
+			else if (s.measurementClass === 'health_only' && s.result)
 				output.appendChild(pu.note(_('Health snapshot captured. This is not a performance result.'), 'info'));
 			else if (s.measurementClass === 'passive_before_after' && s.result)
 				output.appendChild(pu.note(_('Passive observation captured. No settings were changed.'), 'info'));

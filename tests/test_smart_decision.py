@@ -205,6 +205,13 @@ class SmartDecisionTests(unittest.TestCase):
             self.assertIn(token, CORE)
         self.assertIn("rill_refresh:", CORE)
 
+    def test_validated_outcome_retains_the_loaded_state_for_saving(self):
+        start = CORE.index("function smart_record_validated_outcome")
+        end = CORE.index("function smart_record_action_event", start)
+        body = CORE[start:end]
+        self.assertIn("state = row.state", body)
+        self.assertIn("smart_state_save(state)", body)
+
     def test_candidate_identity_is_used_for_history_cooldown_and_journals(self):
         self.assertIn("candidateId: rec.actionId", CORE)
         self.assertIn("candidateId: frozen.candidateId", CORE)
