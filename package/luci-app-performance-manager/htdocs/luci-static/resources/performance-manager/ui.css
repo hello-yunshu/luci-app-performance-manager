@@ -8,7 +8,7 @@
  * compact responsive grid, with the theme retaining the card appearance. */
 .pm-overview-stats {
 	display: grid;
-	grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+	grid-template-columns: minmax(0, 1fr);
 	gap: 1em;
 	margin-bottom: 1em;
 }
@@ -21,7 +21,7 @@
 	font-size: 1.8em;
 	font-weight: bold;
 	line-height: 1.2;
-	overflow-wrap: anywhere;
+	overflow-wrap: normal;
 }
 .pm-overview-stat-label {
 	margin-top: .3em;
@@ -254,6 +254,14 @@
 		min-width: 0;
 		box-sizing: border-box;
 	}
+}
+
+@media screen and (min-width: 24rem) {
+	.pm-overview-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@media screen and (min-width: 64rem) {
+	.pm-overview-stats { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 }
 
 @media screen and (max-width: 47.99rem) {
