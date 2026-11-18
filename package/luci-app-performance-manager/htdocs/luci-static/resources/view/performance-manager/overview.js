@@ -86,7 +86,7 @@ return view.extend({
 			table([
 				[_('Goal'), labels.goal(s.goal)],
 				[_('Profile'), labels.profile(profile.id)],
-				[_('Rill runtime'), pu.badge(labels.runtimeStatus(rill.status))],
+				[_('Rill runtime'), pu.badge(labels.runtimeStatusOverview(rill.status))],
 				[_('Failsafe'), pu.badge(s.failsafe ? _('Enabled') : _('Disabled'), s.failsafe ? 'success' : 'warning')]
 			], 'pm-overview-info-table')
 		]);

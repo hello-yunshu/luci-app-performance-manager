@@ -47,6 +47,10 @@ const RUNTIME_STATUS = {
 	'Runtime · Available': _('Runtime available')
 };
 
+const RUNTIME_STATUS_OVERVIEW = {
+	'Runtime · Not provisioned': _('Not provisioned')
+};
+
 const GUARD_REASON = {
 	'low-memory': _('Low available memory'),
 	'recent-oom': _('Recent out-of-memory kill'),
@@ -717,6 +721,9 @@ return baseclass.extend({
 	automation: function(v) { return pick(AUTOMATION, v, UNKNOWN_STATE); },
 	goal: function(v) { return pick(GOAL, v, UNKNOWN_STATE); },
 	runtimeStatus: function(v) { return pick(RUNTIME_STATUS, v, UNKNOWN_STATE); },
+	runtimeStatusOverview: function(v) {
+		return pick(RUNTIME_STATUS_OVERVIEW, v, pick(RUNTIME_STATUS, v, UNKNOWN_STATE));
+	},
 	guardReason: function(v) { return pick(GUARD_REASON, v, UNKNOWN_STATE); },
 	smartReason: smartReason,
 	learningStage: function(v) { return pick(LEARNING_STAGE, v, UNKNOWN_STATE); },

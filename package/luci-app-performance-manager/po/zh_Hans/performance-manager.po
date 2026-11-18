@@ -1576,6 +1576,9 @@ msgid "Runtime missing capabilities"
 msgstr "Rill 运行时缺少能力"
 
 msgid "Runtime not provisioned"
+msgstr "Rill 运行时未部署"
+
+msgid "Not provisioned"
 msgstr "未部署"
 
 msgid "Runtime protocol v%s"

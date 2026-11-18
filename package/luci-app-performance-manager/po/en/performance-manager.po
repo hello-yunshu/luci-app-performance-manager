@@ -1632,6 +1632,9 @@ msgid "Runtime missing capabilities"
 msgstr "Runtime missing capabilities"
 
 msgid "Runtime not provisioned"
+msgstr "Runtime not provisioned"
+
+msgid "Not provisioned"
 msgstr "Not provisioned"
 
 msgid "Runtime protocol v%s"
