@@ -112,12 +112,29 @@ jobs:
       - name: Provision current source into real LuCI
         run: PM_UI_LANG='${{ matrix.language }}' bash tests/real-luci-ui-provision.sh pm-ui-gate 18080
       - name: Install Playwright and locate Chrome
+        timeout-minutes: 25
         run: |
           set -euo pipefail
-          sudo apt-get update
-          sudo apt-get install -y fontconfig fonts-noto-cjk
+
+          retry_bounded() {
+            local attempts="$1" seconds="$2" attempt=1
+            shift 2
+            while (( attempt <= attempts )); do
+              echo "Attempt $attempt/$attempts: $*"
+              if timeout --signal=TERM --kill-after=10s "${seconds}s" "$@"; then
+                return 0
+              fi
+              if (( attempt < attempts )); then sleep 5; fi
+              attempt=$((attempt + 1))
+            done
+            echo "Command failed after $attempts bounded attempts: $*" >&2
+            return 1
+          }
+
+          retry_bounded 2 180 sudo apt-get -o Acquire::Retries=2 update
+          retry_bounded 2 180 sudo apt-get install -y fontconfig fonts-noto-cjk
           fc-list :lang=zh family | grep -qi 'Noto Sans CJK'
-          npm install --prefix "$RUNNER_TEMP/ui" --no-audit --no-fund playwright@1.55.0
+          retry_bounded 2 180 npm install --prefix "$RUNNER_TEMP/ui" --no-audit --no-fund playwright@1.55.0
           browser="$(command -v google-chrome || command -v google-chrome-stable || command -v chromium || true)"
           test -n "$browser" || { echo 'No Chrome executable on runner' >&2; exit 1; }
           echo "PLAYWRIGHT_EXECUTABLE=$browser" >> "$GITHUB_ENV"
