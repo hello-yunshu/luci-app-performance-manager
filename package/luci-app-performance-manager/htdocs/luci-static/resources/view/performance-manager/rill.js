@@ -40,6 +40,7 @@ return view.extend({
 			}) : [ E('tr', { 'class': 'tr' }, [ E('td', { 'class': 'td', 'colspan': '5', 'data-title': _('Rank') }, [ _('No ranking is available yet. Refresh the decision or wait for the next evaluation.') ]) ]) ];
 		const table = E('div', { 'class': 'pu-table-scroll' }, [ E('table', { 'class': 'table' }, [ E('caption', { 'class': 'pm-visually-hidden' }, [ _('Ranking table') ]), E('thead', {}, [ E('tr', { 'class': 'tr cbi-section-table-titles' }, [ E('th', { 'class': 'th' }, [ _('Rank') ]), E('th', { 'class': 'th' }, [ _('Candidate') ]), E('th', { 'class': 'th' }, [ _('Score') ]), E('th', { 'class': 'th' }, [ _('Eligibility') ]), E('th', { 'class': 'th' }, [ _('Cooldown') ]) ]) ]), E('tbody', {}, rows) ]) ]);
 		const rankingActions = pu.toolbar([ refresh ]);
+		rankingActions.classList.add('pm-rill-ranking-actions');
 		const context = s.context || {};
 		const feedbackOutput = E('div', {}, [ _('Expand to load recent validated feedback.') ]);
 		const feedbackDetails = E('details', { 'class': 'pm-disclosure' }, [
