@@ -272,8 +272,11 @@ jobs:
           grep -qx "CONFIG_TARGET_SUBTARGET=\"${OPENWRT_SUBTARGET}\"" "$config"
           grep -qx "CONFIG_TARGET_ARCH_PACKAGES=\"${PACKAGE_ARCH}\"" "$config"
           for package in rill-runtime rill-runtime-manager; do
-            grep -qx "config PACKAGE_$package" tmp/.config-package.in || {
+            # package-metadata.pl emits package symbols indented inside their
+            # menu, so match the config record instead of the raw line start.
+            grep -qE "^[[:space:]]*config PACKAGE_${package}\$" tmp/.config-package.in || {
               echo "SDK Kconfig cannot resolve required feed package $package" >&2
+              grep -c "^Package: " tmp/.packageinfo >&2 || true
               exit 1
             }
           done
