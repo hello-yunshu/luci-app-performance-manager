@@ -208,10 +208,10 @@ jobs:
           sdkdir=$(find . -maxdepth 1 -type d -name "openwrt-sdk-${OPENWRT_VERSION}-${SDK_PREFIX}_*" | head -n1)
           test -n "$sdkdir"
           sdkdir=$(cd "$sdkdir" && pwd)
-          config="$sdkdir/.config"
-          grep -qx "CONFIG_TARGET_${OPENWRT_TARGET}=y" "$config"
-          grep -qx "CONFIG_TARGET_SUBTARGET=\"${OPENWRT_SUBTARGET}\"" "$config"
-          grep -qx "CONFIG_TARGET_ARCH_PACKAGES=\"${PACKAGE_ARCH}\"" "$config"
+          # Official SDK archives ship without a .config; the target identity is
+          # materialized by `make defconfig` in the feed installation step.
+          test -f "$sdkdir/include/target.mk"
+          test -f "$sdkdir/Makefile"
           echo "SDKDIR=$sdkdir" >> "$GITHUB_ENV"
       - name: Resolve official feed identity
         id: openwrt-feeds
@@ -266,9 +266,17 @@ jobs:
             cp -a "$GITHUB_WORKSPACE/rill-openwrt-packages/package/$name"/. "package/$name/"
           done
           make defconfig
+          config="$SDKDIR/.config"
+          test -f "$config"
+          grep -qx "CONFIG_TARGET_${OPENWRT_TARGET}=y" "$config"
+          grep -qx "CONFIG_TARGET_SUBTARGET=\"${OPENWRT_SUBTARGET}\"" "$config"
+          grep -qx "CONFIG_TARGET_ARCH_PACKAGES=\"${PACKAGE_ARCH}\"" "$config"
           for package in rill-runtime rill-runtime-manager; do
-            grep -qx "config PACKAGE_$package" tmp/.config-package.in || {
+            # package-metadata.pl emits package symbols indented inside their
+            # menu, so match the config record instead of the raw line start.
+            grep -qE "^[[:space:]]*config PACKAGE_${package}\$" tmp/.config-package.in || {
               echo "SDK Kconfig cannot resolve required feed package $package" >&2
+              grep -c "^Package: " tmp/.packageinfo >&2 || true
               exit 1
             }
           done
@@ -309,7 +317,10 @@ jobs:
             echo "RILL_QUALIFIED_BINARY_SHA256=$(jq -r .qualifiedTarget.binarySha256 "$RUNNER_TEMP/qualified-rill-selection.json")"
           } >> "$GITHUB_ENV"
       - name: Build Rill integration package (glue payload only)
-        run: cd "$SDKDIR" && bash "$GITHUB_WORKSPACE/scripts/openwrt-build-diagnostic.sh" package/performance-manager-rill/compile
+        # NO_DEPS keeps the SDK from rebuilding rill-runtime from source; the
+        # dependency closure was completed by the Core/LuCI builds, and the
+        # already-qualified Runtime package is staged after this step.
+        run: cd "$SDKDIR" && NO_DEPS=1 bash "$GITHUB_WORKSPACE/scripts/openwrt-build-diagnostic.sh" package/performance-manager-rill/compile
       - name: Build shared Runtime management package
         run: cd "$SDKDIR" && bash "$GITHUB_WORKSPACE/scripts/openwrt-build-diagnostic.sh" package/rill-runtime-manager/compile
       - name: Stage exact qualified Runtime package
@@ -333,10 +344,14 @@ jobs:
           runtime_dir="$SDKDIR/bin/packages/$PACKAGE_ARCH/base"
           mkdir -p "$runtime_dir"
           cp "$runtime_package" "$runtime_dir/$(basename "$runtime_package")"
-          test "$(find "$SDKDIR/bin" -type f -name "rill-runtime-*.$PACKAGE_MANAGER" | wc -l | tr -d ' ')" -eq 1
+          # Count only the Runtime itself; rill-runtime-manager also starts
+          # with "rill-runtime-" and is built in the previous step.
+          test "$(find "$SDKDIR/bin" -type f -name "rill-runtime[-_]*.$PACKAGE_MANAGER" ! -name 'rill-runtime-manager*' | wc -l | tr -d ' ')" -eq 1
           echo "RILL_SHARED_BINARY_SHA256=$runtime_sha" >> "$GITHUB_ENV"
       - name: Build full architecture-specific unified PM package
-        run: cd "$SDKDIR" && bash "$GITHUB_WORKSPACE/scripts/openwrt-build-diagnostic.sh" package/luci-app-performance-manager-all/compile
+        # Dependencies (Core, LuCI, glue, manager) are already built and the
+        # qualified Runtime is staged; NO_DEPS avoids rebuilding rill-runtime.
+        run: cd "$SDKDIR" && NO_DEPS=1 bash "$GITHUB_WORKSPACE/scripts/openwrt-build-diagnostic.sh" package/luci-app-performance-manager-all/compile
       - name: Assert expected packages present (exact package metadata match)
         shell: bash
         run: |

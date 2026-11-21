@@ -787,7 +787,7 @@ def main(argv):
             elif runtime_payload[:4] != b'\x7fELF' or len(runtime_payload) < 20 \
                     or int.from_bytes(runtime_payload[18:20], 'little') != ELF_MACHINES.get(arch):
                 failures.append(f'rill-runtime: ELF machine does not match {arch}')
-            if package_file_content(apk, '/usr/share/rill/runtime-channel') != b'preview\n':
+            if package_file_content(apk, '/usr/share/rill/runtime-channel') != b'stable\n':
                 failures.append('rill-runtime: embedded channel marker must be Stable')
         if name == ALL_IN_ONE:
             installed_payload = report['packages'][name].setdefault('installedPayload', {})
@@ -810,11 +810,15 @@ def main(argv):
 
     # Reject any stray APK that is not one of the expected packages but
     # shares a prefix (e.g. a leftover old artifact) — better to be strict.
+    # rill-runtime-manager is a legitimate shared dependency staged by the
+    # workflow alongside the qualified Runtime, not a PM artifact.
+    shared_dependencies = {'rill-runtime-manager'}
     extra = []
     for apk in sorted(packages):
         meta = package_pkginfo(apk)
         name = (meta or {}).get('pkgname')
-        if name and name not in EXPECTED and any(name.startswith(p + '-') or name.startswith(p + '_') for p in EXPECTED):
+        if name and name not in EXPECTED and name not in shared_dependencies \
+                and any(name.startswith(p + '-') or name.startswith(p + '_') for p in EXPECTED):
             extra.append(apk.name)
     if extra:
             failures.append(f'unexpected prefix-colliding {pkgtype.upper()}s present: {", ".join(extra)}')
