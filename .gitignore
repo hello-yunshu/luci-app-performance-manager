@@ -45,6 +45,6 @@ dist/
 .venv/
 local-evidence/
 local-artifacts/
-openwrt-25.12.5-x86-64-rootfs.tar.gz
+openwrt-*-x86-64-rootfs.tar.gz
 sha256sums
 .portable-rootfs/

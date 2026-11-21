@@ -67,7 +67,7 @@ class FakeEl {
       contains: (name) => String(this.attrs['class'] || '').split(/\s+/).includes(name),
     };
     if (this.attrs.class) this.class = this.attrs['class'];
-    (children || []).forEach((c) => this.appendChild(c));
+    (Array.isArray(children) ? children : children == null ? [] : [children]).forEach((c) => this.appendChild(c));
   }
   get value() { return this._value !== undefined ? this._value : (this.options.length ? this.options[0].attrs.value : ''); }
   set value(v) { this._value = v; }
@@ -177,6 +177,8 @@ function Sec(title) {
   this.title = title;
   this._opts = [];
   this.option = function (kind, key, label) { const o = new Opt(label); this._opts.push(o); return o; };
+  this.tab = function () {};
+  this.taboption = function (tab, kind, key, label) { return this.option(kind, key, label); };
 }
 function FormMap(title, description) {
   this.title = title;
@@ -222,8 +224,9 @@ const mockTx = {
 const mockStatus = {
   version: '1.0.0-rc', running: true, automation: 'conservative', goal: 'balanced',
   telemetry: true, failsafe: true, topologyGeneration: 9,
-  platform: { hyperv: true, kvm: false }, profile: { healthy: true, degraded: false },
+  platform: { hyperv: true, kvm: false },
   rill: { status: 'Runtime · Available', version: '0.9.1' }, healthGuard: { pass: true, reasons: ['high-cpu-load'] },
+  profile: { id: 'recommended', healthy: true, degraded: false },
   nativePacketSteering: { provider: 'openwrt-netifd', availability: 'available', ownership: 'user' },
 };
 const mockTopology = {
@@ -294,6 +297,17 @@ async function expect(name, fn) {
 
 const PAGES = ['overview', 'optimize', 'capabilities', 'rill', 'history', 'benchmark', 'settings', 'advanced'];
 const LABELS_SRC = fs.readFileSync(path.join(RES, 'performance-manager', 'labels.js'), 'utf8');
+
+await expect('field without help omits a null DOM child', () => {
+  const strictE = (tag, attrs, children) => {
+    if (Array.isArray(children) && children.includes(null))
+      throw new Error('null passed as a DOM child');
+    return E(tag, attrs, children);
+  };
+  const strictPu = loadModule(path.join(RES, 'performance-manager', 'ui.js'), { E: strictE, _, baseclass });
+  const rendered = strictPu.field('Label', E('select'), undefined);
+  if (!visibleText(rendered).includes('Label')) throw new Error('field label is missing');
+});
 
 /* Read the real mapping tables so coverage is driven by every value the module
  * knows about, not by a hand-picked sample. */
@@ -370,6 +384,12 @@ await expect('every Rill runtime status maps to text', () => {
     const text = labels.runtimeStatus(value);
     if (text === _('Unknown state')) throw new Error('unmapped runtime status: ' + value);
   }
+  if (labels.runtimeStatusOverview('Runtime · Not provisioned') !== _('Not provisioned'))
+    throw new Error('overview runtime status should use its concise translated label');
+  if (labels.runtimeStatusOverview('Runtime · Available') !== _('Available'))
+    throw new Error('overview available runtime status should be concise');
+  if (labels.runtimeStatus('Runtime · Not provisioned') !== _('Runtime not provisioned'))
+    throw new Error('Rill runtime detail should retain its full status label');
 });
 await expect('every backend Rill reason maps to text (plain and rill- prefixed)', () => {
   for (const value of BACKEND_REASONS) {
@@ -534,6 +554,43 @@ await expect('default install Rill page explains the missing runtime', () => {
   /* Every absent field must read as "not recorded", never as "unknown". */
   const unknown = text.match(/未知[^\s，。]{0,4}/);
   if (unknown) throw new Error('default install shows an unknown value: ' + unknown[0]);
+});
+
+await expect('PM update action follows the PM-specific availability flag', () => {
+  const view = loadModule(path.join(VIEW_DIR, 'rill.js'), baseGlobals);
+  const renderPackageControls = (manager) => visibleText(view.render([mockRill, mockRec, {
+    ok: true, supported: true, installed: true, channel: 'stable', compatible: true,
+    runtimeUpdateAvailable: false, ...manager,
+  }]));
+  const noRuntime = renderPackageControls({ installed: false, channel: 'none', compatible: false });
+  if (!noRuntime.includes(_('Install Rill Runtime')))
+    throw new Error('missing Runtime incorrectly hid the install action');
+  const cfiOnly = renderPackageControls({ pmUpdateAvailable: false, clientUpdateAvailable: true });
+  if (cfiOnly.includes(_('Update Performance Manager')))
+    throw new Error('CFI-only update incorrectly displayed the PM update action');
+  const pmOnly = renderPackageControls({ pmUpdateAvailable: true, clientUpdateAvailable: false });
+  if (!pmOnly.includes(_('Update Performance Manager')))
+    throw new Error('PM update action was hidden when PM-specific update was available');
+  const repairAvailable = renderPackageControls({ repairAvailable: true });
+  if (!repairAvailable.includes(_('Repair Rill Runtime')))
+    throw new Error('Runtime repair action was hidden when the manager confirmed safe repair');
+  const legacyPreview = renderPackageControls({
+    installed: true, channel: 'legacy-preview', version: '1.5.6-r10',
+    runtimeUpdateAvailable: true, repairAvailable: true,
+  });
+  if (!legacyPreview.includes('rill-runtime-preview') || !legacyPreview.includes('1.5.6-r10'))
+    throw new Error('legacy Runtime owner/version was not identified');
+  if (!legacyPreview.includes('opkg remove luci-app-performance-manager-all rill-runtime-preview') ||
+      !legacyPreview.includes('apk del luci-app-performance-manager-all rill-runtime-preview'))
+    throw new Error('legacy Runtime migration steps were not shown');
+  if (legacyPreview.includes(_('Install Rill Runtime')) || legacyPreview.includes(_('Update Rill Runtime')) ||
+      legacyPreview.includes(_('Repair Rill Runtime')))
+    throw new Error('legacy Preview Runtime could be replaced without a manual migration');
+  if (!view.render.toString().includes('pm.runtimeManagerRepair(packageName)'))
+    throw new Error('Runtime repair action does not call the dedicated repair RPC');
+  const unknownRuntime = renderPackageControls({ installed: false, channel: 'unknown', compatible: false });
+  if (unknownRuntime.includes(_('Install Rill Runtime')))
+    throw new Error('unknown Runtime ownership must not show an install action');
 });
 
 /* Prove the scanner itself would catch the exact regressions it is meant to

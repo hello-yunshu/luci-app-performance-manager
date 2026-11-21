@@ -70,21 +70,24 @@ class SyncContractTransactionTests(unittest.TestCase):
             root=Path(directory);package=root/'package'
             (package/'package/rill-runtime').mkdir(parents=True);(package/'metadata').mkdir()
             contract=json.loads((Path(ROOT)/'contracts/rill-runtime.json').read_text())
+            contract['openwrtPackage']['commit']='a'*40
+            contract['qualification'].update(required=True,runId=123,verdict='PASS',runAttempt=2,
+                                               manifestSha256='0'*64)
             raw=b'validated schema 3 fixture'
             contract['qualification'].update(runAttempt=2,manifestSha256=hashlib.sha256(raw).hexdigest())
             contract['extension']={'keep':True};contract['policy']['future']='preserve'
             destination=root/'contract.json';destination.write_text(json.dumps(contract))
             version=contract['resolved']['version'];commit=contract['openwrtPackage']['commit'];run=contract['qualification']['runId']
-            metadata={'package':{'name':'rill-runtime','version':version,'release':contract['openwrtPackage']['packageRelease'],'binary':'/usr/bin/rill-runtime'},
-                'upstream':{'version':version,'commit':contract['resolved']['upstreamCommit'],'archiveSha256':contract['resolved']['sourceArchiveSha256']}}
-            metadata_path=package/'metadata/rill-runtime.json';metadata_path.write_text(json.dumps(metadata))
-            recipe=package/'package/rill-runtime/Makefile';recipe.write_text(f"PKG_NAME:=rill-runtime\nPKG_VERSION:={version}\nPKG_RELEASE:={metadata['package']['release']}\n")
+            package_commit=commit
+            stable={'package':{'name':'rill-runtime','version':version,'release':contract['openwrtPackage']['packageRelease'],'binary':'/usr/bin/rill-runtime'},
+                'upstream':{'version':version,'tag':contract['resolved']['tag'],'commit':contract['resolved']['upstreamCommit']}}
+            (package/'metadata/rill-runtime.json').write_text(json.dumps(stable))
+            recipe=package/'package/rill-runtime/Makefile';recipe.write_text(f"PKG_NAME:=rill-runtime\nPKG_VERSION:={version}\nPKG_RELEASE:={stable['package']['release']}\n")
             def api(path):
-                if '/releases?' in path:return [{'tag_name':'v'+version,'draft':False,'prerelease':False}]
                 return {'workflow_runs':[{'id':run,'run_attempt':2,'conclusion':'success'}]}
-            def proof(*args):return {'package':metadata['package'],'upstream':metadata['upstream']},raw,[]
+            def proof(*args):return {'package':{'name':stable['package']['name'],'version':version,'release':stable['package']['release'],'upstream':stable['upstream']}},raw,[]
             with patch.object(sync_rill,'CONTRACT',destination),patch.object(sync_rill,'api',api), \
-                 patch.object(sync_rill,'git_head',return_value=commit),patch.object(sync_rill,'qualified_manifest',proof), \
+                 patch.object(sync_rill,'git_head',return_value=package_commit),patch.object(sync_rill,'qualified_manifest',proof), \
                  contextlib.redirect_stdout(io.StringIO()):
                 before=destination.read_bytes();sync_rill.sync(package);self.assertEqual(before,destination.read_bytes())
                 changed=copy.deepcopy(contract);changed['qualification']['runId']=run+1;destination.write_text(json.dumps(changed))
@@ -96,7 +99,7 @@ class SyncContractTransactionTests(unittest.TestCase):
                 before=destination.read_bytes()
                 with self.assertRaises(ValueError):sync_rill.sync(package)
                 self.assertEqual(before,destination.read_bytes())
-                recipe.write_text(f"PKG_NAME:=rill-runtime\nPKG_VERSION:={version}\nPKG_RELEASE:={metadata['package']['release']}\n")
+                recipe.write_text(f"PKG_NAME:=rill-runtime\nPKG_VERSION:={version}\nPKG_RELEASE:={stable['package']['release']}\n")
                 changed=json.loads(destination.read_text());changed['qualification']['runId']=run+1;destination.write_text(json.dumps(changed));before=destination.read_bytes()
                 with patch.object(sync_rill.os,'replace',side_effect=OSError('injected failure')):
                     with self.assertRaises(OSError):sync_rill.sync(package)

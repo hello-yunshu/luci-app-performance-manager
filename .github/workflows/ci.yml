@@ -87,7 +87,7 @@ jobs:
           bash scripts/prepare_runtime_test_rootfs.sh "$RILL_TEST_OPENWRT_VERSION" "$RUNNER_TEMP/runtime-userspace"
           echo "RILL_TEST_LOADER=$RUNNER_TEMP/runtime-userspace/rootfs/lib/ld-musl-x86_64.so.1" >> "$GITHUB_ENV"
           echo "RILL_TEST_LIBRARY_PATH=$RUNNER_TEMP/runtime-userspace/rootfs/lib:$RUNNER_TEMP/runtime-userspace/rootfs/usr/lib" >> "$GITHUB_ENV"
-      - name: Download and extract exact qualified Stable package
+      - name: Download and extract exact qualified shared Stable package
         env:
           GH_TOKEN: ${{ github.token }}
         shell: bash

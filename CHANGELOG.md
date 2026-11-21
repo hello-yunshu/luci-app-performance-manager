@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased — unified feed and shared Runtime (package release 1.0.7-r6)
+
+- Keep `luci-app-performance-manager-all` as the single user-facing PM package; it depends on the shared `rill-runtime-preview` and `rill-runtime-manager` packages.
+- Add guarded Runtime status, install, repair, and update actions to the Rill page. Runtime repair is exposed only when the manager confirms a safe same-version recovery.
+- Align portable/hardware package-composition and full-upgrade validation with the supported OpenWrt 25.12.6 APK target.
+- Package build, signed feed publication, clean install, and device upgrade qualification remain pending; this entry does not claim a release.
+
 ## 1.0.6 — i18n catalog in the main package and shared UI rhythm (2026-11-13)
 
 - Ships the zh-cn catalog from the main package, fails the build when po2lmo is missing, and strips msgid padding so `_()` matches after trimws.

@@ -5,7 +5,11 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import re
 from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[1]
+PM_TARGETS = json.loads((ROOT / "contracts/openwrt-native-targets.json").read_text())["targets"]
 
 
 def files(root: Path, name: str, path_fragments: list[str]) -> list[Path]:
@@ -29,7 +33,9 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--input", required=True)
     parser.add_argument("--out", required=True)
     parser.add_argument("--expected-commit", required=True)
-    parser.add_argument("--expected-arch", action="append", required=True)
+    parser.add_argument("--expected-arch", action="append", default=[])
+    parser.add_argument("--expected-target", action="append", default=[],
+                        help="exact release:package-arch:package-format target identity")
     parser.add_argument("--include-path-fragment", action="append", default=[])
     args = parser.parse_args(argv)
 
@@ -37,7 +43,15 @@ def main(argv: list[str] | None = None) -> int:
     out = Path(args.out).resolve()
     metadata_files = files(root, "build-metadata.json", args.include_path_fragment)
     verification_files = files(root, "apk-verification.json", args.include_path_fragment)
-    expected_count = len(args.expected_arch)
+    if not args.expected_arch and not args.expected_target:
+        raise RuntimeError("expected target identities are required")
+    expected_count = len(args.expected_target) or len(args.expected_arch)
+    target_map = {
+        f"{row['openwrtVersion']}:{row['packageArch']}:{row['packageManagerFormat']}": row
+        for row in PM_TARGETS
+    }
+    if args.expected_target and set(args.expected_target) != set(target_map):
+        raise RuntimeError("requested target coverage differs from the checked-in PM target policy")
     if len(metadata_files) != expected_count or len(verification_files) != expected_count:
         raise RuntimeError(
             f"expected {expected_count} target metadata and verification files, "
@@ -51,7 +65,17 @@ def main(argv: list[str] | None = None) -> int:
         candidates = []
         for verification_path in verification_files:
             verification = json.loads(verification_path.read_text())
-            if verification.get("arch") == metadata_arch:
+            if args.expected_target:
+                exact_target_match = (
+                    verification.get("openwrtVersion") == metadata.get("openwrtVersion")
+                    and verification.get("pkgtype") == metadata.get("packageManagerFormat")
+                )
+            else:
+                exact_target_match = (
+                    (not verification.get("openwrtVersion") or verification.get("openwrtVersion") == metadata.get("openwrtVersion"))
+                    and (not verification.get("pkgtype") or verification.get("pkgtype") == metadata.get("packageManagerFormat"))
+                )
+            if verification.get("arch") == metadata_arch and exact_target_match:
                 candidates.append((verification_path, verification))
         if len(candidates) != 1:
             raise RuntimeError(
@@ -65,12 +89,28 @@ def main(argv: list[str] | None = None) -> int:
         if metadata.get("verdict") != "PASS" or verification.get("verdict") != "PASS":
             raise RuntimeError(f"target evidence is not PASS under {metadata_path.parent}")
         arch = metadata.get("architecture")
-        if arch != verification.get("arch") or arch not in args.expected_arch:
+        target_id = f"{metadata.get('openwrtVersion')}:{arch}:{metadata.get('packageManagerFormat')}"
+        if arch != verification.get("arch") or (args.expected_arch and arch not in args.expected_arch) or \
+                (args.expected_target and target_id not in args.expected_target):
             raise RuntimeError(f"metadata/verification architecture mismatch: {arch!r}")
+        if args.expected_target:
+            target_spec = target_map[target_id]
+            expected_sdk_prefix = f"openwrt-sdk-{target_spec['openwrtVersion']}-{target_spec['sdkPrefix']}_"
+            if metadata.get("target") != target_spec["target"]:
+                raise RuntimeError(f"SDK target identity mismatch for {target_id}: {metadata.get('target')!r}")
+            if not str(metadata.get("sdkIdentity", "")).startswith(expected_sdk_prefix):
+                raise RuntimeError(f"SDK archive identity mismatch for {target_id}: {metadata.get('sdkIdentity')!r}")
+            if not re.fullmatch(r"[0-9a-f]{64}", str(metadata.get("sdkArchiveSha256", ""))):
+                raise RuntimeError(f"SDK archive checksum missing for {target_id}")
         pairs.append((metadata_path, verification_path, metadata, verification))
 
     arches = [metadata.get("architecture") for _, _, metadata, _ in pairs]
-    if sorted(arches) != sorted(args.expected_arch):
+    target_ids = [f"{meta.get('openwrtVersion')}:{meta.get('architecture')}:{meta.get('packageManagerFormat')}"
+                  for _, _, meta, _ in pairs]
+    if args.expected_target:
+        if sorted(target_ids) != sorted(args.expected_target):
+            raise RuntimeError(f"exact target coverage mismatch: {target_ids!r}")
+    elif sorted(arches) != sorted(args.expected_arch):
         raise RuntimeError(f"target architecture coverage mismatch: {arches!r}")
 
     package_names = sorted({
@@ -107,7 +147,8 @@ def main(argv: list[str] | None = None) -> int:
             })
         package_matrix[name] = {"status": "ok", "targets": targets}
         if name == "luci-app-performance-manager-all":
-            package_matrix[name]["runtimeBundled"] = True
+            package_matrix[name]["runtimeBundled"] = False
+            package_matrix[name]["runtimeSharedDependency"] = True
 
     first = pairs[0][2]
     target_records = [{
@@ -139,8 +180,8 @@ def main(argv: list[str] | None = None) -> int:
         "verdicts": {"pmPackagesBuildVerdict": "PASS", "apkExactVerificationVerdict": "PASS"},
         "verdict": "PASS",
         "matrixCoverage": {
-            "requiredPackageArchitectures": sorted(args.expected_arch),
-            "qualifiedPackageArchitectures": sorted(arches),
+            "requiredTargets": sorted(args.expected_target) if args.expected_target else sorted(args.expected_arch),
+            "qualifiedTargets": sorted(target_ids if args.expected_target else arches),
             "targetCount": len(target_records),
         },
     }

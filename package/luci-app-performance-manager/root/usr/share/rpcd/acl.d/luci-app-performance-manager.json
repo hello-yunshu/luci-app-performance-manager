@@ -3,13 +3,15 @@
     "description": "Grant access to OpenWrt Performance Manager",
     "read": {
       "ubus": {
-        "performance-manager": [ "status", "capabilities", "topology", "targets", "paths", "analyze", "recommendations", "transactions", "locks", "history", "benchmark_status", "rill_status", "rill_refresh", "resources", "diagnostics" ]
+        "performance-manager": [ "status", "capabilities", "topology", "targets", "paths", "analyze", "recommendations", "transactions", "locks", "history", "history_summary", "rill_feedback", "benchmark_status", "rill_status", "rill_refresh", "resources", "diagnostics" ],
+        "rill-runtime-manager": [ "status" ]
       },
       "uci": [ "performance-manager" ]
     },
     "write": {
       "ubus": {
-        "performance-manager": [ "apply", "confirm", "rollback", "benchmark_start", "benchmark_stop", "refresh" ]
+        "performance-manager": [ "apply", "confirm", "rollback", "benchmark_start", "benchmark_stop", "refresh" ],
+				"rill-runtime-manager": [ "refresh", "install", "repair", "update" ]
       },
       "uci": [ "performance-manager" ]
     }

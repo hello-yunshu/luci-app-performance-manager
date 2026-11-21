@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Stage the public PM release: exactly three full architecture APKs.
+"""Stage the public PM release: one exact package for each supported target.
 
 All evidence is consumed from Actions artifacts but is never copied to the
 public directory. The package filename shown to users is normalized from
@@ -17,11 +17,9 @@ from artifact_identity import ArtifactIdentityError, resolve_artifact, sha256
 
 PACKAGE = "luci-app-performance-manager-all"
 PUBLIC_PREFIX = "performance-manager-all"
-TARGETS = {
-    "x86_64": ("x86/64", "x86_64-unknown-linux-musl"),
-    "aarch64_generic": ("armsr/armv8", "aarch64-unknown-linux-musl"),
-    "aarch64_cortex-a53": ("mediatek/filogic", "aarch64-unknown-linux-musl"),
-}
+TARGET_RECORDS = json.loads((Path(__file__).resolve().parents[1] / "contracts/openwrt-native-targets.json").read_text())["targets"]
+TARGETS = {(row["openwrtVersion"], row["packageArch"], row["packageManagerFormat"]): row
+           for row in TARGET_RECORDS}
 
 
 def _files(root: Path, name: str) -> list[Path]:
@@ -52,8 +50,11 @@ def read_matrix_reports(root: Path) -> list[tuple[Path, dict, Path, dict]]:
         build = json.loads(metadata_path.read_text())
         commit = build.get("repositoryCommitSha")
         arch = build.get("architecture")
+        release = build.get("openwrtVersion")
+        pkgtype = build.get("packageManagerFormat")
         candidates = [(p, report) for p, report in verification_values
-                      if report.get("pmCommitSha") == commit and report.get("arch") == arch]
+                      if report.get("pmCommitSha") == commit and report.get("arch") == arch
+                      and report.get("openwrtVersion") == release and report.get("pkgtype") == pkgtype]
         if not candidates:
             candidates = [(p, report) for p, report in verification_values
                           if p.parent == metadata_path.parent]
@@ -77,8 +78,8 @@ def _full_record(build: dict, report: dict, arch: str) -> tuple[str, str]:
     if (verified.get("status") != "ok" or built.get("status") != "ok"
             or verified.get("sha256") != built.get("apkSha256")
             or verified.get("arch") != arch or not filename or not digest
-            or runtime.get("status") != "present"
-            or runtime.get("matchesSplitRuntime") is not True):
+            or runtime.get("status") != "shared-dependency"
+            or runtime.get("package") != "rill-runtime"):
         raise ArtifactIdentityError(f"{PACKAGE} full identity is incomplete for {arch}")
     return filename, digest
 
@@ -88,17 +89,23 @@ def assemble_public_apk(*, input_root: Path, output_root: Path, expected_commit:
     pairs = read_matrix_reports(input_root)
     if any(build.get("repositoryCommitSha") != expected_commit for _, build, _, _ in pairs):
         raise ArtifactIdentityError("matrix build evidence is not for the expected commit")
-    by_arch = {build.get("architecture"): (metadata, build, verification, report)
+    by_arch = {(build.get("openwrtVersion"), build.get("architecture"), build.get("packageManagerFormat")):
+               (metadata, build, verification, report)
                for metadata, build, verification, report in pairs}
-    if set(by_arch) != set(TARGETS):
-        raise ArtifactIdentityError(f"expected exactly the three full target architectures, got {sorted(by_arch)}")
+    target_keys = {(build.get("openwrtVersion"), build.get("architecture"), build.get("packageManagerFormat"))
+                   for _, build, _, _ in pairs}
+    if target_keys != set(TARGETS):
+        raise ArtifactIdentityError(f"expected exact native target matrix, got {sorted(target_keys)}")
     resolved_version = version or str((pairs[0][3].get("expectedVersion") or "")).replace("_rc", "-rc.")
     if not resolved_version:
         raise ArtifactIdentityError("VERSION is required to name public assets")
     output_root.mkdir(parents=True, exist_ok=True)
     staged = []
-    for arch in sorted(TARGETS):
-        _, build, _, report = by_arch[arch]
+    for key in sorted(TARGETS):
+        release, arch, pkgtype = key
+        _, build, _, report = by_arch[key]
+        if report.get("pkgtype") != pkgtype:
+            raise ArtifactIdentityError(f"package format mismatch for {release}/{arch}")
         filename, digest = _full_record(build, report, arch)
         # The same package filename may be emitted by all SDK targets while
         # the native payload differs. Select by the authoritative target SHA
@@ -110,7 +117,7 @@ def assemble_public_apk(*, input_root: Path, output_root: Path, expected_commit:
             identity = resolve_artifact(PACKAGE, digest, target_candidates, filename)
         except ArtifactIdentityError as exc:
             raise ArtifactIdentityError(str(exc)) from exc
-        public_name = f"{PUBLIC_PREFIX}-v{resolved_version}-{arch}.apk"
+        public_name = f"{PUBLIC_PREFIX}-v{resolved_version}-openwrt-{release}-{arch}.{pkgtype}"
         if expected_filename and public_name != expected_filename:
             raise ArtifactIdentityError(f"requested filename {expected_filename!r} does not match {public_name!r}")
         target = output_root / public_name
@@ -119,6 +126,7 @@ def assemble_public_apk(*, input_root: Path, output_root: Path, expected_commit:
             "package": PACKAGE, "filename": target.name, "sourceFilename": filename,
             "sha256": sha256(target), "bytes": target.stat().st_size,
             "packageArch": arch, "target": build.get("target"),
+            "openwrtVersion": release, "packageManagerFormat": pkgtype,
             "runtime": ((report.get("packages") or {}).get(PACKAGE) or {}).get("runtimeBinary"),
             "artifactIdentity": identity,
         })
@@ -126,6 +134,9 @@ def assemble_public_apk(*, input_root: Path, output_root: Path, expected_commit:
     checksum.write_text("".join(f"{item['sha256']}  {item['filename']}\n" for item in staged))
     return {"version": resolved_version, "commit": expected_commit, "assets": staged,
             "checksum": {"filename": checksum.name, "sha256": sha256(checksum)}}
+
+
+assemble_public_package = assemble_public_apk
 
 
 def main(argv=None) -> int:

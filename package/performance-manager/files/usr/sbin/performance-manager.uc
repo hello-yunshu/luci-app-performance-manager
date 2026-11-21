@@ -160,7 +160,7 @@ function shell_quote(arg) {
 function run(argv) {
 	/* ucode's fs.popen rejects an argv ARRAY on the supported OpenWrt runtime
 	 * (returns null, so every command would silently fail). A shell-joined
-	 * string is the portable form that works on real OpenWrt 25.12.5. Each
+	 * string is the portable form that works on real OpenWrt 25.12.6. Each
 	 * element is POSIX-quoted so arguments survive the /bin/sh round-trip. */
 	let cmd = join(' ', map(argv ?? [], shell_quote));
 	let p = fs.popen(cmd, 'r');
@@ -297,34 +297,6 @@ function json_compact(value) {
 		}
 	}
 	return out;
-}
-
-function rill_state_checksum(snapshot) {
-	let h = snapshot.handlerSnapshot ?? {}, handler = {
-		stateSchemaVersion: h.stateSchemaVersion, stateGeneration: h.stateGeneration,
-		state: h.state, checksumSha256: h.checksumSha256
-	};
-	let canonical_entry = function(entry) {
-		let out = { decisionId: entry.decisionId, modelGeneration: entry.modelGeneration,
-			stateGeneration: entry.stateGeneration, createdAtUnixMs: entry.createdAtUnixMs };
-		if (entry.selectedActionId != null) out.selectedActionId = entry.selectedActionId;
-		if (entry.selectedActionFeatures != null) out.selectedActionFeatures = entry.selectedActionFeatures;
-		if (entry.reward != null) out.reward = entry.reward;
-		if (entry.outcomeTimeUnixMs != null) out.outcomeTimeUnixMs = entry.outcomeTimeUnixMs;
-		return out;
-	};
-	let canonical_map = function(input) {
-		let out = {}, names = keys(input ?? {});
-		sort(names);
-		for (let name in names) out[name] = canonical_entry(input[name]);
-		return out;
-	};
-	let wire = json_compact([ handler, canonical_map(snapshot.pendingDecisions), canonical_map(snapshot.completedDecisions) ]);
-	let p = fs.popen(`printf '%s' ${shell_quote(wire)} | sha256sum`, 'r');
-	if (!p) return null;
-	let out = trimstr(p.read('all') ?? ''), rc = p.close() ?? 127;
-	if (rc != 0) return null;
-	return split(out, /\s+/)[0] ?? null;
 }
 
 function note_persistent_write(path, bytes) {
@@ -504,7 +476,7 @@ function smart_record_validated_outcome(context_key, goal_id, candidate_id, rewa
 	/* Only controlled A/B with complete, health-clean evidence changes learning.
 	 * Passive and health-only observations are intentionally not labels. */
 	if (measurement_quality != 'controlled_ab' || health_regressed === true || smart_num(reward, null) == null) return false;
-	let row = smart_context_stats(context_key, candidate_id, true), ctx = row.context, stats = row.stats, value = smart_num(reward, null);
+	let row = smart_context_stats(context_key, candidate_id, true), state = row.state, ctx = row.context, stats = row.stats, value = smart_num(reward, null);
 	if (!ctx || !stats || value == null) return false;
 	stats.validatedOutcomeCount = (stats.validatedOutcomeCount ?? 0) + 1;
 	ctx.validatedSamples = (ctx.validatedSamples ?? 0) + 1;
@@ -607,6 +579,53 @@ function read_lines(path, max_lines) {
 		try { push(out, json(line)); } catch (e) {}
 	}
 	return out;
+}
+
+function rill_feedback_list(limit) {
+	let rows = read_lines(`${state_dir()}/history.jsonl`, MAX_HISTORY_LINES);
+	rows = filter(rows, function(row) {
+		return match(row?.event ?? '', /^rill\.outcome\.(accepted|reconciled)$/);
+	});
+	if (length(rows) > limit)
+		rows = slice(rows, length(rows) - limit);
+	let feedback = [];
+	for (let row in rows) {
+		let data = row.data ?? {};
+		push(feedback, {
+			event: row.event,
+			data: {
+				actionId: data.actionId ?? null,
+				goal: data.goal ?? null,
+				reward: data.reward ?? null,
+				measurementQuality: data.measurementQuality ?? null,
+				accepted: data.accepted === true || row.event == 'rill.outcome.accepted'
+			}
+		});
+	}
+	return feedback;
+}
+
+function history_summary_row(row) {
+	let data = row.data ?? {};
+	return {
+		bootId: row.bootId ?? null,
+		monotonicMs: row.monotonicMs ?? null,
+		event: row.event ?? null,
+		data: {
+			transactionId: data.transactionId ?? data.id ?? null,
+			actionId: data.actionId ?? null,
+			state: data.state ?? null,
+			target: data.applyTarget ?? data.target ?? null,
+			phase: data.phase ?? null,
+			measurementClass: data.measurementClass ?? null,
+			ok: data.ok ?? null,
+			reason: type(data.reason ?? data.error) == 'string' ? substr(data.reason ?? data.error, 0, 160) : null
+		}
+	};
+}
+
+function history_summary(path, limit) {
+	return map(read_lines(path, limit), history_summary_row);
 }
 
 function stable_target(runtime) {
@@ -2064,6 +2083,34 @@ function benchmark_list() {
 	sort(out,function(a,b){return (b.sessionId??'') > (a.sessionId??'') ? 1 : -1;}); return out;
 }
 
+/* The frozen nftables snapshot is needed internally to attribute and verify a
+ * fastpath candidate, but the parsed ruleset is not useful in routine UI
+ * responses. Keep the authoritative snapshot in the on-disk session and
+ * expose only the fields needed to render the session and its result. */
+function benchmark_session_response(session) {
+	if (type(session) != 'object') return session;
+	let response = {};
+	for (let key in keys(session))
+		if (key != 'nftSnapshot') response[key] = session[key];
+	return response;
+}
+
+function benchmark_response(result) {
+	if (type(result) != 'object') return result;
+	let response = {};
+	for (let key in keys(result)) {
+		let value = result[key];
+		if (key == 'session') value = benchmark_session_response(value);
+		else if (key == 'sessions') {
+			let sessions = [];
+			for (let session in value ?? []) push(sessions, benchmark_session_response(session));
+			value = sessions;
+		}
+		response[key] = value;
+	}
+	return response;
+}
+
 function benchmark_stop(session_id) {
 	let session=session_id ? json_read(benchmark_path(session_id),null) : null;
 	if (!session) return {ok:false,error:'benchmark-session-not-found'};
@@ -2088,11 +2135,19 @@ function rill_state_generation() {
 	if (raw == null || !length(trimstr(raw))) return { ok: true, generation: 0, reason: 'state-absent' };
 	let snapshot = null;
 	try { snapshot = json(raw); } catch (e) { return { ok: false, generation: null, reason: 'state-invalid-json' }; }
-	if (type(snapshot) != 'object' || snapshot.formatVersion != 1 || type(snapshot.handlerSnapshot) != 'object' ||
-		type(snapshot.pendingDecisions) != 'object' || type(snapshot.completedDecisions) != 'object' ||
-		!match(snapshot.checksumSha256 ?? '', /^[0-9a-f]{64}$/) || rill_state_checksum(snapshot) != snapshot.checksumSha256)
+	if (type(snapshot) != 'object' || snapshot.formatVersion != 1 || type(snapshot.partitions) != 'array' ||
+		!match(snapshot.checksumSha256 ?? '', /^[0-9a-f]{64}$/))
 		return { ok: false, generation: null, reason: 'state-schema-incompatible' };
-	let generation = snapshot.handlerSnapshot.stateGeneration;
+	let partition = null;
+	for (let item in snapshot.partitions)
+		if (item.clientIdentityName == 'performance-manager' && item.partitionKey == 'performance-manager') {
+			partition = item;
+			break;
+		}
+	if (!partition || type(partition.handlerSnapshot) != 'object' ||
+		type(partition.pendingDecisions) != 'object' || type(partition.completedDecisions) != 'object')
+		return { ok: false, generation: null, reason: 'state-namespace-missing' };
+	let generation = partition.handlerSnapshot.stateGeneration;
 	if (type(generation) != 'int' || generation < 0) return { ok: false, generation: null, reason: 'state-generation-invalid' };
 	return { ok: true, generation: generation, reason: 'state-valid' };
 }
@@ -2155,6 +2210,7 @@ function rill_send(payload, outcome_attempt, mark_sent_unknown) {
 	let request = {
 		requestId: request_id, apiVersion: RILL_RUNTIME_API_VERSION,
 		clientIdentity: { name: 'performance-manager', version: VERSION },
+		partitionKey: 'performance-manager',
 		featureSchemaHash: RILL_FEATURE_SCHEMA_HASH, modelGeneration: RILL_MODEL_GENERATION,
 		stateGeneration: state_generation, payloadLimit: 262144
 	};
@@ -4527,16 +4583,29 @@ let obj = conn.publish(UBUS_NAME, {
 		if (clamped) limit = MAX_HISTORY_LINES;
 		reply(req, { history: read_lines(`${persist_dir()}/history.jsonl`, limit), runtimeHistory: read_lines(`${state_dir()}/history.jsonl`, limit), limit:limit, clamped:clamped });
 	} },
+	history_summary: { args: rpc_args({ limit: 0 }), call: function(req) {
+		let limit = min(50, max(1, int(req.args?.limit ?? 50)));
+		reply(req, {
+			resourceLocks: lock_list(),
+			actionHistory: history_summary(`${persist_dir()}/history.jsonl`, limit),
+			runtimeHistory: history_summary(`${state_dir()}/history.jsonl`, limit),
+			limit: limit
+		});
+	} },
+	rill_feedback: { args: rpc_args({ limit: 0 }), call: function(req) {
+		let requested = int(req.args?.limit ?? 5), limit = min(5, max(1, requested));
+		reply(req, { feedback: rill_feedback_list(limit), limit: limit });
+	} },
 	apply: { args: rpc_args({ actionId: 'string', target: 'string', executionSource: 'string', decisionId: 'string' }), call: function(req) { reply(req, apply_action(req.args ?? {})); } },
 	confirm: { args: rpc_args({ transactionId: 'string' }), call: function(req) { reply(req, confirm_transaction(req.args?.transactionId)); } },
 	rollback: { args: rpc_args({ transactionId: 'string' }), call: function(req) { reply(req, rollback_transaction(req.args?.transactionId, 'manual')); } },
-	benchmark_start: { args: rpc_args({ phase: 'string', actionId: 'string', pathId: 'string', measurementClass: 'string', executionSource: 'string', decisionId: 'string', sessionId: 'string', evidence: {}, target: 'string' }), call: function(req) { reply(req, benchmark_start(req.args ?? {})); } },
+	benchmark_start: { args: rpc_args({ phase: 'string', actionId: 'string', pathId: 'string', measurementClass: 'string', executionSource: 'string', decisionId: 'string', sessionId: 'string', evidence: {}, target: 'string' }), call: function(req) { reply(req, benchmark_response(benchmark_start(req.args ?? {}))); } },
 	benchmark_status: { args: rpc_args({ sessionId: 'string' }), call: function(req) {
 		let msg=req.args ?? {};
 		if (msg?.sessionId) {
 			let s = json_read(benchmark_path(msg.sessionId), null);
-			reply(req, s ? { found: true, session: s } : { found: false });
-		} else reply(req, { found: length(benchmark_list()) > 0, sessions: benchmark_list() });
+			reply(req, s ? { found: true, session: benchmark_session_response(s) } : { found: false });
+		} else reply(req, { found: length(benchmark_list()) > 0, sessions: benchmark_response({ sessions: benchmark_list() }).sessions });
 	} },
 	benchmark_stop: { args: rpc_args({ sessionId: 'string' }), call: function(req) { reply(req, benchmark_stop(req.args?.sessionId)); } },
 	rill_status: { args: rpc_args(), call: function(req, msg) { reply(req, rill_status()); } },

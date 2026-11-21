@@ -795,6 +795,22 @@ msgstr ""
 msgid "Health only"
 msgstr ""
 
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/benchmark.js
+msgid "Health snapshot"
+msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/benchmark.js
+msgid "Passive observation"
+msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/benchmark.js
+msgid "Health snapshot captured. This is not a performance result."
+msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/benchmark.js
+msgid "Passive observation captured. No settings were changed."
+msgstr ""
+
 #: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/benchmark.js:40
 msgid "Start test"
 msgstr ""
@@ -825,6 +841,18 @@ msgstr ""
 
 #: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/benchmark.js:50
 msgid "Commit-confirm"
+msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/benchmark.js
+msgid "Test complete. The candidate was rolled back and health checks passed."
+msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/benchmark.js
+msgid "Test complete, but the result was not validated. Review the details below."
+msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/benchmark.js
+msgid "Rollback protection"
 msgstr ""
 
 #: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/benchmark.js:60
@@ -2165,4 +2193,183 @@ msgstr ""
 
 #: package/luci-app-performance-manager/root/usr/share/luci/menu.d/luci-app-performance-manager.json
 msgid "Rill intelligence"
+msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/overview.js:22
+msgid "Unable to load this page. Retry the page; if it keeps failing, check the service log."
+msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/overview.js:35
+msgid "Performance Manager is running"
+msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/overview.js:35
+msgid "Performance Manager is stopped"
+msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/overview.js:36
+msgid "Review safeguards and system information below."
+msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/overview.js:48
+msgid "System profile"
+msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/overview.js:49
+msgid "Degraded"
+msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/overview.js:49
+msgid "Healthy"
+msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/overview.js:50
+msgid "Unmet"
+msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/overview.js:51
+msgid "Health guard"
+msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/overview.js:51
+msgid "Passed"
+msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/overview.js:51
+msgid "Blocked"
+msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/overview.js:66
+msgid "System Information"
+msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/overview.js:70
+msgid "Rill runtime"
+msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/overview.js:103
+msgid "No transactions are available yet."
+msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/overview.js:130
+msgid "Review system health, current safeguards, and network path status."
+msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/benchmark.js:130
+msgid "Test setup and progress"
+msgstr ""
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/advanced.js
+msgid "Runtime and profile"
+msgstr ""
+
+msgid "Core memory"
+msgstr ""
+
+msgid "Stored history"
+msgstr ""
+
+msgid "Active Rill operations"
+msgstr ""
+
+msgid "Detailed diagnostics"
+msgstr ""
+
+msgid "Expand to load detailed capability, topology, transaction and lock records."
+msgstr ""
+
+msgid "Loading diagnostics…"
+msgstr ""
+
+msgid "Unable to load diagnostic records: %s"
+msgstr ""
+
+msgid "Diagnostic records"
+msgstr ""
+
+msgid "Not reported"
+msgstr ""
+
+msgid "Expand to load recent validated feedback."
+msgstr ""
+
+msgid "Show recent validated feedback"
+msgstr ""
+
+msgid "Expand to load detailed history and runtime events."
+msgstr ""
+
+msgid "Check for updates"
+msgstr ""
+
+msgid "Unable to manage packages."
+msgstr ""
+
+msgid "Package operation failed: %s"
+msgstr ""
+
+msgid "Install Rill Runtime"
+msgstr ""
+
+msgid "Update Rill Runtime"
+msgstr ""
+
+msgid "Update Performance Manager"
+msgstr ""
+
+msgid "Package manager controls are unavailable. Update Performance Manager from the unified feed to enable them."
+msgstr ""
+
+msgid "Rill Runtime is not available for this OpenWrt release and architecture."
+msgstr ""
+
+msgid "A Stable or incompatible Rill Runtime is installed. Resolve that package conflict before changing Runtime packages."
+msgstr ""
+
+msgid "Rill Runtime is not installed. Install it to enable Rill decisions."
+msgstr ""
+
+msgid "OpenWrt release"
+msgstr ""
+
+msgid "Package architecture"
+msgstr ""
+
+msgid "Runtime package"
+msgstr ""
+
+msgid "Runtime channel"
+msgstr ""
+
+msgid "Runtime compatibility"
+msgstr ""
+
+msgid "Installed"
+msgstr ""
+
+msgid "Not installed"
+msgstr ""
+
+msgid "Compatible"
+msgstr ""
+
+msgid "Needs attention"
+msgstr ""
+
+msgid "Package management"
+msgstr ""
+
+msgid "Repair Rill Runtime"
+msgstr ""
+
+msgid "The installed owner is rill-runtime-preview, version %s. PM will not remove or replace it automatically."
+msgstr ""
+
+msgid "Back up /etc/config/performance-manager and /etc/performance-manager/. Check for other packages that use rill-runtime-preview before continuing."
+msgstr ""
+
+msgid "An incompatible Rill Runtime is installed. Resolve that package conflict before changing Runtime packages."
+msgstr ""
+
+msgid "Runtime version"
 msgstr ""

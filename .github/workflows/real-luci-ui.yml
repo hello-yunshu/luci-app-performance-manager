@@ -1,0 +1,199 @@
+name: Real LuCI UI Gate
+
+on:
+  push:
+    paths:
+      - 'package/luci-app-performance-manager/htdocs/**'
+      - 'package/luci-app-performance-manager/root/usr/share/luci/**'
+      - 'package/luci-app-performance-manager/root/usr/share/rpcd/**'
+      - 'package/luci-app-performance-manager/po/**'
+      - 'package/performance-manager/files/**'
+      - 'tests/real-luci-ui*'
+      - '.github/workflows/real-luci-ui.yml'
+  pull_request:
+    paths:
+      - 'package/luci-app-performance-manager/htdocs/**'
+      - 'package/luci-app-performance-manager/root/usr/share/luci/**'
+      - 'package/luci-app-performance-manager/root/usr/share/rpcd/**'
+      - 'package/luci-app-performance-manager/po/**'
+      - 'package/performance-manager/files/**'
+      - 'tests/real-luci-ui*'
+      - '.github/workflows/real-luci-ui.yml'
+  workflow_dispatch:
+    inputs:
+      language:
+        description: LuCI language for the full screenshot matrix
+        required: false
+        type: choice
+        options: [all, en, zh_cn]
+        default: all
+      benchmark_result_only:
+        description: Run only the controlled benchmark result-state visual matrix
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  real-luci-ui:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      max-parallel: 1
+      matrix:
+        language: ${{ inputs.language == 'en' && fromJSON('["en"]') || inputs.language == 'zh_cn' && fromJSON('["zh_cn"]') || fromJSON('["en","zh_cn"]') }}
+    steps:
+      - uses: actions/checkout@v7
+      - name: Start a real OpenWrt and LuCI container
+        run: |
+          set -euo pipefail
+          docker run -d --name pm-ui-gate --publish 127.0.0.1:18080:18080 --cap-add=NET_ADMIN \
+            openwrt/rootfs:x86_64-24.10.8 /sbin/init
+          for _ in $(seq 1 30); do
+            if docker exec pm-ui-gate true 2>/dev/null && docker exec pm-ui-gate ip link show br-lan >/dev/null 2>&1; then
+              network_info="$(docker inspect --format '{{range .NetworkSettings.Networks}}{{.IPAddress}} {{.Gateway}} {{.IPPrefixLen}}{{end}}' pm-ui-gate)"
+              read -r container_ip gateway prefix_len <<< "$network_info"
+              test -n "$container_ip" && test -n "$gateway" && test -n "$prefix_len"
+              docker exec pm-ui-gate ip address replace "$container_ip/$prefix_len" dev br-lan
+              docker exec pm-ui-gate ip route replace default via "$gateway" dev br-lan
+              docker exec pm-ui-gate sh -c 'ip route; cat /etc/resolv.conf; uclient-fetch -O /dev/null https://downloads.openwrt.org/releases/24.10.8/packages/x86_64/base/Packages.gz'
+              exit 0
+            fi
+            sleep 2
+          done
+          echo 'OpenWrt container did not start' >&2
+          exit 1
+      - name: Install real LuCI and Performance Manager runtime dependencies
+        timeout-minutes: 12
+        run: |
+          set -euo pipefail
+          echo 'Checking OpenWrt release feed from the runner host'
+          curl -fsSI --max-time 15 \
+            https://downloads.openwrt.org/releases/24.10.8/packages/x86_64/base/Packages.gz \
+            >/dev/null
+          echo 'Checking OpenWrt container network configuration'
+          docker exec pm-ui-gate sh -c 'ip route; cat /etc/resolv.conf; command -v uclient-fetch'
+          updated=false
+          for attempt in 1 2 3; do
+            echo "OpenWrt opkg update attempt $attempt"
+            if timeout --foreground --kill-after=10s 120s docker exec pm-ui-gate opkg update; then
+              updated=true
+              break
+            fi
+            sleep 5
+          done
+          if [ "$updated" != true ]; then
+            echo 'OpenWrt package index refresh failed after three bounded attempts' >&2
+            exit 1
+          fi
+          timeout --kill-after=10s 600s docker exec pm-ui-gate opkg install \
+              bash jq curl jsonfilter usign luci-base luci-theme-bootstrap luci-i18n-base-zh-cn \
+              uhttpd rpcd ucode ucode-mod-fs ucode-mod-ubus ucode-mod-uci ucode-mod-rtnl \
+              ucode-mod-uloop ucode-mod-socket ucode-mod-log coreutils-timeout openssl-util
+          docker exec pm-ui-gate sh -c '
+            for command in bash jq curl ucode ubus openssl; do command -v "$command" >/dev/null; done
+          '
+      - name: Checkout canonical Runtime manager at the contract commit
+        shell: bash
+        run: |
+          set -euo pipefail
+          package_commit=$(jq -r '.openwrtPackage.commit' contracts/rill-runtime.json)
+          [[ "$package_commit" =~ ^[0-9a-f]{40}$ ]]
+          git init -q "$RUNNER_TEMP/rill-openwrt-packages"
+          git -C "$RUNNER_TEMP/rill-openwrt-packages" remote add origin https://github.com/hello-yunshu/rill-openwrt-packages.git
+          git -C "$RUNNER_TEMP/rill-openwrt-packages" fetch --depth=1 origin "$package_commit"
+          git -C "$RUNNER_TEMP/rill-openwrt-packages" checkout --detach -q FETCH_HEAD
+          test "$(git -C "$RUNNER_TEMP/rill-openwrt-packages" rev-parse HEAD)" = "$package_commit"
+          test -f "$RUNNER_TEMP/rill-openwrt-packages/package/rill-runtime-manager/Makefile"
+          echo "PM_RILL_MANAGER_DIR=$RUNNER_TEMP/rill-openwrt-packages/package/rill-runtime-manager" >> "$GITHUB_ENV"
+      - name: Compile Simplified Chinese LuCI catalog
+        if: ${{ matrix.language == 'zh_cn' }}
+        run: |
+          set -euo pipefail
+          source_dir="$RUNNER_TEMP/luci-po2lmo"
+          mkdir -p "$source_dir"
+          curl -fL --retry 3 -o "$RUNNER_TEMP/luci-openwrt-24.10.tar.gz" https://codeload.github.com/openwrt/luci/tar.gz/aa4865e8e6472d6ba68e541688065fc2235bbd83
+          tar -xzf "$RUNNER_TEMP/luci-openwrt-24.10.tar.gz" -C "$source_dir" --strip-components=1
+          make -C "$source_dir/modules/luci-base/src" po2lmo
+          "$source_dir/modules/luci-base/src/po2lmo" \
+            "$GITHUB_WORKSPACE/package/luci-app-performance-manager/po/zh_Hans/performance-manager.po" \
+            "$RUNNER_TEMP/performance-manager.zh-cn.lmo"
+          test -s "$RUNNER_TEMP/performance-manager.zh-cn.lmo"
+          echo "PM_UI_LMO=$RUNNER_TEMP/performance-manager.zh-cn.lmo" >> "$GITHUB_ENV"
+      - name: Provision current source into real LuCI
+        run: PM_UI_LANG='${{ matrix.language }}' bash tests/real-luci-ui-provision.sh pm-ui-gate 18080 "$PM_RILL_MANAGER_DIR"
+      - name: Install Playwright and locate Chrome
+        timeout-minutes: 25
+        run: |
+          set -euo pipefail
+
+          retry_bounded() {
+            local attempts="$1" seconds="$2" attempt=1
+            shift 2
+            while (( attempt <= attempts )); do
+              echo "Attempt $attempt/$attempts: $*"
+              if timeout --signal=TERM --kill-after=10s "${seconds}s" "$@"; then
+                return 0
+              fi
+              if (( attempt < attempts )); then sleep 5; fi
+              attempt=$((attempt + 1))
+            done
+            echo "Command failed after $attempts bounded attempts: $*" >&2
+            return 1
+          }
+
+          retry_bounded 2 180 sudo apt-get -o Acquire::Retries=2 update
+          retry_bounded 2 180 sudo apt-get install -y fontconfig fonts-noto-cjk
+          fc-list :lang=zh family | grep -qi 'Noto Sans CJK'
+          retry_bounded 2 180 npm install --prefix "$RUNNER_TEMP/ui" --no-audit --no-fund playwright@1.55.0
+          browser="$(command -v google-chrome || command -v google-chrome-stable || command -v chromium || true)"
+          test -n "$browser" || { echo 'No Chrome executable on runner' >&2; exit 1; }
+          echo "PLAYWRIGHT_EXECUTABLE=$browser" >> "$GITHUB_ENV"
+          "$browser" --version
+      - name: Install checksum-pinned Aurora theme
+        run: |
+          set -euo pipefail
+          curl -fL --retry 3 -o "$RUNNER_TEMP/luci-theme-aurora.ipk" https://github.com/eamonxg/luci-theme-aurora/releases/download/v1.4.0/luci-theme-aurora_1.4.0-r20260920_all.ipk
+          echo "5b3f2d669ef82e575498d1b99c4b9b498088540eeff7db989f214b63d3ef8a8e  $RUNNER_TEMP/luci-theme-aurora.ipk" | sha256sum -c -
+          docker cp "$RUNNER_TEMP/luci-theme-aurora.ipk" pm-ui-gate:/tmp/luci-theme-aurora.ipk
+          docker exec pm-ui-gate opkg install /tmp/luci-theme-aurora.ipk
+      - name: Capture all views, themes, and viewport matrix
+        if: ${{ !inputs.benchmark_result_only }}
+        run: |
+          set -euo pipefail
+          language='${{ matrix.language }}'
+          docker exec pm-ui-gate sh -c "uci set luci.main.lang='$language'; uci commit luci; rm -rf /tmp/luci-indexcache* /tmp/luci-modulecache*"
+          NODE_PATH="$RUNNER_TEMP/ui/node_modules" PM_UI_CONTAINER=pm-ui-gate \
+            PM_UI_LANG="$language" PM_VISUAL_OUT="$GITHUB_WORKSPACE/real-luci-ui-evidence/visual/$language" \
+            node tests/real-luci-ui-visual.cjs
+      - name: Capture PM Overview 27rem and 64rem breakpoint neighbors
+        if: ${{ !inputs.benchmark_result_only }}
+        run: |
+          set -euo pipefail
+          language='${{ matrix.language }}'
+          NODE_PATH="$RUNNER_TEMP/ui/node_modules" PM_UI_CONTAINER=pm-ui-gate \
+            PM_UI_LANG="$language" PM_BREAKPOINT_OUT="$GITHUB_WORKSPACE/real-luci-ui-evidence/overview-breakpoint/$language" \
+            node tests/real-luci-ui-overview-breakpoint.cjs
+      - name: Capture controlled A/B completion states across themes and widths
+        run: |
+          set -euo pipefail
+          language='${{ matrix.language }}'
+          NODE_PATH="$RUNNER_TEMP/ui/node_modules" PM_UI_CONTAINER=pm-ui-gate \
+            PM_UI_LANG="$language" PM_BENCHMARK_RESULT_OUT="$GITHUB_WORKSPACE/real-luci-ui-evidence/benchmark-result/$language" \
+            node tests/real-luci-ui-benchmark-result.cjs
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: real-luci-ui-evidence-run-${{ github.run_id }}-attempt-${{ github.run_attempt }}
+          path: real-luci-ui-evidence/
+          if-no-files-found: warn
+      - name: Remove disposable OpenWrt container
+        if: always()
+        run: docker rm -f pm-ui-gate || true

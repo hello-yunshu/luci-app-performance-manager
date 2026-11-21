@@ -3,7 +3,7 @@
 # over to procd (/sbin/init) as PID1 so the performance-manager service auto-starts.
 # Run with --privileged (procd needs /dev, netlink, etc.).
 set -eu
-echo "=== [pm-gate] container boot (OpenWrt 25.12.5 x86/64) ==="
+echo "=== [pm-gate] container boot (OpenWrt 25.12.6 x86/64) ==="
 uname -m
 cat /etc/openwrt_release
 

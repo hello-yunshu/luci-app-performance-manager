@@ -163,6 +163,8 @@ class BehavioralRegressions(unittest.TestCase):
         self.assertEqual(dep['openwrtPackage']['package'], 'rill-runtime')
         self.assertEqual(dep['openwrtPackage']['binary'], '/usr/bin/rill-runtime')
         self.assertEqual(dep['qualification']['verdict'], 'PASS')
+        self.assertGreater(dep['qualification']['runId'], 0)
+        self.assertRegex(dep['qualification']['manifestSha256'], r'^[0-9a-f]{64}$')
         makefile = (ROOT / 'package/performance-manager-rill/Makefile').read_text()
         self.assertIn('+rill-runtime', makefile)
 

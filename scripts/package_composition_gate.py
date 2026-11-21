@@ -3,8 +3,8 @@
 
 The package verifier proves each APK's metadata and payload. This gate proves
 both the developer split install and the user-facing one-file full install as
-the package manager sees them. The full matrix deliberately installs one APK:
-the bundled Runtime is not an external dependency.
+the package manager sees them. The application is one APK and its shared
+Runtime provider is resolved once for PM and independent consumers.
 """
 from __future__ import annotations
 
@@ -27,7 +27,6 @@ SPLIT = ("performance-manager", "luci-app-performance-manager",
 ALL_IN_ONE = ("luci-app-performance-manager-all",)
 PM_OWNED_PATHS = (
     "/usr/sbin/performance-manager.uc",
-    "/usr/bin/rill-runtime",
     "/usr/share/performance-manager",
     "/www/luci-static/resources/view/performance-manager",
     "/usr/share/luci/menu.d/luci-app-performance-manager.json",
@@ -161,7 +160,7 @@ def execute(rootfs: Path, packages: dict[str, Path], names: tuple[str, ...],
             runtime_identity_check = ""
             if names == ALL_IN_ONE:
                 if not isinstance(expected_runtime_sha, str) or not re.fullmatch(r"[0-9a-f]{64}", expected_runtime_sha):
-                    raise RuntimeError("all-in-one build metadata lacks a valid bundled Runtime SHA256")
+                    raise RuntimeError("all-in-one build metadata lacks a valid shared Runtime SHA256")
                 runtime_identity_check = (
                     "test -x /usr/bin/rill-runtime; "
                     f"test \"$(sha256sum /usr/bin/rill-runtime | awk '{{print $1}}')\" = {shlex.quote(expected_runtime_sha)}; "
@@ -182,7 +181,7 @@ def execute(rootfs: Path, packages: dict[str, Path], names: tuple[str, ...],
                 "echo PM_FULL_RILL_FAULT_SMOKE=PASS; "
                 "apk del luci-app-performance-manager-all; "
                 "test ! -x /usr/sbin/performance-manager.uc; "
-                "test ! -e /usr/bin/rill-runtime; "
+                "test -x /usr/bin/rill-runtime; "
                 "test ! -e /www/luci-static/resources/view/performance-manager/overview.js; "
                 "test ! -e /usr/share/luci/menu.d/luci-app-performance-manager.json; "
                 "test ! -e /usr/share/rpcd/acl.d/luci-app-performance-manager.json; "
@@ -234,15 +233,27 @@ def execute(rootfs: Path, packages: dict[str, Path], names: tuple[str, ...],
                 + "echo PM_SERVICE_SMOKE=PASS; echo PM_UBUS_STATUS=PASS; echo PM_RILL_STATUS=PASS; "
                 + snapshot_command
                 + ("if apk add --allow-untrusted --no-cache " + " ".join(conflict_staged)
-                   + "; then exit 1; fi; echo PM_FULL_CONFLICT_SMOKE=PASS; "
+                   + " >/tmp/pm-conflict-install.log 2>&1; then cat /tmp/pm-conflict-install.log; exit 1; fi; "
+                   + "cat /tmp/pm-conflict-install.log >&2; grep -Eiq 'conflict|breaks:' /tmp/pm-conflict-install.log; "
+                   + "echo PM_FULL_CONFLICT_SMOKE=PASS; "
                    if names == ALL_IN_ONE else
-                   f"if apk add --allow-untrusted --no-cache {full_staged}; then exit 1; fi; echo PM_SPLIT_FULL_CONFLICT_SMOKE=PASS; ")
+                   f"if apk add --allow-untrusted --no-cache {full_staged} >/tmp/pm-conflict-install.log 2>&1; then cat /tmp/pm-conflict-install.log; exit 1; fi; "
+                   + "cat /tmp/pm-conflict-install.log >&2; grep -Eiq 'conflict|breaks:' /tmp/pm-conflict-install.log; "
+                   + "echo PM_SPLIT_FULL_CONFLICT_SMOKE=PASS; ")
                 + post_apk_install + "else "
                 f"test '{suffix}' = '.ipk'; "
                 "opkg install " + " ".join(staged) + "; "
                 "timeout_after=$(command -v timeout 2>/dev/null || true); test -n \"$timeout_after\"; "
                 "opkg status coreutils-timeout 2>/dev/null | grep -q 'Status: install'; "
                 "echo PM_TIMEOUT_AFTER=present; echo PM_COREUTILS_TIMEOUT_INSTALLED=PASS; echo PM_DEPENDENCY_CLOSURE=PASS; "
+                + ("if opkg install " + " ".join(conflict_staged)
+                   + " >/tmp/pm-conflict-install.log 2>&1; then cat /tmp/pm-conflict-install.log; exit 1; fi; "
+                   + "cat /tmp/pm-conflict-install.log >&2; grep -Eiq 'conflict|breaks:' /tmp/pm-conflict-install.log; "
+                   + "echo PM_FULL_CONFLICT_SMOKE=PASS; "
+                   if names == ALL_IN_ONE else
+                   f"if opkg install {full_staged} >/tmp/pm-conflict-install.log 2>&1; then cat /tmp/pm-conflict-install.log; exit 1; fi; "
+                   + "cat /tmp/pm-conflict-install.log >&2; grep -Eiq 'conflict|breaks:' /tmp/pm-conflict-install.log; "
+                   + "echo PM_SPLIT_FULL_CONFLICT_SMOKE=PASS; ")
                 + "test -x /usr/sbin/performance-manager.uc; "
                 + runtime_identity_check
                 + "fi"
@@ -416,7 +427,7 @@ def main(argv=None) -> int:
               "dependencyGraph": {
                   "performance-manager-rill": ["performance-manager", "rill-runtime"],
                   "performance-manager": ["performance-manager-core"],
-                  "luci-app-performance-manager-all": ["provides:performance-manager-core"],
+                  "luci-app-performance-manager-all": ["provides:performance-manager-core", "rill-runtime"],
               }}
     args.out.parent.mkdir(parents=True, exist_ok=True)
     args.out.write_text(json.dumps(report, ensure_ascii=False, indent=2) + "\n")

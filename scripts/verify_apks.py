@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Exact APK package verification for the remote OpenWrt SDK build gate.
+"""Exact OpenWrt package verification for the remote SDK build gate.
 
 The previous gate matched built APKs by FILENAME PREFIX, which is unsound:
 `performance-manager-*.apk` also matches `performance-manager-rill-*.apk`, so a
@@ -16,11 +16,13 @@ package, an exact match on:
 For the `performance-manager` Core package it additionally extracts the shipped
 daemon `/usr/sbin/performance-manager.uc` from the APK's ADB data blocks and
 asserts it is byte-for-byte identical (SHA256) to the repo source that the
-runtime harness and startup smoke execute.  The architecture-specific
-all-in-one APK is checked even more strictly: every repository-owned Core,
-LuCI, rpcd and Rill-glue file must match its source, the compiled Simplified
-Chinese LMO must be present, and its bundled Runtime must be the exact same
-target ELF as the split canonical Runtime package.
+runtime harness and startup smoke execute. The split LuCI APK is checked for
+every repository-owned static UI file so a same-version stale asset package
+cannot pass. The architecture-specific all-in-one APK is checked even more
+strictly: every repository-owned Core, LuCI, rpcd and Rill-glue file must match
+its source, the compiled Simplified Chinese LMO must be present, and the full
+package must depend on the exact shared Stable provider without owning its
+Runtime binary.
 
 It fails closed (exit != 0) if any expected package is absent, duplicated, of
 the wrong arch, a stray old-version artifact, or if the APK's Core file does not
@@ -30,7 +32,7 @@ Usage:
   python3 scripts/verify_apks.py <sdk_dir> <expected_version> <arch> [rill_runtime_version]
 """
 from __future__ import annotations
-import gzip, hashlib, io, json, os, struct, subprocess, sys, tarfile, zlib
+import gzip, hashlib, io, json, os, struct, subprocess, sys, tarfile, tempfile, zlib
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -64,12 +66,17 @@ REQUIRED_DEPENDS = {
         'luci-base', 'rpcd', 'luci-i18n-base-zh-cn', 'ubus', 'uci', 'ucode',
         'ucode-mod-fs', 'ucode-mod-ubus', 'ucode-mod-uci', 'ucode-mod-rtnl',
         'ucode-mod-uloop', 'ucode-mod-socket', 'ucode-mod-log', 'coreutils-timeout',
+        'rill-runtime-manager', 'rill-runtime',
         '!performance-manager>=0', '!luci-app-performance-manager>=0',
-        '!performance-manager-rill>=0', '!rill-runtime>=0', '!rill-runtime-preview>=0',
+        '!performance-manager-rill>=0', '!rill-runtime-preview>=0',
         '!luci-i18n-performance-manager-zh-cn>=0',
     },
 }
-ELF_MACHINES = {'x86_64': 62, 'aarch64_generic': 183, 'aarch64_cortex-a53': 183}
+ELF_MACHINES = {
+    'x86_64': 62, 'aarch64_generic': 183, 'aarch64_cortex-a53': 183,
+    'aarch64_cortex-a72': 183, 'aarch64_cortex-a76': 183,
+    'arm_cortex-a7_neon-vfpv4': 40,
+}
 
 # The shipped Core daemon path inside the package; its bytes must equal the
 # repo source the runtime harness / startup smoke run verbatim.
@@ -98,6 +105,7 @@ def bundle_source_payloads():
         (ROOT / 'package/luci-app-performance-manager/htdocs', Path('/www')),
         (ROOT / 'package/luci-app-performance-manager/root', Path('/')),
         (ROOT / 'package/performance-manager-rill/files', Path('/')),
+        (ROOT / 'package/luci-app-performance-manager-all/files', Path('/')),
     )
     payloads = {}
     for source_root, install_root in roots:
@@ -108,6 +116,63 @@ def bundle_source_payloads():
                     raise RuntimeError(f'duplicate all-in-one payload mapping: {payload}')
                 payloads[payload] = source
     return payloads
+
+
+def luci_source_payloads():
+    """Map every LuCI static file shipped by the split UI package."""
+    source_root = ROOT / 'package/luci-app-performance-manager/htdocs'
+    payloads = {}
+    for source in sorted(source_root.rglob('*')):
+        if source.is_file():
+            payload = '/' + str((Path('/www') / source.relative_to(source_root))).lstrip('/')
+            payloads[payload] = source
+    return payloads
+
+
+def luci_packaged_source_variants(source: Path, sdk_dir: Path):
+    """Return repository bytes and the exact default LuCI minifier output.
+
+    OpenWrt's LuCI package rules minify JavaScript and CSS by default. Compare
+    against both forms so this gate catches stale UI assets without rejecting a
+    valid package solely because its normal build transform changed whitespace.
+    """
+    raw = source.read_bytes()
+    variants = [raw]
+    # Host build dependencies provided by LuCI (jsmin/csstidy) are installed
+    # under hostpkg/bin in OpenWrt SDKs; native build utilities are under
+    # host/bin. Search both so the verifier reproduces the tools actually used
+    # by `luci.mk` instead of silently checking raw source on hostpkg builds.
+    host_bins = (
+        sdk_dir / 'staging_dir/hostpkg/bin',
+        sdk_dir / 'staging_dir/host/bin',
+    )
+    if source.suffix == '.js':
+        jsmin = next((root / 'jsmin' for root in host_bins if (root / 'jsmin').is_file()), None)
+        if jsmin is not None:
+            try:
+                result = subprocess.run([str(jsmin)], input=raw, capture_output=True, check=True)
+                variants.append(result.stdout)
+            except subprocess.CalledProcessError:
+                # LuCI's install rule leaves the original file in place when
+                # its optional minification command fails.
+                pass
+    elif source.suffix == '.css':
+        csstidy = next((root / 'csstidy' for root in host_bins if (root / 'csstidy').is_file()), None)
+        if csstidy is not None:
+            with tempfile.TemporaryDirectory(prefix='pm-csstidy-') as tmp:
+                src = Path(tmp) / source.name
+                out = Path(tmp) / (source.name + '.min')
+                src.write_bytes(raw)
+                try:
+                    subprocess.run([
+                        str(csstidy), str(src), '--template=highest',
+                        '--remove_last_semicolon=true', str(out)
+                    ], capture_output=True, check=True)
+                    variants.append(out.read_bytes())
+                except subprocess.CalledProcessError:
+                    # Match the upstream LuCI install macro's fallback.
+                    pass
+    return variants
 
 
 def _pm_commit():
@@ -454,6 +519,87 @@ def apk_pkginfo(path):
     return meta
 
 
+def _ipk_members(raw):
+    if not raw.startswith(b'!<arch>\n'):
+        raise ValueError('not an ar-style IPK')
+    members, offset = {}, 8
+    while offset < len(raw):
+        header = raw[offset:offset + 60]
+        if len(header) != 60 or header[58:] != b'`\n':
+            raise ValueError('invalid ar member header')
+        name = header[:16].decode('ascii', 'strict').strip().rstrip('/')
+        size = int(header[48:58].decode('ascii', 'strict').strip())
+        offset += 60
+        if not name or size < 0 or name in members or offset + size > len(raw):
+            raise ValueError('invalid ar member bounds/name')
+        members[name] = raw[offset:offset + size]
+        offset += size + (size % 2)
+    return members
+
+
+def _ipk_tars(path):
+    raw = Path(path).read_bytes()
+    if raw.startswith(b'!<arch>\n'):
+        members = _ipk_members(raw)
+    else:
+        with open_package(path) as outer_file:
+            with tarfile.open(fileobj=outer_file, mode='r:*') as outer:
+                members = {member.name.rsplit('/', 1)[-1]: outer.extractfile(member).read()
+                           for member in outer.getmembers() if member.isfile()}
+    control = [value for name, value in members.items() if name.startswith('control.tar')]
+    data = [value for name, value in members.items() if name.startswith('data.tar')]
+    if len(control) != 1 or len(data) != 1:
+        raise ValueError('IPK must contain one control and one data archive')
+    control_tar = tarfile.open(fileobj=io.BytesIO(control[0]), mode='r:*')
+    data_tar = tarfile.open(fileobj=io.BytesIO(data[0]), mode='r:*')
+    return control_tar, data_tar
+
+
+def ipk_pkginfo(path):
+    """Return normalized package metadata from an OpenWrt IPK."""
+    try:
+        control, _ = _ipk_tars(path)
+        item = control.getmember('./control') if './control' in control.getnames() else control.getmember('control')
+        fields, last_key = {}, None
+        for line in control.extractfile(item).read().decode('utf-8', 'replace').splitlines():
+            if not line:
+                continue
+            if line[0].isspace() and last_key:
+                fields[last_key] += ' ' + line.strip()
+                continue
+            key, separator, value = line.partition(':')
+            if separator:
+                last_key = key.strip().lower()
+                fields[last_key] = value.strip()
+        deps = [part.strip().split()[0] for part in fields.get('depends', '').split(',') if part.strip()]
+        conflicts = [part.strip().split()[0] for part in fields.get('conflicts', '').split(',') if part.strip()]
+        deps += ['!' + conflict + '>=0' for conflict in conflicts]
+        return {'pkgname': fields.get('package'), 'pkgver': fields.get('version'),
+                'arch': fields.get('architecture'), 'depend': deps}
+    except (OSError, ValueError, KeyError, tarfile.TarError):
+        return None
+
+
+def package_pkginfo(path):
+    return ipk_pkginfo(path) if Path(path).suffix == '.ipk' else apk_pkginfo(path)
+
+
+def ipk_file_content(path, target):
+    try:
+        _, data = _ipk_tars(path)
+        wanted = target.lstrip('/')
+        for member in data.getmembers():
+            if member.name.lstrip('./') == wanted and member.isfile():
+                return data.extractfile(member).read()
+    except (OSError, ValueError, tarfile.TarError):
+        pass
+    return None
+
+
+def package_file_content(path, target):
+    return ipk_file_content(path, target) if Path(path).suffix == '.ipk' else apk_file_content(path, target)
+
+
 def sha256(path):
     h = hashlib.sha256()
     with open(path, 'rb') as f:
@@ -470,39 +616,44 @@ def main(argv):
     expected_version = argv[2]
     arch = argv[3]
     rill_runtime_version = argv[4] if len(argv) > 4 else expected_version
+    pkgtype = argv[5] if len(argv) > 5 else os.environ.get('PACKAGE_MANAGER', 'apk')
+    if pkgtype not in ('apk', 'ipk'):
+        print(f'FAIL: unsupported package format {pkgtype!r}', file=sys.stderr)
+        return 2
 
-    apks = sorted(sdk_dir.rglob('*.apk'))
-    if not apks:
-        print('FAIL: no .apk files found in SDK tree', file=sys.stderr)
+    packages = sorted(sdk_dir.rglob(f'*.{pkgtype}'))
+    if not packages:
+        print(f'FAIL: no .{pkgtype} files found in SDK tree', file=sys.stderr)
         return 1
 
-    # Index every APK by its real package name.
+    # Index each package format by its authoritative control metadata.
     by_name = {}
-    for apk in apks:
-        meta = apk_pkginfo(apk)
+    for apk in packages:
+        meta = package_pkginfo(apk)
         name = (meta or {}).get('pkgname')
         if not name:
-            print(f'WARN: {apk.name} has no usable .PKGINFO; treating as non-package', file=sys.stderr)
+            print(f'WARN: {apk.name} has no usable package identity; treating as non-package', file=sys.stderr)
             continue
         by_name.setdefault(name, []).append((apk, meta))
 
-    report = {'schemaVersion': 2, 'contract': 'apk-exact-verification',
+    report = {'schemaVersion': 2, 'contract': f'{pkgtype}-exact-verification',
               'pmCommitSha': _pm_commit(),
+              'openwrtVersion': os.environ.get('OPENWRT_VERSION'),
               'expectedVersion': expected_version,
               'rillRuntimeVersion': rill_runtime_version,
-              'arch': arch, 'packages': {}}
+              'arch': arch, 'pkgtype': pkgtype, 'packages': {}}
     failures = []
 
     split_runtime_sha = None
     for name in EXPECTED:
         found = by_name.get(name, [])
         if not found:
-            failures.append(f'{name}: no APK with pkgname=={name} found')
+            failures.append(f'{name}: no {pkgtype.upper()} with pkgname=={name} found')
             report['packages'][name] = {'status': 'missing'}
             continue
         if len(found) > 1:
             dup = ', '.join(p[0].name for p in found)
-            failures.append(f'{name}: multiple APKs resolve to pkgname=={name}: {dup}')
+            failures.append(f'{name}: multiple {pkgtype.upper()}s resolve to pkgname=={name}: {dup}')
             report['packages'][name] = {'status': 'duplicate', 'files': [p[0].name for p in found]}
             continue
         apk, meta = found[0]
@@ -537,17 +688,20 @@ def main(argv):
             'requiredDepends': sorted(REQUIRED_DEPENDS[name]),
             'missingDepends': missing_deps,
         }
-        # Core, and every repository-owned file in the all-in-one APK, must be
-        # byte-for-byte identical to the source exercised by local gates.
-        if name in ('performance-manager', ALL_IN_ONE):
+        # Core, split LuCI UI assets, and the all-in-one package must all match
+        # the source exercised by local gates. The split package may contain
+        # the exact default LuCI JS/CSS minifier output.
+        if name in ('performance-manager', 'luci-app-performance-manager', ALL_IN_ONE):
             installed_payload = {}
             source_payloads = (
                 {CORE_PATH: CORE_SRC, CONTRACTS_PATH: CONTRACTS_SRC}
-                if name == 'performance-manager' else bundle_source_payloads()
+                if name == 'performance-manager' else
+                luci_source_payloads() if name == 'luci-app-performance-manager' else
+                bundle_source_payloads()
             )
             for payload_path, source_path in source_payloads.items():
                 payload_rec = {'path': payload_path}
-                apk_payload = apk_file_content(apk, payload_path)
+                apk_payload = package_file_content(apk, payload_path)
                 src_sha = sha256(source_path) if source_path.is_file() else None
                 if apk_payload is None:
                     payload_rec['status'] = 'missing'
@@ -559,15 +713,42 @@ def main(argv):
                     failures.append(f'{name}: cannot compare payload (repo source {source_path.name} missing)')
                 else:
                     apk_sha = hashlib.sha256(apk_payload).hexdigest()
-                    payload_rec.update({'status': 'match' if apk_sha == src_sha else 'mismatch',
-                                        'size': len(apk_payload), 'apkSha256': apk_sha, 'sourceSha256': src_sha})
-                    if apk_sha != src_sha:
-                        failures.append(f'{name}: APK {payload_path} sha256 != shipped source ({apk_sha} vs {src_sha})')
+                    variants = ([source_path.read_bytes()]
+                                if name != 'luci-app-performance-manager' else
+                                luci_packaged_source_variants(source_path, sdk_dir))
+                    variant_hashes = {hashlib.sha256(data).hexdigest() for data in variants}
+                    matched = apk_sha in variant_hashes
+                    payload_rec.update({
+                        'status': 'match' if matched else 'mismatch',
+                        'size': len(apk_payload),
+                        'apkSha256': apk_sha,
+                        'sourceSha256': src_sha,
+                        'acceptedPackageSha256': sorted(variant_hashes),
+                    })
+                    # The split UI package's postinst replaces version tokens
+                    # in ui.js after extraction. Record the exact bytes LuCI
+                    # serves on-device so package verification can be compared
+                    # with an installed resource hash without mistaking the
+                    # expected postinst edit for package drift.
+                    if (name == 'luci-app-performance-manager'
+                            and payload_path == '/www/luci-static/resources/performance-manager/ui.js'):
+                        installed_bytes = apk_payload.replace(
+                            b'@PKG_FULL_VERSION@', pkgver.encode('utf-8'))
+                        installed_bytes = installed_bytes.replace(
+                            b'@PKG_VERSION@', ver_part.encode('utf-8'))
+                        payload_rec['expectedPostInstallSha256'] = hashlib.sha256(
+                            installed_bytes).hexdigest()
+                        payload_rec['postInstallTransform'] = (
+                            'package postinst substitutes @PKG_FULL_VERSION@ and @PKG_VERSION@')
+                    if not matched:
+                        failures.append(
+                            f'{name}: APK {payload_path} sha256 matches neither repository source nor LuCI-minified source'
+                        )
                 installed_payload[payload_path] = payload_rec
                 print(f"PAYLOAD {name}: {payload_path} {payload_rec.get('status')} "
                       f"apk={payload_rec.get('apkSha256', '-')} src={payload_rec.get('sourceSha256', '-')}")
             if name == ALL_IN_ONE:
-                default_payload = apk_file_content(apk, TRANSLATION_DEFAULT_PATH)
+                default_payload = package_file_content(apk, TRANSLATION_DEFAULT_PATH)
                 default_sha = hashlib.sha256(TRANSLATION_DEFAULT).hexdigest()
                 default_rec = {'path': TRANSLATION_DEFAULT_PATH, 'sourceSha256': default_sha}
                 if default_payload is None:
@@ -581,7 +762,7 @@ def main(argv):
                         failures.append(f'{name}: translation UCI default does not match expected content')
                 installed_payload[TRANSLATION_DEFAULT_PATH] = default_rec
 
-                translation = apk_file_content(apk, TRANSLATION_PATH)
+                translation = package_file_content(apk, TRANSLATION_PATH)
                 translation_rec = {'path': TRANSLATION_PATH}
                 if not translation:
                     translation_rec['status'] = 'missing-or-empty'
@@ -591,9 +772,10 @@ def main(argv):
                                             'apkSha256': hashlib.sha256(translation).hexdigest()})
                 installed_payload[TRANSLATION_PATH] = translation_rec
             report['packages'][name]['installedPayload'] = installed_payload
-            report['packages'][name]['core'] = installed_payload[CORE_PATH]
+            if CORE_PATH in installed_payload:
+                report['packages'][name]['core'] = installed_payload[CORE_PATH]
         if name == 'rill-runtime':
-            runtime_payload = apk_file_content(apk, '/usr/bin/rill-runtime')
+            runtime_payload = package_file_content(apk, '/usr/bin/rill-runtime')
             split_runtime_sha = hashlib.sha256(runtime_payload).hexdigest() if runtime_payload else None
             report['packages'][name]['runtimeBinary'] = {
                 'path': '/usr/bin/rill-runtime',
@@ -605,42 +787,37 @@ def main(argv):
             elif runtime_payload[:4] != b'\x7fELF' or len(runtime_payload) < 20 \
                     or int.from_bytes(runtime_payload[18:20], 'little') != ELF_MACHINES.get(arch):
                 failures.append(f'rill-runtime: ELF machine does not match {arch}')
+            if package_file_content(apk, '/usr/share/rill/runtime-channel') != b'preview\n':
+                failures.append('rill-runtime: embedded channel marker must be Stable')
         if name == ALL_IN_ONE:
-            bundled = apk_file_content(apk, '/usr/bin/rill-runtime')
-            bundled_sha = hashlib.sha256(bundled).hexdigest() if bundled else None
             installed_payload = report['packages'][name].setdefault('installedPayload', {})
             installed_payload['/usr/bin/rill-runtime'] = {
                 'path': '/usr/bin/rill-runtime',
-                'status': 'match' if bundled_sha == split_runtime_sha and bundled_sha else 'mismatch',
-                'sha256': bundled_sha,
-                'expectedSha256': split_runtime_sha,
+                'status': 'shared-dependency',
+                'sharedPackage': 'rill-runtime',
             }
             report['packages'][name]['runtimeBinary'] = {
                 'path': '/usr/bin/rill-runtime',
-                'status': 'present' if bundled else 'missing',
-                'sha256': bundled_sha,
-                'matchesSplitRuntime': bundled_sha == split_runtime_sha and bundled_sha is not None,
-                'elfMachine': int.from_bytes(bundled[18:20], 'little') if bundled and len(bundled) >= 20 else None,
+                'status': 'shared-dependency',
+                'sha256': split_runtime_sha,
+                'matchesSplitRuntime': split_runtime_sha is not None,
+                'package': 'rill-runtime',
             }
-            if not bundled:
-                failures.append(f'{name}: bundled /usr/bin/rill-runtime is missing or empty')
-            elif bundled_sha != split_runtime_sha:
-                failures.append(f'{name}: bundled Runtime SHA differs from canonical split Runtime')
-            elif bundled[:4] != b'\x7fELF' or len(bundled) < 20 \
-                    or int.from_bytes(bundled[18:20], 'little') != ELF_MACHINES.get(arch):
-                failures.append(f'{name}: bundled Runtime ELF machine does not match {arch}')
+            if package_file_content(apk, '/usr/bin/rill-runtime') is not None:
+                installed_payload['/usr/bin/rill-runtime']['status'] = 'duplicate-owner'
+                failures.append(f'{name}: must not own the shared Runtime payload')
         print(f"OK {name}: {apk.name} pkgver={pkgver} arch={pkgarch} sha256={report['packages'][name]['sha256']}")
 
     # Reject any stray APK that is not one of the expected packages but
     # shares a prefix (e.g. a leftover old artifact) — better to be strict.
     extra = []
-    for apk in sorted(apks):
-        meta = apk_pkginfo(apk)
+    for apk in sorted(packages):
+        meta = package_pkginfo(apk)
         name = (meta or {}).get('pkgname')
         if name and name not in EXPECTED and any(name.startswith(p + '-') or name.startswith(p + '_') for p in EXPECTED):
             extra.append(apk.name)
     if extra:
-        failures.append(f'unexpected prefix-colliding APKs present: {", ".join(extra)}')
+            failures.append(f'unexpected prefix-colliding {pkgtype.upper()}s present: {", ".join(extra)}')
 
     report['verdict'] = 'PASS' if not failures else 'FAIL'
     report['failures'] = failures

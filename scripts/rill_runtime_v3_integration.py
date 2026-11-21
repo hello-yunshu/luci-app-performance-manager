@@ -18,6 +18,7 @@ def envelope(request_id: str, request: dict, *, capability: str | None, generati
         "requestId": request_id,
         "apiVersion": 3,
         "clientIdentity": {"name": "performance-manager", "version": "1"},
+        "partitionKey": "performance-manager",
         **({"capability": capability} if capability else {}),
         "featureSchemaHash": schema_hash,
         "modelGeneration": generation,

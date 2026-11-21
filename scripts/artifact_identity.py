@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Resolve exact package artifacts without relying on first-match ordering.
 
-Build workflows may expose the same APK through more than one artifact.  The
+    Build workflows may expose the same IPK/APK through more than one artifact. The
 identity is the package name, expected filename (when available), and the
 authoritative SHA-256 from build metadata/APK verification.  Every physical
 copy is inspected; a missing copy or a conflicting digest fails closed.
@@ -39,7 +39,7 @@ def _roots(search_roots: Iterable[str | Path]) -> list[Path]:
 def _candidates(package_name: str, roots: list[Path], expected_filename: str | None) -> list[Path]:
     found: set[Path] = set()
     for root in roots:
-        paths = [root] if root.is_file() else root.rglob("*.apk")
+        paths = [root] if root.is_file() else [*root.rglob("*.apk"), *root.rglob("*.ipk")]
         for path in paths:
             if not path.is_file():
                 continue
@@ -71,7 +71,7 @@ def resolve_artifact(
     candidates = _candidates(package_name, roots, expected_filename)
     if not candidates:
         suffix = f" filename={expected_filename}" if expected_filename else ""
-        raise ArtifactIdentityError(f"{package_name}: no APK copy found for {expected_sha}{suffix}")
+        raise ArtifactIdentityError(f"{package_name}: no package copy found for {expected_sha}{suffix}")
 
     copies = [{
         "path": str(path),
@@ -86,7 +86,7 @@ def resolve_artifact(
         )
     if len(digests) != 1:
         raise ArtifactIdentityError(
-            f"{package_name}: conflicting APK copies found: {sorted(digests)}"
+            f"{package_name}: conflicting package copies found: {sorted(digests)}"
         )
 
     canonical = next(copy for copy in copies if copy["sha256"] == expected_sha)

@@ -20,8 +20,7 @@ def main(argv=None) -> int:
     parser.add_argument("--expected-arch", action="append")
     args = parser.parse_args(argv)
     files = verify_public_assets(args.assets.resolve(), args.version,
-                                 tuple(args.expected_arch) if args.expected_arch else None
-                                 or ("x86_64", "aarch64_generic", "aarch64_cortex-a53"))
+                                 tuple(args.expected_arch) if args.expected_arch else None)
     print({"verdict": "PASS", "publicFiles": files})
     return 0
 

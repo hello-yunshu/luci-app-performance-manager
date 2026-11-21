@@ -29,7 +29,7 @@ def release_pin_structure(contract: dict) -> tuple[str, list[dict]]:
     package = contract.get("openwrtPackage", {})
     qualification = contract.get("qualification", {})
     checks = [
-        ("schemaVersion is 1", contract.get("schemaVersion") == 1),
+        ("schemaVersion is 2", contract.get("schemaVersion") == 2),
         ("package commit is a 40-hex SHA-1", bool(SHA1.fullmatch(str(package.get("commit", ""))))),
         ("package release is a positive integer",
          type(package.get("packageRelease")) is int and package.get("packageRelease") > 0),

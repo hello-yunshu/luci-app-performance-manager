@@ -64,7 +64,7 @@ def main() -> int:
         "pmCommitSha": args.commit,
         "host": {"os": "macOS", "architecture": args.host_arch},
         "docker": {"platform": "linux/amd64", "version": args.docker_version},
-        "openwrt": {"version": "25.12.5", "target": "x86/64",
+        "openwrt": {"version": "25.12.6", "target": "x86/64",
                     "rootfsSha256": args.rootfs_sha or None},
         "sourceTests": args.source,
         "coreRuntime": args.core,

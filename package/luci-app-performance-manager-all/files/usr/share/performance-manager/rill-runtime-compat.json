@@ -1,0 +1,7 @@
+{
+  "schemaVersion": 1,
+  "consumer": "luci-app-performance-manager-all",
+  "runtimePackage": "rill-runtime",
+  "minVersion": "1.5.6",
+  "maxVersionExclusive": "1.5.7"
+}

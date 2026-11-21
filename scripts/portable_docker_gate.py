@@ -89,9 +89,10 @@ def main(argv=None) -> int:
             and apk.get("verdict") == "PASS"
             and verified.get("sha256") == built.get("apkSha256") == actual_sha
             and verified.get("arch") == build.get("architecture")
-            and full_runtime.get("status") == "present"
-            and full_runtime.get("matchesSplitRuntime") is True
-            and full_meta.get("runtimeBundled") is True
+            and full_runtime.get("status") == "shared-dependency"
+            and full_runtime.get("package") == "rill-runtime"
+            and full_meta.get("runtimeBundled") is False
+            and full_meta.get("runtimeSharedDependency") is True
         ),
         "rillCiChain": final_commit == args.expected_commit and final_verdict == "PASS",
         "dockerCoreRuntime": "PORTABLE_DOCKER_PASS" in docker_log,

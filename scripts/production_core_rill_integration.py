@@ -31,6 +31,7 @@ def envelope(request_id: str, request: dict, generation: int, state_generation: 
     return {
         "requestId": request_id, "apiVersion": 3,
         "clientIdentity": {"name": "performance-manager", "version": (ROOT / "VERSION").read_text().strip()},
+        "partitionKey": "performance-manager",
         "featureSchemaHash": schema_hash, "modelGeneration": 2,
         "stateGeneration": state_generation, "payloadLimit": 262144,
         "request": request,

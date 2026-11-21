@@ -1,7 +1,7 @@
 'use strict';
 'require baseclass';
 
-var FOOTER_VERSION = '@PKG_VERSION@';
+var FOOTER_VERSION = '@PKG_FULL_VERSION@';
 
 var FOOTER_OPTIONS = {
 	project: _('Performance Manager'),
@@ -14,23 +14,10 @@ function ensureStyles() {
 		const link = document.createElement('link');
 		link.rel = 'stylesheet';
 		link.dataset.performanceManagerStyle = 'true';
-		link.href = (typeof L !== 'undefined' && L.resource) ? L.resource('performance-manager/ui.css') : '/luci-static/resources/performance-manager/ui.css';
+		link.href = ((typeof L !== 'undefined' && L.resource) ? L.resource('performance-manager/ui.css') : '/luci-static/resources/performance-manager/ui.css') + '?ui=pm-overview-rhythm-v3';
 		document.head.appendChild(link);
 	}
 
-	/* 主题没有在 body 上留标记，唯一可靠的信号是主题样式表本身。
-	 * 只在 bootstrap 下加类，供 CSS 做兼容覆盖，避免污染 aurora。 */
-	if (document.body && document.querySelector('link[rel="stylesheet"][href*="/bootstrap/"]'))
-		document.body.classList.add('pu-theme-bootstrap');
-
-	/* 离开插件页时移除，防止兼容样式泄漏到其他视图 */
-	if (!ensureStyles.unwatch) {
-		ensureStyles.unwatch = true;
-		window.addEventListener('hashchange', function() {
-			if (document.body)
-				document.body.classList.remove('pu-theme-bootstrap');
-		});
-	}
 }
 
 function footerSeparator(extraClass) {
@@ -135,10 +122,14 @@ function badge(text, kind) {
 function page(title, description, content) {
 	ensureStyles();
 	const body = (Array.isArray(content) ? content : [ content ]).filter(function(node) { return node != null; });
+	const header = [ E('h2', { 'name': 'content' }, [ title ]) ];
+	if (description)
+		header.push(E('p', { 'class': 'cbi-map-descr' }, [ description ]));
 	return E('div', { 'class': 'cbi-map' }, [
-		E('h2', { 'name': 'content' }, [ title ]),
-		description ? E('p', { 'class': 'cbi-map-descr' }, [ description ]) : null
-	].concat(body).concat([ renderFooter(FOOTER_OPTIONS) ]));
+		...header,
+		...body,
+		renderFooter(FOOTER_OPTIONS)
+	]);
 }
 
 function card(title, body) {
@@ -163,7 +154,7 @@ function jsonBox(obj, label) {
 }
 
 function grid(items) {
-	return E('div', {}, items);
+	return E('div', { 'class': 'pm-grid' }, items);
 }
 
 function toolbar(items) {
@@ -176,18 +167,23 @@ function note(text, kind) {
 }
 
 function field(label, control, help) {
+	var fieldContent = [ control ];
+	if (help)
+		fieldContent.push(E('div', { 'class': 'cbi-value-description' }, [ help ]));
+
 	return E('div', { 'class': 'cbi-value' }, [
 		E('label', { 'class': 'cbi-value-title' }, [ label ]),
-		E('div', { 'class': 'cbi-value-field' }, [
-			control,
-			help ? E('div', { 'class': 'cbi-value-description' }, [ help ]) : null
-		])
+		E('div', { 'class': 'cbi-value-field' }, fieldContent)
 	]);
 }
 
-function inset(title, body) {
-	return E('div', { 'class': 'cbi-section' }, [
-		title ? E('h4', {}, [ title ]) : null,
+function inset(title, body, kind) {
+	const alertKind = ({ warning: 'warning', danger: 'danger', info: 'info', success: 'success' })[kind];
+	const attrs = { 'class': alertKind ? 'alert-message ' + alertKind : 'cbi-section' };
+	if (alertKind)
+		attrs.role = 'status';
+	return E('div', attrs, [
+		title ? E(alertKind ? 'h3' : 'h4', {}, [ title ]) : null,
 		body
 	]);
 }

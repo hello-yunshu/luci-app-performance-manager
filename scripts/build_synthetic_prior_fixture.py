@@ -60,6 +60,8 @@ def write_scripts(directory: Path) -> dict[str, Path]:
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--sdk-dir", required=True, type=Path)
+    parser.add_argument("--runtime-apk", required=True, type=Path,
+                        help="exact shared Stable Runtime APK used to synthesize the prior embedded binary")
     parser.add_argument("--out", required=True, type=Path)
     parser.add_argument("--version", required=True)
     parser.add_argument("--release", default="1")
@@ -77,6 +79,9 @@ def main(argv: list[str] | None = None) -> int:
     if len(current_matches) != 1:
         raise SystemExit(f"expected one already-built current APK, found {current_matches}")
     current_apk = current_matches[0]
+    runtime_apk = args.runtime_apk.resolve()
+    if not runtime_apk.is_file():
+        raise SystemExit(f"shared Runtime APK missing: {runtime_apk}")
 
     marker = f"pm-synthetic-prior-fixture:{args.version}-{args.release}:{args.commit}"
     out.mkdir(parents=True, exist_ok=True)
@@ -89,6 +94,17 @@ def main(argv: list[str] | None = None) -> int:
             str(apk_tool), "--allow-untrusted", "extract",
             "--destination", str(prior_root), str(current_apk),
         ], sdk)
+        runtime_root = temporary_root / "runtime"
+        runtime_root.mkdir()
+        run([str(apk_tool), "--allow-untrusted", "extract", "--destination",
+             str(runtime_root), str(runtime_apk)], sdk)
+        runtime_source = runtime_root / "usr/bin/rill-runtime"
+        if not runtime_source.is_file():
+            raise SystemExit("shared Stable Runtime APK has no /usr/bin/rill-runtime")
+        prior_runtime = prior_root / "usr/bin/rill-runtime"
+        prior_runtime.parent.mkdir(parents=True, exist_ok=True)
+        prior_runtime.write_bytes(runtime_source.read_bytes())
+        prior_runtime.chmod(0o755)
         for relative in PAYLOAD_PATHS:
             path = prior_root / relative.lstrip("/")
             if not path.is_file():

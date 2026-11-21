@@ -203,6 +203,10 @@
       "status": "pass"
     },
     {
+      "name": "YAML parse build-luci-ui.yml",
+      "status": "pass"
+    },
+    {
       "name": "YAML parse build-openwrt.yml",
       "status": "pass"
     },
@@ -216,6 +220,10 @@
     },
     {
       "name": "YAML parse prerelease.yml",
+      "status": "pass"
+    },
+    {
+      "name": "YAML parse real-luci-ui.yml",
       "status": "pass"
     },
     {

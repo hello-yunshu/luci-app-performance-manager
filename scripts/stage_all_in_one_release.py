@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Stage the exact verified all-in-one APK for prerelease publication."""
+"""Stage the exact verified unified PM package for release publication."""
 from __future__ import annotations
 
 import argparse
@@ -27,15 +27,15 @@ def main(argv=None) -> int:
     out = Path(args.out).resolve()
     report = json.loads(verification_path.read_text())
     if report.get("verdict") != "PASS":
-        raise RuntimeError("APK verification verdict is not PASS")
+        raise RuntimeError("package verification verdict is not PASS")
     record = (report.get("packages") or {}).get(PACKAGE) or {}
     expected_name = record.get("filename")
     expected_sha = record.get("sha256")
     if record.get("status") != "ok" or not expected_name or not expected_sha:
-        raise RuntimeError("all-in-one APK lacks exact verified identity")
+        raise RuntimeError("unified PM package lacks exact verified identity")
     runtime = record.get("runtimeBinary") or {}
-    if runtime.get("status") != "present" or runtime.get("matchesSplitRuntime") is not True:
-        raise RuntimeError("all-in-one APK lacks the exact bundled canonical Runtime")
+    if runtime.get("status") != "shared-dependency" or runtime.get("package") != "rill-runtime":
+        raise RuntimeError("all-in-one APK lacks the shared qualified Runtime dependency")
 
     try:
         identity = resolve_artifact(PACKAGE, expected_sha, [sdk_dir], expected_name)
@@ -53,7 +53,8 @@ def main(argv=None) -> int:
         "version": report.get("expectedVersion"),
         "architecture": report.get("arch"),
         "package": PACKAGE,
-        "apk": {
+        "packageArtifact": {
+            "format": report.get("pkgtype"),
             "filename": target.name,
             "sha256": expected_sha,
             "bytes": target.stat().st_size,
@@ -73,7 +74,8 @@ def main(argv=None) -> int:
         "externalRuntime": {
             "package": "rill-runtime",
             "binary": "/usr/bin/rill-runtime",
-            "bundled": True,
+            "bundled": False,
+            "sharedDependency": True,
             "standaloneReleaseIncluded": False,
             "sha256": runtime.get("sha256"),
         },

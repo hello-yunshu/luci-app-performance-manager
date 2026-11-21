@@ -77,7 +77,7 @@ def main(argv):
     commit = env('GITHUB_SHA', sh(['git', '-C', str(ROOT), 'rev-parse', 'HEAD']) or 'unknown')
     run_id = env('GITHUB_RUN_ID', 'local')
     workflow = env('GITHUB_WORKFLOW', 'build-openwrt')
-    openwrt_version = env('OPENWRT_VERSION', argv[1] if len(argv) > 1 else '25.12.5')
+    openwrt_version = env('OPENWRT_VERSION', argv[1] if len(argv) > 1 else '25.12.6')
     target = env('OPENWRT_TARGET', 'x86') + '/' + env('OPENWRT_SUBTARGET', '64')
     sdk_dir = env('SDKDIR', argv[2] if len(argv) > 2 else '')
     sdk_identity = Path(sdk_dir).name if sdk_dir else 'not-built-local'
@@ -210,9 +210,9 @@ def main(argv):
     pm_build_verdict = 'PASS' if (apk_report is not None and all(produced[n] for n in packages)) else 'FAIL'
     apk_exact_verdict = 'PASS' if (apk_report or {}).get('verdict') == 'PASS' else 'FAIL'
 
-    # The generic Runtime source/package is still qualified in its canonical
-    # feed; the full package embeds the exact target binary but PM does not
-    # publish a second standalone Runtime release asset.
+    # The generic Runtime source/package is qualified in its canonical feed;
+    # the PM package consumes the shared provider and does not publish or own
+    # a duplicate Runtime binary.
     if _prov_job:
         rill_checksum = _prov_job.get('runtimeSha256')
     rill_provenance = combine_required(_prov_verdicts())
@@ -231,6 +231,7 @@ def main(argv):
     verdicts = {
         'pmPackagesBuildVerdict': pm_build_verdict,
         'apkExactVerificationVerdict': apk_exact_verdict,
+        'packageExactVerificationVerdict': apk_exact_verdict,
         'rillArtifactProvenanceVerdict': rill_provenance,
         'rillRuntimeCompatibilityVerdict': rill_runtime_verdict,
         'rillFunctionalIntegrationVerdict': rill_functional_verdict,
@@ -257,10 +258,12 @@ def main(argv):
             entry['status'] = rec.get('status')
             if rec.get('filename'):
                 entry['apkFilename'] = rec['filename']
+                entry['packageFilename'] = rec['filename']
             if rec.get('releaseFilename'):
                 entry['releaseFilename'] = rec['releaseFilename']
             if rec.get('sha256'):
                 entry['apkSha256'] = rec['sha256']
+                entry['packageSha256'] = rec['sha256']
             if rec.get('pkgver'):
                 entry['pkgver'] = rec['pkgver']
             if rec.get('arch'):
@@ -273,8 +276,10 @@ def main(argv):
                     for path, payload in rec['installedPayload'].items()
                     if payload.get('status') in ('match', 'compiled')
                 }
-            if name == 'luci-app-performance-manager-all' and rec.get('runtimeBinary'):
+            if name in ('rill-runtime', 'luci-app-performance-manager-all') and rec.get('runtimeBinary'):
                 entry['runtimeBinary'] = rec['runtimeBinary']
+            if rec.get('depends'):
+                entry['depends'] = rec['depends']
         packages_meta[name] = entry
 
     metadata = {
@@ -311,7 +316,8 @@ def main(argv):
             'qualificationArtifact': 'qualification-evidence',
             'qualificationRequired': True,
             'publicReleaseIncluded': False,
-            'bundledInFullAllInOne': True,
+            'bundledInFullAllInOne': False,
+            'sharedDependency': True,
         },
         'fullPackage': {
             'package': 'luci-app-performance-manager-all',
@@ -322,8 +328,9 @@ def main(argv):
             'runtimeVersion': rill_version,
             'runtimeSourceRepository': 'hello-yunshu/rill-openwrt-packages',
             'runtimeSourceCommit': env('RILL_OPENWRT_PACKAGE_COMMIT'),
-            'runtimeSha256': ((packages_meta.get('luci-app-performance-manager-all') or {}).get('runtimeBinary') or {}).get('sha256'),
-            'runtimeBundled': ((packages_meta.get('luci-app-performance-manager-all') or {}).get('runtimeBinary') or {}).get('matchesSplitRuntime') is True,
+            'runtimeSha256': ((packages_meta.get('rill-runtime') or {}).get('runtimeBinary') or {}).get('sha256'),
+            'runtimeBundled': False,
+            'runtimeSharedDependency': 'rill-runtime' in (packages_meta.get('luci-app-performance-manager-all') or {}).get('depends', []),
         },
         'rillArtifactProvenanceReason': rill_provenance_reason,
         'evidenceSources': {

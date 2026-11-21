@@ -6,6 +6,7 @@ import argparse
 import json
 from pathlib import Path
 
+from assemble_public_release import TARGETS
 from artifact_identity import sha256
 from verify_public_release_assets import verify_public_assets
 
@@ -25,8 +26,8 @@ def main(argv=None) -> int:
     evidence.mkdir(parents=True, exist_ok=True)
     input_root = Path(args.input).resolve() if args.input else evidence
     metadata_paths = sorted(p for p in input_root.rglob("build-metadata.json") if p.is_file())
-    if len(metadata_paths) != 3:
-        raise RuntimeError(f"expected three target build metadata records, found {metadata_paths}")
+    if len(metadata_paths) != len(TARGETS):
+        raise RuntimeError(f"expected one build metadata record per supported target, found {metadata_paths}")
     metadata = json.loads(metadata_paths[0].read_text())
     if metadata.get("repositoryCommitSha") != args.expected_commit:
         raise RuntimeError("build metadata commit mismatch")
@@ -41,8 +42,8 @@ def main(argv=None) -> int:
             "sdkArchiveSha256": build.get("sdkArchiveSha256"),
             "fullPackage": build.get("fullPackage"),
         })
-    if len(targets) != 3:
-        raise RuntimeError(f"expected three target build evidence records, found {len(targets)}")
+    if len(targets) != len(TARGETS):
+        raise RuntimeError(f"expected one target build evidence record per supported target, found {len(targets)}")
     first = metadata.get("externalRuntime") or {}
     manifest = {
         "schemaVersion": 2,
@@ -59,7 +60,8 @@ def main(argv=None) -> int:
             **first,
             "package": "rill-runtime",
             "repository": "hello-yunshu/rill-openwrt-packages",
-            "bundledInFullAllInOne": True,
+            "bundledInFullAllInOne": False,
+            "sharedDependency": True,
             "standalonePublicReleaseIncluded": False,
         },
     }

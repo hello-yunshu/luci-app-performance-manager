@@ -21,7 +21,7 @@ permissions:
   contents: read
 
 env:
-  OPENWRT_VERSION: "25.12.5"
+  OPENWRT_VERSION: "25.12.6"
   OPENWRT_TARGET: "x86/64"
 
 concurrency:

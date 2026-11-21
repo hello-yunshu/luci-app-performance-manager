@@ -113,7 +113,7 @@ if [ "$source_verdict" = FAIL ]; then
 fi
 if [ "$source_verdict" != FAIL ]; then
     if run_logged "$SOURCE/unit-tests.log" "$PY" -m unittest discover -s tests -p 'test_*.py'; then unit=PASS; else unit=FAIL; fi
-    if run_logged "$SOURCE/make-audit.log" env PATH="$(dirname "$PY"):$PATH" GITHUB_SHA="$EXPECTED_SHA" make audit; then audit=PASS; else audit=FAIL; fi
+    if run_logged "$SOURCE/make-audit.log" env PATH="$(dirname "$PY"):$PATH" GITHUB_SHA="$EXPECTED_SHA" PM_ORCHESTRATOR_TEST="${PM_ORCHESTRATOR_TEST:-}" make audit; then audit=PASS; else audit=FAIL; fi
     "$PY" -c "import json,re; t=open('$SOURCE/unit-tests.log').read(); m=re.search(r'Ran (\d+) tests?',t); json.dump({'verdict':'$unit','testCount':int(m.group(1)) if m else None,'command':'python3 -m unittest discover -s tests -p test_*.py'},open('$SOURCE/test-report.json','w'),indent=2)"
     [ ! -f "$ROOT/docs/source-audit.json" ] || cp "$ROOT/docs/source-audit.json" "$SOURCE/source-audit.json"
     [ ! -f "$ROOT/docs/FINAL_AUDIT.json" ] || cp "$ROOT/docs/FINAL_AUDIT.json" "$SOURCE/FINAL_AUDIT.json"
@@ -151,8 +151,8 @@ if ! apt-get update || ! apt-get install -y --no-install-recommends ca-certifica
   echo BLOCKED: OpenWrt bootstrap dependencies unavailable
   exit 2
 fi
-rootfs=openwrt-25.12.5-x86-64-rootfs.tar.gz
-base=https://downloads.openwrt.org/releases/25.12.5/targets/x86/64
+rootfs=openwrt-25.12.6-x86-64-rootfs.tar.gz
+base=https://downloads.openwrt.org/releases/25.12.6/targets/x86/64
 if ! curl -fsSLo sha256sums "$base/sha256sums"; then
   echo BLOCKED: OpenWrt checksum source unavailable
   exit 2
@@ -298,6 +298,19 @@ print(Path(identity['canonicalPath']).relative_to(root))
 PY
                 )
                 if [ ! -f "$ARTIFACTS/$full_apk" ]; then artifact_verdict=FAIL; reason='exact full All-in-One APK filename is missing'; fi
+                runtime_apk=$("$PY" - "$ARTIFACTS" <<'PY'
+import json, sys
+from pathlib import Path
+sys.path.insert(0, str(Path.cwd() / 'scripts'))
+from artifact_identity import resolve_artifact
+root = Path(sys.argv[1]).resolve()
+build = json.loads((root / 'build-metadata.json').read_text())
+item = build['packages']['rill-runtime']
+identity = resolve_artifact('rill-runtime', item['apkSha256'], [root], item.get('apkFilename'))
+print(Path(identity['canonicalPath']).relative_to(root))
+PY
+                )
+                if [ ! -f "$ARTIFACTS/$runtime_apk" ]; then artifact_verdict=FAIL; reason='exact shared Runtime provider APK is missing'; fi
             fi
         fi
     fi
@@ -311,13 +324,14 @@ fi
 
 if run_logged "$DOCKER/runtime-v3.log" docker run --rm --privileged --platform "$DOCKER_PLATFORM" \
     -e PM_FULL_APK="/workspace/local-artifacts/x86_64/$full_apk" \
+    -e PM_RUNTIME_APK="/workspace/local-artifacts/x86_64/$runtime_apk" \
     -v "$ROOT:/workspace" -w /workspace ubuntu:24.04 bash -lc \
-    'set -eu; apt-get update >/dev/null; apt-get install -y --no-install-recommends python3 musl >/dev/null; rm -rf .portable-runtime-rootfs; cp -a .portable-rootfs .portable-runtime-rootfs; cp "$PM_FULL_APK" .portable-runtime-rootfs/tmp/; chroot .portable-runtime-rootfs /bin/sh -c "apk add --allow-untrusted --no-cache /tmp/$(basename "$PM_FULL_APK")"; LD_LIBRARY_PATH=/workspace/.portable-runtime-rootfs/lib:/workspace/.portable-runtime-rootfs/usr/lib:/lib:/usr/lib python3 scripts/rill_runtime_v3_integration.py --binary /workspace/.portable-runtime-rootfs/usr/bin/rill-runtime --out /workspace/local-evidence/docker/runtime-v3.json'; then runtime_verdict=PASS
-else runtime_verdict=FAIL; reason='one-file-installed bundled Rill Runtime v3 integration failed'; fi
+    'set -eu; apt-get update >/dev/null; apt-get install -y --no-install-recommends python3 musl >/dev/null; rm -rf .portable-runtime-rootfs; cp -a .portable-rootfs .portable-runtime-rootfs; cp "$PM_FULL_APK" "$PM_RUNTIME_APK" .portable-runtime-rootfs/tmp/; chroot .portable-runtime-rootfs /bin/sh -c "apk add --allow-untrusted --no-cache /tmp/$(basename "$PM_FULL_APK") /tmp/$(basename "$PM_RUNTIME_APK")"; LD_LIBRARY_PATH=/workspace/.portable-runtime-rootfs/lib:/workspace/.portable-runtime-rootfs/usr/lib:/lib:/usr/lib python3 scripts/rill_runtime_v3_integration.py --binary /workspace/.portable-runtime-rootfs/usr/bin/rill-runtime --out /workspace/local-evidence/docker/runtime-v3.json'; then runtime_verdict=PASS
+else runtime_verdict=FAIL; reason='one-file-installed shared Rill Runtime v3 integration failed'; fi
 
 if [ "$runtime_verdict" = PASS ] && run_logged "$PACKAGE/package-composition.log" docker run --rm --privileged --platform "$DOCKER_PLATFORM" \
     -v "$ROOT:/workspace" -w /workspace ubuntu:24.04 bash -lc \
-    "apt-get update >/dev/null && apt-get install -y --no-install-recommends python3 >/dev/null && python3 scripts/package_composition_gate.py --rootfs .portable-rootfs --packages local-artifacts/x86_64 --expected-commit $EXPECTED_SHA --openwrt-version 25.12.5 --target x86/64 --package-arch x86_64 --out local-evidence/package/package-composition.json"; then
+    "apt-get update >/dev/null && apt-get install -y --no-install-recommends python3 >/dev/null && python3 scripts/package_composition_gate.py --rootfs .portable-rootfs --packages local-artifacts/x86_64 --expected-commit $EXPECTED_SHA --openwrt-version 25.12.6 --target x86/64 --package-arch x86_64 --out local-evidence/package/package-composition.json"; then
     package_verdict=$("$PY" - "$PACKAGE/package-composition.json" <<'PY'
 import json, sys
 r = json.loads(open(sys.argv[1]).read())
