@@ -78,7 +78,9 @@ class RuntimeCompatibilityManifestTests(unittest.TestCase):
         install = next(step["run"] for step in steps if step.get("name") == "Install feeds and local packages")
         self.assertLess(install.index("rill-runtime"), install.index("make defconfig"))
         self.assertLess(install.index("rill-runtime-manager"), install.index("make defconfig"))
-        self.assertIn("config PACKAGE_$package", install)
+        # package-metadata.pl indents package symbols, so the gate must tolerate
+        # leading whitespace before the config record.
+        self.assertIn("[[:space:]]*config PACKAGE_${package}", install)
 
     def test_build_and_ui_workflows_use_the_locked_rill_package_commit(self):
         contract = json.loads(RILL_CONTRACT.read_text())
