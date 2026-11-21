@@ -785,6 +785,10 @@ msgstr "Runtime History JSON"
 msgid "Unable to read evidence. Paste valid JSON and try again."
 msgstr "Unable to read evidence. Paste valid JSON and try again."
 
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/performance-manager/ui.js
+msgid "Unable to load this page. Retry the page; if it keeps failing, check the service log."
+msgstr "Unable to load this page. Retry the page; if it keeps failing, check the service log."
+
 #: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/benchmark.js:14
 msgid "Complete"
 msgstr "Complete"
@@ -820,6 +824,22 @@ msgstr "Passive before/after"
 msgid "Health only"
 msgstr "Health only"
 
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/benchmark.js
+msgid "Health snapshot"
+msgstr "Health snapshot"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/benchmark.js
+msgid "Passive observation"
+msgstr "Passive observation"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/benchmark.js
+msgid "Health snapshot captured. This is not a performance result."
+msgstr "Health snapshot captured. This is not a performance result."
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/benchmark.js
+msgid "Passive observation captured. No settings were changed."
+msgstr "Passive observation captured. No settings were changed."
+
 #: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/benchmark.js:40
 msgid "Start test"
 msgstr "Start test"
@@ -827,6 +847,14 @@ msgstr "Start test"
 #: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/benchmark.js:45
 msgid "Test blocked"
 msgstr "Test blocked"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/benchmark.js
+msgid "Test complete. The candidate was rolled back and health checks passed."
+msgstr "Test complete. The candidate was rolled back and health checks passed."
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/benchmark.js
+msgid "Test complete, but the result was not validated. Review the details below."
+msgstr "Test complete, but the result was not validated. Review the details below."
 
 #: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/benchmark.js:45
 msgid "Details"
@@ -851,6 +879,10 @@ msgstr "Baseline"
 #: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/benchmark.js:50
 msgid "Commit-confirm"
 msgstr "Commit-confirm"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/benchmark.js
+msgid "Rollback protection"
+msgstr "Rollback protection"
 
 #: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/benchmark.js:60
 msgid "Validate baseline and apply candidate"
@@ -1029,6 +1061,14 @@ msgstr ""
 #, javascript-format
 msgid "Rill recommendation: %s"
 msgstr "Rill recommendation: %s"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/optimize.js
+msgid "Rill recommendation"
+msgstr "Rill recommendation"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/optimize.js
+msgid "Observations"
+msgstr "Observations"
 
 #: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/optimize.js:58
 msgid "Smart optimization"
@@ -1613,6 +1653,9 @@ msgstr "Runtime missing capabilities"
 
 msgid "Runtime not provisioned"
 msgstr "Runtime not provisioned"
+
+msgid "Not provisioned"
+msgstr "Not provisioned"
 
 msgid "Runtime protocol v%s"
 msgstr "Runtime protocol v%s"
@@ -2243,3 +2286,309 @@ msgstr "Overview"
 #: package/luci-app-performance-manager/root/usr/share/luci/menu.d/luci-app-performance-manager.json
 msgid "Rill intelligence"
 msgstr "Rill intelligence"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/overview.js:35
+msgid "Performance Manager is running"
+msgstr "Performance Manager is running"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/overview.js:35
+msgid "Performance Manager is stopped"
+msgstr "Performance Manager is stopped"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/overview.js:36
+msgid "Review safeguards and system information below."
+msgstr "Review safeguards and system information below."
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/overview.js:48
+msgid "System profile"
+msgstr "System profile"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/overview.js:49
+msgid "Degraded"
+msgstr "Degraded"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/overview.js:49
+msgid "Healthy"
+msgstr "Healthy"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/overview.js
+msgid "Incomplete"
+msgstr "Incomplete"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/overview.js
+msgid "Required components are unavailable."
+msgstr "Required components are unavailable."
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/overview.js
+msgid "Some recommended testing and diagnostic tools are missing."
+msgstr "Some recommended testing and diagnostic tools are missing."
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/overview.js
+msgid "Some profile capabilities are unavailable."
+msgstr "Some profile capabilities are unavailable."
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/overview.js
+msgid "Review profile details for unavailable components."
+msgstr "Review profile details for unavailable components."
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/overview.js
+msgid "Some optional components are missing."
+msgstr "Some optional components are missing."
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/overview.js:50
+msgid "Unmet"
+msgstr "Unmet"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/overview.js:51
+msgid "Health guard"
+msgstr "Health guard"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/overview.js:51
+msgid "Passed"
+msgstr "Passed"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/overview.js:51
+msgid "Blocked"
+msgstr "Blocked"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/overview.js:66
+msgid "System Information"
+msgstr "System Information"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/overview.js:70
+msgid "Rill runtime"
+msgstr "Rill runtime"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/overview.js:103
+msgid "No transactions are available yet."
+msgstr "No transactions are available yet."
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/overview.js:130
+msgid "Review system health, current safeguards, and network path status."
+msgstr "Review system health, current safeguards, and network path status."
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/benchmark.js:130
+msgid "Test setup and progress"
+msgstr "Test setup and progress"
+
+msgid "Advanced history details"
+msgstr "Advanced history details"
+
+msgid "Advanced settings"
+msgstr "Advanced settings"
+
+msgid "Affected targets and evaluation details"
+msgstr "Affected targets and evaluation details"
+
+msgid "Automatic action"
+msgstr "Automatic action"
+
+msgid "Automatic action not evaluated"
+msgstr "Automatic action not evaluated"
+
+msgid "Basic settings"
+msgstr "Basic settings"
+
+msgid "Current decision"
+msgstr "Current decision"
+
+msgid "Disabled"
+msgstr "Disabled"
+
+msgid "Enabled"
+msgstr "Enabled"
+
+msgid "Learning and policy details"
+msgstr "Learning and policy details"
+
+msgid "Locks and event records"
+msgstr "Locks and event records"
+
+msgid "Not evaluated"
+msgstr "Not evaluated"
+
+msgid "Provider and policy details"
+msgstr "Provider and policy details"
+
+msgid "Ready for automatic action"
+msgstr "Ready for automatic action"
+
+msgid "Rill provides observations and recommendations. Core checks safety and keeps final control over every change."
+msgstr "Rill provides observations and recommendations. Core checks safety and keeps final control over every change."
+
+msgid "Rill ranks actions that passed the Core engine review; the Core engine keeps the final authority to execute them."
+msgstr "Rill ranks actions that passed the Core engine review; the Core engine keeps the final authority to execute them."
+
+msgid "Runtime, decision and candidate details"
+msgstr "Runtime, decision and candidate details"
+
+msgid "Status, path and provider details"
+msgstr "Status, path and provider details"
+
+msgid "Transaction details"
+msgstr "Transaction details"
+
+msgid "Tune measurement, learning and assisted-automation thresholds. The recommended defaults are suitable for most users."
+msgstr "Tune measurement, learning and assisted-automation thresholds. The recommended defaults are suitable for most users."
+
+msgid "Unavailable benchmark providers and reasons"
+msgstr "Unavailable benchmark providers and reasons"
+
+msgid "Why"
+msgstr "Why"
+
+msgid "No change needed"
+msgstr "No change needed"
+
+msgid "The current configuration meets the policy."
+msgstr "The current configuration meets the policy."
+
+msgid "No decision reason is available yet."
+msgstr "No decision reason is available yet."
+
+msgid "Needs attention"
+msgstr "Needs attention"
+
+msgid "Runtime needs attention"
+msgstr "Runtime needs attention"
+
+msgid "Network adapter tuning"
+msgstr "Network adapter tuning"
+
+msgid "Network adapter features are grouped here to keep repeated hardware details out of the main list."
+msgstr "Network adapter features are grouped here to keep repeated hardware details out of the main list."
+
+msgid "Adapter capabilities and details"
+msgstr "Adapter capabilities and details"
+
+msgid "Network adapter"
+msgstr "Network adapter"
+
+msgid "Rill unavailable"
+msgstr "Rill unavailable"
+
+msgid "Runtime and profile"
+msgstr "Runtime and profile"
+
+msgid "Core memory"
+msgstr "Core memory"
+
+msgid "Stored history"
+msgstr "Stored history"
+
+msgid "Active Rill operations"
+msgstr "Active Rill operations"
+
+msgid "Detailed diagnostics"
+msgstr "Detailed diagnostics"
+
+msgid "Expand to load detailed capability, topology, transaction and lock records."
+msgstr "Expand to load detailed capability, topology, transaction and lock records."
+
+msgid "Loading diagnostics…"
+msgstr "Loading diagnostics…"
+
+msgid "Unable to load diagnostic records: %s"
+msgstr "Unable to load diagnostic records: %s"
+
+msgid "Diagnostic records"
+msgstr "Diagnostic records"
+
+msgid "Not reported"
+msgstr "Not reported"
+
+msgid "Expand to load recent validated feedback."
+msgstr "Expand to load recent validated feedback."
+
+msgid "Show recent validated feedback"
+msgstr "Show recent validated feedback"
+
+msgid "Loading feedback…"
+msgstr "Loading feedback…"
+
+msgid "Loading history…"
+msgstr "Loading history…"
+
+msgid "Expand to view recent history summaries."
+msgstr "Expand to view recent history summaries."
+
+msgid "Unable to load history records: %s"
+msgstr "Unable to load history records: %s"
+
+msgid "Unable to load feedback records: %s"
+msgstr "Unable to load feedback records: %s"
+
+msgid "Expand to load detailed history and runtime events."
+msgstr "Expand to load detailed history and runtime events."
+
+msgid "Check for updates"
+msgstr "Check for updates"
+
+msgid "Unable to manage packages."
+msgstr "Unable to manage packages."
+
+msgid "Package operation failed: %s"
+msgstr "Package operation failed: %s"
+
+msgid "Install Rill Runtime"
+msgstr "Install Rill Runtime"
+
+msgid "Update Rill Runtime"
+msgstr "Update Rill Runtime"
+
+msgid "Update Performance Manager"
+msgstr "Update Performance Manager"
+
+msgid "Package manager controls are unavailable. Update Performance Manager from the unified feed to enable them."
+msgstr "Package manager controls are unavailable. Update Performance Manager from the unified feed to enable them."
+
+msgid "Rill Runtime is not available for this OpenWrt release and architecture."
+msgstr "Rill Runtime is not available for this OpenWrt release and architecture."
+
+msgid "A Stable or incompatible Rill Runtime is installed. Resolve that package conflict before changing Runtime packages."
+msgstr "A Stable or incompatible Rill Runtime is installed. Resolve that package conflict before changing Runtime packages."
+
+msgid "Rill Runtime is not installed. Install it to enable Rill decisions."
+msgstr "Rill Runtime is not installed. Install it to enable Rill decisions."
+
+msgid "OpenWrt release"
+msgstr "OpenWrt release"
+
+msgid "Package architecture"
+msgstr "Package architecture"
+
+msgid "Runtime package"
+msgstr "Runtime package"
+
+msgid "Runtime channel"
+msgstr "Runtime channel"
+
+msgid "Runtime compatibility"
+msgstr "Runtime compatibility"
+
+msgid "Installed"
+msgstr "Installed"
+
+msgid "Not installed"
+msgstr "Not installed"
+
+msgid "Compatible"
+msgstr "Compatible"
+
+msgid "Package management"
+msgstr "Package management"
+
+msgid "Repair Rill Runtime"
+msgstr "Repair Rill Runtime"
+
+msgid "The installed owner is rill-runtime-preview, version %s. PM will not remove or replace it automatically."
+msgstr "The installed owner is rill-runtime-preview, version %s. PM will not remove or replace it automatically."
+
+msgid "Back up /etc/config/performance-manager and /etc/performance-manager/. Check for other packages that use rill-runtime-preview before continuing."
+msgstr "Back up /etc/config/performance-manager and /etc/performance-manager/. Check for other packages that use rill-runtime-preview before continuing."
+
+msgid "An incompatible Rill Runtime is installed. Resolve that package conflict before changing Runtime packages."
+msgstr "An incompatible Rill Runtime is installed. Resolve that package conflict before changing Runtime packages."
+
+msgid "Runtime version"
+msgstr "Runtime version"

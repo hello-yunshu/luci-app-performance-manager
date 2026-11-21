@@ -20,7 +20,7 @@
     "openwrt": {
       "type": "object", "additionalProperties": false, "required": ["version", "target", "rootfsSha256"],
       "properties": {
-        "version": { "const": "25.12.5" }, "target": { "const": "x86/64" },
+        "version": { "const": "25.12.6" }, "target": { "const": "x86/64" },
         "rootfsSha256": { "type": ["string", "null"], "pattern": "^[0-9a-f]{64}$" }
       }
     },

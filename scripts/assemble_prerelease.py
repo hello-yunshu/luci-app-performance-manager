@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Assemble a prerelease with the same four-file public inventory as Stable."""
+"""Assemble the full supported IPK/APK target set for a prerelease."""
 from __future__ import annotations
 
 import argparse
@@ -30,11 +30,11 @@ def main(argv=None) -> int:
     args = parser.parse_args(argv)
     input_root = Path(args.input).resolve()
     output = Path(args.out).resolve()
-    dedicated = artifact_roots(input_root, "-all-in-one-apk")
+    dedicated = artifact_roots(input_root, "-all-in-one-package")
     artifact_roots(input_root, "-packages-and-evidence")
     final_roots = artifact_roots(input_root, "final-release-evidence-build")
     if len(dedicated) != len(TARGETS) or len(final_roots) != 1:
-        raise RuntimeError("prerelease requires three dedicated full APK artifacts and one final evidence artifact")
+        raise RuntimeError("prerelease requires one dedicated package artifact per supported target and one final evidence artifact")
     for root in dedicated:
         _, manifest = read_one_json(root, "all-in-one-release-manifest.json")
         if manifest.get("pmCommitSha") != args.expected_sha or manifest.get("package") != PACKAGE:

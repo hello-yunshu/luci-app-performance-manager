@@ -1,4 +1,4 @@
-# OpenWrt 25.12.5 x86/64 rootfs Docker image for performance-manager external evidence gates.
+# OpenWrt 25.12.6 x86/64 rootfs Docker image for performance-manager external evidence gates.
 # Usage:
 #   docker build --platform linux/amd64 -t owrt-pm-gate .
 #   docker run --rm --platform linux/amd64 -v /path/to/luci-app-performance-manager:/home/pm-src:ro owrt-pm-gate /docker-entry.sh

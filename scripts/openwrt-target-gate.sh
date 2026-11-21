@@ -1,5 +1,5 @@
 #!/bin/sh
-# Target-side release evidence gate for a booted OpenWrt 25.12.5 x86_64 VM.
+# Target-side release evidence gate for a booted OpenWrt 25.12.6 x86_64 VM.
 # Default is read-only apart from restarting PM/Rill services. Set
 # PM_ALLOW_MUTATION=1 only on an explicit test VM to exercise ring apply/rollback
 # and ownership cleanup.
@@ -28,7 +28,7 @@ json_array() {
 [ "$(uname -m)" = "x86_64" ] && pass architecture-x86_64 || fail architecture-x86_64
 [ -r /etc/openwrt_release ] || fail openwrt-release-missing
 . /etc/openwrt_release 2>/dev/null || true
-[ "${DISTRIB_RELEASE:-}" = "25.12.5" ] && pass openwrt-25.12.5 || fail openwrt-25.12.5
+[ "${DISTRIB_RELEASE:-}" = "25.12.6" ] && pass openwrt-25.12.6 || fail openwrt-25.12.6
 have ubus || fail ubus-missing
 have jsonfilter || fail jsonfilter-missing
 [ -x /usr/sbin/performance-manager.uc ] && pass core-installed || fail core-installed

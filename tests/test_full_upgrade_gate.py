@@ -32,6 +32,17 @@ class FullUpgradeGateTests(unittest.TestCase):
     def test_same_version_is_not_lower(self):
         self.assertGreaterEqual(apk_version_key("1.0.4-r1"), apk_version_key("1.0.4-r1"))
 
+    def test_package_validation_baseline_matches_supported_apk_release(self):
+        workflow_paths = (
+            ROOT / ".github/workflows/stable-target-matrix.yml",
+            ROOT / ".github/workflows/hardware-validation.yml",
+        )
+        for path in workflow_paths:
+            with self.subTest(path=path.name):
+                self.assertIn('OPENWRT_VERSION: "25.12.6"', path.read_text())
+        self.assertIn('"openwrtVersion": "25.12.6"',
+                      (ROOT / "scripts/full_upgrade_gate.py").read_text())
+
     def test_generic_wget_ssl_transport_error_is_unavailable(self):
         completed = subprocess.CompletedProcess(
             args=[], returncode=4, stdout="",

@@ -61,7 +61,7 @@ jobs:
           set -euo pipefail
           mkdir -p release-input release-public release-evidence
           gh run download "$BUILD_RUN_ID" --dir release-input
-      - name: Verify and assemble the single-APK release inventory
+      - name: Verify and assemble the IPK/APK release inventory
         shell: bash
         run: |
           set -euo pipefail
@@ -100,9 +100,11 @@ jobs:
           git tag -a "$tag" "$EXPECTED_SHA" -m "OpenWrt Performance Manager $version"
           git push origin "refs/tags/$tag"
           python3 - "$version" <<'PY'
-          import pathlib, sys
+          import json, pathlib, sys
           version=sys.argv[1]
-          pathlib.Path('release-notes.md').write_text(f'''## 下载\n\n每台设备只需要下载并安装一个 APK。该安装包已包含 Performance Manager Core、LuCI、简体中文、Rill 集成和 exact qualified Runtime；无需另外下载 `rill-runtime` 或 `performance-manager-rill`。\n\n- x86_64：`performance-manager-all-v{version}-x86_64.apk`\n- ARM64 通用：`performance-manager-all-v{version}-aarch64_generic.apk`\n- Filogic / MT7981 / MT7986：`performance-manager-all-v{version}-aarch64_cortex-a53.apk`\n\n当前状态：Portable validated；Hardware Stable not yet qualified。\n''')
+          targets=json.loads(pathlib.Path('contracts/openwrt-native-targets.json').read_text())['targets']
+          lines='\n'.join(f"- OpenWrt {t['openwrtVersion']} / {t['packageArch']} ({t['packageManagerFormat']}): `performance-manager-all-v{version}-openwrt-{t['openwrtVersion']}-{t['packageArch']}.{t['packageManagerFormat']}`" for t in targets)
+          pathlib.Path('release-notes.md').write_text(f'''## 下载\n\n统一 PM 包包含 Performance Manager Core、LuCI、简体中文、Rill glue 和 Runtime 兼容清单。`rill-runtime-manager` 与共享 `rill-runtime` 由 feed 提供；请通过 LuCI 的 Rill 页面安装或更新 Runtime。包冲突时不会自动卸载旧 split 或 Stable 包。\n\n{lines}\n\n当前状态：Portable validated；Hardware Stable not yet qualified。\n''')
           PY
           gh release create "$tag" release-public/* \
             --verify-tag --prerelease \

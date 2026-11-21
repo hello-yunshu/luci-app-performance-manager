@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "package": "luci-app-performance-manager-all",
+  "targets": [
+    {"openwrtVersion":"24.10.8","target":"x86/64","sdkPrefix":"x86-64","packageArch":"x86_64","packageManagerFormat":"ipk","rustTarget":"x86_64-unknown-linux-musl"},
+    {"openwrtVersion":"24.10.8","target":"armsr/armv8","sdkPrefix":"armsr-armv8","packageArch":"aarch64_generic","packageManagerFormat":"ipk","rustTarget":"aarch64-unknown-linux-musl"},
+    {"openwrtVersion":"24.10.8","target":"mediatek/filogic","sdkPrefix":"mediatek-filogic","packageArch":"aarch64_cortex-a53","packageManagerFormat":"ipk","rustTarget":"aarch64-unknown-linux-musl"},
+    {"openwrtVersion":"24.10.8","target":"bcm27xx/bcm2711","sdkPrefix":"bcm27xx-bcm2711","packageArch":"aarch64_cortex-a72","packageManagerFormat":"ipk","rustTarget":"aarch64-unknown-linux-musl"},
+    {"openwrtVersion":"24.10.8","target":"bcm27xx/bcm2712","sdkPrefix":"bcm27xx-bcm2712","packageArch":"aarch64_cortex-a76","packageManagerFormat":"ipk","rustTarget":"aarch64-unknown-linux-musl"},
+    {"openwrtVersion":"24.10.8","target":"ipq40xx/generic","sdkPrefix":"ipq40xx-generic","packageArch":"arm_cortex-a7_neon-vfpv4","packageManagerFormat":"ipk","rustTarget":"armv7-unknown-linux-musleabihf"},
+    {"openwrtVersion":"25.12.6","target":"x86/64","sdkPrefix":"x86-64","packageArch":"x86_64","packageManagerFormat":"apk","rustTarget":"x86_64-unknown-linux-musl"},
+    {"openwrtVersion":"25.12.6","target":"armsr/armv8","sdkPrefix":"armsr-armv8","packageArch":"aarch64_generic","packageManagerFormat":"apk","rustTarget":"aarch64-unknown-linux-musl"},
+    {"openwrtVersion":"25.12.6","target":"mediatek/filogic","sdkPrefix":"mediatek-filogic","packageArch":"aarch64_cortex-a53","packageManagerFormat":"apk","rustTarget":"aarch64-unknown-linux-musl"},
+    {"openwrtVersion":"25.12.6","target":"bcm27xx/bcm2711","sdkPrefix":"bcm27xx-bcm2711","packageArch":"aarch64_cortex-a72","packageManagerFormat":"apk","rustTarget":"aarch64-unknown-linux-musl"},
+    {"openwrtVersion":"25.12.6","target":"bcm27xx/bcm2712","sdkPrefix":"bcm27xx-bcm2712","packageArch":"aarch64_cortex-a76","packageManagerFormat":"apk","rustTarget":"aarch64-unknown-linux-musl"},
+    {"openwrtVersion":"25.12.6","target":"ipq40xx/generic","sdkPrefix":"ipq40xx-generic","packageArch":"arm_cortex-a7_neon-vfpv4","packageManagerFormat":"apk","rustTarget":"armv7-unknown-linux-musleabihf"}
+  ]
+}

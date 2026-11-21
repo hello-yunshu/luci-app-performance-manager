@@ -66,7 +66,7 @@ def main() -> int:
     evidence = {
         'schemaVersion': 1,
         'scope': 'raw-shipped-core-daemon-startup-smoke',
-        'openwrt': os.environ.get('OPENWRT_VERSION', '25.12.5'),
+        'openwrt': os.environ.get('OPENWRT_VERSION', '25.12.6'),
         'target': os.environ.get('OPENWRT_TARGET', 'x86/64'),
         'coreSource': str(CORE.relative_to(ROOT)),
         'coreSha256': hashlib.sha256(CORE.read_bytes()).hexdigest(),

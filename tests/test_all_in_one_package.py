@@ -12,19 +12,19 @@ CORE = ROOT / "package/performance-manager/Makefile"
 
 
 class AllInOnePackageTests(unittest.TestCase):
-    def test_bundle_is_target_specific_and_contains_runtime_glue(self):
+    def test_bundle_is_target_specific_and_uses_shared_runtime_glue(self):
         makefile = BUNDLE.read_text()
         for token in (
             "po2lmo", "/usr/sbin/performance-manager.uc",
             "luci-app-performance-manager/htdocs",
             "luci-app-performance-manager/root/usr/share/rpcd",
             "performance-manager-rill/files/lib/upgrade/keep.d/performance-manager-rill",
-            "RILL_RUNTIME_BINARY", "$(INSTALL_BIN) $(RILL_RUNTIME_BINARY) $(1)/usr/bin/rill-runtime",
+            "+rill-runtime", "/usr/bin/rill-runtime",
         ):
             self.assertIn(token, makefile)
         self.assertNotIn("PKGARCH:=all", makefile)
-        self.assertNotIn("+rill-runtime", makefile)
-        self.assertIn("exact qualified", makefile)
+        self.assertNotIn("$(INSTALL_BIN) $(RILL_RUNTIME_BINARY)", makefile)
+        self.assertNotIn("+rill-runtime ", makefile)
 
     def test_split_and_full_packages_declare_timeout_dependency(self):
         self.assertIn("+coreutils-timeout", CORE.read_text())
@@ -83,7 +83,7 @@ class AllInOnePackageTests(unittest.TestCase):
                          if line.strip().startswith("PM_ALL_CONFLICTS:=") )
         self.assertEqual(set(conflicts), {
             "performance-manager", "luci-app-performance-manager",
-            "performance-manager-rill", "rill-runtime", "rill-runtime-preview",
+            "performance-manager-rill", "rill-runtime-preview",
             "luci-i18n-performance-manager-zh-cn",
         })
         self.assertIn('CONFLICTS:=$(PM_ALL_CONFLICTS)', makefile)
@@ -104,7 +104,7 @@ class AllInOnePackageTests(unittest.TestCase):
         sys.path.insert(0, str(ROOT / 'scripts'))
         from verify_apks import dependency_check, REQUIRED_DEPENDS, ALL_IN_ONE
         required = REQUIRED_DEPENDS[ALL_IN_ONE]
-        self.assertEqual(len([item for item in required if item.startswith('!')]), 6)
+        self.assertEqual(len([item for item in required if item.startswith('!')]), 5)
         for conflict in [item for item in required if item.startswith('!')]:
             with self.subTest(conflict=conflict):
                 ok, missing = dependency_check(ALL_IN_ONE, required - {conflict})
@@ -124,7 +124,7 @@ class AllInOnePackageTests(unittest.TestCase):
         self.assertIn("/usr/sbin/performance-manager.uc", payloads)
         self.assertIn("/usr/share/rpcd/acl.d/luci-app-performance-manager.json", payloads)
 
-    def test_public_release_stager_emits_exact_four_files_and_normalized_names(self):
+    def test_public_release_stager_emits_all_supported_ipk_and_apk_targets(self):
         sys.path.insert(0, str(ROOT / "scripts"))
         from assemble_public_release import TARGETS, assemble_public_apk
         from verify_public_release_assets import verify_public_assets
@@ -132,27 +132,30 @@ class AllInOnePackageTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory) / "input"
             root.mkdir()
-            for arch in TARGETS:
-                target = root / f"openwrt-{arch}"
+            for target_key, target_spec in TARGETS.items():
+                release, arch, pkgtype = target_key
+                target = root / f"openwrt-{release}-{arch}-{pkgtype}"
                 target.mkdir()
-                source_name = f"luci-app-performance-manager-all-1.0.4-r1_{arch}.apk"
+                source_name = f"luci-app-performance-manager-all-1.0.4-r1_{arch}.{pkgtype}"
                 apk = target / source_name
                 apk.write_bytes(f"full-{arch}".encode())
                 digest = hashlib.sha256(apk.read_bytes()).hexdigest()
                 build = {
                     "repositoryCommitSha": commit, "architecture": arch,
-                    "target": TARGETS[arch][0], "verdict": "PASS",
+                    "openwrtVersion": release, "packageManagerFormat": pkgtype,
+                    "target": target_spec["target"], "verdict": "PASS",
                     "packages": {"luci-app-performance-manager-all": {
                         "status": "ok", "apkFilename": source_name, "apkSha256": digest,
                     }},
-                    "fullPackage": {"runtimeBundled": True},
+                    "fullPackage": {"runtimeBundled": False},
                 }
                 report = {
-                    "pmCommitSha": commit, "arch": arch, "verdict": "PASS",
+                    "pmCommitSha": commit, "arch": arch, "openwrtVersion": release,
+                    "pkgtype": pkgtype, "verdict": "PASS",
                     "packages": {"luci-app-performance-manager-all": {
                         "status": "ok", "filename": source_name, "sha256": digest,
                         "arch": arch, "runtimeBinary": {
-                            "status": "present", "matchesSplitRuntime": True,
+                            "status": "shared-dependency", "package": "rill-runtime",
                         },
                     }},
                 }
@@ -162,12 +165,12 @@ class AllInOnePackageTests(unittest.TestCase):
             assemble_public_apk(input_root=root, output_root=out,
                                 expected_commit=commit, version="1.0.4")
             files = verify_public_assets(out, "1.0.4")
-            self.assertEqual(files, [
-                "SHA256SUMS.txt",
-                "performance-manager-all-v1.0.4-aarch64_cortex-a53.apk",
-                "performance-manager-all-v1.0.4-aarch64_generic.apk",
-                "performance-manager-all-v1.0.4-x86_64.apk",
-            ])
+            self.assertEqual(len(files), 13)
+            self.assertEqual(files[0], "SHA256SUMS.txt")
+            self.assertEqual(sum(name.endswith(".apk") for name in files), 6)
+            self.assertEqual(sum(name.endswith(".ipk") for name in files), 6)
+            self.assertIn("performance-manager-all-v1.0.4-openwrt-24.10.8-x86_64.ipk", files)
+            self.assertIn("performance-manager-all-v1.0.4-openwrt-25.12.6-x86_64.apk", files)
 
     def test_public_release_rejects_evidence_leaks(self):
         sys.path.insert(0, str(ROOT / "scripts"))
@@ -212,10 +215,14 @@ class AllInOnePackageTests(unittest.TestCase):
             "PM_DEPENDENCY_CLOSURE=PASS",
             "PM_FULL_RILL_FAULT_SMOKE=PASS", "PM_FULL_UNINSTALL_SMOKE=PASS",
             "PM_FULL_RUNTIME_IDENTITY=PASS", "PM_FULL_CONFLICT_SMOKE=PASS",
-            "apk del luci-app-performance-manager-all", "test ! -e /usr/bin/rill-runtime",
+            "apk del luci-app-performance-manager-all", "test -x /usr/bin/rill-runtime",
             "PM_APK_REPOSITORY_TRANSPORT=https", "full_upgrade_gate",
         ):
             self.assertIn(token, gate)
+        self.assertIn('if opkg install ', gate)
+        self.assertIn('echo PM_FULL_CONFLICT_SMOKE=PASS', gate)
+        self.assertIn('echo PM_SPLIT_FULL_CONFLICT_SMOKE=PASS', gate)
+        self.assertIn("grep -Eiq 'conflict|breaks:' /tmp/pm-conflict-install.log", gate)
         self.assertNotIn("http://downloads.openwrt.org", gate)
 
     def test_prerelease_title_does_not_duplicate_rc_suffix(self):
@@ -226,7 +233,7 @@ class AllInOnePackageTests(unittest.TestCase):
     def test_portable_mac_installs_full_apk_once(self):
         script = (ROOT / "tools/docker-validate/run-local-macos.sh").read_text()
         self.assertIn("PM_FULL_APK", script)
-        self.assertIn("one-file-installed bundled Rill Runtime v3 integration", script)
+        self.assertIn("one-file-installed shared Rill Runtime v3 integration", script)
         self.assertNotIn("PM_RILL_APK", script)
         self.assertNotIn("apk add --no-check-certificate ucode ucode-mod-fs ucode-mod-ubus ucode-mod-uci ucode-mod-rtnl ucode-mod-uloop ucode-mod-socket ucode-mod-log coreutils-timeout", script)
 

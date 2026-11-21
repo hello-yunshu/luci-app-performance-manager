@@ -32,7 +32,7 @@ class LocalValidationTests(unittest.TestCase):
         self.assertIn("sha256sums", text)
         self.assertIn("sha256sum -c", text)
         self.assertIn('grep -Eq "^[0-9a-f]{64}$"', text)
-        self.assertIn("openwrt-25.12.5-x86-64-rootfs.tar.gz", text)
+        self.assertIn("openwrt-25.12.6-x86-64-rootfs.tar.gz", text)
         self.assertIn(r"r'Ran (\d+) tests?'", text)
 
     def test_source_audit_normalizes_nondeterministic_temp_paths(self):
@@ -64,7 +64,7 @@ class LocalValidationTests(unittest.TestCase):
             "pmCommitSha": "a" * 40,
             "host": {"os": "macOS", "architecture": "arm64"},
             "docker": {"platform": "linux/amd64", "version": "29"},
-            "openwrt": {"version": "25.12.5", "target": "x86/64", "rootfsSha256": None},
+            "openwrt": {"version": "25.12.6", "target": "x86/64", "rootfsSha256": None},
             "sourceTests": "PASS", "coreRuntime": "BLOCKED", "runtimeV3": "BLOCKED",
             "packageComposition": "BLOCKED", "serviceSmoke": "BLOCKED", "ubusSmoke": "BLOCKED",
             "rillRemovalSmoke": "BLOCKED", "portableVerdict": "BLOCKED",
@@ -112,17 +112,53 @@ class LocalValidationTests(unittest.TestCase):
         subprocess.run(["git", "clone", "--local", "--no-hardlinks", str(ROOT), str(repo)],
                        check=True, capture_output=True, text=True)
         for relative in (
+            ".gitignore",
             "tools/docker-validate/run-local-macos.sh",
             "scripts/build_local_validation_report.py",
             "contracts/evidence/portable-macos-docker.schema.json",
             "package/performance-manager/files/usr/share/performance-manager/schemas/portable-macos-docker.schema.json",
             "tests/test_all_in_one_package.py",
+            "tests/test_release_gate.py",
+            "tests/test_behavior_regressions.py",
+            "tests/test_contracts.py",
+            "tests/test_sync_rill.py",
             "package/luci-app-performance-manager-all/Makefile",
+            "package/performance-manager-rill/Makefile",
+            "contracts/rill-runtime.json",
+            "docs/rill-integration-status.json",
+            "package/luci-app-performance-manager-all/files/usr/share/performance-manager/rill-runtime-compat.json",
+            "package/luci-app-performance-manager/root/usr/share/rpcd/acl.d/luci-app-performance-manager.json",
             "scripts/validate_contracts.py",
+            "scripts/check_rill_dependency.py",
+            "scripts/rill_contract_check.py",
+            "scripts/source_gates.py",
             "scripts/verify_apks.py",
+            "scripts/artifact_identity.py",
+            "scripts/assemble_public_release.py",
+            "scripts/assemble_prerelease.py",
+            "scripts/verify_public_release_assets.py",
+            "scripts/build_release_manifest.py",
+            "scripts/stage_all_in_one_release.py",
+            "scripts/aggregate_build_matrix_evidence.py",
+            "contracts/openwrt-native-targets.json",
+            ".github/workflows/build-openwrt.yml",
+            ".github/workflows/real-luci-ui.yml",
+            ".github/workflows/ci.yml",
+            ".github/workflows/prerelease.yml",
+            ".github/workflows/stable-release.yml",
             "tests/fixtures/apk-negative-dependency.apk",
             "tests/test_local_validation.py",
+            "tests/test_pm_runtime_compat.py",
+            "scripts/luci_render_smoke.js",
+            "tests/real-luci-ui-provision.sh",
+            "package/luci-app-performance-manager/po/zh_Hans/performance-manager.po",
+            "package/luci-app-performance-manager/po/en/performance-manager.po",
+            "package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/rill.js",
+            "package/luci-app-performance-manager/htdocs/luci-static/resources/performance-manager/api.js",
+            "package/luci-app-performance-manager/root/usr/share/rpcd/acl.d/luci-app-performance-manager.json",
             "tests/test_full_upgrade_gate.py",
+            ".github/workflows/stable-target-matrix.yml",
+            ".github/workflows/hardware-validation.yml",
             "scripts/package_composition_gate.py",
             "scripts/full_upgrade_gate.py",
             "scripts/portable_docker_gate.py",
@@ -132,17 +168,53 @@ class LocalValidationTests(unittest.TestCase):
             destination.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy2(ROOT / relative, destination)
         subprocess.run(["git", "add", "--"] + [
+            ".gitignore",
             "tools/docker-validate/run-local-macos.sh",
             "scripts/build_local_validation_report.py",
             "contracts/evidence/portable-macos-docker.schema.json",
             "package/performance-manager/files/usr/share/performance-manager/schemas/portable-macos-docker.schema.json",
             "tests/test_all_in_one_package.py",
+            "tests/test_release_gate.py",
+            "tests/test_behavior_regressions.py",
+            "tests/test_contracts.py",
+            "tests/test_sync_rill.py",
             "package/luci-app-performance-manager-all/Makefile",
+            "package/performance-manager-rill/Makefile",
+            "contracts/rill-runtime.json",
+            "docs/rill-integration-status.json",
+            "package/luci-app-performance-manager-all/files/usr/share/performance-manager/rill-runtime-compat.json",
+            "package/luci-app-performance-manager/root/usr/share/rpcd/acl.d/luci-app-performance-manager.json",
             "scripts/validate_contracts.py",
+            "scripts/check_rill_dependency.py",
+            "scripts/rill_contract_check.py",
+            "scripts/source_gates.py",
             "scripts/verify_apks.py",
+            "scripts/artifact_identity.py",
+            "scripts/assemble_public_release.py",
+            "scripts/assemble_prerelease.py",
+            "scripts/verify_public_release_assets.py",
+            "scripts/build_release_manifest.py",
+            "scripts/stage_all_in_one_release.py",
+            "scripts/aggregate_build_matrix_evidence.py",
+            "contracts/openwrt-native-targets.json",
+            ".github/workflows/build-openwrt.yml",
+            ".github/workflows/real-luci-ui.yml",
+            ".github/workflows/ci.yml",
+            ".github/workflows/prerelease.yml",
+            ".github/workflows/stable-release.yml",
             "tests/fixtures/apk-negative-dependency.apk",
             "tests/test_local_validation.py",
+            "tests/test_pm_runtime_compat.py",
+            "scripts/luci_render_smoke.js",
+            "tests/real-luci-ui-provision.sh",
+            "package/luci-app-performance-manager/po/zh_Hans/performance-manager.po",
+            "package/luci-app-performance-manager/po/en/performance-manager.po",
+            "package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/rill.js",
+            "package/luci-app-performance-manager/htdocs/luci-static/resources/performance-manager/api.js",
+            "package/luci-app-performance-manager/root/usr/share/rpcd/acl.d/luci-app-performance-manager.json",
             "tests/test_full_upgrade_gate.py",
+            ".github/workflows/stable-target-matrix.yml",
+            ".github/workflows/hardware-validation.yml",
             "scripts/package_composition_gate.py",
             "scripts/full_upgrade_gate.py",
             "scripts/portable_docker_gate.py",
@@ -192,10 +264,10 @@ class LocalValidationTests(unittest.TestCase):
             if [ "${{MOCK_DOCKER_UNAVAILABLE:-0}}" = 1 ]; then
               exit 1
             fi
-            if echo "$args" | grep -q 'rootfs=openwrt-25.12.5-x86-64-rootfs.tar.gz'; then
-              curl -o sha256sums https://downloads.openwrt.org/releases/25.12.5/targets/x86/64/sha256sums
-              if [ ! -f openwrt-25.12.5-x86-64-rootfs.tar.gz ]; then
-                curl -o openwrt-25.12.5-x86-64-rootfs.tar.gz https://downloads.openwrt.org/releases/25.12.5/targets/x86/64/openwrt-25.12.5-x86-64-rootfs.tar.gz
+            if echo "$args" | grep -q 'rootfs=openwrt-25.12.6-x86-64-rootfs.tar.gz'; then
+              curl -o sha256sums https://downloads.openwrt.org/releases/25.12.6/targets/x86/64/sha256sums
+              if [ ! -f openwrt-25.12.6-x86-64-rootfs.tar.gz ]; then
+                curl -o openwrt-25.12.6-x86-64-rootfs.tar.gz https://downloads.openwrt.org/releases/25.12.6/targets/x86/64/openwrt-25.12.6-x86-64-rootfs.tar.gz
               fi
               if [ "${{MOCK_ROOTFS_MISMATCH:-0}}" = 1 ]; then
                 echo 'FAIL: OpenWrt rootfs checksum mismatch'
@@ -253,7 +325,7 @@ class LocalValidationTests(unittest.TestCase):
             test -n "$out"
             printf '%s\\n' "$out" >> "${{MOCK_CURL_LOG:-curl-calls.log}}"
             case "$out" in
-              *sha256sums) printf '%s  *openwrt-25.12.5-x86-64-rootfs.tar.gz\\n' '{rootfs_sha}' > "$out" ;;
+              *sha256sums) printf '%s  *openwrt-25.12.6-x86-64-rootfs.tar.gz\\n' '{rootfs_sha}' > "$out" ;;
               *) printf 'mock-rootfs\\n' > "$out" ;;
             esac
         """)
@@ -304,10 +376,10 @@ class LocalValidationTests(unittest.TestCase):
                 digest = hashlib.sha256(path.read_bytes()).hexdigest()
                 packages[name] = {'status': 'ok', 'apkFilename': path.name, 'apkSha256': digest, 'pkgver': '1', 'installedPayload': {}}
             packages['luci-app-performance-manager-all'].update({'arch': 'x86_64'})
-            packages['luci-app-performance-manager-all']['runtimeBinary'] = {'status': 'present', 'matchesSplitRuntime': True, 'sha256': 'a' * 64}
+            packages['luci-app-performance-manager-all']['runtimeBinary'] = {'status': 'shared-dependency', 'package': 'rill-runtime', 'sha256': 'a' * 64}
             build = {'verdict': 'PASS', 'repositoryCommitSha': commit, 'architecture': 'x86_64',
                      'target': 'x86/64', 'rillConsumedVersion': '1.5.6',
-                     'externalRuntime': {'commit': 'b' * 40}, 'fullPackage': {'runtimeBundled': True},
+                     'externalRuntime': {'commit': 'b' * 40}, 'fullPackage': {'runtimeBundled': False, 'runtimeSharedDependency': True},
                      'packages': packages}
             (root / 'build-metadata.json').write_text(json.dumps(build))
             verified = {name: {'status': 'ok', 'sha256': item['apkSha256'], 'arch': 'x86_64' if name == 'luci-app-performance-manager-all' else 'noarch'} for name, item in packages.items()}
@@ -360,7 +432,7 @@ class LocalValidationTests(unittest.TestCase):
             self.assertFalse(report["stableReleaseAuthorized"])
             self.assertRegex(report["openwrt"]["rootfsSha256"], r"^[0-9a-f]{64}$")
             self.assertIn("--entrypoint /bin/uname", (repo / "tools/docker-validate/run-local-macos.sh").read_text())
-            self.assertEqual((Path(directory) / "curl-calls.log").read_text().splitlines(), ["sha256sums", "openwrt-25.12.5-x86-64-rootfs.tar.gz"])
+            self.assertEqual((Path(directory) / "curl-calls.log").read_text().splitlines(), ["sha256sums", "openwrt-25.12.6-x86-64-rootfs.tar.gz"])
             self._restore_audit_outputs(repo)
 
             second = subprocess.run([str(repo / "tools/docker-validate/run-local-macos.sh")],
@@ -371,7 +443,7 @@ class LocalValidationTests(unittest.TestCase):
             self.assertEqual(failed["packageComposition"], "FAIL")
             self.assertEqual(failed["portableVerdict"], "FAIL")
             self.assertEqual((Path(directory) / "curl-calls.log").read_text().splitlines(), [
-                "sha256sums", "openwrt-25.12.5-x86-64-rootfs.tar.gz", "sha256sums"
+                "sha256sums", "openwrt-25.12.6-x86-64-rootfs.tar.gz", "sha256sums"
             ])
 
     def test_mock_checksum_mismatch_is_fail_and_missing_same_sha_is_blocked(self):

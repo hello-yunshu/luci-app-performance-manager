@@ -205,6 +205,13 @@ class SmartDecisionTests(unittest.TestCase):
             self.assertIn(token, CORE)
         self.assertIn("rill_refresh:", CORE)
 
+    def test_validated_outcome_retains_the_loaded_state_for_saving(self):
+        start = CORE.index("function smart_record_validated_outcome")
+        end = CORE.index("function smart_record_action_event", start)
+        body = CORE[start:end]
+        self.assertIn("state = row.state", body)
+        self.assertIn("smart_state_save(state)", body)
+
     def test_candidate_identity_is_used_for_history_cooldown_and_journals(self):
         self.assertIn("candidateId: rec.actionId", CORE)
         self.assertIn("candidateId: frozen.candidateId", CORE)
@@ -235,12 +242,10 @@ class SmartDecisionTests(unittest.TestCase):
         self.assertIn('harnessExitCode', runner)
         self.assertIn('exploration', runner)
 
-    def test_runtime_state_checksum_uses_keys_as_values_in_ucode(self):
-        checksum = CORE[CORE.index("let canonical_map = function"):CORE.index("let p = fs.popen", CORE.index("let canonical_map = function"))]
-        self.assertIn("out[name] = canonical_entry(input[name])", checksum)
-        self.assertNotIn("out[names[name]] = canonical_entry(input[names[name]])", checksum)
-        self.assertIn("function json_compact(value)", CORE)
-        self.assertIn("let wire = json_compact(", checksum)
+    def test_runtime_state_generation_reads_the_performance_manager_partition(self):
+        self.assertIn("type(snapshot.partitions) != 'array'", CORE)
+        self.assertIn("item.clientIdentityName == 'performance-manager' && item.partitionKey == 'performance-manager'", CORE)
+        self.assertIn("partition.handlerSnapshot.stateGeneration", CORE)
 
     def test_apply_action_can_resolve_exact_selector_context_in_ucode(self):
         self.assertLess(CORE.index("function smart_selector_context()"), CORE.index("function apply_action(msg)"))

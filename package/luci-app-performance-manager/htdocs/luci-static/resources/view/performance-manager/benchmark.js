@@ -11,13 +11,23 @@ function parseEvidence(text) {
 }
 
 function stageRow(stage, active) {
-	return E('li', { 'class': 'pm-stage' + (active ? ' pm-stage--active' : '') }, [
-		E('span', { 'class': 'pm-stage-status' }, [ active ? _('Complete') : _('Pending') ]),
+	return E('li', { 'class': 'pm-stage' }, [
+		pu.badge(active ? _('Complete') : _('Pending'), active ? 'success' : 'neutral'),
 		E('span', {}, [ stage ])
 	]);
 }
 
+function benchmarkField(label, control) {
+	var row = pu.field(label, control);
+	row.classList.add('pm-benchmark-field');
+	return row;
+}
+
 return view.extend({
+	handleSave: null,
+	handleSaveApply: null,
+	handleReset: null,
+
 	load: function() {
 		return pm.recommendations().catch(function(err) {
 			console.error('performance-manager: benchmark load failed', err);
@@ -27,12 +37,14 @@ return view.extend({
 	render: function(rec) {
 		if (rec && rec._loadError)
 			return pu.page(_('Performance test'), null, pu.note(_('Unable to load this page. Retry the page; if it keeps failing, check the service log.'), 'danger'));
-		const actions = ((rec && rec.benchmarkActions) || []).filter(function(a) { return a.status !== 'blocked'; });
+		const benchmarkActions = (rec && rec.benchmarkActions) || [];
+		const actions = benchmarkActions.filter(function(a) { return a.status !== 'blocked'; });
+		const blockedActions = benchmarkActions.filter(function(a) { return a.status === 'blocked'; });
 		const advisories = (rec && rec.learnedAdvisory) || [];
 		const root = E('div');
-		const action = E('select', { 'aria-label': _('Benchmark action') });
+		const action = E('select', { 'class': 'pm-benchmark-select', 'aria-label': _('Benchmark action') });
 		actions.forEach(function(a) { action.appendChild(E('option', { value: a.id }, [ labels.actionName(a.id) + ' · ' + labels.evaluationSemantics(a.evaluationSemantics) ])); });
-		const pathSelect = E('select', { 'aria-label': _('Evaluation path') });
+		const pathSelect = E('select', { 'class': 'pm-benchmark-select', 'aria-label': _('Evaluation path') });
 		function refreshPaths() {
 			pathSelect.replaceChildren();
 			const selected = actions.find(function(a){ return a.id === action.value; });
@@ -40,7 +52,7 @@ return view.extend({
 		}
 		action.addEventListener('change', refreshPaths);
 		refreshPaths();
-		const measurement = E('select', { 'aria-label': _('Measurement class') }, [
+		const measurement = E('select', { 'class': 'pm-benchmark-select', 'aria-label': _('Measurement class') }, [
 			E('option', { value: 'controlled_ab' }, [ _('Controlled A/B') ]),
 			E('option', { value: 'passive_before_after' }, [ _('Passive before/after') ]),
 			E('option', { value: 'health_only' }, [ _('Health only') ])
@@ -52,12 +64,39 @@ return view.extend({
 			output.replaceChildren();
 			if (!res || !res.ok) { output.appendChild(pu.inset(_('Test blocked'), E('div', {}, [ E('p', {}, [ labels.errorSummary(res) ]), pu.jsonBox(res || {}, _('Details')) ]), 'warning')); return; }
 			const s = res.session || {};
-			const stages = E('ol', { 'class': 'pm-stage-list' }, [
-				stageRow(_('Environment'), true), stageRow(_('Path'), true), stageRow(_('Compatibility'), true), stageRow(_('Locks / Failsafe'), s.state !== 'awaiting_control'),
-				stageRow(_('Baseline'), !!s.controlEvidence), stageRow(_('Candidate'), s.state === 'candidate_applied' || s.state === 'completed'),
-				stageRow(_('Commit-confirm'), s.state === 'candidate_applied'), stageRow(_('Result'), s.state === 'completed')
-			]);
+			let stageItems;
+			if (s.measurementClass === 'controlled_ab') {
+				stageItems = [
+					stageRow(_('Environment'), true), stageRow(_('Path'), true), stageRow(_('Compatibility'), true), stageRow(_('Locks / Failsafe'), s.state !== 'awaiting_control'),
+					stageRow(_('Baseline'), !!s.controlEvidence), stageRow(_('Candidate'), s.state === 'candidate_applied' || s.state === 'completed'),
+					stageRow(_('Rollback protection'), s.state === 'candidate_applied' || (s.state === 'completed' && s.result?.rolledBack === true)),
+					stageRow(_('Result'), s.state === 'completed')
+				];
+			}
+			else if (s.measurementClass === 'passive_before_after') {
+				stageItems = [
+					stageRow(_('Environment'), true), stageRow(_('Path'), true), stageRow(_('Compatibility'), true), stageRow(_('Locks / Failsafe'), true),
+					stageRow(_('Passive observation'), !!s.before && !!s.after), stageRow(_('Result'), s.state === 'completed')
+				];
+			}
+			else {
+				stageItems = [
+					stageRow(_('Environment'), true), stageRow(_('Path'), true), stageRow(_('Compatibility'), true), stageRow(_('Locks / Failsafe'), true),
+					stageRow(_('Health snapshot'), !!s.after), stageRow(_('Result'), s.state === 'completed')
+				];
+			}
+			const stages = E('ol', { 'class': 'pm-stage-list' }, stageItems);
 			output.appendChild(stages);
+			if (s.measurementClass === 'controlled_ab' && s.state === 'completed' && s.result) {
+				const validated = s.result.validated === true && s.result.rolledBack === true && s.result.health?.pass === true;
+				output.appendChild(pu.note(validated
+					? _('Test complete. The candidate was rolled back and health checks passed.')
+					: _('Test complete, but the result was not validated. Review the details below.'), validated ? 'success' : 'warning'));
+			}
+			else if (s.measurementClass === 'health_only' && s.result)
+				output.appendChild(pu.note(_('Health snapshot captured. This is not a performance result.'), 'info'));
+			else if (s.measurementClass === 'passive_before_after' && s.result)
+				output.appendChild(pu.note(_('Passive observation captured. No settings were changed.'), 'info'));
 			if (s.state === 'awaiting_control' || s.state === 'candidate_applied') {
 				const phase = s.state === 'awaiting_control' ? 'control' : 'candidate';
 				const meta = (s.companion && s.companion.metadata) || {};
@@ -107,17 +146,19 @@ return view.extend({
 		});
 
 		start.disabled = !actions.length;
-		root.appendChild(pu.toolbar([
-			pu.field(_('Benchmark action'), action),
-			pu.field(_('Evaluation path'), pathSelect),
-			pu.field(_('Measurement class'), measurement),
+		const controls = pu.toolbar([
+			benchmarkField(_('Benchmark action'), action),
+			benchmarkField(_('Evaluation path'), pathSelect),
+			benchmarkField(_('Measurement class'), measurement),
 			start
-		]));
+		]);
+		controls.classList.add('pm-benchmark-toolbar');
+		root.appendChild(controls);
 		if (!actions.length) root.appendChild(pu.note(_('No benchmark action is currently available for this device.'), 'warning'));
 		root.appendChild(output);
-		return pu.page(_('Performance test'), _('Run one explicit test at a time. Controlled A/B results require stable context, health checks, and verified rollback.'), [
-			pu.card(_('Environment → Path → Compatibility → Locks/Failsafe → Baseline → Candidate → Commit-confirm → Result'), root),
-			pu.card(_('Unavailable benchmark providers'), pu.jsonBox(((rec && rec.benchmarkActions) || []).filter(function(a){ return a.status === 'blocked'; }), _('Why benchmark actions are unavailable')), 'muted')
-		]);
+		const content = [ pu.card(_('Test setup and progress'), root) ];
+		if (blockedActions.length)
+			content.push(pu.jsonBox(blockedActions, _('Unavailable benchmark providers and reasons')));
+		return pu.page(_('Performance test'), _('Run one explicit test at a time. Controlled A/B results require stable context, health checks, and verified rollback.'), content);
 	}
 });

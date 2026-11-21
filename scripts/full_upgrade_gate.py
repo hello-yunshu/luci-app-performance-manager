@@ -27,7 +27,6 @@ LUCi_PATHS = (
 )
 REMOVE_PATHS = (
     CORE_PATH,
-    RUNTIME_PATH,
     "/www/luci-static/resources/view/performance-manager/overview.js",
     "/usr/share/luci/menu.d/luci-app-performance-manager.json",
     "/usr/share/rpcd/acl.d/luci-app-performance-manager.json",
@@ -177,7 +176,7 @@ def execute(
         "schemaVersion": 1,
         "gate": "full-upgrade",
         "pmCommitSha": expected_commit,
-        "openwrtVersion": "25.12.5",
+        "openwrtVersion": "25.12.6",
         "target": "x86/64",
         "packageArch": "x86_64",
         "prior": {
@@ -250,6 +249,7 @@ def execute(
         command += f"test ! -e {shlex.quote(path)}; "
     if prior_marker:
         command += f"if grep -R -F -- {shlex.quote(prior_marker)} /usr/share 2>/dev/null; then exit 1; fi; "
+    command += "test -x /usr/bin/rill-runtime; apk info -e rill-runtime >/dev/null 2>&1; "
     command += "echo PM_POST_UPGRADE_UNINSTALL=PASS; "
     completed = run(rootfs, command)
     output = f"{completed.stdout}\n{completed.stderr}"

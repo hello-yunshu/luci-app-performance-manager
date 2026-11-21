@@ -11,8 +11,15 @@ return baseclass.extend({
 		this.transactions = rpc.declare({ object: 'performance-manager', method: 'transactions', params: [] });
 		this.locks = rpc.declare({ object: 'performance-manager', method: 'locks', params: [] });
 		this.history = rpc.declare({ object: 'performance-manager', method: 'history', params: [ 'limit' ] });
+		this.historySummary = rpc.declare({ object: 'performance-manager', method: 'history_summary', params: [ 'limit' ] });
+		this.rillFeedback = rpc.declare({ object: 'performance-manager', method: 'rill_feedback', params: [ 'limit' ] });
 		this.rill = rpc.declare({ object: 'performance-manager', method: 'rill_status', params: [] });
 		this.rillRefresh = rpc.declare({ object: 'performance-manager', method: 'rill_refresh', params: [] });
+		this.runtimeManagerStatus = rpc.declare({ object: 'rill-runtime-manager', method: 'status', params: [] });
+		this.runtimeManagerRefresh = rpc.declare({ object: 'rill-runtime-manager', method: 'refresh', params: [] });
+		this.runtimeManagerInstall = rpc.declare({ object: 'rill-runtime-manager', method: 'install', params: [ 'package' ] });
+		this.runtimeManagerRepair = rpc.declare({ object: 'rill-runtime-manager', method: 'repair', params: [ 'package' ] });
+		this.runtimeManagerUpdate = rpc.declare({ object: 'rill-runtime-manager', method: 'update', params: [ 'package' ] });
 		this.resources = rpc.declare({ object: 'performance-manager', method: 'resources', params: [] });
 		this.diagnostics = rpc.declare({ object: 'performance-manager', method: 'diagnostics', params: [] });
 		this.apply = rpc.declare({ object: 'performance-manager', method: 'apply', params: [ 'actionId', 'target', 'executionSource', 'decisionId' ] });

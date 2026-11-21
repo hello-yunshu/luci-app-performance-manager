@@ -4,6 +4,11 @@ on:
   push:
   pull_request:
   workflow_dispatch:
+    inputs:
+      rill_package_commit:
+        description: Immutable commit containing the locked Runtime and manager recipes
+        required: false
+        type: string
 
 permissions:
   contents: read
@@ -15,10 +20,9 @@ concurrency:
 jobs:
   # Official OpenWrt SDK build for the packages this repository OWNS:
   # performance-manager (Core), luci-app-performance-manager (UI), the
-  # performance-manager-rill integration package, plus the physical,
-  # architecture-specific full all-in-one APK. The generic rill-runtime
-  # package is downloaded from one exact qualified run/attempt and its exact
-  # executable payload is embedded once into the full package.
+  # performance-manager-rill integration package, plus the target-specific
+  # unified PM IPK/APK. PM split/full and independent
+  # consumers share one exact-qualified rill-runtime package owner.
   # Real build evidence comes from this remote Action — never a local mock.
   openwrt-sdk-build:
     permissions:
@@ -30,24 +34,90 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - openwrt_version: "25.12.5"
+          - openwrt_version: "24.10.8"
             openwrt_target: "x86"
             openwrt_subtarget: "64"
             sdk_prefix: "x86-64"
             package_arch: "x86_64"
             rust_target: "x86_64-unknown-linux-musl"
-          - openwrt_version: "25.12.5"
+            package_manager: "ipk"
+          - openwrt_version: "24.10.8"
             openwrt_target: "armsr"
             openwrt_subtarget: "armv8"
             sdk_prefix: "armsr-armv8"
             package_arch: "aarch64_generic"
             rust_target: "aarch64-unknown-linux-musl"
-          - openwrt_version: "25.12.5"
+            package_manager: "ipk"
+          - openwrt_version: "24.10.8"
             openwrt_target: "mediatek"
             openwrt_subtarget: "filogic"
             sdk_prefix: "mediatek-filogic"
             package_arch: "aarch64_cortex-a53"
             rust_target: "aarch64-unknown-linux-musl"
+            package_manager: "ipk"
+          - openwrt_version: "24.10.8"
+            openwrt_target: "bcm27xx"
+            openwrt_subtarget: "bcm2711"
+            sdk_prefix: "bcm27xx-bcm2711"
+            package_arch: "aarch64_cortex-a72"
+            rust_target: "aarch64-unknown-linux-musl"
+            package_manager: "ipk"
+          - openwrt_version: "24.10.8"
+            openwrt_target: "bcm27xx"
+            openwrt_subtarget: "bcm2712"
+            sdk_prefix: "bcm27xx-bcm2712"
+            package_arch: "aarch64_cortex-a76"
+            rust_target: "aarch64-unknown-linux-musl"
+            package_manager: "ipk"
+          - openwrt_version: "24.10.8"
+            openwrt_target: "ipq40xx"
+            openwrt_subtarget: "generic"
+            sdk_prefix: "ipq40xx-generic"
+            package_arch: "arm_cortex-a7_neon-vfpv4"
+            rust_target: "armv7-unknown-linux-musleabihf"
+            package_manager: "ipk"
+          - openwrt_version: "25.12.6"
+            openwrt_target: "x86"
+            openwrt_subtarget: "64"
+            sdk_prefix: "x86-64"
+            package_arch: "x86_64"
+            rust_target: "x86_64-unknown-linux-musl"
+            package_manager: "apk"
+          - openwrt_version: "25.12.6"
+            openwrt_target: "armsr"
+            openwrt_subtarget: "armv8"
+            sdk_prefix: "armsr-armv8"
+            package_arch: "aarch64_generic"
+            rust_target: "aarch64-unknown-linux-musl"
+            package_manager: "apk"
+          - openwrt_version: "25.12.6"
+            openwrt_target: "mediatek"
+            openwrt_subtarget: "filogic"
+            sdk_prefix: "mediatek-filogic"
+            package_arch: "aarch64_cortex-a53"
+            rust_target: "aarch64-unknown-linux-musl"
+            package_manager: "apk"
+          - openwrt_version: "25.12.6"
+            openwrt_target: "bcm27xx"
+            openwrt_subtarget: "bcm2711"
+            sdk_prefix: "bcm27xx-bcm2711"
+            package_arch: "aarch64_cortex-a72"
+            rust_target: "aarch64-unknown-linux-musl"
+            package_manager: "apk"
+          - openwrt_version: "25.12.6"
+            openwrt_target: "bcm27xx"
+            openwrt_subtarget: "bcm2712"
+            sdk_prefix: "bcm27xx-bcm2712"
+            package_arch: "aarch64_cortex-a76"
+            rust_target: "aarch64-unknown-linux-musl"
+            package_manager: "apk"
+          - openwrt_version: "25.12.6"
+            openwrt_target: "ipq40xx"
+            openwrt_subtarget: "generic"
+            sdk_prefix: "ipq40xx-generic"
+            package_arch: "arm_cortex-a7_neon-vfpv4"
+            rust_target: "armv7-unknown-linux-musleabihf"
+            package_manager: "apk"
     env:
       OPENWRT_VERSION: ${{ matrix.openwrt_version }}
       OPENWRT_TARGET: ${{ matrix.openwrt_target }}
@@ -55,18 +125,38 @@ jobs:
       SDK_PREFIX: ${{ matrix.sdk_prefix }}
       PACKAGE_ARCH: ${{ matrix.package_arch }}
       RUST_TARGET: ${{ matrix.rust_target }}
+      PACKAGE_MANAGER: ${{ matrix.package_manager }}
+      RILL_PACKAGE_COMMIT: ${{ github.event.inputs.rill_package_commit || '' }}
     steps:
       - uses: actions/checkout@v7
-      - name: Checkout canonical Runtime package at immutable contract commit
+      - name: Checkout canonical Runtime packages at explicit immutable commit
         shell: bash
         run: |
           set -euo pipefail
-          package_commit=$(jq -r '.openwrtPackage.commit' contracts/rill-runtime.json)
+          contract_commit=$(jq -r '.openwrtPackage.commit' contracts/rill-runtime.json)
+          [[ "$contract_commit" =~ ^[0-9a-f]{40}$ ]] || {
+            echo 'The Stable Rill package commit is pending; update contracts/rill-runtime.json after Rill qualification.' >&2
+            exit 1
+          }
+          package_commit="${RILL_PACKAGE_COMMIT:-$contract_commit}"
+          test -n "$package_commit" || {
+            echo 'Set workflow input rill_package_commit or leave it empty to use the contract lock.' >&2
+            exit 1
+          }
           [[ "$package_commit" =~ ^[0-9a-f]{40}$ ]]
+          test "$package_commit" = "$contract_commit" || {
+            echo 'The explicit Rill package commit differs from contracts/rill-runtime.json; qualification lock update is pending.' >&2
+            exit 1
+          }
           git clone --filter=blob:none https://github.com/hello-yunshu/rill-openwrt-packages.git rill-openwrt-packages
           git -C rill-openwrt-packages fetch --depth=1 origin "$package_commit"
           git -C rill-openwrt-packages checkout --detach "$package_commit"
           test "$(git -C rill-openwrt-packages rev-parse HEAD)" = "$package_commit"
+          test -f rill-openwrt-packages/package/rill-runtime/Makefile
+          test -f rill-openwrt-packages/package/rill-runtime-manager/Makefile || {
+            echo 'The immutable Rill package commit does not yet contain rill-runtime-manager.' >&2
+            exit 1
+          }
       - name: Install SDK host dependencies
         shell: bash
         run: |
@@ -118,6 +208,10 @@ jobs:
           sdkdir=$(find . -maxdepth 1 -type d -name "openwrt-sdk-${OPENWRT_VERSION}-${SDK_PREFIX}_*" | head -n1)
           test -n "$sdkdir"
           sdkdir=$(cd "$sdkdir" && pwd)
+          config="$sdkdir/.config"
+          grep -qx "CONFIG_TARGET_${OPENWRT_TARGET}=y" "$config"
+          grep -qx "CONFIG_TARGET_SUBTARGET=\"${OPENWRT_SUBTARGET}\"" "$config"
+          grep -qx "CONFIG_TARGET_ARCH_PACKAGES=\"${PACKAGE_ARCH}\"" "$config"
           echo "SDKDIR=$sdkdir" >> "$GITHUB_ENV"
       - name: Resolve official feed identity
         id: openwrt-feeds
@@ -161,25 +255,41 @@ jobs:
             echo 'OpenWrt Rust feed still enables CI LLVM downloads' >&2
             exit 1
           fi
-          rill_toolchain=$(python3 "$GITHUB_WORKSPACE/rill-openwrt-packages/scripts/build_toolchain.py")
-          (
-            cd "$GITHUB_WORKSPACE/rill-openwrt-packages"
-            GITHUB_WORKSPACE="$GITHUB_WORKSPACE/rill-openwrt-packages" \
-              RUST_TOOLCHAIN="$rill_toolchain" RUST_TARGET="$RUST_TARGET" \
-              RUSTUP_HOME="$RUNNER_TEMP/rustup" CARGO_HOME="$RUNNER_TEMP/cargo" \
-              RUST_STAGING_DIR="$SDKDIR/staging_dir/host" \
-              ./scripts/prepare_rust_toolchain.sh
-          )
-          "$SDKDIR/staging_dir/host/bin/rustc" --version | grep -F "rustc $rill_toolchain "
           mkdir -p package/openwrt-performance-manager
           cp -a "$GITHUB_WORKSPACE"/package/* package/openwrt-performance-manager/
-          cp -a "$GITHUB_WORKSPACE"/rill-openwrt-packages/package/rill-runtime package/rill-runtime
+          # Runtime and its updater are canonical packages from the pinned Rill
+          # feed. Include both recipes in the SDK package graph; stage only the
+          # already qualified Runtime artifact later, without rebuilding it.
+          for name in rill-runtime rill-runtime-manager; do
+            test -f "$GITHUB_WORKSPACE/rill-openwrt-packages/package/$name/Makefile"
+            mkdir -p "package/$name"
+            cp -a "$GITHUB_WORKSPACE/rill-openwrt-packages/package/$name"/. "package/$name/"
+          done
           make defconfig
+          for package in rill-runtime rill-runtime-manager; do
+            grep -qx "config PACKAGE_$package" tmp/.config-package.in || {
+              echo "SDK Kconfig cannot resolve required feed package $package" >&2
+              exit 1
+            }
+          done
       - name: Build Core
         run: cd "$SDKDIR" && bash "$GITHUB_WORKSPACE/scripts/openwrt-build-diagnostic.sh" package/performance-manager/compile
+      - name: Clean stale LuCI package output
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd "$SDKDIR"
+          make package/luci-app-performance-manager/clean
+          # A pre-existing same-version APK must never survive a failed or
+          # skipped rebuild and then be selected by the exact package verifier.
+          package_version=$(sed -E 's/-rc\./_rc/' "$GITHUB_WORKSPACE/VERSION")
+          find bin -type f \( \
+            -name "luci-app-performance-manager-${package_version}-*.apk" -o \
+            -name "luci-app-performance-manager-all-${package_version}-*.apk" \
+          \) -delete
       - name: Build LuCI
         run: cd "$SDKDIR" && bash "$GITHUB_WORKSPACE/scripts/openwrt-build-diagnostic.sh" package/luci-app-performance-manager/compile
-      - name: Download exact qualified Stable Runtime package
+      - name: Download exact qualified shared Stable Runtime package
         env:
           GH_TOKEN: ${{ github.token }}
         shell: bash
@@ -190,8 +300,8 @@ jobs:
           python3 rill-openwrt-packages/scripts/qualified_runtime_artifacts.py \
             --channel stable --contract "$GITHUB_WORKSPACE/contracts/rill-runtime.json" \
             --package-dir "$GITHUB_WORKSPACE/rill-openwrt-packages" \
-            --openwrt-version "$OPENWRT_VERSION" --architecture "$PACKAGE_ARCH" --pkgtype apk \
-            --apk "$SDKDIR/staging_dir/host/bin/apk" --output "$RUNNER_TEMP/qualified-rill" \
+            --openwrt-version "$OPENWRT_VERSION" --architecture "$PACKAGE_ARCH" --pkgtype "$PACKAGE_MANAGER" \
+            --apk "${SDKDIR}/staging_dir/host/bin/apk" --output "$RUNNER_TEMP/qualified-rill" \
             > "$RUNNER_TEMP/qualified-rill-selection.json"
           {
             echo "RILL_OPENWRT_PACKAGE_COMMIT=$package_commit"
@@ -200,51 +310,40 @@ jobs:
           } >> "$GITHUB_ENV"
       - name: Build Rill integration package (glue payload only)
         run: cd "$SDKDIR" && bash "$GITHUB_WORKSPACE/scripts/openwrt-build-diagnostic.sh" package/performance-manager-rill/compile
-      - name: Stage exact Runtime payload into the full package workspace
+      - name: Build shared Runtime management package
+        run: cd "$SDKDIR" && bash "$GITHUB_WORKSPACE/scripts/openwrt-build-diagnostic.sh" package/rill-runtime-manager/compile
+      - name: Stage exact qualified Runtime package
         shell: bash
         run: |
           set -euo pipefail
-          runtime_apk="$RILL_QUALIFIED_PACKAGE"
-          test -f "$runtime_apk"
-          # Incidental SDK dependency rebuilds are diagnostic bytes, never inherited qualification.
-          mkdir -p "$RUNNER_TEMP/unqualified-runtime-builds" "$SDKDIR/bin/qualified-rill"
-          while IFS= read -r rebuilt; do
-            digest=$(sha256sum "$rebuilt" | awk '{print $1}')
-            mv "$rebuilt" "$RUNNER_TEMP/unqualified-runtime-builds/$digest-$(basename "$rebuilt")"
-          done < <(find "$SDKDIR/bin" -type f -name 'rill-runtime-*.apk')
-          cp "$runtime_apk" "$SDKDIR/bin/qualified-rill/$(basename "$runtime_apk")"
-          runtime_version=$(sed -n 's/^PKG_VERSION:=//p' "$GITHUB_WORKSPACE/rill-openwrt-packages/package/rill-runtime/Makefile")
-          runtime_sha=$(python3 - "$runtime_apk" <<'PY'
-          import hashlib, sys
+          runtime_package="$RILL_QUALIFIED_PACKAGE"
+          test -f "$runtime_package"
+          runtime_sha=$(python3 - "$runtime_package" <<'PY'
+          import hashlib, os, sys
           from pathlib import Path
           sys.path.insert(0, 'scripts')
-          from verify_apks import apk_file_content
-          payload = apk_file_content(Path(sys.argv[1]), '/usr/bin/rill-runtime')
+          from verify_apks import package_file_content
+          payload = package_file_content(Path(sys.argv[1]), '/usr/bin/rill-runtime')
           if not payload:
               raise SystemExit('rill-runtime APK lacks /usr/bin/rill-runtime')
           print(hashlib.sha256(payload).hexdigest())
           PY
           )
           test "$runtime_sha" = "$RILL_QUALIFIED_BINARY_SHA256"
-          full_dir="$SDKDIR/package/openwrt-performance-manager/luci-app-performance-manager-all"
-          python3 "$GITHUB_WORKSPACE/scripts/stage_bundled_runtime.py" \
-            --apk "$runtime_apk" --runtime-version "$runtime_version" \
-            --package-arch "$PACKAGE_ARCH" --sha256 "$runtime_sha" \
-            --out "$full_dir/files/usr/bin/rill-runtime"
-          # The source notice is copied beside the temporary package tree so
-          # the full package can install it without vendoring Runtime source.
-          cp "$GITHUB_WORKSPACE/THIRD_PARTY_NOTICES" "$SDKDIR/package/THIRD_PARTY_NOTICES"
-          echo "RILL_BUNDLED_BINARY_SHA256=$runtime_sha" >> "$GITHUB_ENV"
-      - name: Build full architecture-specific All-in-One APK
+          runtime_dir="$SDKDIR/bin/packages/$PACKAGE_ARCH/base"
+          mkdir -p "$runtime_dir"
+          cp "$runtime_package" "$runtime_dir/$(basename "$runtime_package")"
+          test "$(find "$SDKDIR/bin" -type f -name "rill-runtime-*.$PACKAGE_MANAGER" | wc -l | tr -d ' ')" -eq 1
+          echo "RILL_SHARED_BINARY_SHA256=$runtime_sha" >> "$GITHUB_ENV"
+      - name: Build full architecture-specific unified PM package
         run: cd "$SDKDIR" && bash "$GITHUB_WORKSPACE/scripts/openwrt-build-diagnostic.sh" package/luci-app-performance-manager-all/compile
-      - name: Assert expected packages present (exact APK metadata match)
+      - name: Assert expected packages present (exact package metadata match)
         shell: bash
         run: |
           set -euo pipefail
           cd "$SDKDIR"
-          find bin -name '*.apk' -o -name '*.ipk' | sort
-          # Version part of the APK pkgver is derived from VERSION.
-          apk_version="$(sed -E 's/-rc\./_rc/' "$GITHUB_WORKSPACE/VERSION")"
+          find bin -name "*.$PACKAGE_MANAGER" | sort
+          package_version="$(sed -E 's/-rc\./_rc/' "$GITHUB_WORKSPACE/VERSION")"
           rill_runtime_version="$(sed -n 's/^PKG_VERSION:=//p' "$GITHUB_WORKSPACE/rill-openwrt-packages/package/rill-runtime/Makefile")"
           # Exact verification reads package metadata (pkgname/pkgver/arch/deps) instead
           # of filename prefix, so performance-manager and performance-manager-rill
@@ -252,26 +351,12 @@ jobs:
           # $SDKDIR is a RELATIVE path, so after `cd "$SDKDIR"` above it would
           # resolve to a nested, non-existing directory and rglob would find
           # nothing. Pass the absolute CWD ($PWD), which is the SDK root.
-          # OpenWrt 25.x APKs are zstd-compressed; Python's tarfile cannot read
-          # zstd, so verify_apks.py needs the zstandard module.
-          python3 -m pip install --disable-pip-version-check zstandard
-          python3 "$GITHUB_WORKSPACE/scripts/verify_apks.py" "$PWD" "$apk_version" "$PACKAGE_ARCH" "$rill_runtime_version"
-      - name: Download same-qualified Preview for ownership rejection only
-        env:
-          GH_TOKEN: ${{ github.token }}
-        shell: bash
-        run: |
-          set -euo pipefail
-          python3 -B scripts/download_conflict_preview.py \
-            --contract contracts/rill-runtime.json \
-            --qualified-manifest "$RUNNER_TEMP/qualified-rill/qualification.json" \
-            --package-dir rill-openwrt-packages \
-            --openwrt-version "$OPENWRT_VERSION" --architecture "$PACKAGE_ARCH" \
-            --apk "$SDKDIR/staging_dir/host/bin/apk" \
-            --output "$RUNNER_TEMP/preview-conflict-fixture" \
-            > "$RUNNER_TEMP/preview-conflict-selection.json"
-          echo "RILL_CONFLICT_PREVIEW_PACKAGE=$(jq -r .package "$RUNNER_TEMP/preview-conflict-selection.json")" >> "$GITHUB_ENV"
-      - name: Verify real Full, split and Runtime package ownership
+          if [ "$PACKAGE_MANAGER" = apk ]; then
+            python3 -m pip install --disable-pip-version-check zstandard
+          fi
+          python3 "$GITHUB_WORKSPACE/scripts/verify_apks.py" "$PWD" "$package_version" "$PACKAGE_ARCH" "$rill_runtime_version" "$PACKAGE_MANAGER"
+      - name: Verify Full, split and independent consumer share Runtime
+        if: matrix.package_manager == 'apk'
         shell: bash
         run: |
           set -euo pipefail
@@ -294,9 +379,9 @@ jobs:
           if any(len(paths) != 1 for paths in found.values()):
               raise SystemExit('ownership input packages must resolve exactly once')
           command = ['sudo', 'python3', '-B', 'scripts/verify_runtime_package_ownership.py',
-                     '--apk', str(sdk/'staging_dir/host/bin/apk'), '--sdk', str(sdk),
-                     '--stable', os.environ['RILL_QUALIFIED_PACKAGE'],
-                     '--preview', os.environ['RILL_CONFLICT_PREVIEW_PACKAGE'],
+                     '--apk', str(sdk/'staging_dir/host/bin/apk'),
+                     '--sdk-dir', str(sdk),
+                     '--runtime', os.environ['RILL_QUALIFIED_PACKAGE'],
                      '--runtime-sha256', os.environ['RILL_QUALIFIED_BINARY_SHA256'],
                      '--output', str(Path(os.environ['RUNNER_TEMP'])/'runtime-ownership')]
           for role, paths in found.items():
@@ -305,7 +390,7 @@ jobs:
           PY
           cp "$RUNNER_TEMP/runtime-ownership/results.json" docs/runtime-ownership.json
       - name: Preserve Runtime ownership evidence, including failures
-        if: always()
+        if: always() && matrix.package_manager == 'apk'
         uses: actions/upload-artifact@v7
         with:
           name: runtime-ownership-${{ matrix.package_arch }}-${{ github.run_id }}-${{ github.run_attempt }}
@@ -331,7 +416,7 @@ jobs:
           find bin -name '*.apk' -o -name '*.ipk' | sort | xargs -r sha256sum > "$GITHUB_WORKSPACE/checksums.txt"
           cd "$GITHUB_WORKSPACE"
           cat checksums.txt
-      - name: Stage exact all-in-one prerelease asset
+      - name: Stage exact all-in-one release asset
         shell: bash
         run: |
           set -euo pipefail
@@ -340,6 +425,7 @@ jobs:
             --verification docs/apk-verification.json \
             --out all-in-one-release
       - name: Build private synthetic prior Full APK fixture
+        if: matrix.package_manager == 'apk'
         shell: bash
         run: |
           set -euo pipefail
@@ -348,13 +434,14 @@ jobs:
           # assembly or public asset staging step.
           python3 scripts/build_synthetic_prior_fixture.py \
             --sdk-dir "$SDKDIR" \
+            --runtime-apk "$RILL_QUALIFIED_PACKAGE" \
             --out full-upgrade-prior/synthetic-prior \
             --version 1.0.3 --release 1 --package-arch "$PACKAGE_ARCH" \
             --commit "$GITHUB_SHA"
       - name: Upload exact all-in-one prerelease asset
         uses: actions/upload-artifact@v7
         with:
-          name: openwrt-${{ env.SDK_CACHE_TAG }}-all-in-one-apk
+          name: openwrt-${{ env.SDK_CACHE_TAG }}-all-in-one-package
           path: all-in-one-release/
           if-no-files-found: error
       - name: Upload package artifacts and build evidence
@@ -419,8 +506,18 @@ jobs:
           }
           python3 scripts/aggregate_build_matrix_evidence.py \
             --input evidence --out docs --expected-commit "$GITHUB_SHA" \
-            --expected-arch x86_64 --expected-arch aarch64_generic \
-            --expected-arch aarch64_cortex-a53
+            --expected-target 24.10.8:x86_64:ipk \
+            --expected-target 24.10.8:aarch64_generic:ipk \
+            --expected-target 24.10.8:aarch64_cortex-a53:ipk \
+            --expected-target 24.10.8:aarch64_cortex-a72:ipk \
+            --expected-target 24.10.8:aarch64_cortex-a76:ipk \
+            --expected-target 24.10.8:arm_cortex-a7_neon-vfpv4:ipk \
+            --expected-target 25.12.6:x86_64:apk \
+            --expected-target 25.12.6:aarch64_generic:apk \
+            --expected-target 25.12.6:aarch64_cortex-a53:apk \
+            --expected-target 25.12.6:aarch64_cortex-a72:apk \
+            --expected-target 25.12.6:aarch64_cortex-a76:apk \
+            --expected-target 25.12.6:arm_cortex-a7_neon-vfpv4:apk
           python3 scripts/aggregate_final_evidence.py \
             --evidence-dir docs --scope build \
             --expected-commit "$GITHUB_SHA" \
@@ -451,7 +548,7 @@ jobs:
         uses: actions/download-artifact@v8
         with:
           path: release-input
-          pattern: openwrt-*-all-in-one-apk
+          pattern: openwrt-*-all-in-one-package
           merge-multiple: false
       - name: Assemble and validate public inventory without publishing
         shell: bash

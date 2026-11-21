@@ -66,8 +66,8 @@ phases['0'].update({'evidence':'structural: schema files + frozen contract field
 phases['1']=gate('Bootstrap',[(f'package {x}',(ROOT/'package'/x/'Makefile').exists()) for x in ['performance-manager','luci-app-performance-manager','performance-manager-rill','luci-app-performance-manager-all']]+[
  ('Core ubus daemon wiring','ubusmod.connect()' in CORE and 'conn.publish(UBUS_NAME' in CORE and 'rpc_args()' in CORE and 'call: function' in CORE),
  ('full package is architecture-specific','PKGARCH:=all' not in BUNDLE_MAKE),
- ('full package embeds qualified Runtime','RILL_RUNTIME_BINARY' in BUNDLE_MAKE and '/usr/bin/rill-runtime' in BUNDLE_MAKE),
- ('full package has no Runtime dependency','+rill-runtime' not in BUNDLE_MAKE),
+ ('full package depends on shared qualified Stable Runtime','+rill-runtime' in BUNDLE_MAKE and '$(1)/usr/bin/rill-runtime' not in BUNDLE_MAKE),
+ ('full package does not embed Runtime','RILL_RUNTIME_BINARY' not in BUNDLE_MAKE),
  ('full package conflicts with split owners',all_tokens(BUNDLE_MAKE,['CONFLICTS:=','performance-manager-rill','rill-runtime','luci-i18n-performance-manager-zh-cn'])),
  ('full package carries Rill keep rule','performance-manager-rill/files/lib/upgrade/keep.d/performance-manager-rill' in BUNDLE_MAKE)])
 phases['1'].update({'evidence':'structural: package Makefiles + Core service wiring present'})

@@ -103,7 +103,7 @@ class ContractTests(unittest.TestCase):
     def test_production_and_harness_share_the_locked_v3_envelope_shape(self):
         core = (ROOT / 'package/performance-manager/files/usr/sbin/performance-manager.uc').read_text()
         harness = (ROOT / 'scripts/rill_runtime_v3_integration.py').read_text()
-        required = ['requestId', 'apiVersion', 'clientIdentity', 'modelGeneration',
+        required = ['requestId', 'apiVersion', 'clientIdentity', 'partitionKey', 'modelGeneration',
                     'stateGeneration', 'payloadLimit', 'request']
         for field in required:
             with self.subTest(field=field):
@@ -112,9 +112,15 @@ class ContractTests(unittest.TestCase):
         self.assertIn('featureSchemaHash', core)
         self.assertIn('featureSchemaHash', harness)
         self.assertIn('"featureSchemaHash": schema_hash', harness)
-        self.assertNotIn('partitionKey', core)
-        self.assertNotIn('partitionKey', harness)
+        self.assertIn("partitionKey: 'performance-manager'", core)
+        self.assertIn('"partitionKey": "performance-manager"', harness)
         self.assertNotIn('clientIdentityName', core[core.index('let request = {'):core.index("if (op == 'status')")])
+
+    def test_runtime_state_is_read_from_the_performance_manager_partition(self):
+        core = (ROOT / 'package/performance-manager/files/usr/sbin/performance-manager.uc').read_text()
+        self.assertIn("type(snapshot.partitions) != 'array'", core)
+        self.assertIn("item.clientIdentityName == 'performance-manager' && item.partitionKey == 'performance-manager'", core)
+        self.assertIn('partition.handlerSnapshot.stateGeneration', core)
 
     def test_github_actions_follow_readable_refs(self):
         expected = {
@@ -273,8 +279,8 @@ class ContractTests(unittest.TestCase):
 class AuditConvergenceTests(unittest.TestCase):
     def test_single_authoritative_rill_contract(self):
         contract = json.loads((ROOT / "contracts/rill-runtime.json").read_text())
-        self.assertEqual(contract.get("schemaVersion"), 1)
-        for section in ("runtime", "protocol", "security", "resolved", "openwrtPackage", "qualification"):
+        self.assertEqual(contract.get("schemaVersion"), 2)
+        for section in ("resolved", "openwrtPackage", "qualification", "consumer"):
             with self.subTest(section=section):
                 self.assertIn(section, contract)
         self.assertFalse((ROOT / "contracts/rill-dependency.json").exists())
@@ -363,11 +369,31 @@ class AuditConvergenceTests(unittest.TestCase):
 
     def test_profile_badge_has_distinct_unhealthy_state(self):
         ui = (ROOT / "package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/overview.js").read_text()
-        self.assertIn("_('Profile unmet')", ui)
-        self.assertIn("profile.degraded", ui)
-        self.assertIn("_('Profile degraded')", ui)
-        self.assertIn("_('Profile healthy')", ui)
-        self.assertNotIn("profile.healthy ? _('Profile healthy') : _('Profile degraded')", ui)
+        self.assertIn("profile.healthy", ui)
+        self.assertIn("profile.degraded ? _('Degraded') : _('Healthy')", ui)
+        self.assertIn("_('Incomplete')", ui)
+        self.assertIn("_('Some recommended testing and diagnostic tools are missing.')", ui)
+        self.assertIn("profile.missingCommands", ui)
+        self.assertNotIn("_('Needs attention')", ui)
+        self.assertNotIn("profile.healthy ? _('Healthy') : _('Degraded')", ui)
+
+    def test_rill_feedback_uses_a_small_runtime_only_contract(self):
+        ui = (ROOT / "package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/rill.js").read_text()
+        history_ui = (ROOT / "package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/history.js").read_text()
+        api = (ROOT / "package/luci-app-performance-manager/htdocs/luci-static/resources/performance-manager/api.js").read_text()
+        core = (ROOT / "package/performance-manager/files/usr/sbin/performance-manager.uc").read_text()
+        acl = json.loads((ROOT / "package/luci-app-performance-manager/root/usr/share/rpcd/acl.d/luci-app-performance-manager.json").read_text())
+        self.assertIn("pm.rillFeedback(5)", ui)
+        self.assertNotIn("pm.history(50)", ui)
+        self.assertIn("method: 'rill_feedback'", api)
+        self.assertIn("pm.historySummary(50)", history_ui)
+        self.assertNotIn("pm.history(100)", history_ui)
+        self.assertIn("method: 'history_summary'", api)
+        self.assertIn("read_lines(`${state_dir()}/history.jsonl`, MAX_HISTORY_LINES)", core)
+        self.assertIn(r"rill\.outcome\.(accepted|reconciled)", core)
+        self.assertIn("function history_summary_row(row)", core)
+        self.assertIn("rill_feedback", acl["luci-app-performance-manager"]["read"]["ubus"]["performance-manager"])
+        self.assertIn("history_summary", acl["luci-app-performance-manager"]["read"]["ubus"]["performance-manager"])
 
 
     def test_harness_strips_multiline_ubus_startup_guard(self):

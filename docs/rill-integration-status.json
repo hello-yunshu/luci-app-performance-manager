@@ -6,19 +6,19 @@
   "releasePinStructureVerdict": "PASS",
   "releasePin": {
     "source": "contracts/rill-runtime.json",
-    "schemaVersion": 1,
-    "commit": "dcfdb9060e41f2bf10b7eff33c042e3ca9646546",
-    "packageRelease": 2,
+    "schemaVersion": 2,
+    "commit": "15031fa08fe029e9792ff55d6ecdd308b9240dd5",
+    "packageRelease": 8,
     "qualification": {
-      "runId": 38928695476,
+      "runId": 44881757222,
       "verdict": "PASS"
     },
-    "upstreamCommit": "b990cd7043d313b0ff29c9693f091a94a5bdaf47",
+    "upstreamCommit": "1e962a82443088229714877eee98617f1596eee8",
     "resolvedVersion": "1.5.6"
   },
   "releasePinChecks": [
     {
-      "name": "schemaVersion is 1",
+      "name": "schemaVersion is 2",
       "ok": true
     },
     {
@@ -41,25 +41,24 @@
   "functionalIntegrationVerdict": "NOT_EVALUATED",
   "resolvedRuntime": {
     "version": "1.5.6",
-    "tag": "v1.5.6",
-    "upstreamCommit": "b990cd7043d313b0ff29c9693f091a94a5bdaf47",
-    "sourceArchiveSha256": "c06a792811d1f08aa7b640c10ee36047c44f825cf7272aa0f75c42ab60806a84"
+    "tag": "stable-main-1e962a8",
+    "upstreamCommit": "1e962a82443088229714877eee98617f1596eee8"
   },
   "openwrtPackage": {
     "repository": "hello-yunshu/rill-openwrt-packages",
-    "commit": "dcfdb9060e41f2bf10b7eff33c042e3ca9646546",
+    "commit": "15031fa08fe029e9792ff55d6ecdd308b9240dd5",
     "package": "rill-runtime",
     "packageVersion": "1.5.6",
-    "packageRelease": 2,
+    "packageRelease": 8,
     "binary": "/usr/bin/rill-runtime"
   },
   "qualification": {
     "required": true,
     "workflow": "qualify.yml",
-    "runId": 38928695476,
+    "runId": 44881757222,
     "verdict": "PASS",
     "runAttempt": 1,
-    "manifestSha256": "22a69fb3ee030372ac224de9ca426a79b289c731296692838752b712472cc156"
+    "manifestSha256": "70eb33b322f1bd9df21f5236dfc5a4d22c4377eb454d6d70e8a61bdf47470961"
   },
   "checks": [
     {

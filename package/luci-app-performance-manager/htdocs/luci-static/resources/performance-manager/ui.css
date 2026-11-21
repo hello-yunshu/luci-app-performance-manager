@@ -4,23 +4,69 @@
 .pm-button--busy { cursor: progress; opacity: .78; }
 .pm-button--busy:disabled { cursor: not-allowed; opacity: .62; }
 
-/* ===== Benchmark Stage List ===== */
-.pm-stage-list {
-	display: grid; grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
-	gap: .75rem; margin: .9rem 0 0; padding: 0; list-style: none;
+/* Match the sibling plugin overviews: theme-native CBI summary surfaces in a
+ * compact responsive grid, with the theme retaining the card appearance. */
+.pm-overview-stats {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr);
+	gap: 1em;
+	margin-bottom: 1em;
 }
-.pm-stage {
-	display: flex; flex-direction: column; justify-content: space-between;
-	gap: .45rem; padding: .7rem; border: 1px solid; border-radius: 6px;
-	font-size: .8em; overflow-wrap: anywhere;
+#maincontent .pm-overview-stats > .pm-overview-stat-card { margin: 0; }
+.pm-overview-stat-card {
+	min-width: 0;
+	text-align: center;
 }
-.pm-stage--active { outline: 2px solid currentColor; }
-.pm-stage-status {
-	font-size: .72em; font-weight: 700; letter-spacing: .04em; text-transform: uppercase;
+.pm-overview-stat-value {
+	font-size: 1.8em;
+	font-weight: bold;
+	line-height: 1.2;
+	overflow-wrap: normal;
+}
+.pm-overview-stat-label {
+	margin-top: .3em;
+	font-size: .85em;
+}
+.pm-overview-stat-note {
+	display: block;
+	margin-top: .35em;
+	line-height: 1.35;
 }
 
+/* Related CBI sections share a responsive grid; card surfaces and typography
+ * remain entirely owned by the active LuCI theme. */
+.pm-grid {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(min(100%, 20rem), 1fr));
+	gap: calc(var(--spacing, .25rem) * 5);
+	align-items: start;
+}
+#maincontent .pm-grid + .pm-grid {
+	margin-top: calc(var(--spacing, .25rem) * 5);
+}
+#maincontent .pm-grid + .cbi-section {
+	margin-top: calc(var(--spacing, .25rem) * 5);
+}
+#maincontent .pm-grid > .cbi-section {
+	min-width: 0;
+	margin: 0;
+}
+.pm-grid > .alert-message { grid-column: 1 / -1; }
+.pm-overview-details { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.pm-rill-ranking-actions { margin-bottom: .75em; }
+
+/* ===== Benchmark Stage List ===== */
+.pm-stage-list {
+	display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 18rem), 1fr));
+	gap: calc(var(--spacing, .25rem) * 3); margin: .9rem 0 0; padding: 0; list-style: none;
+}
+.pm-stage {
+	display: flex; align-items: flex-start; gap: calc(var(--spacing, .25rem) * 2); min-width: 0;
+}
+.pm-stage > .label { flex: 0 0 auto; white-space: nowrap; }
+.pm-stage > span { min-width: 0; }
+
 /* ===== Disclosure ===== */
-.pm-disclosure { border-top: 1px solid; }
 .pm-disclosure summary { padding: .75rem 0 .25rem; cursor: pointer; font-weight: 700; }
 .pm-disclosure pre {
 	max-width: 100%; max-height: 26rem; margin: .5rem 0 0; padding: .8rem; overflow: auto;
@@ -36,40 +82,6 @@
 
 /* ===== 原生表格滚动容器（例外 E22） ===== */
 .pu-table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
-
-/* ===== Bootstrap 兼容层（例外 E22） ===== */
-/* 仅当 body.pu-theme-bootstrap（由 ui.ensureStyles 按主题样式表探测）时生效，
- * aurora 与其他主题完全不受影响。 */
-
-/* 触摸目标 >= 32px（主题按钮 28–30px，达不到可访问性底线） */
-body.pu-theme-bootstrap .cbi-button,
-body.pu-theme-bootstrap .btn,
-body.pu-theme-bootstrap .cbi-page-actions button { min-height: 32px; line-height: 30px; }
-
-/* 对比度补偿：括号内为按主题实际背景计算的对比度（WCAG AA 正文 >= 4.5） */
-/* Save 在 .cbi-page-actions 内会被主题 `.cbi-button-apply + .cbi-button-save`（0,4,0）
- * 改成浅底白字（3.11:1），这里用 (0,4,1) 压过它。 */
-body.pu-theme-bootstrap .cbi-page-actions .cbi-button-save.cbi-button,
-body.pu-theme-bootstrap .cbi-button-save,
-body.pu-theme-bootstrap .cbi-button-positive { background: #00713d; border-color: #006635; color: #fff; } /* 6.1:1 */
-body.pu-theme-bootstrap .cbi-button-negative { background: #a11414; border-color: #8a1111; color: #fff; } /* 6.4:1 */
-body.pu-theme-bootstrap .cbi-button-reset { color: #b3261e; } /* 6.0:1 */
-html[data-darkmode="true"] body.pu-theme-bootstrap .cbi-button-reset { color: #ff9d97; } /* 8.0:1 */
-body.pu-theme-bootstrap .cbi-dropdown > .open {
-	background: #2a6a80; border-color: #255d70; color: #fff; /* 6.1:1 */
-}
-body.pu-theme-bootstrap .cbi-dropdown > ul > li { background: #2a6a80; color: #fff; } /* 6.1:1 */
-body.pu-theme-bootstrap .label.success { background: #00713d; border-color: #006635; color: #fff; } /* 6.1:1 */
-body.pu-theme-bootstrap .alert-message.success { background: #007a4a; color: #fff; } /* 5.4:1 */
-body.pu-theme-bootstrap .alert-message.success :is(h3,h4,h5,p,b,strong,li) { color: #fff; }
-/* danger 的渐变底在白字下最浅处 ~4.5:1，暗色主题还给深灰字（3.07:1）；统一纯深红白字 */
-body.pu-theme-bootstrap .alert-message.danger { background: #8c1d18; color: #fff; } /* 7.1:1 */
-body.pu-theme-bootstrap .alert-message.danger :is(h3,h4,h5,p,b,strong,li,summary,pre) { color: #fff; }
-body.pu-theme-bootstrap .alert-message.danger .cbi-button {
-	background: rgba(0, 0, 0, 0.28); border-color: rgba(255, 255, 255, 0.45); color: #fff; /* 9.7:1 */
-}
-body.pu-theme-bootstrap .alert-message.info { background: #2a6a80; color: #fff; } /* 6.1:1 */
-body.pu-theme-bootstrap .alert-message.info :is(h3,h4,h5,p,b,strong,li) { color: #fff; }
 
 /* ===== Reduced motion ===== */
 @media (prefers-reduced-motion: reduce) {
@@ -87,7 +99,6 @@ body.pu-theme-bootstrap .alert-message.info :is(h3,h4,h5,p,b,strong,li) { color:
 	align-items: center;
 	justify-content: space-between;
 	gap: .8em 1em;
-	margin-top: 2em;
 	padding: 1em 0 0;
 	color: var(--subtext-color, #666);
 	font-size: .875em;
@@ -100,8 +111,17 @@ body.pu-theme-bootstrap .alert-message.info :is(h3,h4,h5,p,b,strong,li) { color:
 	gap: .35em;
 }
 .ys-tool-footer-brand { flex-wrap: wrap; }
-.ys-tool-footer-links { white-space: nowrap; }
+/* Keep a 32px link target while drawing its background close to the text. */
+.ys-tool-footer-links {
+	flex: 0 0 auto;
+	white-space: nowrap;
+	gap: calc(var(--spacing, .25rem) * 2);
+}
 .ys-tool-footer-mark {
+	display: inline-flex;
+	align-items: center;
+	box-sizing: border-box;
+	min-height: 1.5rem;
 	padding: .18em .5em;
 	border-radius: 4px;
 	background-color: var(--ys-footer-blue-bg);
@@ -120,24 +140,43 @@ body.pu-theme-bootstrap .alert-message.info :is(h3,h4,h5,p,b,strong,li) { color:
 .ys-tool-footer-link,
 .ys-tool-footer a.ys-tool-footer-link {
 	display: inline-flex;
+	flex: 0 0 auto;
 	align-items: center;
+	justify-content: center;
 	gap: .35em;
+	min-height: 2rem;
+	box-sizing: border-box;
 	padding: .18em .5em;
 	border: 0;
 	border-radius: 4px;
-	background-color: var(--ys-footer-blue-bg);
-	background: color-mix(in srgb, var(--ys-footer-blue) 12%, transparent);
+	position: relative;
+	isolation: isolate;
+	background: transparent;
 	color: var(--ys-footer-blue);
 	font-size: .86em;
 	font-weight: 700;
 	line-height: 1.6;
 	text-decoration: none;
 }
+.ys-tool-footer-link::before,
+.ys-tool-footer a.ys-tool-footer-link::before {
+	position: absolute;
+	inset: .25rem 0;
+	border-radius: inherit;
+	background-color: var(--ys-footer-blue-bg);
+	background: color-mix(in srgb, var(--ys-footer-blue) 12%, transparent);
+	content: "";
+	z-index: -1;
+	pointer-events: none;
+}
 .ys-tool-footer-link:hover,
 .ys-tool-footer a.ys-tool-footer-link:hover {
+	text-decoration: none;
+}
+.ys-tool-footer-link:hover::before,
+.ys-tool-footer a.ys-tool-footer-link:hover::before {
 	background-color: var(--ys-footer-blue-bg-hover);
 	background: color-mix(in srgb, var(--ys-footer-blue) 18%, transparent);
-	text-decoration: none;
 }
 .ys-tool-footer-link-icon {
 	width: 1em;
@@ -156,29 +195,113 @@ body.pu-theme-bootstrap .alert-message.info :is(h3,h4,h5,p,b,strong,li) { color:
 	.ys-tool-footer-project-link,
 	.ys-tool-footer-project-separator { display: none; }
 	.ys-tool-footer-links { flex-wrap: wrap; white-space: normal; }
-	.ys-tool-footer-links .ys-tool-footer-link.github .ys-tool-footer-link-label,
-	.ys-tool-footer-links .ys-tool-footer-link.x .ys-tool-footer-link-label { display: none; }
 }
 
-/* Shared interaction rhythm: side-by-side buttons follow the theme spacing
- * scale instead of hardcoded pixels. Keep identical across sibling plugins. */
-.ys-actions,
-.cbi-page-actions {
+/* Plugin-owned action groups use the theme spacing scale. Native
+ * .cbi-page-actions remain controlled by the active LuCI theme. */
+#maincontent { --ys-action-gap: calc(var(--spacing, .25rem) * 3); }
+.ys-actions {
 	display: flex;
 	flex-wrap: wrap;
 	align-items: center;
-	gap: calc(var(--spacing, .25rem) * 3);
+	gap: var(--ys-action-gap, calc(var(--spacing, .25rem) * 3));
 }
-.cbi-page-actions { justify-content: flex-end; }
+#maincontent .ys-actions { gap: var(--ys-action-gap); }
 .ys-actions > .cbi-button,
 .ys-actions > button,
 .ys-actions > select,
-.ys-actions > input,
-.cbi-page-actions > form,
-.cbi-page-actions > button { margin: 0; }
+.ys-actions > input { margin: 0; }
+
+/* Keep the benchmark choices and primary action in a predictable two-column
+ * form rhythm instead of allowing flex wrapping to strand the final button. */
+#maincontent .pm-benchmark-toolbar {
+	display: grid;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	align-items: end;
+	gap: calc(var(--spacing, .25rem) * 5);
+}
+#maincontent .pm-benchmark-toolbar > .pm-benchmark-field { min-width: 0; }
+#maincontent .pm-benchmark-toolbar > .cbi-button,
+#maincontent .pm-benchmark-toolbar > button { justify-self: start; }
 
 /* Shared table contract: every table on the page shares one first-column
  * basis (minimum width + alignment) instead of content-driven widths. */
+.table > thead > tr > :first-child,
+.table > tbody > tr > :first-child,
+.table > tr > :first-child {
+	vertical-align: middle;
+}
+
+/* Keep all LuCI route tabs reachable while the theme's content column is
+ * narrower than this plugin's eight-item tab row. */
+@media screen and (max-width: 1279px) {
+	#tabmenu ul.tabs {
+		flex-wrap: wrap;
+		overflow-x: visible;
+	}
+}
+@media screen and (max-width: 600px) {
+	#maincontent .pm-benchmark-toolbar { grid-template-columns: minmax(0, 1fr); }
+	.ys-actions > .pm-benchmark-field {
+		flex: 1 1 100%;
+		min-width: 0;
+	}
+	.pm-benchmark-field .cbi-value-field {
+		width: 100%;
+		min-width: 0;
+		box-sizing: border-box;
+	}
+	.pm-benchmark-select {
+		display: block;
+		width: 100%;
+		max-width: 100%;
+		min-width: 0;
+		box-sizing: border-box;
+	}
+}
+
+/* The benchmark toolbar places native LuCI fields inside a compact grid.
+ * At medium widths some themes keep the default side-by-side CBI label and
+ * field proportions, leaving too little room for long select values. Stack
+ * each label above its control while preserving the toolbar's two-column
+ * grouping and the active theme's native control surface. */
+@media screen and (min-width: 37.5625rem) and (max-width: 56.25rem) {
+	#maincontent .pm-benchmark-toolbar > .pm-benchmark-field {
+		display: block;
+	}
+	#maincontent .pm-benchmark-field .cbi-value-title {
+		display: block;
+		float: none;
+		width: auto;
+		margin-bottom: calc(var(--spacing, .25rem) * 2);
+	}
+	#maincontent .pm-benchmark-field .cbi-value-field {
+		display: block;
+		width: 100%;
+		min-width: 0;
+		margin: 0;
+	}
+	#maincontent .pm-benchmark-field .pm-benchmark-select {
+		display: block;
+		width: 100%;
+		max-width: 100%;
+		min-width: 0;
+		box-sizing: border-box;
+	}
+}
+
+@media screen and (min-width: 27rem) {
+	.pm-overview-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@media screen and (min-width: 64rem) {
+	.pm-overview-stats { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+}
+
+@media screen and (max-width: 47.99rem) {
+	.pm-overview-details { grid-template-columns: minmax(0, 1fr); }
+}
+
 @media screen and (min-width: 48rem) {
 	.table > thead > tr > :first-child,
 	.table > tbody > tr > :first-child,
@@ -186,6 +309,5 @@ body.pu-theme-bootstrap .alert-message.info :is(h3,h4,h5,p,b,strong,li) { color:
 		width: 1%;
 		min-width: 9rem;
 		text-align: left;
-		vertical-align: top;
 	}
 }

@@ -2,7 +2,7 @@
 # Run openwrt-target-gate.sh inside the Docker container
 set -e
 
-echo "=== Starting openwrt-25.12.5 docker container ==="
+echo "=== Starting openwrt-25.12.6 docker container ==="
 echo "=== Copying performance-manager sources to /tmp/pm-src ==="
 mkdir -p /tmp/pm-src/package/performance-manager/files
 cp -a /home/pm-src/package/performance-manager/files/. /tmp/pm-src/package/performance-manager/files/

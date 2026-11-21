@@ -797,6 +797,22 @@ msgstr "被动前后对比"
 msgid "Health only"
 msgstr "仅健康检查"
 
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/benchmark.js
+msgid "Health snapshot"
+msgstr "健康快照"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/benchmark.js
+msgid "Passive observation"
+msgstr "被动观察"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/benchmark.js
+msgid "Health snapshot captured. This is not a performance result."
+msgstr "已采集健康状态；这不是性能测试结果。"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/benchmark.js
+msgid "Passive observation captured. No settings were changed."
+msgstr "已完成被动观测；没有修改任何设置。"
+
 #: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/benchmark.js:40
 msgid "Start test"
 msgstr "开始测试"
@@ -804,6 +820,14 @@ msgstr "开始测试"
 #: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/benchmark.js:45
 msgid "Test blocked"
 msgstr "测试已阻止"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/benchmark.js
+msgid "Test complete. The candidate was rolled back and health checks passed."
+msgstr "测试已完成，候选项已回滚，健康检查通过。"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/benchmark.js
+msgid "Test complete, but the result was not validated. Review the details below."
+msgstr "测试已完成，但结果未通过验证。请查看下方详情。"
 
 #: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/benchmark.js:45
 msgid "Details"
@@ -828,6 +852,10 @@ msgstr "基线"
 #: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/benchmark.js:50
 msgid "Commit-confirm"
 msgstr "提交确认"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/benchmark.js
+msgid "Rollback protection"
+msgstr "回滚保护"
 
 #: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/benchmark.js:60
 msgid "Validate baseline and apply candidate"
@@ -1000,6 +1028,14 @@ msgstr "无法应用 Rill 建议：%s。请检查安全状态后重试。"
 #, javascript-format
 msgid "Rill recommendation: %s"
 msgstr "Rill 建议：%s"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/optimize.js
+msgid "Rill recommendation"
+msgstr "Rill 建议"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/optimize.js
+msgid "Observations"
+msgstr "系统观察"
 
 #: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/optimize.js:58
 msgid "Smart optimization"
@@ -1561,6 +1597,9 @@ msgstr "Rill 运行时缺少能力"
 
 msgid "Runtime not provisioned"
 msgstr "Rill 运行时未部署"
+
+msgid "Not provisioned"
+msgstr "未部署"
 
 msgid "Runtime protocol v%s"
 msgstr "Rill 运行时协议 v%s"
@@ -2171,3 +2210,309 @@ msgstr "Rill 智能"
 
 msgid "Unable to load this page. Retry the page; if it keeps failing, check the service log."
 msgstr "无法加载本页。请重试；若仍失败，请检查服务日志。"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/overview.js:35
+msgid "Performance Manager is running"
+msgstr "性能管理器正在运行"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/overview.js:35
+msgid "Performance Manager is stopped"
+msgstr "性能管理器已停止"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/overview.js:36
+msgid "Review safeguards and system information below."
+msgstr "请在下方查看保护状态和系统信息。"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/overview.js:48
+msgid "System profile"
+msgstr "系统配置方案"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/overview.js:49
+msgid "Degraded"
+msgstr "已降级"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/overview.js:49
+msgid "Healthy"
+msgstr "健康"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/overview.js
+msgid "Incomplete"
+msgstr "未完整配置"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/overview.js
+msgid "Required components are unavailable."
+msgstr "必需组件当前不可用。"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/overview.js
+msgid "Some recommended testing and diagnostic tools are missing."
+msgstr "部分推荐的测试和诊断工具尚未安装。"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/overview.js
+msgid "Some profile capabilities are unavailable."
+msgstr "部分方案能力当前不可用。"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/overview.js
+msgid "Review profile details for unavailable components."
+msgstr "请查看方案详情，了解不可用的组件。"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/overview.js
+msgid "Some optional components are missing."
+msgstr "部分可选组件尚未安装。"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/overview.js:50
+msgid "Unmet"
+msgstr "未满足"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/overview.js:51
+msgid "Health guard"
+msgstr "健康保护"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/overview.js:51
+msgid "Passed"
+msgstr "已通过"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/overview.js:51
+msgid "Blocked"
+msgstr "已阻止"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/overview.js:66
+msgid "System Information"
+msgstr "系统信息"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/overview.js:70
+msgid "Rill runtime"
+msgstr "Rill 运行时"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/overview.js:103
+msgid "No transactions are available yet."
+msgstr "暂无事务记录。"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/overview.js:130
+msgid "Review system health, current safeguards, and network path status."
+msgstr "查看系统健康、当前保护措施和网络路径状态。"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/benchmark.js:130
+msgid "Test setup and progress"
+msgstr "测试设置与进度"
+
+msgid "Advanced history details"
+msgstr "高级历史详情"
+
+msgid "Advanced settings"
+msgstr "高级设置"
+
+msgid "Affected targets and evaluation details"
+msgstr "受影响目标与评估详情"
+
+msgid "Automatic action"
+msgstr "自动操作状态"
+
+msgid "Automatic action not evaluated"
+msgstr "尚未评估自动操作"
+
+msgid "Basic settings"
+msgstr "基本设置"
+
+msgid "Current decision"
+msgstr "当前决策"
+
+msgid "Disabled"
+msgstr "已禁用"
+
+msgid "Enabled"
+msgstr "已启用"
+
+msgid "Learning and policy details"
+msgstr "学习与策略详情"
+
+msgid "Locks and event records"
+msgstr "锁与事件记录"
+
+msgid "Not evaluated"
+msgstr "尚未评估"
+
+msgid "Provider and policy details"
+msgstr "提供方与策略详情"
+
+msgid "Ready for automatic action"
+msgstr "符合自动操作条件"
+
+msgid "Rill provides observations and recommendations. Core checks safety and keeps final control over every change."
+msgstr "Rill 只提供观察与建议。核心引擎会检查安全性，并始终保留所有变更的最终控制权。"
+
+msgid "Rill ranks actions that passed the Core engine review; the Core engine keeps the final authority to execute them."
+msgstr "Rill 会为通过核心引擎审核的操作排序；是否执行仍由核心引擎最终决定。"
+
+msgid "Runtime, decision and candidate details"
+msgstr "运行时、决策与候选项详情"
+
+msgid "Status, path and provider details"
+msgstr "状态、路径与提供方详情"
+
+msgid "Transaction details"
+msgstr "事务详情"
+
+msgid "Tune measurement, learning and assisted-automation thresholds. The recommended defaults are suitable for most users."
+msgstr "调整测量、学习和辅助自动化阈值。推荐默认值适合大多数用户。"
+
+msgid "Unavailable benchmark providers and reasons"
+msgstr "不可用的基准测试提供方及原因"
+
+msgid "Why"
+msgstr "原因"
+
+msgid "No change needed"
+msgstr "无需更改"
+
+msgid "The current configuration meets the policy."
+msgstr "当前配置符合策略要求。"
+
+msgid "No decision reason is available yet."
+msgstr "暂时没有可用的决策原因。"
+
+msgid "Needs attention"
+msgstr "需要处理"
+
+msgid "Runtime needs attention"
+msgstr "运行时需要处理"
+
+msgid "Network adapter tuning"
+msgstr "网卡调优能力"
+
+msgid "Network adapter features are grouped here to keep repeated hardware details out of the main list."
+msgstr "网卡相关功能集中显示，避免重复的硬件信息占据主列表。"
+
+msgid "Adapter capabilities and details"
+msgstr "网卡能力与详情"
+
+msgid "Network adapter"
+msgstr "网络适配器"
+
+msgid "Rill unavailable"
+msgstr "Rill 暂不可用"
+
+msgid "Runtime and profile"
+msgstr "运行状态与系统配置"
+
+msgid "Core memory"
+msgstr "核心引擎内存"
+
+msgid "Stored history"
+msgstr "历史记录占用"
+
+msgid "Active Rill operations"
+msgstr "正在执行的 Rill 操作"
+
+msgid "Detailed diagnostics"
+msgstr "详细诊断信息"
+
+msgid "Expand to load detailed capability, topology, transaction and lock records."
+msgstr "展开后加载能力、网络拓扑、事务和资源锁的详细记录。"
+
+msgid "Loading diagnostics…"
+msgstr "正在加载诊断信息…"
+
+msgid "Unable to load diagnostic records: %s"
+msgstr "无法加载诊断记录：%s"
+
+msgid "Diagnostic records"
+msgstr "诊断记录"
+
+msgid "Not reported"
+msgstr "无数据"
+
+msgid "Expand to load recent validated feedback."
+msgstr "展开后加载近期已验证的反馈记录。"
+
+msgid "Show recent validated feedback"
+msgstr "查看近期已验证的反馈"
+
+msgid "Loading feedback…"
+msgstr "正在加载反馈记录…"
+
+msgid "Loading history…"
+msgstr "正在加载历史记录…"
+
+msgid "Expand to view recent history summaries."
+msgstr "展开后查看近期历史摘要。"
+
+msgid "Unable to load history records: %s"
+msgstr "无法加载历史记录：%s"
+
+msgid "Unable to load feedback records: %s"
+msgstr "无法加载反馈记录：%s"
+
+msgid "Expand to load detailed history and runtime events."
+msgstr "展开后加载详细历史和运行时事件。"
+
+msgid "Check for updates"
+msgstr "检查更新"
+
+msgid "Unable to manage packages."
+msgstr "无法管理软件包。"
+
+msgid "Package operation failed: %s"
+msgstr "软件包操作失败：%s"
+
+msgid "Install Rill Runtime"
+msgstr "安装 Rill 运行时"
+
+msgid "Update Rill Runtime"
+msgstr "更新 Rill 运行时"
+
+msgid "Update Performance Manager"
+msgstr "更新性能管理器"
+
+msgid "Package manager controls are unavailable. Update Performance Manager from the unified feed to enable them."
+msgstr "软件包管理功能不可用。请从统一软件源更新性能管理器以启用此功能。"
+
+msgid "Rill Runtime is not available for this OpenWrt release and architecture."
+msgstr "此 OpenWrt 版本和架构暂不提供 Rill 运行时。"
+
+msgid "A Stable or incompatible Rill Runtime is installed. Resolve that package conflict before changing Runtime packages."
+msgstr "检测到 Stable 通道或不兼容的 Rill 运行时。请先解决软件包冲突，再更改运行时。"
+
+msgid "Rill Runtime is not installed. Install it to enable Rill decisions."
+msgstr "Rill 运行时尚未安装。安装后即可启用 Rill 决策。"
+
+msgid "OpenWrt release"
+msgstr "OpenWrt 版本"
+
+msgid "Package architecture"
+msgstr "软件包架构"
+
+msgid "Runtime package"
+msgstr "运行时软件包"
+
+msgid "Runtime channel"
+msgstr "运行时通道"
+
+msgid "Runtime compatibility"
+msgstr "运行时兼容性"
+
+msgid "Installed"
+msgstr "已安装"
+
+msgid "Not installed"
+msgstr "未安装"
+
+msgid "Compatible"
+msgstr "兼容"
+
+msgid "Package management"
+msgstr "软件包管理"
+
+msgid "Repair Rill Runtime"
+msgstr "修复 Rill Runtime"
+
+msgid "The installed owner is rill-runtime-preview, version %s. PM will not remove or replace it automatically."
+msgstr "当前运行时由 rill-runtime-preview（版本 %s）拥有。PM 不会自动删除或替换它。"
+
+msgid "Back up /etc/config/performance-manager and /etc/performance-manager/. Check for other packages that use rill-runtime-preview before continuing."
+msgstr "请先备份 /etc/config/performance-manager 和 /etc/performance-manager/。继续前检查是否有其他软件包依赖 rill-runtime-preview。"
+
+msgid "An incompatible Rill Runtime is installed. Resolve that package conflict before changing Runtime packages."
+msgstr "检测到不兼容的 Rill 运行时。请先解决软件包冲突，再更改运行时。"
+
+msgid "Runtime version"
+msgstr "运行时版本"
