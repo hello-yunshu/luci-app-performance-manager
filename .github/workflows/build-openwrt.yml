@@ -208,10 +208,10 @@ jobs:
           sdkdir=$(find . -maxdepth 1 -type d -name "openwrt-sdk-${OPENWRT_VERSION}-${SDK_PREFIX}_*" | head -n1)
           test -n "$sdkdir"
           sdkdir=$(cd "$sdkdir" && pwd)
-          config="$sdkdir/.config"
-          grep -qx "CONFIG_TARGET_${OPENWRT_TARGET}=y" "$config"
-          grep -qx "CONFIG_TARGET_SUBTARGET=\"${OPENWRT_SUBTARGET}\"" "$config"
-          grep -qx "CONFIG_TARGET_ARCH_PACKAGES=\"${PACKAGE_ARCH}\"" "$config"
+          # Official SDK archives ship without a .config; the target identity is
+          # materialized by `make defconfig` in the feed installation step.
+          test -f "$sdkdir/include/target.mk"
+          test -f "$sdkdir/Makefile"
           echo "SDKDIR=$sdkdir" >> "$GITHUB_ENV"
       - name: Resolve official feed identity
         id: openwrt-feeds
@@ -266,6 +266,11 @@ jobs:
             cp -a "$GITHUB_WORKSPACE/rill-openwrt-packages/package/$name"/. "package/$name/"
           done
           make defconfig
+          config="$SDKDIR/.config"
+          test -f "$config"
+          grep -qx "CONFIG_TARGET_${OPENWRT_TARGET}=y" "$config"
+          grep -qx "CONFIG_TARGET_SUBTARGET=\"${OPENWRT_SUBTARGET}\"" "$config"
+          grep -qx "CONFIG_TARGET_ARCH_PACKAGES=\"${PACKAGE_ARCH}\"" "$config"
           for package in rill-runtime rill-runtime-manager; do
             grep -qx "config PACKAGE_$package" tmp/.config-package.in || {
               echo "SDK Kconfig cannot resolve required feed package $package" >&2
