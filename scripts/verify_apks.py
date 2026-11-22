@@ -729,12 +729,13 @@ def main(argv):
                         'sourceSha256': src_sha,
                         'acceptedPackageSha256': sorted(variant_hashes),
                     })
-                    # The split UI package's postinst replaces version tokens
-                    # in ui.js after extraction. Record the exact bytes LuCI
-                    # serves on-device so package verification can be compared
-                    # with an installed resource hash without mistaking the
-                    # expected postinst edit for package drift.
-                    if (name == 'luci-app-performance-manager'
+                    # The split UI package and the full package both run a
+                    # postinst that replaces version tokens in ui.js after
+                    # extraction. Record the exact bytes LuCI serves on-device
+                    # so package verification can be compared with an installed
+                    # resource hash without mistaking the expected postinst edit
+                    # for package drift.
+                    if (name in ('luci-app-performance-manager', ALL_IN_ONE)
                             and payload_path == '/www/luci-static/resources/performance-manager/ui.js'):
                         installed_bytes = apk_payload.replace(
                             b'@PKG_FULL_VERSION@', pkgver.encode('utf-8'))

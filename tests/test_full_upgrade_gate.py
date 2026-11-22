@@ -43,6 +43,58 @@ class FullUpgradeGateTests(unittest.TestCase):
         self.assertIn('"openwrtVersion": "25.12.6"',
                       (ROOT / "scripts/full_upgrade_gate.py").read_text())
 
+    def test_exact_apks_are_staged_inside_the_chroot(self):
+        import hashlib
+        import tempfile
+
+        import full_upgrade_gate
+
+        def sha(path):
+            return hashlib.sha256(path.read_bytes()).hexdigest()
+
+        with tempfile.TemporaryDirectory() as temp:
+            temp = Path(temp)
+            rootfs = temp / "rootfs"
+            rootfs.mkdir()
+            prior_apk = temp / "luci-app-performance-manager-all-1.0.3-r1.apk"
+            current_apk = temp / "luci-app-performance-manager-all-1.0.7-r7.apk"
+            prior_apk.write_bytes(b"prior")
+            current_apk.write_bytes(b"current")
+            digest = "b" * 64
+            luci_paths = (
+                "/www/luci-static/resources/view/performance-manager/overview.js",
+                "/usr/share/luci/menu.d/luci-app-performance-manager.json",
+                "/usr/share/rpcd/acl.d/luci-app-performance-manager.json",
+            )
+            build = {"packages": {full_upgrade_gate.PACKAGE: {
+                "pkgver": "1.0.7-r7",
+                "apkSha256": sha(current_apk),
+                "installedPayload": {
+                    path: digest
+                    for path in (full_upgrade_gate.CORE_PATH, *luci_paths)
+                },
+                "runtimeBinary": {"sha256": digest},
+            }}}
+            prior = {
+                "pkgver": "1.0.3-r1",
+                "sha256": sha(prior_apk),
+                "syntheticPriorFixture": True,
+                "historicalReleaseUpgrade": False,
+            }
+            original_run = full_upgrade_gate.run
+            full_upgrade_gate.run = lambda root, command: subprocess.CompletedProcess(
+                args=[], returncode=0, stdout="", stderr="")
+            try:
+                full_upgrade_gate.execute(rootfs, prior_apk, current_apk, prior,
+                                          build, "0" * 40)
+            finally:
+                full_upgrade_gate.run = original_run
+            staged = rootfs / "tmp/pm-full-upgrade"
+            # apk resolves package paths inside the chroot; both exact APKs
+            # must exist there or the solver reports "(no such package)".
+            self.assertTrue((staged / prior_apk.name).is_file())
+            self.assertTrue((staged / current_apk.name).is_file())
+
     def test_generic_wget_ssl_transport_error_is_unavailable(self):
         completed = subprocess.CompletedProcess(
             args=[], returncode=4, stdout="",

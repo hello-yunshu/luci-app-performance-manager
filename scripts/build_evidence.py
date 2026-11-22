@@ -52,8 +52,14 @@ def sdk_digest(sdk_dir):
 
 
 def payload_digest(payload):
-    """Normalize source payload records and Runtime records to one SHA field."""
-    return payload.get('apkSha256') or payload.get('sha256')
+    """Normalize payload records to the exact on-device SHA.
+
+    Files rewritten by a package postinst (ui.js version tokens) must be
+    recorded with the post-install digest; recording the packaged bytes would
+    report a false payload mismatch for a correct installation.
+    """
+    return (payload.get('expectedPostInstallSha256')
+            or payload.get('apkSha256') or payload.get('sha256'))
 
 
 def feeds_commits(sdk_dir):

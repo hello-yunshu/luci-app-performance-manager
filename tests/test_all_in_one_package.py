@@ -76,6 +76,12 @@ class AllInOnePackageTests(unittest.TestCase):
         runtime_sha = "a" * 64
         self.assertEqual(payload_digest({"sha256": runtime_sha}), runtime_sha)
         self.assertEqual(payload_digest({"apkSha256": runtime_sha}), runtime_sha)
+        # ui.js is rewritten by the package postinst; the recorded digest must
+        # be the post-install bytes or a correct install looks like drift.
+        installed_sha = "c" * 64
+        self.assertEqual(payload_digest({"apkSha256": runtime_sha,
+                                         "expectedPostInstallSha256": installed_sha}),
+                         installed_sha)
 
     def test_bundle_conflicts_with_every_split_owner(self):
         makefile = BUNDLE.read_text()

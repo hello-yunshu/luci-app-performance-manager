@@ -13,6 +13,7 @@ import hashlib
 import json
 import re
 import shlex
+import shutil
 import subprocess
 from pathlib import Path
 
@@ -239,6 +240,13 @@ def execute(
         return result
 
     root_tmp = "/tmp/pm-full-upgrade"
+    # `apk add <path>` resolves the path inside the chroot, so both exact APKs
+    # must be staged there. Without this the solver reports
+    # "<path> (no such package)" and the upgrade never runs.
+    staging = rootfs / root_tmp.lstrip("/")
+    staging.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(prior_apk, staging / prior_apk.name)
+    shutil.copy2(current_apk, staging / current_apk.name)
     prior_guest = f"{root_tmp}/{prior_apk.name}"
     current_guest = f"{root_tmp}/{current_apk.name}"
     prior_marker = str(prior.get("marker") or "")
