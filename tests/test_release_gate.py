@@ -37,6 +37,15 @@ class ReleaseGateSourceTests(unittest.TestCase):
         s=(ROOT/'package/performance-manager/files/usr/share/performance-manager/contracts.uc').read_text()
         self.assertIn("SAFE_ACTIONS = [ 'nic.ring.floor' ]",s)
 
+    def test_package_matcher_does_not_confuse_manager_with_runtime(self):
+        sys.path.insert(0, str(ROOT / 'scripts'))
+        from package_composition_gate import package_name
+        self.assertEqual(package_name(Path('rill-runtime-v25.12.6-x86_64.apk')), 'rill-runtime')
+        self.assertEqual(package_name(Path('rill-runtime-manager-1.0.0-r2.apk')), '')
+        self.assertEqual(
+            package_name(Path('luci-app-performance-manager-all-v1.0.7-openwrt-25.12.6-x86_64.apk')),
+            'luci-app-performance-manager-all')
+
     def test_portable_pass_authorizes_stable_without_claiming_hardware(self):
         gates = {name: {"status": "PASS"} for name in stable_evidence.PORTABLE_REQUIRED}
         self.assertTrue(stable_evidence.stable_authorization("portable-docker", "PASS", gates))

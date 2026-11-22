@@ -40,8 +40,15 @@ def package_name(path: Path) -> str:
     name = path.name
     for package in sorted((*SPLIT, "luci-app-performance-manager-all"),
                           key=len, reverse=True):
-        if name.startswith(package + "-") or name.startswith(package + "_"):
-            return package
+        for separator in ("-", "_"):
+            prefix = package + separator
+            if not name.startswith(prefix):
+                continue
+            # The token after the package name must be a version. Without this,
+            # rill-runtime-manager-1.0.0-r2.apk would also be read as the
+            # rill-runtime provider, and the gate would see two artifacts.
+            if re.match(r"v?\d", name[len(prefix):]):
+                return package
     return ""
 
 
