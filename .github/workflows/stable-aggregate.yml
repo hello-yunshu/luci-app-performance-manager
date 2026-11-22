@@ -24,6 +24,9 @@ on:
         required: true
         default: hardware
         type: string
+  workflow_run:
+    workflows: ["Portable validation matrix"]
+    types: [completed]
 
 permissions:
   actions: read
@@ -34,14 +37,76 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  resolve:
+    # Automatic aggregation follows a successful portable matrix for the same
+    # pushed commit. Manual dispatch still supplies every identity explicitly.
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.event == 'push' &&
+       github.event.workflow_run.head_branch == 'main')
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    outputs:
+      expected_sha: ${{ steps.identity.outputs.expected_sha }}
+      ci_run_id: ${{ steps.identity.outputs.ci_run_id }}
+      build_run_id: ${{ steps.identity.outputs.build_run_id }}
+      target_run_id: ${{ steps.identity.outputs.target_run_id }}
+      profile: ${{ steps.identity.outputs.profile }}
+    steps:
+      - name: Resolve same-commit CI, Build and target runs
+        id: identity
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            sha='${{ github.event.inputs.expected_sha }}'
+            ci='${{ github.event.inputs.ci_run_id }}'
+            build='${{ github.event.inputs.build_run_id }}'
+            target='${{ github.event.inputs.target_run_id }}'
+            profile='${{ github.event.inputs.profile }}'
+          else
+            sha='${{ github.event.workflow_run.head_sha }}'
+            target='${{ github.event.workflow_run.id }}'
+            profile=portable-docker
+            resolve_run() {
+              local workflow=$1 result='' picked=''
+              for _ in $(seq 1 20); do
+                picked=$(gh run list --workflow "$workflow" --branch main --commit "$sha" --limit 20 \
+                  --json databaseId,status,conclusion \
+                  --jq '.[] | select(.status == "completed") | "\(.databaseId) \(.conclusion)"' | head -1)
+                if [ -n "$picked" ]; then
+                  if [ "${picked##* }" = success ]; then result=${picked%% *}; fi
+                  break
+                fi
+                sleep 30
+              done
+              if [ -z "$result" ]; then
+                echo "no successful same-commit $workflow run for $sha" >&2
+                exit 1
+              fi
+              printf '%s' "$result"
+            }
+            ci=$(resolve_run ci.yml)
+            build=$(resolve_run build-openwrt.yml)
+          fi
+          printf 'expected_sha=%s\n' "$sha" >> "$GITHUB_OUTPUT"
+          printf 'ci_run_id=%s\n' "$ci" >> "$GITHUB_OUTPUT"
+          printf 'build_run_id=%s\n' "$build" >> "$GITHUB_OUTPUT"
+          printf 'target_run_id=%s\n' "$target" >> "$GITHUB_OUTPUT"
+          printf 'profile=%s\n' "$profile" >> "$GITHUB_OUTPUT"
+
   aggregate:
+    needs: resolve
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
         with:
-          ref: ${{ inputs.expected_sha }}
+          ref: ${{ needs.resolve.outputs.expected_sha }}
       - name: Verify exact checkout
-        run: test "$(git rev-parse HEAD)" = "${{ inputs.expected_sha }}"
+        run: test "$(git rev-parse HEAD)" = "${{ needs.resolve.outputs.expected_sha }}"
       - name: Download all three same-commit evidence runs
         env:
           GH_TOKEN: ${{ github.token }}
@@ -49,41 +114,41 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p evidence/ci evidence/build evidence/target
-          python3 scripts/verify_action_run_identity.py --run-id "${{ inputs.ci_run_id }}" --expected-sha "${{ inputs.expected_sha }}" --expected-workflow 'CI' --expected-workflow-path '.github/workflows/ci.yml'
-          python3 scripts/verify_action_run_identity.py --run-id "${{ inputs.build_run_id }}" --expected-sha "${{ inputs.expected_sha }}" --expected-workflow 'Build OpenWrt (remote SDK)' --expected-workflow-path '.github/workflows/build-openwrt.yml'
-          if [ "${{ inputs.profile }}" = portable-docker ]; then
+          python3 scripts/verify_action_run_identity.py --run-id "${{ needs.resolve.outputs.ci_run_id }}" --expected-sha "${{ needs.resolve.outputs.expected_sha }}" --expected-workflow 'CI' --expected-workflow-path '.github/workflows/ci.yml'
+          python3 scripts/verify_action_run_identity.py --run-id "${{ needs.resolve.outputs.build_run_id }}" --expected-sha "${{ needs.resolve.outputs.expected_sha }}" --expected-workflow 'Build OpenWrt (remote SDK)' --expected-workflow-path '.github/workflows/build-openwrt.yml'
+          if [ "${{ needs.resolve.outputs.profile }}" = portable-docker ]; then
             target_workflow='Portable validation matrix'
             target_workflow_path='.github/workflows/stable-target-matrix.yml'
-          elif [ "${{ inputs.profile }}" = hardware ]; then
+          elif [ "${{ needs.resolve.outputs.profile }}" = hardware ]; then
             target_workflow='Hardware validation matrix'
             target_workflow_path='.github/workflows/hardware-validation.yml'
           else
-            echo "unsupported evidence profile: ${{ inputs.profile }}" >&2
+            echo "unsupported evidence profile: ${{ needs.resolve.outputs.profile }}" >&2
             exit 1
           fi
-          python3 scripts/verify_action_run_identity.py --run-id "${{ inputs.target_run_id }}" --expected-sha "${{ inputs.expected_sha }}" --expected-workflow "$target_workflow" --expected-workflow-path "$target_workflow_path"
-          gh run download "${{ inputs.ci_run_id }}" --dir evidence/ci
-          gh run download "${{ inputs.build_run_id }}" --dir evidence/build
-          gh run download "${{ inputs.target_run_id }}" --dir evidence/target
+          python3 scripts/verify_action_run_identity.py --run-id "${{ needs.resolve.outputs.target_run_id }}" --expected-sha "${{ needs.resolve.outputs.expected_sha }}" --expected-workflow "$target_workflow" --expected-workflow-path "$target_workflow_path"
+          gh run download "${{ needs.resolve.outputs.ci_run_id }}" --dir evidence/ci
+          gh run download "${{ needs.resolve.outputs.build_run_id }}" --dir evidence/build
+          gh run download "${{ needs.resolve.outputs.target_run_id }}" --dir evidence/target
       - name: Collect and aggregate without promotion shortcuts
         shell: bash
         run: |
           set -euo pipefail
           python3 scripts/collect_stable_evidence.py \
             --ci-root evidence/ci --build-root evidence/build --target-root evidence/target \
-            --out stable-evidence --profile "${{ inputs.profile }}" \
-            --expected-commit "${{ inputs.expected_sha }}"
+            --out stable-evidence --profile "${{ needs.resolve.outputs.profile }}" \
+            --expected-commit "${{ needs.resolve.outputs.expected_sha }}"
           python3 scripts/final_release_audit.py \
             --evidence-dir stable-evidence \
-            --expected-commit "${{ inputs.expected_sha }}" \
-            --profile "${{ inputs.profile }}"
+            --expected-commit "${{ needs.resolve.outputs.expected_sha }}" \
+            --profile "${{ needs.resolve.outputs.profile }}"
           cp docs/FINAL_AUDIT.json stable-evidence/
           cp docs/FINAL_AUDIT.md stable-evidence/
       - name: Upload authoritative Stable evidence
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: final-stable-evidence-${{ inputs.expected_sha }}
+          name: final-stable-evidence-${{ needs.resolve.outputs.expected_sha }}
           path: |
             stable-evidence/final-stable-evidence.json
             stable-evidence/FINAL_AUDIT.json
