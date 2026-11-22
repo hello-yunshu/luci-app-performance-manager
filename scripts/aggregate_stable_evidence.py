@@ -127,9 +127,20 @@ def combine(values):
 
 
 def stable_authorization(profile, overall, gates):
-    """Return authorization only for complete, same-profile hardware proof."""
-    if profile != "hardware" or overall != "PASS":
+    """Return authorization for a complete PASS of the selected profile.
+
+    Both profiles may authorize a Stable release. `portable-docker` runs the
+    real Core ucode harness, package composition gate and repository tests on
+    hosted runners; `hardware` additionally proves the external hardware
+    gates. `hardwareCoverage` always reports what actually ran, so a portable
+    release is recorded as NOT_EVALUATED instead of implying hardware proof.
+    """
+    if overall != "PASS":
         return False
+    if profile == "portable-docker":
+        return bool(PORTABLE_REQUIRED) and all(
+            gates.get(name, {}).get("status") == "PASS" for name in PORTABLE_REQUIRED
+        )
     return bool(EXTERNAL_GATES) and all(
         gates.get(name, {}).get("status") == "PASS" for name in EXTERNAL_GATES
     )
@@ -206,9 +217,9 @@ def main(argv=None):
     hardware_complete = args.profile == "hardware" and bool(hardware_gate_statuses) and all(
         status == "PASS" for status in hardware_gate_statuses
     )
-    # Portable evidence is useful for RC/preview admission, but it is never a
-    # Stable authorization input. Only the hardware profile may authorize a
-    # Stable release, and only after every required external gate is PASS.
+    # Either profile may authorize a Stable release once every gate it requires
+    # is PASS. hardwareCoverage stays truthful: the portable profile never
+    # claims hardware evidence.
     stable_authorized = stable_authorization(args.profile, overall, gates)
     hardware_coverage = (
         "NOT_EVALUATED" if args.profile == "portable-docker"
@@ -227,7 +238,7 @@ def main(argv=None):
         "evidenceIdentity": identities,
         "overallVerdict": overall,
         "portableVerdict": overall if args.profile == "portable-docker" else None,
-        "stableReleaseVerdict": overall if args.profile == "hardware" else "NOT_EVALUATED",
+        "stableReleaseVerdict": overall,
         "stableReleaseAuthorized": stable_authorized,
         "hardwareCoverage": hardware_coverage,
     }

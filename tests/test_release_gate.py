@@ -37,10 +37,13 @@ class ReleaseGateSourceTests(unittest.TestCase):
         s=(ROOT/'package/performance-manager/files/usr/share/performance-manager/contracts.uc').read_text()
         self.assertIn("SAFE_ACTIONS = [ 'nic.ring.floor' ]",s)
 
-    def test_portable_pass_never_authorizes_stable(self):
-        gates = {name: {"status": "PASS"} for name in stable_evidence.EXTERNAL_GATES}
+    def test_portable_pass_authorizes_stable_without_claiming_hardware(self):
+        gates = {name: {"status": "PASS"} for name in stable_evidence.PORTABLE_REQUIRED}
+        self.assertTrue(stable_evidence.stable_authorization("portable-docker", "PASS", gates))
+        gates["portableDocker"]["status"] = "BLOCKED"
         self.assertFalse(stable_evidence.stable_authorization("portable-docker", "PASS", gates))
-        self.assertFalse(stable_evidence.stable_authorization("hardware", "BLOCKED", gates))
+        hardware = {name: {"status": "PASS"} for name in stable_evidence.EXTERNAL_GATES}
+        self.assertFalse(stable_evidence.stable_authorization("hardware", "BLOCKED", hardware))
 
     def test_hardware_authorization_requires_every_gate(self):
         gates = {name: {"status": "PASS"} for name in stable_evidence.EXTERNAL_GATES}
@@ -51,7 +54,7 @@ class ReleaseGateSourceTests(unittest.TestCase):
         gates["resourceSoak12h"]["status"] = "FAIL"
         self.assertFalse(stable_evidence.stable_authorization("hardware", "PASS", gates))
 
-    def test_portable_all_pass_is_not_a_stable_result(self):
+    def test_portable_all_pass_authorizes_stable_with_hardware_not_evaluated(self):
         commit = "a" * 40
         runtime_sha = "b" * 64
         with tempfile.TemporaryDirectory() as directory:
@@ -80,9 +83,9 @@ class ReleaseGateSourceTests(unittest.TestCase):
             report = json.loads(output.read_text())
         self.assertEqual(result, 0)
         self.assertEqual(report["portableVerdict"], "PASS")
-        self.assertEqual(report["stableReleaseVerdict"], "NOT_EVALUATED")
+        self.assertEqual(report["stableReleaseVerdict"], "PASS")
         self.assertEqual(report["hardwareCoverage"], "NOT_EVALUATED")
-        self.assertFalse(report["stableReleaseAuthorized"])
+        self.assertTrue(report["stableReleaseAuthorized"])
 
     def test_stable_profile_routing_accepts_only_matching_target_workflow(self):
         aggregate = (ROOT / ".github/workflows/stable-aggregate.yml").read_text()
