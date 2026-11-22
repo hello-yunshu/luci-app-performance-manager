@@ -1,4 +1,5 @@
 import json
+import re
 import sys
 import tempfile
 import unittest
@@ -7,6 +8,15 @@ ROOT=Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / 'scripts'))
 import aggregate_stable_evidence as stable_evidence  # noqa: E402
 class ReleaseGateSourceTests(unittest.TestCase):
+    def test_resolve_jobs_get_repository_without_checkout(self):
+        for name in ("stable-target-matrix", "stable-aggregate", "stable-release"):
+            text = (ROOT / ".github/workflows" / f"{name}.yml").read_text()
+            match = re.search(r"(?ms)^  resolve:\n(.*?)(?=^  \S|\Z)", text)
+            self.assertIsNotNone(match, name)
+            resolve = match.group(1)
+            self.assertIn("gh run list", resolve, name)
+            self.assertIn("GH_REPO: ${{ github.repository }}", resolve, name)
+
     def test_four_packages_include_real_all_in_one(self):
         for p in ['performance-manager','luci-app-performance-manager','performance-manager-rill',
                   'luci-app-performance-manager-all']:
