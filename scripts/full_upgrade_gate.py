@@ -61,7 +61,7 @@ REMOVE_PATHS = (
 SHA256 = re.compile(r"^[0-9a-f]{64}$")
 UPGRADE_BOOLEAN_KEYS = (
     "priorVersionLessCurrent", "priorInstall", "packageManagerUpgrade",
-    "versionAdvanced", "configPreserved", "coreUpdated", "runtimeUpdated",
+    "versionAdvanced", "configPreserved", "coreUpdated", "runtimeShared",
     "luciUpdated", "installedPayloadExact", "oldPayloadRemoved",
     "serviceSmoke", "ubusSmoke", "rillSmoke", "postUpgradeUninstall",
 )
@@ -175,6 +175,7 @@ def execute(
     prior: dict,
     build: dict,
     expected_commit: str,
+    runtime_apks: dict[str, Path] | None = None,
 ) -> dict:
     current_record = (build.get("packages") or {}).get(PACKAGE) or {}
     prior_pkgver = str(prior.get("pkgver") or prior.get("version") or "")
@@ -195,6 +196,15 @@ def execute(
     expected = current_payload(build)
     if any(path not in expected for path in (CORE_PATH, RUNTIME_PATH, *LUCi_PATHS)):
         errors.append("current build metadata lacks exact Core/Runtime/LuCI payload SHA")
+    # The Full package depends on the Rill packages, which this repository
+    # builds and no upstream index provides. A real device already has them,
+    # so stage the same-build artifacts and install them with the prior PM.
+    extras = dict(runtime_apks or {})
+    for name, path in extras.items():
+        expected_sha = (((build.get("packages") or {}).get(name) or {})
+                        .get("apkSha256"))
+        if not expected_sha or sha256_file(path) != expected_sha:
+            errors.append(f"{name} artifact SHA does not match build metadata")
 
     result = {
         "schemaVersion": 1,
@@ -223,7 +233,7 @@ def execute(
         "versionAdvanced": False,
         "configPreserved": False,
         "coreUpdated": False,
-        "runtimeUpdated": False,
+        "runtimeShared": False,
         "luciUpdated": False,
         "installedPayloadExact": False,
         "oldPayloadRemoved": False,
@@ -247,19 +257,26 @@ def execute(
     staging.mkdir(parents=True, exist_ok=True)
     shutil.copy2(prior_apk, staging / prior_apk.name)
     shutil.copy2(current_apk, staging / current_apk.name)
+    for path in extras.values():
+        shutil.copy2(path, staging / path.name)
     prior_guest = f"{root_tmp}/{prior_apk.name}"
     current_guest = f"{root_tmp}/{current_apk.name}"
+    # A real device already has the shared Rill packages installed; install them
+    # with the prior PM package so the prior state matches the shipped layout.
+    prior_targets = [prior_guest]
+    prior_targets += [f"{root_tmp}/{path.name}" for path in extras.values()]
     prior_marker = str(prior.get("marker") or "")
     command = "set -eu; "
     command += f"mkdir -p {shlex.quote(root_tmp)}; "
     command += f"{_package_version_shell()}; {_service_shell()}; "
-    command += retry_shell(f"apk add --allow-untrusted {shlex.quote(prior_guest)}")
+    command += retry_shell("apk add --allow-untrusted "
+                          + " ".join(shlex.quote(path) for path in prior_targets))
     command += 'test "$rc" -eq 0; '
     command += f"test \"$(package_version {PACKAGE})\" = {shlex.quote(prior_pkgver)}; "
     command += "echo PM_PRIOR_INSTALL=PASS; "
-    command += "uci set performance-manager.core.goal='synthetic-upgrade-user-value'; "
+    command += "uci set performance-manager.main.goal='synthetic-upgrade-user-value'; "
     command += "uci commit performance-manager; "
-    command += "test \"$(uci get performance-manager.core.goal)\" = synthetic-upgrade-user-value; "
+    command += "test \"$(uci get performance-manager.main.goal)\" = synthetic-upgrade-user-value; "
     command += "echo PM_CONFIG_WRITTEN=PASS; "
     command += "start_core; "
     command += "status=$(ubus call performance-manager status '{}'); printf '%s' \"$status\" | grep -q '\"running\": true'; "
@@ -271,7 +288,8 @@ def execute(
     command += 'test "$rc" -eq 0; '
     command += f"test \"$(package_version {PACKAGE})\" = {shlex.quote(current_pkgver)}; "
     command += "echo PM_PACKAGE_UPGRADE=PASS; "
-    command += "test \"$(uci get performance-manager.core.goal)\" = synthetic-upgrade-user-value; echo PM_CONFIG_PRESERVED=PASS; "
+    command += "apk info -e rill-runtime >/dev/null 2>&1; echo PM_RUNTIME_SHARED=PASS; "
+    command += "test \"$(uci get performance-manager.main.goal)\" = synthetic-upgrade-user-value; echo PM_CONFIG_PRESERVED=PASS; "
     command += "for payload_path in /usr/sbin/performance-manager.uc /usr/bin/rill-runtime /www/luci-static/resources/view/performance-manager/overview.js /usr/share/luci/menu.d/luci-app-performance-manager.json /usr/share/rpcd/acl.d/luci-app-performance-manager.json; do sha256sum \"$payload_path\"; done > /tmp/pm-full-upgrade/installed-payload-sha256; "
     command += "start_core; "
     command += "status=$(ubus call performance-manager status '{}'); printf '%s' \"$status\" | grep -q '\"running\": true'; echo PM_POST_UPGRADE_SERVICE=PASS; echo PM_UBUS=PASS; "
@@ -340,9 +358,9 @@ def execute(
         result["installedPayload"].get(CORE_PATH, {}).get("match") is True and
         prior_observed.get(CORE_PATH) and prior_observed.get(CORE_PATH) != expected.get(CORE_PATH)
     )
-    result["runtimeUpdated"] = (
-        result["installedPayload"].get(RUNTIME_PATH, {}).get("match") is True and
-        prior_observed.get(RUNTIME_PATH) and prior_observed.get(RUNTIME_PATH) != expected.get(RUNTIME_PATH)
+    result["runtimeShared"] = (
+        result["installedPayload"].get(RUNTIME_PATH, {}).get("match") is True
+        and "PM_RUNTIME_SHARED=PASS" in output
     )
     result["luciUpdated"] = (
         result["installedPayload"].get(LUCi_PATHS[0], {}).get("match") is True and
@@ -356,7 +374,7 @@ def execute(
         "versionAdvanced": result["versionAdvanced"],
         "configPreserved": result["configPreserved"],
         "coreUpdated": result["coreUpdated"],
-        "runtimeUpdated": result["runtimeUpdated"],
+        "runtimeShared": result["runtimeShared"],
         "luciUpdated": result["luciUpdated"],
         "installedPayloadExact": result["installedPayloadExact"],
         "oldPayloadRemoved": result["oldPayloadRemoved"],

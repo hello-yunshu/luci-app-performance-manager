@@ -433,6 +433,7 @@ def main(argv=None) -> int:
             upgrade = execute_full_upgrade(
                 upgrade_clone, prior_apk.resolve(), packages[ALL_IN_ONE[0]].resolve(),
                 json.loads(prior_metadata_path.read_text()), build, args.expected_commit,
+                {name: packages[name].resolve() for name in RUNTIME_DEPS},
             )
         else:
             upgrade = {

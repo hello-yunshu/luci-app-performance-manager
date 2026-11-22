@@ -26,7 +26,7 @@ class FullUpgradeGateTests(unittest.TestCase):
 
     def test_missing_upgrade_assertion_is_not_a_pass(self):
         flags = self.flags()
-        del flags["runtimeUpdated"]
+        del flags["coreUpdated"]
         self.assertEqual(evaluate_upgrade_flags(flags), "FAIL")
 
     def test_same_version_is_not_lower(self):
@@ -58,23 +58,28 @@ class FullUpgradeGateTests(unittest.TestCase):
             rootfs.mkdir()
             prior_apk = temp / "luci-app-performance-manager-all-1.0.3-r1.apk"
             current_apk = temp / "luci-app-performance-manager-all-1.0.7-r7.apk"
+            runtime_apk = temp / "rill-runtime-v25.12.6-x86_64.apk"
             prior_apk.write_bytes(b"prior")
             current_apk.write_bytes(b"current")
+            runtime_apk.write_bytes(b"runtime")
             digest = "b" * 64
             luci_paths = (
                 "/www/luci-static/resources/view/performance-manager/overview.js",
                 "/usr/share/luci/menu.d/luci-app-performance-manager.json",
                 "/usr/share/rpcd/acl.d/luci-app-performance-manager.json",
             )
-            build = {"packages": {full_upgrade_gate.PACKAGE: {
-                "pkgver": "1.0.7-r7",
-                "apkSha256": sha(current_apk),
-                "installedPayload": {
-                    path: digest
-                    for path in (full_upgrade_gate.CORE_PATH, *luci_paths)
+            build = {"packages": {
+                full_upgrade_gate.PACKAGE: {
+                    "pkgver": "1.0.7-r7",
+                    "apkSha256": sha(current_apk),
+                    "installedPayload": {
+                        path: digest
+                        for path in (full_upgrade_gate.CORE_PATH, *luci_paths)
+                    },
+                    "runtimeBinary": {"sha256": digest},
                 },
-                "runtimeBinary": {"sha256": digest},
-            }}}
+                "rill-runtime": {"apkSha256": sha(runtime_apk)},
+            }}
             prior = {
                 "pkgver": "1.0.3-r1",
                 "sha256": sha(prior_apk),
@@ -86,7 +91,8 @@ class FullUpgradeGateTests(unittest.TestCase):
                 args=[], returncode=0, stdout="", stderr="")
             try:
                 full_upgrade_gate.execute(rootfs, prior_apk, current_apk, prior,
-                                          build, "0" * 40)
+                                          build, "0" * 40,
+                                          {"rill-runtime": runtime_apk})
             finally:
                 full_upgrade_gate.run = original_run
             staged = rootfs / "tmp/pm-full-upgrade"
@@ -94,6 +100,7 @@ class FullUpgradeGateTests(unittest.TestCase):
             # must exist there or the solver reports "(no such package)".
             self.assertTrue((staged / prior_apk.name).is_file())
             self.assertTrue((staged / current_apk.name).is_file())
+            self.assertTrue((staged / runtime_apk.name).is_file())
 
     def test_generic_wget_ssl_transport_error_is_unavailable(self):
         completed = subprocess.CompletedProcess(

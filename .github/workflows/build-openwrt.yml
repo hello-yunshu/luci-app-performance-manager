@@ -449,7 +449,6 @@ jobs:
           # assembly or public asset staging step.
           python3 scripts/build_synthetic_prior_fixture.py \
             --sdk-dir "$SDKDIR" \
-            --runtime-apk "$RILL_QUALIFIED_PACKAGE" \
             --out full-upgrade-prior/synthetic-prior \
             --version 1.0.3 --release 1 --package-arch "$PACKAGE_ARCH" \
             --commit "$GITHUB_SHA"
