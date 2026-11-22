@@ -26,6 +26,7 @@ from full_upgrade_gate import retry_shell
 SPLIT = ("performance-manager", "luci-app-performance-manager",
          "performance-manager-rill", "rill-runtime")
 ALL_IN_ONE = ("luci-app-performance-manager-all",)
+RUNTIME_DEPS = ("rill-runtime", "rill-runtime-manager")
 PM_OWNED_PATHS = (
     "/usr/sbin/performance-manager.uc",
     "/usr/share/performance-manager",
@@ -39,7 +40,7 @@ PM_OWNED_PATHS = (
 
 def package_name(path: Path) -> str:
     name = path.name
-    for package in sorted((*SPLIT, "luci-app-performance-manager-all"),
+    for package in sorted((*SPLIT, *ALL_IN_ONE, *RUNTIME_DEPS),
                           key=len, reverse=True):
         for separator in ("-", "_"):
             prefix = package + separator
@@ -120,7 +121,16 @@ def execute(rootfs: Path, packages: dict[str, Path], names: tuple[str, ...],
         guest.mkdir(parents=True, exist_ok=True)
         try:
             staged = []
-            for name in names:
+            # The all-in-one package statically depends on the Rill packages.
+            # They are built by this repository and therefore are not in any
+            # upstream repository; install them from the same verified build
+            # output instead of expecting the package index to provide them.
+            install_names = tuple(names)
+            if names == ALL_IN_ONE:
+                install_names += tuple(
+                    name for name in RUNTIME_DEPS if name not in names
+                )
+            for name in install_names:
                 src = packages[name]
                 expected_sha = (build.get("packages", {}).get(name) or {}).get("apkSha256")
                 actual_sha = sha256_file(src)
@@ -212,7 +222,7 @@ def execute(rootfs: Path, packages: dict[str, Path], names: tuple[str, ...],
                 + preinstall_dependency_check
                 + "if command -v apk >/dev/null 2>&1; then "
                 f"test '{suffix}' = '.apk'; "
-                + retry_shell("apk add --allow-untrusted --no-cache " + " ".join(staged))
+                + retry_shell("apk add --allow-untrusted " + " ".join(staged))
                 + "if [ \"$rc\" -eq 0 ]; then "
                 + "echo PM_APK_REPOSITORY_TRANSPORT=https; "
                 + "else echo PM_APK_REPOSITORY_TRANSPORT=unavailable; exit 2; fi; "
@@ -241,12 +251,12 @@ def execute(rootfs: Path, packages: dict[str, Path], names: tuple[str, ...],
                 + "printf '%s' \"$rill_status\" | jsonfilter -e '@.state' | grep -q .; "
                 + "echo PM_SERVICE_SMOKE=PASS; echo PM_UBUS_STATUS=PASS; echo PM_RILL_STATUS=PASS; "
                 + snapshot_command
-                + ("if apk add --allow-untrusted --no-cache " + " ".join(conflict_staged)
+                + ("if apk add --allow-untrusted " + " ".join(conflict_staged)
                    + " >/tmp/pm-conflict-install.log 2>&1; then cat /tmp/pm-conflict-install.log; exit 1; fi; "
                    + "cat /tmp/pm-conflict-install.log >&2; grep -Eiq 'conflict|breaks:' /tmp/pm-conflict-install.log; "
                    + "echo PM_FULL_CONFLICT_SMOKE=PASS; "
                    if names == ALL_IN_ONE else
-                   f"if apk add --allow-untrusted --no-cache {full_staged} >/tmp/pm-conflict-install.log 2>&1; then cat /tmp/pm-conflict-install.log; exit 1; fi; "
+                   f"if apk add --allow-untrusted {full_staged} >/tmp/pm-conflict-install.log 2>&1; then cat /tmp/pm-conflict-install.log; exit 1; fi; "
                    + "cat /tmp/pm-conflict-install.log >&2; grep -Eiq 'conflict|breaks:' /tmp/pm-conflict-install.log; "
                    + "echo PM_SPLIT_FULL_CONFLICT_SMOKE=PASS; ")
                 + post_apk_install + "else "
@@ -366,7 +376,7 @@ def main(argv=None) -> int:
     if build.get("repositoryCommitSha") != args.expected_commit:
         raise SystemExit("build metadata commit does not match --expected-commit")
     packages = locate_packages(args.packages, ("synthetic-prior",))
-    missing = sorted(set(SPLIT + ALL_IN_ONE) - set(packages))
+    missing = sorted(set(SPLIT + ALL_IN_ONE + RUNTIME_DEPS) - set(packages))
     if missing:
         raise SystemExit(f"missing package artifacts: {', '.join(missing)}")
 
