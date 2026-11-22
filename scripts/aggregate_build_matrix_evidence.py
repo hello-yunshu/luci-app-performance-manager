@@ -118,12 +118,16 @@ def main(argv: list[str] | None = None) -> int:
         for name in (verification.get("packages") or {})
     })
     package_matrix = {}
+    # Shared dependencies (e.g. rill-runtime-manager) are recorded with their
+    # own status but must still match the built SHA on every target.
+    verified_statuses = {"ok", "shared-dependency"}
     for name in package_names:
         targets = []
         for metadata_path, verification_path, metadata, verification in pairs:
             verified = (verification.get("packages") or {}).get(name) or {}
             built = (metadata.get("packages") or {}).get(name) or {}
-            if verified.get("status") != "ok" or built.get("status") != "ok":
+            if verified.get("status") not in verified_statuses \
+                    or built.get("status") not in verified_statuses:
                 raise RuntimeError(f"{name} is not verified for {metadata.get('architecture')}")
             if verified.get("sha256") != built.get("apkSha256"):
                 raise RuntimeError(f"{name} SHA mismatch for {metadata.get('architecture')}")
