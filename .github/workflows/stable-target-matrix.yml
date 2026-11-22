@@ -91,10 +91,21 @@ jobs:
           sudo tar -xzf "$archive" -C .portable-rootfs
           sudo rm -f .portable-rootfs/etc/resolv.conf
           sudo cp /etc/resolv.conf .portable-rootfs/etc/resolv.conf
+          # Repo index fetches can transiently fail from the hosted runner
+          # (mirrors truncate packages.adb); retry without changing what is
+          # installed or where it comes from.
           if sudo chroot .portable-rootfs /bin/sh -c 'command -v apk >/dev/null 2>&1'; then
-            sudo chroot .portable-rootfs /bin/sh -c 'apk update && apk add ca-bundle ucode ucode-mod-fs ucode-mod-ubus ucode-mod-uci ucode-mod-rtnl ucode-mod-uloop ucode-mod-socket ucode-mod-log'
+            for attempt in 1 2 3 4 5; do
+              if sudo chroot .portable-rootfs /bin/sh -c 'apk update && apk add ca-bundle ucode ucode-mod-fs ucode-mod-ubus ucode-mod-uci ucode-mod-rtnl ucode-mod-uloop ucode-mod-socket ucode-mod-log'; then break; fi
+              if [ "$attempt" = 5 ]; then exit 1; fi
+              sleep 15
+            done
           else
-            sudo chroot .portable-rootfs /bin/sh -c 'opkg update && opkg install ucode ucode-mod-fs ucode-mod-ubus ucode-mod-uci ucode-mod-rtnl ucode-mod-uloop ucode-mod-socket ucode-mod-log'
+            for attempt in 1 2 3 4 5; do
+              if sudo chroot .portable-rootfs /bin/sh -c 'opkg update && opkg install ucode ucode-mod-fs ucode-mod-ubus ucode-mod-uci ucode-mod-rtnl ucode-mod-uloop ucode-mod-socket ucode-mod-log'; then break; fi
+              if [ "$attempt" = 5 ]; then exit 1; fi
+              sleep 15
+            done
           fi
           sudo rm -rf .portable-core-rootfs
           sudo mkdir -p .portable-core-rootfs
