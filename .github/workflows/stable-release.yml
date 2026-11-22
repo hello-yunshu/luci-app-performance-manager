@@ -16,10 +16,13 @@ on:
         required: true
         type: string
       profile:
-        description: Authorized release evidence profile
-        required: true
-        default: hardware
+        description: Authorized release evidence profile (auto runs read it from the evidence)
+        required: false
+        default: ""
         type: string
+  workflow_run:
+    workflows: ["Stable evidence aggregate"]
+    types: [completed]
 
 permissions:
   actions: read
@@ -30,13 +33,93 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  resolve:
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.event == 'push' &&
+       github.event.workflow_run.head_branch == 'main')
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    outputs:
+      expected_sha: ${{ steps.identity.outputs.expected_sha }}
+      aggregate_run_id: ${{ steps.identity.outputs.aggregate_run_id }}
+      build_run_id: ${{ steps.identity.outputs.build_run_id }}
+      requested_profile: ${{ steps.identity.outputs.requested_profile }}
+    steps:
+      - name: Resolve same-commit aggregate and Build runs
+        id: identity
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            sha='${{ github.event.inputs.expected_sha }}'
+            aggregate='${{ github.event.inputs.aggregate_run_id }}'
+            build='${{ github.event.inputs.build_run_id }}'
+            profile='${{ github.event.inputs.profile }}'
+          else
+            sha='${{ github.event.workflow_run.head_sha }}'
+            aggregate='${{ github.event.workflow_run.id }}'
+            profile=''
+            build=''
+            for _ in $(seq 1 20); do
+              picked=$(gh run list --workflow build-openwrt.yml --branch main --commit "$sha" --limit 20 \
+                --json databaseId,status,conclusion \
+                --jq '.[] | select(.status == "completed") | "\(.databaseId) \(.conclusion)"' | head -1)
+              if [ -n "$picked" ]; then
+                if [ "${picked##* }" = success ]; then build=${picked%% *}; fi
+                break
+              fi
+              sleep 30
+            done
+            if [ -z "$build" ]; then
+              echo "no successful same-commit Build run for $sha" >&2
+              exit 1
+            fi
+          fi
+          printf 'expected_sha=%s\n' "$sha" >> "$GITHUB_OUTPUT"
+          printf 'aggregate_run_id=%s\n' "$aggregate" >> "$GITHUB_OUTPUT"
+          printf 'build_run_id=%s\n' "$build" >> "$GITHUB_OUTPUT"
+          printf 'requested_profile=%s\n' "$profile" >> "$GITHUB_OUTPUT"
+
+  gate:
+    # A repeated push without a version bump must not fail the chain: an already
+    # public release is left untouched instead of being re-mutated.
+    needs: resolve
+    runs-on: ubuntu-latest
+    outputs:
+      publish: ${{ steps.check.outputs.publish }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.resolve.outputs.expected_sha }}
+      - name: Skip when this version is already published
+        id: check
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          tag="v$(cat VERSION)"
+          if gh release view "$tag" >/dev/null 2>&1 && \
+             [ "$(gh release view "$tag" --json isDraft --jq .isDraft)" = false ]; then
+            echo "publish=false" >> "$GITHUB_OUTPUT"
+            echo "$tag is already public; nothing to publish"
+          else
+            echo "publish=true" >> "$GITHUB_OUTPUT"
+          fi
+
   publish:
+    needs: [resolve, gate]
+    if: needs.gate.outputs.publish == 'true'
     runs-on: ubuntu-latest
     environment: stable-release
     steps:
       - uses: actions/checkout@v7
         with:
-          ref: ${{ inputs.expected_sha }}
+          ref: ${{ needs.resolve.outputs.expected_sha }}
           fetch-depth: 0
       - name: Verify run and repository identities
         shell: bash
@@ -44,11 +127,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          case '${{ inputs.profile }}' in
-            hardware|portable-docker) ;;
-            *) echo "unsupported release profile: ${{ inputs.profile }}" >&2; exit 1 ;;
-          esac
-          test "$(git rev-parse HEAD)" = "${{ inputs.expected_sha }}"
+          test "$(git rev-parse HEAD)" = "${{ needs.resolve.outputs.expected_sha }}"
           version=$(cat VERSION)
           [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]
           for makefile in package/*/Makefile; do
@@ -58,8 +137,8 @@ jobs:
               exit 1
             }
           done
-          python3 scripts/verify_action_run_identity.py --run-id '${{ inputs.aggregate_run_id }}' --expected-sha '${{ inputs.expected_sha }}' --expected-workflow 'Stable evidence aggregate' --expected-workflow-path '.github/workflows/stable-aggregate.yml'
-          python3 scripts/verify_action_run_identity.py --run-id '${{ inputs.build_run_id }}' --expected-sha '${{ inputs.expected_sha }}' --expected-workflow 'Build OpenWrt (remote SDK)' --expected-workflow-path '.github/workflows/build-openwrt.yml'
+          python3 scripts/verify_action_run_identity.py --run-id '${{ needs.resolve.outputs.aggregate_run_id }}' --expected-sha '${{ needs.resolve.outputs.expected_sha }}' --expected-workflow 'Stable evidence aggregate' --expected-workflow-path '.github/workflows/stable-aggregate.yml'
+          python3 scripts/verify_action_run_identity.py --run-id '${{ needs.resolve.outputs.build_run_id }}' --expected-sha '${{ needs.resolve.outputs.expected_sha }}' --expected-workflow 'Build OpenWrt (remote SDK)' --expected-workflow-path '.github/workflows/build-openwrt.yml'
       - name: Download exact build and final Stable evidence
         shell: bash
         env:
@@ -67,16 +146,20 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p release-input/build release-input/stable release-public release-evidence
-          gh run download "${{ inputs.build_run_id }}" --dir release-input/build
-          gh run download "${{ inputs.aggregate_run_id }}" --dir release-input/stable
+          gh run download "${{ needs.resolve.outputs.build_run_id }}" --dir release-input/build
+          gh run download "${{ needs.resolve.outputs.aggregate_run_id }}" --dir release-input/stable
           mapfile -t evidence_files < <(find release-input/stable -name final-stable-evidence.json -type f -print)
           test "${#evidence_files[@]}" = 1
           evidence="${evidence_files[0]}"
-          python3 - "$evidence" "${{ inputs.expected_sha }}" <<'PY'
+          profile=$(python3 - "$evidence" "${{ needs.resolve.outputs.expected_sha }}" "${{ needs.resolve.outputs.requested_profile }}" <<'PY'
           import json, sys
           data=json.load(open(sys.argv[1]))
+          requested=sys.argv[3]
           assert data['overallVerdict']=='PASS' and data['stableReleaseVerdict']=='PASS' and data['stableReleaseAuthorized'] is True, data
-          assert data['releaseProfile']=='${{ inputs.profile }}', data
+          assert data['releaseProfile'] in ('hardware', 'portable-docker'), data
+          if requested:
+              # A manual dispatch may narrow the expectation, never widen it.
+              assert data['releaseProfile']==requested, data
           if data['releaseProfile']=='hardware':
               assert data['hardwareCoverage']=='PASS', data
           else:
@@ -84,12 +167,15 @@ jobs:
               # hardware proof; the notes disclose the narrower coverage.
               assert data['hardwareCoverage']=='NOT_EVALUATED', data
           assert data['pmCommitSha']==sys.argv[2], data
+          print(data['releaseProfile'])
           PY
+          )
+          echo "RELEASE_PROFILE=$profile" >> "$GITHUB_ENV"
       - name: Prove source ZIP reproducibility from tracked files
         shell: bash
         run: |
           set -euo pipefail
-          SOURCE_DATE_EPOCH=$(git show -s --format=%ct '${{ inputs.expected_sha }}')
+          SOURCE_DATE_EPOCH=$(git show -s --format=%ct '${{ needs.resolve.outputs.expected_sha }}')
           export SOURCE_DATE_EPOCH
           python3 scripts/make_release.py
           first=''
@@ -105,7 +191,7 @@ jobs:
           set -euo pipefail
           python3 scripts/assemble_public_release.py \
             --input release-input/build --out release-public \
-            --expected-commit '${{ inputs.expected_sha }}' --version "$(cat VERSION)"
+            --expected-commit '${{ needs.resolve.outputs.expected_sha }}' --version "$(cat VERSION)"
           for name in final-stable-evidence.json FINAL_AUDIT.json FINAL_AUDIT.md; do
             mapfile -t files < <(find release-input/stable -name "$name" -type f -print)
             test "${#files[@]}" = 1
@@ -116,10 +202,10 @@ jobs:
           cp "dist/openwrt-performance-manager-$(cat VERSION).manifest.json" release-evidence/source-manifest.json
           python3 scripts/build_release_manifest.py --assets release-public \
               --input release-input/build --evidence-dir release-evidence \
-              --expected-commit '${{ inputs.expected_sha }}' --version "$(cat VERSION)"
+              --expected-commit '${{ needs.resolve.outputs.expected_sha }}' --version "$(cat VERSION)"
           python3 scripts/verify_public_release_assets.py \
             --assets release-public --version "$(cat VERSION)"
-          python3 - '${{ inputs.profile }}' '${{ inputs.expected_sha }}' <<'PY'
+          python3 - "$RELEASE_PROFILE" '${{ needs.resolve.outputs.expected_sha }}' <<'PY'
           import json, pathlib, sys
           profile, sha = sys.argv[1], sys.argv[2]
           version = pathlib.Path('VERSION').read_text().strip()
@@ -176,14 +262,14 @@ jobs:
           tag="v$version"
           remote_tag=$(git ls-remote --tags origin "refs/tags/${tag}^{}" | awk '{print $1}')
           if [ -n "$remote_tag" ]; then
-            test "$remote_tag" = "${{ inputs.expected_sha }}" || {
-              echo "$tag exists at $remote_tag, expected ${{ inputs.expected_sha }}" >&2
+            test "$remote_tag" = "${{ needs.resolve.outputs.expected_sha }}" || {
+              echo "$tag exists at $remote_tag, expected ${{ needs.resolve.outputs.expected_sha }}" >&2
               exit 1
             }
           else
             git config user.name 'github-actions[bot]'
             git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-            git tag -a "$tag" "${{ inputs.expected_sha }}" -m "Performance Manager $tag"
+            git tag -a "$tag" "${{ needs.resolve.outputs.expected_sha }}" -m "Performance Manager $tag"
             git push origin "refs/tags/$tag"
           fi
           if gh release view "$tag" >/dev/null 2>&1; then
