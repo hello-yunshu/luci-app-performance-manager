@@ -44,6 +44,10 @@ EXPECTED = [
     'luci-app-performance-manager-all',
 ]
 ALL_IN_ONE = 'luci-app-performance-manager-all'
+# Built from the pinned Rill repository as the all-in-one glue dependency. It
+# is not a PM-owned package but the Stable gate installs it from the same build
+# output, so its identity must be recorded here.
+SHARED_DEPENDENCIES = {'rill-runtime-manager'}
 ARCH_INDEPENDENT = {
     'performance-manager',
     'luci-app-performance-manager',
@@ -808,16 +812,38 @@ def main(argv):
                 failures.append(f'{name}: must not own the shared Runtime payload')
         print(f"OK {name}: {apk.name} pkgver={pkgver} arch={pkgarch} sha256={report['packages'][name]['sha256']}")
 
+    for name in sorted(SHARED_DEPENDENCIES):
+        found = by_name.get(name, [])
+        if not found:
+            failures.append(f'{name}: no {pkgtype.upper()} with pkgname=={name} found')
+            report['packages'][name] = {'status': 'missing'}
+            continue
+        if len(found) > 1:
+            dup = ', '.join(p[0].name for p in found)
+            failures.append(f'{name}: multiple {pkgtype.upper()}s resolve to pkgname=={name}: {dup}')
+            report['packages'][name] = {'status': 'duplicate', 'files': [p[0].name for p in found]}
+            continue
+        apk, meta = found[0]
+        # Record identity only: the version is owned by the pinned Rill
+        # repository, not by the PM VERSION file.
+        report['packages'][name] = {
+            'status': 'shared-dependency',
+            'filename': apk.name,
+            'sha256': sha256(apk),
+            'pkgname': name,
+            'pkgver': meta.get('pkgver', ''),
+            'arch': meta.get('arch', ''),
+        }
+
     # Reject any stray APK that is not one of the expected packages but
     # shares a prefix (e.g. a leftover old artifact) — better to be strict.
     # rill-runtime-manager is a legitimate shared dependency staged by the
     # workflow alongside the qualified Runtime, not a PM artifact.
-    shared_dependencies = {'rill-runtime-manager'}
     extra = []
     for apk in sorted(packages):
         meta = package_pkginfo(apk)
         name = (meta or {}).get('pkgname')
-        if name and name not in EXPECTED and name not in shared_dependencies \
+        if name and name not in EXPECTED and name not in SHARED_DEPENDENCIES \
                 and any(name.startswith(p + '-') or name.startswith(p + '_') for p in EXPECTED):
             extra.append(apk.name)
     if extra:

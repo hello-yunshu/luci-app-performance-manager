@@ -26,8 +26,10 @@ def retry_shell(command: str, attempts: int = 8, delay: int = 15) -> str:
     downloads.openwrt.org intermittently truncates index responses
     ("unexpected end of file"), which apk turns into "no such package".
     The retry repeats the same command against the same source and does not
-    change what is installed or which assertions run.  Sets `rc` to 0 on
-    success and 1 after the final attempt.
+    change what is installed or which assertions run.  Indexes are read from
+    the cache populated by the harness `apk update`, so only the small
+    package payloads are fetched here.  Sets `rc` to 0 on success and 1 after
+    the final attempt.
     """
     return (
         'rc=1; attempt=0; '
@@ -243,7 +245,7 @@ def execute(
     command = "set -eu; "
     command += f"mkdir -p {shlex.quote(root_tmp)}; "
     command += f"{_package_version_shell()}; {_service_shell()}; "
-    command += retry_shell(f"apk add --allow-untrusted --no-cache {shlex.quote(prior_guest)}")
+    command += retry_shell(f"apk add --allow-untrusted {shlex.quote(prior_guest)}")
     command += 'test "$rc" -eq 0; '
     command += f"test \"$(package_version {PACKAGE})\" = {shlex.quote(prior_pkgver)}; "
     command += "echo PM_PRIOR_INSTALL=PASS; "
@@ -257,7 +259,7 @@ def execute(
     command += "echo PM_PRIOR_SERVICE=PASS; "
     command += "for payload_path in /usr/sbin/performance-manager.uc /usr/bin/rill-runtime /www/luci-static/resources/view/performance-manager/overview.js; do sha256sum \"$payload_path\"; done > /tmp/pm-full-upgrade/prior-payload-sha256; "
     command += "stop_core; "
-    command += retry_shell(f"apk add --allow-untrusted --no-cache --upgrade {shlex.quote(current_guest)}")
+    command += retry_shell(f"apk add --allow-untrusted --upgrade {shlex.quote(current_guest)}")
     command += 'test "$rc" -eq 0; '
     command += f"test \"$(package_version {PACKAGE})\" = {shlex.quote(current_pkgver)}; "
     command += "echo PM_PACKAGE_UPGRADE=PASS; "

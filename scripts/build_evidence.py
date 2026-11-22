@@ -179,6 +179,7 @@ def main(argv):
         'luci-app-performance-manager',
         'performance-manager-rill',
         'rill-runtime',
+        'rill-runtime-manager',
         'luci-app-performance-manager-all',
     ]
     package_shas = {}
