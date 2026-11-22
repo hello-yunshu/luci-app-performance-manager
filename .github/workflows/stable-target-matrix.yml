@@ -91,9 +91,19 @@ jobs:
           sudo tar -xzf "$archive" -C .portable-rootfs
           sudo rm -f .portable-rootfs/etc/resolv.conf
           sudo cp /etc/resolv.conf .portable-rootfs/etc/resolv.conf
-          # Repo index fetches can transiently fail from the hosted runner
-          # (mirrors truncate packages.adb); retry without changing what is
-          # installed or where it comes from.
+          # The pristine rootfs ships an empty /dev. TLS fetches from inside
+          # the chroot (apk-mbedtls / uclient-fetch) need an entropy source
+          # and fail every index with "wgetSSL error: ERROR - Generic error"
+          # when /dev/urandom is missing. Provide standard device nodes for
+          # the chroot phase only; they are removed again before the rootfs
+          # is copied into the Docker build context below.
+          sudo mknod -m 0666 .portable-rootfs/dev/null c 1 3
+          sudo mknod -m 0666 .portable-rootfs/dev/zero c 1 5
+          sudo mknod -m 0666 .portable-rootfs/dev/random c 1 8
+          sudo mknod -m 0666 .portable-rootfs/dev/urandom c 1 9
+          # Repo index fetches can still transiently fail from the hosted
+          # runner (mirrors truncate packages.adb); retry without changing
+          # what is installed or where it comes from.
           if sudo chroot .portable-rootfs /bin/sh -c 'command -v apk >/dev/null 2>&1'; then
             for attempt in 1 2 3 4 5; do
               if sudo chroot .portable-rootfs /bin/sh -c 'apk update && apk add ca-bundle ucode ucode-mod-fs ucode-mod-ubus ucode-mod-uci ucode-mod-rtnl ucode-mod-uloop ucode-mod-socket ucode-mod-log'; then break; fi
@@ -107,6 +117,9 @@ jobs:
               sleep 15
             done
           fi
+          # Keep special files out of the Docker build context; the
+          # container runtime provides /dev at run time.
+          sudo rm -f .portable-rootfs/dev/null .portable-rootfs/dev/zero .portable-rootfs/dev/random .portable-rootfs/dev/urandom
           sudo rm -rf .portable-core-rootfs
           sudo mkdir -p .portable-core-rootfs
           sudo tar -cf - -C .portable-rootfs . | sudo tar -xf - -C .portable-core-rootfs
