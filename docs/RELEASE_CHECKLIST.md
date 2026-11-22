@@ -10,13 +10,18 @@ Hyper-V, KVM hotplug, real-router A/B, firmware sysupgrade reboot, and 12-hour
 hardware soak are **NOT_EVALUATED**. The checklist below remains the separate
 `hardware` profile and must not be represented as passed by portable evidence.
 
-## Current Stable policy for v1.0.4 and later
+## Current Stable policy for v1.0.7 and later
 
-The current source candidate is `1.0.4`. A Stable release may use only the
-`hardware` profile: every hardware gate below must be `PASS` in a same-commit
-aggregate. Portable evidence can authorize a portable/prerelease result only;
-it always leaves `stableReleaseVerdict=NOT_EVALUATED`,
-`stableReleaseAuthorized=false`, and `hardwareCoverage=NOT_EVALUATED`.
+As of 2026-11-22 the repository owner removed the hardware-evidence
+precondition. Either profile may authorize a Stable release:
+
+- `portable-docker`: hosted-runner proof (same-commit CI/Build, real Core ucode
+  harness in Docker, package-composition gate, repository tests). It authorizes
+  Stable but always records `hardwareCoverage=NOT_EVALUATED`, and release notes
+  must disclose that Hyper-V, KVM hotplug, real-router A/B, firmware sysupgrade
+  reboot and the 12-hour hardware soak were **not executed**.
+- `hardware`: additionally proves every external hardware gate below; only this
+  profile may report `hardwareCoverage=PASS`.
 
 ## Build / package
 
