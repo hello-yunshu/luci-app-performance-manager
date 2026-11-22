@@ -41,7 +41,7 @@ class ReleaseGateSourceTests(unittest.TestCase):
         sys.path.insert(0, str(ROOT / 'scripts'))
         from package_composition_gate import package_name
         self.assertEqual(package_name(Path('rill-runtime-v25.12.6-x86_64.apk')), 'rill-runtime')
-        self.assertEqual(package_name(Path('rill-runtime-manager-1.0.0-r2.apk')), '')
+        self.assertEqual(package_name(Path('rill-runtime-manager-1.0.0-r2.apk')), 'rill-runtime-manager')
         self.assertEqual(
             package_name(Path('luci-app-performance-manager-all-v1.0.7-openwrt-25.12.6-x86_64.apk')),
             'luci-app-performance-manager-all')
