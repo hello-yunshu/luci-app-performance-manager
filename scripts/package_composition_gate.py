@@ -20,6 +20,7 @@ import tempfile
 from pathlib import Path
 
 from full_upgrade_gate import execute as execute_full_upgrade
+from full_upgrade_gate import retry_shell
 
 
 SPLIT = ("performance-manager", "luci-app-performance-manager",
@@ -211,9 +212,10 @@ def execute(rootfs: Path, packages: dict[str, Path], names: tuple[str, ...],
                 + preinstall_dependency_check
                 + "if command -v apk >/dev/null 2>&1; then "
                 f"test '{suffix}' = '.apk'; "
-                "if apk add --allow-untrusted --no-cache " + " ".join(staged) + "; then "
-                "echo PM_APK_REPOSITORY_TRANSPORT=https; "
-                "else echo PM_APK_REPOSITORY_TRANSPORT=unavailable; exit 2; fi; "
+                + retry_shell("apk add --allow-untrusted --no-cache " + " ".join(staged))
+                + "if [ \"$rc\" -eq 0 ]; then "
+                + "echo PM_APK_REPOSITORY_TRANSPORT=https; "
+                + "else echo PM_APK_REPOSITORY_TRANSPORT=unavailable; exit 2; fi; "
                 + dependency_check
                 + runtime_identity_check
                 + "test -x /etc/init.d/performance-manager; "
@@ -249,7 +251,8 @@ def execute(rootfs: Path, packages: dict[str, Path], names: tuple[str, ...],
                    + "echo PM_SPLIT_FULL_CONFLICT_SMOKE=PASS; ")
                 + post_apk_install + "else "
                 f"test '{suffix}' = '.ipk'; "
-                "opkg install " + " ".join(staged) + "; "
+                + retry_shell("opkg install " + " ".join(staged))
+                + "test \"$rc\" -eq 0; "
                 "timeout_after=$(command -v timeout 2>/dev/null || true); test -n \"$timeout_after\"; "
                 "opkg status coreutils-timeout 2>/dev/null | grep -q 'Status: install'; "
                 "echo PM_TIMEOUT_AFTER=present; echo PM_COREUTILS_TIMEOUT_INSTALLED=PASS; echo PM_DEPENDENCY_CLOSURE=PASS; "
