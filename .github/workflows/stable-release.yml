@@ -44,7 +44,10 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          test '${{ inputs.profile }}' = hardware
+          case '${{ inputs.profile }}' in
+            hardware|portable-docker) ;;
+            *) echo "unsupported release profile: ${{ inputs.profile }}" >&2; exit 1 ;;
+          esac
           test "$(git rev-parse HEAD)" = "${{ inputs.expected_sha }}"
           version=$(cat VERSION)
           [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]
@@ -74,7 +77,12 @@ jobs:
           data=json.load(open(sys.argv[1]))
           assert data['overallVerdict']=='PASS' and data['stableReleaseVerdict']=='PASS' and data['stableReleaseAuthorized'] is True, data
           assert data['releaseProfile']=='${{ inputs.profile }}', data
-          assert data['releaseProfile']=='hardware' and data['hardwareCoverage']=='PASS', data
+          if data['releaseProfile']=='hardware':
+              assert data['hardwareCoverage']=='PASS', data
+          else:
+              # Portable evidence authorizes the release but never claims
+              # hardware proof; the notes disclose the narrower coverage.
+              assert data['hardwareCoverage']=='NOT_EVALUATED', data
           assert data['pmCommitSha']==sys.argv[2], data
           PY
       - name: Prove source ZIP reproducibility from tracked files
@@ -111,12 +119,17 @@ jobs:
               --expected-commit '${{ inputs.expected_sha }}' --version "$(cat VERSION)"
           python3 scripts/verify_public_release_assets.py \
             --assets release-public --version "$(cat VERSION)"
-          python3 - <<'PY'
-          import json, pathlib
+          python3 - '${{ inputs.profile }}' <<'PY'
+          import json, pathlib, sys
+          profile = sys.argv[1]
           version = pathlib.Path('VERSION').read_text().strip()
           targets=json.loads(pathlib.Path('contracts/openwrt-native-targets.json').read_text())['targets']
           lines='\n'.join(f"- OpenWrt {t['openwrtVersion']} / {t['packageArch']} ({t['packageManagerFormat']}): `performance-manager-all-v{version}-openwrt-{t['openwrtVersion']}-{t['packageArch']}.{t['packageManagerFormat']}`" for t in targets)
-          pathlib.Path('release-notes.md').write_text(f'''## 下载\n\n统一 PM 包包含 Performance Manager Core、LuCI、简体中文、Rill glue 和 Runtime 兼容清单。`rill-runtime-manager` 与共享 `rill-runtime` 由 feed 提供；请通过 LuCI 的 Rill 页面安装或更新 Runtime。包冲突时不会自动卸载旧 split 或 Stable 包。\n\n{lines}\n\nRuntime provenance、构建证据和硬件资格保留在 Actions；Stable 只在 hardware gate 全部通过后发布。\n''')
+          if profile == 'hardware':
+              coverage = '发布依据：hardware 档位全部 gate PASS（hardwareCoverage = PASS）。'
+          else:
+              coverage = '发布依据：hosted runner 的 portable 档位证据（profile = portable-docker；真实 Core ucode harness、package-composition、仓库测试）。硬件档位未执行，hardwareCoverage = NOT_EVALUATED；未覆盖 real NIC、Hyper-V/KVM、LAN-WAN、sysupgrade、reboot 与 12h soak。'
+          pathlib.Path('release-notes.md').write_text(f'''## 下载\n\n统一 PM 包包含 Performance Manager Core、LuCI、简体中文、Rill glue 和 Runtime 兼容清单。`rill-runtime-manager` 与共享 `rill-runtime` 由 feed 提供；请通过 LuCI 的 Rill 页面安装或更新 Runtime。包冲突时不会自动卸载旧 split 或 Stable 包。\n\n{lines}\n\nRuntime provenance 与构建证据保留在 Actions。{coverage}\n''')
           PY
       - name: Verify or create immutable tag identity and resumable draft
         shell: bash

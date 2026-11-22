@@ -24,6 +24,8 @@ def main(argv=None) -> int:
     files = verify_public_assets(public, args.version)
     evidence = Path(args.evidence_dir or args.assets).resolve()
     evidence.mkdir(parents=True, exist_ok=True)
+    aggregate_path = evidence / "final-stable-evidence.json"
+    aggregate = json.loads(aggregate_path.read_text()) if aggregate_path.is_file() else {}
     input_root = Path(args.input).resolve() if args.input else evidence
     metadata_paths = sorted(p for p in input_root.rglob("build-metadata.json") if p.is_file())
     if len(metadata_paths) != len(TARGETS):
@@ -51,8 +53,8 @@ def main(argv=None) -> int:
         "commit": args.expected_commit,
         "tag": f"v{args.version}",
         "releaseAssemblyDryRun": args.dry_run,
-        "stableReleaseAuthorized": False,
-        "hardwareCoverage": "NOT_EVALUATED",
+        "stableReleaseAuthorized": aggregate.get("stableReleaseAuthorized") is True,
+        "hardwareCoverage": aggregate.get("hardwareCoverage") or "NOT_EVALUATED",
         "publicAssets": [{"name": name, "sha256": sha256(public / name), "bytes": (public / name).stat().st_size}
                          for name in files],
         "targets": targets,
