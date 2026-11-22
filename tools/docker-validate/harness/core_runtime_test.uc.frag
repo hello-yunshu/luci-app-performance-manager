@@ -79,6 +79,18 @@ run = function(argv) {
 			{ dst: 'default', dev: 'ppp0', table: 200 }
 		]) };
 	}
+	/* ip_json_support() probes `ip -j -4 route show` (without a table
+	 * selector) to detect a JSON-capable iproute2 before trusting route
+	 * evidence.  A device that advertises `ip` must answer that probe, or
+	 * every path degrades to netifd-fallback/unresolved and the multi-WAN/PBR
+	 * compatibility rule legitimately blocks all candidates. */
+	if (cmd == 'ip -j -4 route show') {
+		return { rc: 0, out: jstr([
+			{ dst: 'default', dev: 'eth1', table: 254 },
+			{ dst: 'default', dev: 'eth2', table: 100 },
+			{ dst: 'default', dev: 'ppp0', table: 200 }
+		]) };
+	}
 	if (cmd == 'ip -j -6 route show table all default')
 		return { rc: 0, out: '[]' };
 	if (cmd == 'ip -j -4 rule show') {
