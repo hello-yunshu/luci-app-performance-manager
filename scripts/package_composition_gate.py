@@ -111,6 +111,20 @@ def clone_rootfs(source: Path, destination: Path) -> None:
     if consumer.returncode != 0 or producer_returncode != 0:
         detail = consumer.stderr.strip() or f"tar producer exited {producer_returncode}"
         raise RuntimeError(f"could not clone rootfs: {detail}")
+    # The workflow removes device nodes from the shared rootfs because the
+    # Docker image provides /dev at run time.  This gate chroots directly on
+    # the host, so restore the entropy sources; without /dev/urandom the
+    # package manager's TLS fetches fail with "wgetSSL error: Generic error".
+    if os.geteuid() == 0:
+        dev = destination / "dev"
+        dev.mkdir(parents=True, exist_ok=True)
+        for name, major, minor in (("null", 1, 3), ("zero", 1, 5),
+                                   ("random", 1, 8), ("urandom", 1, 9)):
+            node = dev / name
+            if node.exists() or node.is_symlink():
+                node.unlink()
+            subprocess.run(["mknod", "-m", "0666", str(node), "c",
+                            str(major), str(minor)], check=True)
 
 
 def execute(rootfs: Path, packages: dict[str, Path], names: tuple[str, ...],
