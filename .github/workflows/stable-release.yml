@@ -119,17 +119,51 @@ jobs:
               --expected-commit '${{ inputs.expected_sha }}' --version "$(cat VERSION)"
           python3 scripts/verify_public_release_assets.py \
             --assets release-public --version "$(cat VERSION)"
-          python3 - '${{ inputs.profile }}' <<'PY'
+          python3 - '${{ inputs.profile }}' '${{ inputs.expected_sha }}' <<'PY'
           import json, pathlib, sys
-          profile = sys.argv[1]
+          profile, sha = sys.argv[1], sys.argv[2]
           version = pathlib.Path('VERSION').read_text().strip()
-          targets=json.loads(pathlib.Path('contracts/openwrt-native-targets.json').read_text())['targets']
-          lines='\n'.join(f"- OpenWrt {t['openwrtVersion']} / {t['packageArch']} ({t['packageManagerFormat']}): `performance-manager-all-v{version}-openwrt-{t['openwrtVersion']}-{t['packageArch']}.{t['packageManagerFormat']}`" for t in targets)
+          targets = json.loads(pathlib.Path('contracts/openwrt-native-targets.json').read_text())['targets']
+          versions = sorted({t['openwrtVersion'] for t in targets})
+          rows = '\n'.join(
+              f"| {t['openwrtVersion']} | {t['packageArch']} | {t['packageManagerFormat']} | "
+              f"`performance-manager-all-v{version}-openwrt-{t['openwrtVersion']}-{t['packageArch']}.{t['packageManagerFormat']}` |"
+              for t in targets)
+          pathlib.Path('release-title.txt').write_text(
+              f"Performance Manager v{version} · OpenWrt {' / '.join(versions)}\n")
           if profile == 'hardware':
-              coverage = '发布依据：hardware 档位全部 gate PASS（hardwareCoverage = PASS）。'
+              coverage = ('发布依据：hardware 档位全部 gate PASS（hardwareCoverage = PASS）。\n'
+                          '- 覆盖真实设备、NIC、Hyper-V/KVM、LAN-WAN、sysupgrade、reboot 与 12h soak。')
           else:
-              coverage = '发布依据：hosted runner 的 portable 档位证据（profile = portable-docker；真实 Core ucode harness、package-composition、仓库测试）。硬件档位未执行，hardwareCoverage = NOT_EVALUATED；未覆盖 real NIC、Hyper-V/KVM、LAN-WAN、sysupgrade、reboot 与 12h soak。'
-          pathlib.Path('release-notes.md').write_text(f'''## 下载\n\n统一 PM 包包含 Performance Manager Core、LuCI、简体中文、Rill glue 和 Runtime 兼容清单。`rill-runtime-manager` 与共享 `rill-runtime` 由 feed 提供；请通过 LuCI 的 Rill 页面安装或更新 Runtime。包冲突时不会自动卸载旧 split 或 Stable 包。\n\n{lines}\n\nRuntime provenance 与构建证据保留在 Actions。{coverage}\n''')
+              coverage = ('发布依据：hosted runner 的 portable 档位证据（profile = portable-docker）。\n'
+                          '- 已覆盖：真实 Core ucode harness、package composition（split 与 all-in-one 的安装/升级/卸载）、仓库测试、Docker 内服务与 ubus/Rill smoke。\n'
+                          '- 未覆盖：real NIC、Hyper-V/KVM、LAN-WAN、sysupgrade、reboot 与 12h soak；hardwareCoverage = NOT_EVALUATED。')
+          pathlib.Path('release-notes.md').write_text(f'''## Performance Manager v{version}
+
+一个安装包包含 PM Core、LuCI 界面、简体中文、Rill glue 与 Runtime 兼容清单。`rill-runtime-manager` 与共享 `rill-runtime` 由 feed 提供，首次使用前请在 LuCI 的 Rill 页面安装或更新 Runtime。
+
+### 兼容目标
+
+| OpenWrt | 架构 | 格式 | 资产 |
+| --- | --- | --- | --- |
+{rows}
+
+### 安装
+
+- OpenWrt 25.12+（apk）：`apk add --allow-untrusted <资产>`
+- OpenWrt 24.10（opkg）：`opkg install <资产>`
+- 与旧 split 包或旧 Stable 包冲突时不会自动卸载，请先手动卸载旧包。
+
+### 验证范围
+
+{coverage}
+
+### 可追溯性
+
+- 提交：`{sha}`
+- 所有资产来自同一提交的构建，校验见 `SHA256SUMS.txt`。
+- Runtime provenance 与完整证据保留在 GitHub Actions。
+''')
           PY
       - name: Verify or create immutable tag identity and resumable draft
         shell: bash
@@ -146,7 +180,7 @@ jobs:
           else
             git config user.name 'github-actions[bot]'
             git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-            git tag -a "$tag" "${{ inputs.expected_sha }}" -m "OpenWrt Performance Manager $tag"
+            git tag -a "$tag" "${{ inputs.expected_sha }}" -m "Performance Manager $tag"
             git push origin "refs/tags/$tag"
           fi
           if gh release view "$tag" >/dev/null 2>&1; then
@@ -169,10 +203,10 @@ jobs:
             gh release upload "$tag" release-public/* --clobber
           else
             gh release create "$tag" release-public/* --draft --verify-tag \
-              --title "OpenWrt Performance Manager $tag" \
+              --title "$(cat release-title.txt)" \
               --notes-file release-notes.md
           fi
-          gh release edit "$tag" --draft=false --title "OpenWrt Performance Manager $tag" \
+          gh release edit "$tag" --draft=false --title "$(cat release-title.txt)" \
             --notes-file release-notes.md
       - name: Re-download published assets and verify checksums
         shell: bash

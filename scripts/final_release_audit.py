@@ -32,10 +32,10 @@ def main(argv=None):
     verdict = evidence.get("overallVerdict", "BLOCKED")
     stable_verdict = evidence.get("stableReleaseVerdict", "NOT_EVALUATED")
     authorized = (
-        args.profile == "hardware"
-        and evidence.get("stableReleaseVerdict") == "PASS"
-        and evidence.get("hardwareCoverage") == "PASS"
+        evidence.get("stableReleaseVerdict") == "PASS"
         and evidence.get("stableReleaseAuthorized") is True
+        and (args.profile != "hardware"
+             or evidence.get("hardwareCoverage") == "PASS")
     )
     rows = [
         {"gate": name, **gate}

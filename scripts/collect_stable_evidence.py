@@ -4,12 +4,27 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import json
 import shutil
 import sys
 from pathlib import Path
 
 from aggregate_stable_evidence import PORTABLE_REQUIRED, REQUIRED
 from aggregate_build_matrix_evidence import main as aggregate_build_matrix
+
+ROOT = Path(__file__).resolve().parents[1]
+TARGETS = json.loads(
+    (ROOT / "contracts/openwrt-native-targets.json").read_text()
+)["targets"]
+
+
+def target_identity_args():
+    """Require every target the checked-in policy publishes, not a subset."""
+    args = []
+    for row in TARGETS:
+        args += ["--expected-target",
+                 f"{row['openwrtVersion']}:{row['packageArch']}:{row['packageManagerFormat']}"]
+    return args
 
 
 def digest(path):
@@ -35,9 +50,7 @@ def main(argv=None):
         aggregate_build_matrix([
             "--input", str(build_root), "--out", str(matrix_out),
             "--expected-commit", args.expected_commit,
-            "--expected-arch", "x86_64",
-            "--expected-arch", "aarch64_generic",
-            "--expected-arch", "aarch64_cortex-a53",
+            *target_identity_args(),
             "--include-path-fragment", "packages-and-evidence",
         ])
         build_root = matrix_out
