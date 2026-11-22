@@ -138,32 +138,35 @@ jobs:
               coverage = ('发布依据：hosted runner 的 portable 档位证据（profile = portable-docker）。\n'
                           '- 已覆盖：真实 Core ucode harness、package composition（split 与 all-in-one 的安装/升级/卸载）、仓库测试、Docker 内服务与 ubus/Rill smoke。\n'
                           '- 未覆盖：real NIC、Hyper-V/KVM、LAN-WAN、sysupgrade、reboot 与 12h soak；hardwareCoverage = NOT_EVALUATED。')
-          pathlib.Path('release-notes.md').write_text(f'''## Performance Manager v{version}
-
-一个安装包包含 PM Core、LuCI 界面、简体中文、Rill glue 与 Runtime 兼容清单。`rill-runtime-manager` 与共享 `rill-runtime` 由 feed 提供，首次使用前请在 LuCI 的 Rill 页面安装或更新 Runtime。
-
-### 兼容目标
-
-| OpenWrt | 架构 | 格式 | 资产 |
-| --- | --- | --- | --- |
-{rows}
-
-### 安装
-
-- OpenWrt 25.12+（apk）：`apk add --allow-untrusted <资产>`
-- OpenWrt 24.10（opkg）：`opkg install <资产>`
-- 与旧 split 包或旧 Stable 包冲突时不会自动卸载，请先手动卸载旧包。
-
-### 验证范围
-
-{coverage}
-
-### 可追溯性
-
-- 提交：`{sha}`
-- 所有资产来自同一提交的构建，校验见 `SHA256SUMS.txt`。
-- Runtime provenance 与完整证据保留在 GitHub Actions。
-''')
+          body = '\n'.join([
+              f"## Performance Manager v{version}",
+              "",
+              "一个安装包包含 PM Core、LuCI 界面、简体中文、Rill glue 与 Runtime 兼容清单。`rill-runtime-manager` 与共享 `rill-runtime` 由 feed 提供，首次使用前请在 LuCI 的 Rill 页面安装或更新 Runtime。",
+              "",
+              "### 兼容目标",
+              "",
+              "| OpenWrt | 架构 | 格式 | 资产 |",
+              "| --- | --- | --- | --- |",
+              rows,
+              "",
+              "### 安装",
+              "",
+              "- OpenWrt 25.12+（apk）：`apk add --allow-untrusted <资产>`",
+              "- OpenWrt 24.10（opkg）：`opkg install <资产>`",
+              "- 与旧 split 包或旧 Stable 包冲突时不会自动卸载，请先手动卸载旧包。",
+              "",
+              "### 验证范围",
+              "",
+              coverage,
+              "",
+              "### 可追溯性",
+              "",
+              f"- 提交：`{sha}`",
+              "- 所有资产来自同一提交的构建，校验见 `SHA256SUMS.txt`。",
+              "- Runtime provenance 与完整证据保留在 GitHub Actions。",
+              "",
+          ])
+          pathlib.Path('release-notes.md').write_text(body)
           PY
       - name: Verify or create immutable tag identity and resumable draft
         shell: bash
