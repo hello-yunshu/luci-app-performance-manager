@@ -2580,11 +2580,14 @@ msgstr "不支持该 OpenWrt 版本"
 msgid "Refreshing package indexes..."
 msgstr "正在刷新软件源索引……"
 
-msgid "An update is available (checked at %s)"
-msgstr "发现可用更新（检查于 %s）"
+msgid "Update available"
+msgstr "发现可用更新"
 
-msgid "Everything is up to date (checked at %s)"
-msgstr "已是最新版本（检查于 %s）"
+msgid "checked at %s"
+msgstr "检查于 %s"
+
+msgid "Up to date"
+msgstr "已是最新版本"
 
 msgid "Rill Runtime installed"
 msgstr "已安装 Rill 运行时"

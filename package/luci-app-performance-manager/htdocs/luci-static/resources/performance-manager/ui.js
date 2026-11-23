@@ -14,7 +14,7 @@ function ensureStyles() {
 		const link = document.createElement('link');
 		link.rel = 'stylesheet';
 		link.dataset.performanceManagerStyle = 'true';
-		link.href = ((typeof L !== 'undefined' && L.resource) ? L.resource('performance-manager/ui.css') : '/luci-static/resources/performance-manager/ui.css') + '?ui=pm-overview-rhythm-v4';
+		link.href = ((typeof L !== 'undefined' && L.resource) ? L.resource('performance-manager/ui.css') : '/luci-static/resources/performance-manager/ui.css') + '?ui=pm-overview-rhythm-v5';
 		document.head.appendChild(link);
 	}
 
