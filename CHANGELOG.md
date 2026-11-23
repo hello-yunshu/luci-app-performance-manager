@@ -1,6 +1,8 @@
 # Changelog
 
-## Unreleased — unified feed and shared Runtime (package release 1.0.7-r10)
+## Unreleased — unified feed and shared Runtime (package release 1.0.7-r11)
+
+- Package actions now report their outcome. "Check for updates" used to end in an unconditional reload, so a refresh that found nothing new came back to a byte-identical page and read as "nothing happened": the button said `Working...`, the page blinked, and the user was left guessing. The outcome helper now says whether the indexes were already current or an update is available, and the page only reloads when the new state actually changes what it offers. Install, repair, and update say what they did too, and the refresh button names the work it is waiting on.
 
 - History rows are bounded on both sides. Three 833 KiB `benchmark.observed` rows were enough to kill Core inside the startup compaction pass, which procd turned into a crash loop: `diagnostics` and `history` hung and then the ubus object disappeared. Writers now replace an over-large row with a scalar summary plus a `truncated` marker, and the reader skips any legacy row above 64 KiB instead of handing it to the JSON parser.
 - The command failure report is keyed by the exact command instead of `argv[0]`: a successful `ethtool -k` used to clear the failure streak of `ethtool -g`, so the same stderr came back on every telemetry tick.
