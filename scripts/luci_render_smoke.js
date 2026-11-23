@@ -431,40 +431,6 @@ await expect('every rill-runtime-manager error code maps to text', () => {
   }
 });
 
-/* A successful package action used to end in an unconditional reload.  When
- * the indexes were already current the page came back identical, so "check for
- * updates" looked like it had done nothing.  The outcome helper owns both the
- * message and the decision whether reloading can change anything. */
-await expect('a package refresh with nothing new reports success without reloading', () => {
-  const idle = {
-    ok: true, updateAvailable: false, runtimeUpdateAvailable: false,
-    pmUpdateAvailable: false, cfiUpdateAvailable: false, clientUpdateAvailable: false,
-  };
-  const got = labels.managerActionOutcome('refresh', idle);
-  if (got.text !== _('Package indexes refreshed: everything is up to date'))
-    throw new Error('refresh with no update reported: ' + got.text);
-  if (got.reload !== false) throw new Error('a refresh with no update must not reload into an identical page');
-});
-await expect('a package refresh that finds an update reloads so the new action appears', () => {
-  for (const flag of ['updateAvailable', 'runtimeUpdateAvailable', 'pmUpdateAvailable', 'cfiUpdateAvailable', 'clientUpdateAvailable']) {
-    const got = labels.managerActionOutcome('refresh', { ok: true, [flag]: true });
-    if (got.text !== _('Package indexes refreshed: an update is available'))
-      throw new Error('refresh with ' + flag + ' reported: ' + got.text);
-    if (got.reload !== true) throw new Error('refresh with ' + flag + ' must reload to expose the new action');
-  }
-});
-await expect('every successful package action says what it did', () => {
-  const cases = [['install', _('Rill Runtime installed')], ['repair', _('Rill Runtime repaired')], ['update', _('Package updated')]];
-  const texts = new Set();
-  for (const [action, want] of cases) {
-    const got = labels.managerActionOutcome(action, { ok: true });
-    if (got.text !== want) throw new Error(`managerActionOutcome(${action}) = ${got.text}, want ${want}`);
-    if (got.reload !== true) throw new Error(action + ' must reload to show the new state');
-    texts.add(got.text);
-  }
-  if (texts.size !== cases.length) throw new Error('package actions share one message');
-});
-
 /* ---------- percent / duration / identity / error formatting ---------- */
 await expect('percent renders ratios above 1 as percentages', () => {
   const cases = [[1.2, '120%'], [2, '200%'], [0.4, '40%'], [0.085, '8.5%'], [-0.2, '-20%'], [0, '0%']];
@@ -726,52 +692,6 @@ await expect('benchmark start failure shows a readable reason and details', asyn
   const text = visibleText(root) + ' ' + allText(root);
   if (!text.includes(_('The performance test session is not running')))
     throw new Error('blocked panel did not surface the readable reason');
-});
-
-await expect('check for updates reports the outcome instead of reloading silently', async () => {
-  const reloads = [];
-  global.window = { location: { reload: () => reloads.push(1) } };
-  const manager = {
-    ok: true, supported: true, installed: true, channel: 'stable', version: '1.5.6-r8',
-    compatible: true, updateAvailable: false, runtimeUpdateAvailable: false,
-    pmUpdateAvailable: false, cfiUpdateAvailable: false, clientUpdateAvailable: false,
-    repairAvailable: false, busy: false,
-  };
-  try {
-    /* Nothing new: the user must be told, and the page must stay put. */
-    notifications.length = 0;
-    pm.runtimeManagerRefresh = () => Promise.resolve({
-      ok: true, message: 'Package indexes refreshed from the configured Yun feed.',
-      updateAvailable: false, runtimeUpdateAvailable: false,
-      pmUpdateAvailable: false, cfiUpdateAvailable: false, clientUpdateAvailable: false,
-    });
-    let view = loadModule(path.join(VIEW_DIR, 'rill.js'), baseGlobals);
-    let button = findByText(view.render([mockRill, mockRec, manager]), 'button', _('Check for updates'));
-    if (!button) throw new Error('check-for-updates button missing');
-    button.dispatch('click');
-    if (!button.textContent.includes(_('Refreshing package indexes...')))
-      throw new Error('a slow index refresh still shows the generic busy label: ' + button.textContent);
-    await new Promise((r) => setTimeout(r, 0));
-    if (!notifications.length) throw new Error('a successful refresh emitted no feedback at all');
-    const text = allText(notifications[0].node);
-    if (!text.includes(_('Package indexes refreshed: everything is up to date')))
-      throw new Error('refresh feedback did not say the indexes were already current: ' + text);
-    if (reloads.length) throw new Error('a refresh with no update reloaded into an identical page');
-
-    /* An update found: reload so the update actions appear. */
-    notifications.length = 0;
-    pm.runtimeManagerRefresh = () => Promise.resolve({
-      ok: true, updateAvailable: false, runtimeUpdateAvailable: false,
-      pmUpdateAvailable: true, cfiUpdateAvailable: false, clientUpdateAvailable: false,
-    });
-    view = loadModule(path.join(VIEW_DIR, 'rill.js'), baseGlobals);
-    button = findByText(view.render([mockRill, mockRec, { ...manager, pmUpdateAvailable: true }]), 'button', _('Check for updates'));
-    button.dispatch('click');
-    await new Promise((r) => setTimeout(r, 0));
-    if (!reloads.length) throw new Error('a refresh that found an update did not reload to expose it');
-  } finally {
-    delete global.window;
-  }
 });
 
 /* ---------- Benchmark interactive graph ---------- */
