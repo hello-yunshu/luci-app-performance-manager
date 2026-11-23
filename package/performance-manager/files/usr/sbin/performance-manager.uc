@@ -258,6 +258,22 @@ function run_shell(command) {
 	return { rc: rc, out: out, err: err, spawned: true };
 }
 
+/* The dedupe key must be the exact command, not just argv[0]: `ethtool -g`
+ * failing on a NIC without ring parameters and `ethtool -k` succeeding on the
+ * same NIC used to share the key "ethtool", so every success cleared the
+ * failure streak and the next failing call logged the same line again — the
+ * report came back on every telemetry tick.
+ *
+ * Declared before run(): ucode has no function hoisting, and a body that names
+ * a function declared later in the file binds a global that is never created,
+ * which fails as "access to undeclared variable run_key" at first call. */
+function run_key(argv) {
+	if (!length(argv ?? []))
+		return 'run';
+	let key = join(' ', map(argv, function(arg) { return `${arg}`; }));
+	return length(key) > 96 ? substr(key, 0, 93) + '...' : key;
+}
+
 function run(argv) {
 	/* ucode's fs.popen rejects an argv ARRAY on the supported OpenWrt runtime
 	 * (returns null, so every command would silently fail). A shell-joined
@@ -266,18 +282,6 @@ function run(argv) {
 	let result = run_shell(join(' ', map(argv ?? [], shell_quote)));
 	run_report(run_key(argv), result.rc, result.err);
 	return result;
-}
-
-/* The dedupe key must be the exact command, not just argv[0]: `ethtool -g`
- * failing on a NIC without ring parameters and `ethtool -k` succeeding on the
- * same NIC used to share the key "ethtool", so every success cleared the
- * failure streak and the next failing call logged the same line again — the
- * report came back on every telemetry tick. */
-function run_key(argv) {
-	if (!length(argv ?? []))
-		return 'run';
-	let key = join(' ', map(argv, function(arg) { return `${arg}`; }));
-	return length(key) > 96 ? substr(key, 0, 93) + '...' : key;
 }
 
 function trimstr(s) {
