@@ -173,6 +173,34 @@ class BehavioralRegressions(unittest.TestCase):
         self.assertTrue(rill_outcome_context_binding({'contextKey': 'ctx-v1:abc'}))
         self.assertIsNone(rill_outcome_context_binding({'contextKey': 'other'}))
 
+    # 12. A single oversized history row must never reach the JSON parser, and a
+    #     writer must never produce one: three 833 KiB `benchmark.observed` rows
+    #     crashed the daemon inside the startup compaction pass, which procd then
+    #     turned into a crash loop on a real OpenWrt 25.12.6 device.
+    def test_history_rows_are_bounded_on_both_sides(self):
+        self.assertIn('const HISTORY_LINE_READ_MAX_BYTES = 65536;', CORE)
+        self.assertIn('const HISTORY_ROW_MAX_BYTES = 32768;', CORE)
+        read_lines = CORE.split('function read_lines(path, max_lines) {', 1)[1].split('\n}', 1)[0]
+        self.assertIn('if (length(line) > HISTORY_LINE_READ_MAX_BYTES)', read_lines)
+        self.assertIn('continue;', read_lines)
+        history = CORE.split('function history(event, data) {', 1)[1].split('\n}', 1)[0]
+        runtime_history = CORE.split('function runtime_history(event, data) {', 1)[1].split('\n}', 1)[0]
+        for body in (history, runtime_history):
+            self.assertIn('history_row(event, data)', body)
+        row = CORE.split('function history_row(event, data) {', 1)[1].split('\n}', 1)[0]
+        self.assertIn("if (length(encoded) <= HISTORY_ROW_MAX_BYTES)", row)
+        self.assertIn('truncated: true', row)
+
+    # 13. The failure report key must identify the exact command. A shared
+    #     argv[0] key let a successful `ethtool -k` clear the failure streak of
+    #     `ethtool -g`, so the same stderr came back on every telemetry tick.
+    def test_run_failure_report_key_is_the_exact_command(self):
+        self.assertIn('run_report(run_key(argv), result.rc, result.err);', CORE)
+        self.assertNotIn('run_report(length(argv ?? []) ? `${argv[0]}` : \'run\'', CORE)
+        key_fn = CORE.split('function run_key(argv) {', 1)[1].split('\n}', 1)[0]
+        self.assertIn("join(' ', map(argv", key_fn)
+        self.assertIn("return 'run';", key_fn)
+
 
 if __name__ == '__main__':
     unittest.main()

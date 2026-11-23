@@ -13,6 +13,13 @@ const DEFAULT_STATE_DIR = '/tmp/performance-manager';
 const DEFAULT_PERSIST_DIR = '/etc/performance-manager';
 const PROFILE_DIR = '/usr/share/performance-manager/profiles';
 const MAX_HISTORY_LINES = 512;
+/* History rows are one-record-per-line JSON. A record larger than this is not
+ * useful in the UI and is expensive enough to parse that a single oversized
+ * legacy row used to crash the daemon; writers are bounded too, so the read
+ * bound only ever has to catch data written by an older build. */
+const HISTORY_LINE_READ_MAX_BYTES = 65536;
+const HISTORY_ROW_MAX_BYTES = 32768;
+let oversized_history_rows = 0;
 /* Generic Rill Runtime integration. The Core invokes the package-owned
  * /usr/bin/rill-runtime Preview v3 subprocess and never compiles or bundles
  * a consumer-owned Runtime. Any missing, invalid, stale, or incompatible
@@ -257,8 +264,20 @@ function run(argv) {
 	 * string is the portable form that works on real OpenWrt 25.12.6. Each
 	 * element is POSIX-quoted so arguments survive the /bin/sh round-trip. */
 	let result = run_shell(join(' ', map(argv ?? [], shell_quote)));
-	run_report(length(argv ?? []) ? `${argv[0]}` : 'run', result.rc, result.err);
+	run_report(run_key(argv), result.rc, result.err);
 	return result;
+}
+
+/* The dedupe key must be the exact command, not just argv[0]: `ethtool -g`
+ * failing on a NIC without ring parameters and `ethtool -k` succeeding on the
+ * same NIC used to share the key "ethtool", so every success cleared the
+ * failure streak and the next failing call logged the same line again — the
+ * report came back on every telemetry tick. */
+function run_key(argv) {
+	if (!length(argv ?? []))
+		return 'run';
+	let key = join(' ', map(argv, function(arg) { return `${arg}`; }));
+	return length(key) > 96 ? substr(key, 0, 93) + '...' : key;
 }
 
 function trimstr(s) {
@@ -666,6 +685,14 @@ function read_lines(path, max_lines) {
 		lines = slice(lines, length(lines) - max_lines);
 	let out = [];
 	for (let line in lines) {
+		/* A single oversized record must never be handed to the JSON parser:
+		 * one legacy 833 KiB benchmark row was enough to kill the daemon during
+		 * the startup compaction pass, which procd then turned into a crash
+		 * loop. Skipping it keeps the rest of the ledger readable. */
+		if (length(line) > HISTORY_LINE_READ_MAX_BYTES) {
+			oversized_history_rows++;
+			continue;
+		}
 		try { push(out, json(line)); } catch (e) {}
 	}
 	return out;
@@ -1622,17 +1649,51 @@ function compact_jsonl(path, limit) {
 	if (fs.writefile(path, text) != null) note_persistent_write(path,length(text));
 }
 
+/* Keep a history row small enough to stay readable and cheap to parse: nested
+ * containers (benchmark evidence, topology snapshots) are dropped and scalars
+ * clamped, so one 833 KiB benchmark row becomes a few hundred bytes of
+ * identity plus an explicit truncation marker instead of a ledger landmine. */
+function history_row_summary(data) {
+	let out = {};
+	if (type(data) != 'object')
+		return out;
+	let emitted = 0;
+	for (let key in keys(data)) {
+		let value = data[key], kind = type(value);
+		if (kind == 'string')
+			out[key] = length(value) > 160 ? substr(value, 0, 157) + '...' : value;
+		else if (kind == 'integer' || kind == 'double' || kind == 'boolean' || kind == 'null')
+			out[key] = value;
+		else
+			continue;
+		if (++emitted >= 24)
+			break;
+	}
+	return out;
+}
+
+function history_row(event, data) {
+	let row = { bootId: boot_id(), monotonicMs: monotonic_ms(), event: event, data: data };
+	let encoded = sprintf('%J', row);
+	if (length(encoded) <= HISTORY_ROW_MAX_BYTES)
+		return row;
+	return {
+		bootId: row.bootId, monotonicMs: row.monotonicMs, event: event,
+		data: { truncated: true, encodedBytes: length(encoded), summary: history_row_summary(data) }
+	};
+}
+
 function history(event, data) {
 	if (!bool_cfg('main.history', true))
 		return;
 	let path = `${persist_dir()}/history.jsonl`;
-	append_line(path, { bootId: boot_id(), monotonicMs: monotonic_ms(), event: event, data: data });
+	append_line(path, history_row(event, data));
 	compact_jsonl(path, MAX_HISTORY_LINES);
 }
 
 function runtime_history(event, data) {
 	let path = `${state_dir()}/history.jsonl`;
-	append_line(path, { bootId: boot_id(), monotonicMs: monotonic_ms(), event: event, data: data });
+	append_line(path, history_row(event, data));
 	compact_jsonl(path, MAX_HISTORY_LINES);
 }
 
