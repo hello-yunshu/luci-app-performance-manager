@@ -82,6 +82,16 @@
 
 /* ===== 原生表格滚动容器（例外 E22） ===== */
 .pu-table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+/* A theme may pull section tables out of their container (Vantage widens them
+ * with negative side margins and !important). The scroll container then clips
+ * that overhang: the first cell's padding disappears, cells sit flush with the
+ * card edge, and a phantom horizontal scroll appears. Keep the table box inside
+ * the container so the theme's own cell padding stays visible. */
+#maincontent .pu-table-scroll > table.table {
+	width: 100% !important;
+	margin-left: 0 !important;
+	margin-right: 0 !important;
+}
 
 /* ===== Reduced motion ===== */
 @media (prefers-reduced-motion: reduce) {
