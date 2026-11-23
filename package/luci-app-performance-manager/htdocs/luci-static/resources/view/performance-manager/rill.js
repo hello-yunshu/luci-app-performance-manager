@@ -5,6 +5,41 @@
 'require performance-manager.ui as pu';
 'require performance-manager.labels as labels';
 
+/* Where the verdict of the last "check for updates" survives the reload it
+ * triggers. Same-tab storage: closing the tab drops a claim that is about the
+ * feed as it looked minutes ago. */
+const REFRESH_RECORD_KEY = 'pm.rill.package-refresh';
+
+function readRefreshRecord() {
+	try {
+		if (typeof window === 'undefined' || !window.sessionStorage)
+			return null;
+		const raw = window.sessionStorage.getItem(REFRESH_RECORD_KEY);
+		if (!raw)
+			return null;
+		const record = JSON.parse(raw);
+		return (record && typeof record.at === 'number' && !isNaN(record.at)) ? record : null;
+	}
+	catch (e) {
+		return null;
+	}
+}
+
+function rememberRefresh(result) {
+	try {
+		if (typeof window === 'undefined' || !window.sessionStorage)
+			return;
+		window.sessionStorage.setItem(REFRESH_RECORD_KEY, JSON.stringify({
+			at: Date.now(),
+			hasUpdate: labels.managerUpdatePending(result)
+		}));
+	}
+	catch (e) {
+		/* Private mode or a full quota: the page still reloads, it just cannot
+		 * carry the verdict over. */
+	}
+}
+
 return view.extend({
 	handleSave: null,
 	handleSaveApply: null,
@@ -50,14 +85,15 @@ return view.extend({
 						failure.detail = result.message;
 					throw failure;
 				}
-				/* Always say what happened. A successful "Check for updates"
-				 * used to end in an unconditional reload, so when the indexes
-				 * were already current the page came back byte-identical and
-				 * the action read as a no-op. The reload is only worth doing
-				 * when the new state actually changes what the page offers. */
-				const outcome = labels.managerActionOutcome(action, result);
-				ui.addNotification(null, E('p', {}, [ outcome.text ]));
-				if (outcome.reload && typeof window !== 'undefined')
+				/* "Check for updates" reloads the page, which wipes the
+				 * notification, so its verdict is stored instead and rendered
+				 * as a status label in the package card. The other actions do
+				 * change the card, so a notification plus the reload is enough. */
+				if (action === 'refresh')
+					rememberRefresh(result);
+				else
+					ui.addNotification(null, E('p', {}, [ labels.managerActionOutcome(action) ]));
+				if (typeof window !== 'undefined')
 					window.location.reload();
 			}).catch(function(error) {
 				const body = [ _('Package operation failed: %s').format(labels.errorSummary(error)) ];
@@ -114,6 +150,11 @@ return view.extend({
 		}
 		const packageToolbar = pu.toolbar(packageActions);
 		packageToolbar.classList.add('pm-rill-ranking-actions');
+		const refreshRecord = managerAvailable ? readRefreshRecord() : null;
+		const refreshNote = labels.managerRefreshNote(refreshRecord);
+		const packageRefreshStatus = refreshNote
+			? E('p', {}, [ pu.badge(refreshNote, refreshRecord.hasUpdate === true ? 'warning' : 'success') ])
+			: null;
 		let packageStatus = null;
 		if (!managerAvailable)
 			packageStatus = pu.note(_('Package manager controls are unavailable. Update Performance Manager from the unified feed to enable them.'), 'warning');
@@ -197,7 +238,7 @@ return view.extend({
 		const eligible = rillUnavailable ? _('Rill unavailable') : (s.autoEligible === true ? _('Ready') : (s.autoEligible === false ? _('Paused') : _('Not evaluated')));
 		const decisionReason = s.reason ? labels.smartReason(s.reason) : (s.selectedActionId === 'pm.noop' ? _('The current configuration meets the policy.') : _('No decision reason is available yet.'));
 		const pageNodes = [
-			pu.card(_('Package management'), E('div', {}, [ packageToolbar, packageStatus, packageDetails ].filter(function(node) { return node != null; }))),
+			pu.card(_('Package management'), E('div', {}, [ packageToolbar, packageRefreshStatus, packageStatus, packageDetails ].filter(function(node) { return node != null; }))),
 			pu.card(_('Current decision'), E('div', {}, [
 				pu.badge(labels.runtimeStatus(r.status)),
 				pu.kv([

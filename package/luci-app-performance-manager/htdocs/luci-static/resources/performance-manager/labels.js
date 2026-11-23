@@ -573,27 +573,43 @@ function errorSummary(err) {
 
 /* A successful package action used to end in a bare `window.location.reload()`,
  * so "Check for updates" looked like it had done nothing whenever the indexes
- * were already current and no update was available. Describe the outcome, and
- * only reload when the new state can actually change what the page offers. */
+ * were already current: the page came back byte-identical with no message left
+ * behind. The verdict is now kept across the reload and rendered as a status
+ * label, so the answer to "did it check anything?" stays on screen. */
 const MANAGER_UPDATE_FLAGS = [ 'updateAvailable', 'runtimeUpdateAvailable', 'pmUpdateAvailable', 'cfiUpdateAvailable', 'clientUpdateAvailable' ];
 
-function managerActionOutcome(action, result) {
-	let hasUpdate = false;
+function managerUpdatePending(result) {
 	for (const flag of MANAGER_UPDATE_FLAGS)
 		if (result && result[flag] === true)
-			hasUpdate = true;
-	if (action === 'refresh')
-		return {
-			text: hasUpdate
-				? _('Package indexes refreshed: an update is available')
-				: _('Package indexes refreshed: everything is up to date'),
-			reload: hasUpdate
-		};
+			return true;
+	return false;
+}
+
+function twodigit(value) {
+	return value < 10 ? `0${value}` : `${value}`;
+}
+
+function managerRefreshNote(record) {
+	if (!record || typeof record.at !== 'number' || isNaN(record.at))
+		return null;
+	let when;
+	try {
+		when = new Date(record.at);
+	} catch (e) {
+		return null;
+	}
+	const clock = `${twodigit(when.getHours())}:${twodigit(when.getMinutes())}`;
+	return record.hasUpdate === true
+		? _('An update is available (checked at %s)').format(clock)
+		: _('Everything is up to date (checked at %s)').format(clock);
+}
+
+function managerActionOutcome(action) {
 	if (action === 'install')
-		return { text: _('Rill Runtime installed'), reload: true };
+		return _('Rill Runtime installed');
 	if (action === 'repair')
-		return { text: _('Rill Runtime repaired'), reload: true };
-	return { text: _('Package updated'), reload: true };
+		return _('Rill Runtime repaired');
+	return _('Package updated');
 }
 
 function smartReason(value) {
@@ -798,5 +814,7 @@ return baseclass.extend({
 	errorSummary: errorSummary,
 	errorDetail: errorRaw,
 	managerActionOutcome: managerActionOutcome,
+	managerUpdatePending: managerUpdatePending,
+	managerRefreshNote: managerRefreshNote,
 	map: map
 });

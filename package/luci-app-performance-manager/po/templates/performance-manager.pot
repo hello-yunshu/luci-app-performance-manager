@@ -2437,10 +2437,10 @@ msgstr ""
 msgid "Refreshing package indexes..."
 msgstr ""
 
-msgid "Package indexes refreshed: an update is available"
+msgid "An update is available (checked at %s)"
 msgstr ""
 
-msgid "Package indexes refreshed: everything is up to date"
+msgid "Everything is up to date (checked at %s)"
 msgstr ""
 
 msgid "Rill Runtime installed"
