@@ -130,7 +130,7 @@ apk add luci-app-performance-manager-all
 | 推荐包名 | `luci-app-performance-manager-all`（单一 PM 包） |
 | 目标 | OpenWrt 24.10.8 IPK / 25.12.6 APK；以 CI 和发布资产逐项验证为准 |
 | 当前源码候选 | `1.0.7` |
-| 统一 PM 包版本 | `1.0.7-r7` |
+| 统一 PM 包版本 | `1.0.7-r9` |
 | 拆分 Rill glue 包版本 | `1.0.7-r2` |
 | 服务脚本 | `/etc/init.d/performance-manager` |
 | UCI 配置 | `/etc/config/performance-manager` |
