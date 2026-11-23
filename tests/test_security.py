@@ -22,7 +22,14 @@ class SecurityTests(unittest.TestCase):
         self.assertRegex(s,r"function shell_quote\(arg\)")
         self.assertRegex(s,r"replace\(s, /'/g, \"'\\\\''\"\)")
         # fs.popen is invoked with the joined, quoted string — never a raw array.
-        self.assertRegex(s,r"fs\.popen\(cmd, 'r'\)")
+        # The command's stderr is redirected into a per-call file instead of
+        # being inherited: procd mirrors this process's stderr straight into
+        # syslog, so an inherited one would flood the log on every timer tick.
+        self.assertRegex(s, r"fs\.popen\(sprintf\('%s 2>%s', command, shell_quote\(errfile\)\), 'r'\)")
+        self.assertNotRegex(s, r"fs\.popen\(argv")
+        # The captured file is bounded on read and removed right after.
+        self.assertRegex(s, r"fs\.readfile\(errfile, RUN_STDERR_MAX\)")
+        self.assertRegex(s, r"fs\.unlink\(errfile\)")
     def test_rill_contract_is_shadow_only_no_apply(self):
         # Rill is an external runtime; the shadow-only contract is enforced on
         # the PM side: the Core only ever sends status/observe/outcome and the

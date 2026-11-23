@@ -157,18 +157,108 @@ function shell_quote(arg) {
 	return sprintf("'%s'", replace(s, /'/g, "'\\''"));
 }
 
+/* procd mirrors everything this process writes on stdout/stderr into syslog
+ * (`procd_set_param stdout 1 / stderr 1` in /etc/init.d/performance-manager),
+ * and the telemetry timer re-runs these probes every interval. A command that
+ * keeps failing - ethtool on a NIC without ring parameters, iw without wireless
+ * extensions - therefore dumped its raw, unbounded stderr into the log on every
+ * tick, once per interval, and the payload could not even be attributed to the
+ * command that produced it. Capture it per call instead and report at most one
+ * bounded, deduplicated line per failure streak. */
+const RUN_STDERR_MAX = 4096;
+const RUN_STATE_PATH = '/tmp/performance-manager-run-state';
+let run_seq = 0;
+let run_pid_cache = null;
+
+function run_pid() {
+	if (run_pid_cache == null) {
+		run_pid_cache = 0;
+		for (let line in split(fs.readfile('/proc/self/status') ?? '', '\n')) {
+			if (substr(line, 0, 4) == 'Pid:') {
+				run_pid_cache = int(trim(substr(line, 4))) ?? 0;
+				break;
+			}
+		}
+	}
+	return run_pid_cache;
+}
+
+function run_stderr_summary(text) {
+	/* One line, byte-bounded. OpenWrt has no UTF-8 locale: `...` is three bytes
+	 * everywhere, `…` is one character but three bytes. */
+	let line = trim(join(' ', split(trim(text ?? ''), /\s+/)));
+	if (length(line) > 300)
+		line = substr(line, 0, 297) + '...';
+	return line;
+}
+
+function run_state_load() {
+	let state = {};
+	for (let line in split(fs.readfile(RUN_STATE_PATH) ?? '', '\n')) {
+		let idx = index(line, '\t');
+		if (idx > 0)
+			state[substr(line, 0, idx)] = substr(line, idx + 1);
+	}
+	return state;
+}
+
+function run_state_store(state) {
+	let rows = [];
+	for (let key in keys(state))
+		push(rows, sprintf('%s\t%s', key, state[key]));
+	fs.writefile(RUN_STATE_PATH, length(rows) ? join('\n', rows) + '\n' : '');
+}
+
+function run_report(key, rc, err) {
+	let state = run_state_load();
+
+	if (rc == 0) {
+		/* A recovered command re-arms its key, so the next streak is reported. */
+		if (key in state) {
+			delete state[key];
+			run_state_store(state);
+		}
+		return;
+	}
+
+	let detail = run_stderr_summary(err);
+	/* Exit-code probes (`test -d`, `uci -q get`) fail while writing nothing to
+	 * stderr; only commands that actually explain themselves deserve a line. */
+	if (!length(detail) || state[key] == detail)
+		return;
+
+	state[key] = detail;
+	run_state_store(state);
+	warn(sprintf('performance-manager: %s failed (rc=%d): %s\n', key, rc, detail));
+}
+
+/* Run one shell command with its stderr captured into a bounded buffer instead
+ * of being inherited by this process (which procd would mirror into syslog). */
+function run_shell(command) {
+	/* The redirect target lives directly in /tmp: the state dirs are created
+	 * later in startup, and a redirect into a missing directory would make the
+	 * command itself fail. */
+	let errfile = sprintf('/tmp/.performance-manager-run-%d-%d.err', run_pid(), ++run_seq);
+	let p = fs.popen(sprintf('%s 2>%s', command, shell_quote(errfile)), 'r');
+	if (!p) {
+		fs.unlink(errfile);
+		return { rc: 127, out: '', err: 'spawn-failed', spawned: false };
+	}
+	let out = p.read('all') ?? '';
+	let rc = p.close() ?? 127;
+	let err = fs.readfile(errfile, RUN_STDERR_MAX) ?? '';
+	fs.unlink(errfile);
+	return { rc: rc, out: out, err: err, spawned: true };
+}
+
 function run(argv) {
 	/* ucode's fs.popen rejects an argv ARRAY on the supported OpenWrt runtime
 	 * (returns null, so every command would silently fail). A shell-joined
 	 * string is the portable form that works on real OpenWrt 25.12.6. Each
 	 * element is POSIX-quoted so arguments survive the /bin/sh round-trip. */
-	let cmd = join(' ', map(argv ?? [], shell_quote));
-	let p = fs.popen(cmd, 'r');
-	if (!p)
-		return { rc: 127, out: '' };
-	let out = p.read('all') ?? '';
-	let rc = p.close();
-	return { rc: rc ?? 127, out: out };
+	let result = run_shell(join(' ', map(argv ?? [], shell_quote)));
+	run_report(length(argv ?? []) ? `${argv[0]}` : 'run', result.rc, result.err);
+	return result;
 }
 
 function trimstr(s) {
@@ -2168,9 +2258,13 @@ function rill_runtime_call(request, binary) {
 	let timeout = min(5000, max(100, int_cfg('runtime.timeout_ms', 1000)));
 	let command = sprintf("printf '%%s\\n' %s | timeout %ds %s preview-serve --state %s --feature-schema-hash %s --model-generation %d",
 		shell_quote(trimstr(wire)), max(1, int((timeout + 999) / 1000)), shell_quote(binary), shell_quote(state), shell_quote(RILL_FEATURE_SCHEMA_HASH), RILL_MODEL_GENERATION);
-	let p = fs.popen(command, 'r');
-	if (!p) { rill_runtime_counters.runtimeInvocationFailureCount++; return { ok: false, state: 'runtime-spawn-failed', connected: false, fullySent: false, responseReceived: false }; }
-	let output = p.read('all') ?? '', rc = p.close() ?? 127;
+	let p = run_shell(command);
+	if (!p.spawned) { rill_runtime_counters.runtimeInvocationFailureCount++; return { ok: false, state: 'runtime-spawn-failed', connected: false, fullySent: false, responseReceived: false }; }
+	let output = p.out, rc = p.rc;
+	/* The runtime is a separate process with its own stderr; a debug build or a
+	 * crash used to dump all of it into syslog under this daemon's tag. Report
+	 * one bounded line per distinct failure instead, and nothing while it lasts. */
+	run_report('rill-runtime', rc, p.err);
 	if (rc != 0) {
 		rill_runtime_counters.runtimeInvocationFailureCount++; rill_runtime_counters.runtimeNonZeroExitCount++;
 		if (rc == 124) rill_runtime_counters.runtimeTimeoutCount++;
