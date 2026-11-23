@@ -571,6 +571,31 @@ function errorSummary(err) {
 	return _('Unknown error, see technical details');
 }
 
+/* A successful package action used to end in a bare `window.location.reload()`,
+ * so "Check for updates" looked like it had done nothing whenever the indexes
+ * were already current and no update was available. Describe the outcome, and
+ * only reload when the new state can actually change what the page offers. */
+const MANAGER_UPDATE_FLAGS = [ 'updateAvailable', 'runtimeUpdateAvailable', 'pmUpdateAvailable', 'cfiUpdateAvailable', 'clientUpdateAvailable' ];
+
+function managerActionOutcome(action, result) {
+	let hasUpdate = false;
+	for (const flag of MANAGER_UPDATE_FLAGS)
+		if (result && result[flag] === true)
+			hasUpdate = true;
+	if (action === 'refresh')
+		return {
+			text: hasUpdate
+				? _('Package indexes refreshed: an update is available')
+				: _('Package indexes refreshed: everything is up to date'),
+			reload: hasUpdate
+		};
+	if (action === 'install')
+		return { text: _('Rill Runtime installed'), reload: true };
+	if (action === 'repair')
+		return { text: _('Rill Runtime repaired'), reload: true };
+	return { text: _('Package updated'), reload: true };
+}
+
 function smartReason(value) {
 	if (value == null || value === '') return DASH;
 	const key = String(value);
@@ -772,5 +797,6 @@ return baseclass.extend({
 	integrationSummary: integrationSummary,
 	errorSummary: errorSummary,
 	errorDetail: errorRaw,
+	managerActionOutcome: managerActionOutcome,
 	map: map
 });

@@ -2433,3 +2433,21 @@ msgstr ""
 
 msgid "This OpenWrt release is not supported"
 msgstr ""
+
+msgid "Refreshing package indexes..."
+msgstr ""
+
+msgid "Package indexes refreshed: an update is available"
+msgstr ""
+
+msgid "Package indexes refreshed: everything is up to date"
+msgstr ""
+
+msgid "Rill Runtime installed"
+msgstr ""
+
+msgid "Rill Runtime repaired"
+msgstr ""
+
+msgid "Package updated"
+msgstr ""

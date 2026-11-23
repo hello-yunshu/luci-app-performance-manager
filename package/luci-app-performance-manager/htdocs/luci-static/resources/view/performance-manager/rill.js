@@ -34,7 +34,9 @@ return view.extend({
 			}).finally(restore);
 		});
 		function managerAction(action, packageName, button) {
-			const restore = pu.setBusy(button, _('Working...'));
+			/* Name the work: refreshing the indexes downloads them, and "Working..."
+			 * for a minute reads as a hang. */
+			const restore = pu.setBusy(button, action === 'refresh' ? _('Refreshing package indexes...') : _('Working...'));
 			const call = action === 'install'
 				? pm.runtimeManagerInstall(packageName)
 				: (action === 'repair' ? pm.runtimeManagerRepair(packageName) : (action === 'refresh' ? pm.runtimeManagerRefresh() : pm.runtimeManagerUpdate(packageName)));
@@ -48,7 +50,15 @@ return view.extend({
 						failure.detail = result.message;
 					throw failure;
 				}
-				if (typeof window !== 'undefined') window.location.reload();
+				/* Always say what happened. A successful "Check for updates"
+				 * used to end in an unconditional reload, so when the indexes
+				 * were already current the page came back byte-identical and
+				 * the action read as a no-op. The reload is only worth doing
+				 * when the new state actually changes what the page offers. */
+				const outcome = labels.managerActionOutcome(action, result);
+				ui.addNotification(null, E('p', {}, [ outcome.text ]));
+				if (outcome.reload && typeof window !== 'undefined')
+					window.location.reload();
 			}).catch(function(error) {
 				const body = [ _('Package operation failed: %s').format(labels.errorSummary(error)) ];
 				if (error && error.detail)

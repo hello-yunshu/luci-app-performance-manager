@@ -2652,3 +2652,21 @@ msgstr "The compatibility of an installed consumer package is unknown"
 
 msgid "This OpenWrt release is not supported"
 msgstr "This OpenWrt release is not supported"
+
+msgid "Refreshing package indexes..."
+msgstr "Refreshing package indexes..."
+
+msgid "Package indexes refreshed: an update is available"
+msgstr "Package indexes refreshed: an update is available"
+
+msgid "Package indexes refreshed: everything is up to date"
+msgstr "Package indexes refreshed: everything is up to date"
+
+msgid "Rill Runtime installed"
+msgstr "Rill Runtime installed"
+
+msgid "Rill Runtime repaired"
+msgstr "Rill Runtime repaired"
+
+msgid "Package updated"
+msgstr "Package updated"

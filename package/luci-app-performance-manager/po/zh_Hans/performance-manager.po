@@ -2576,3 +2576,21 @@ msgstr "已安装的消费者包兼容性未知"
 
 msgid "This OpenWrt release is not supported"
 msgstr "不支持该 OpenWrt 版本"
+
+msgid "Refreshing package indexes..."
+msgstr "正在刷新软件源索引……"
+
+msgid "Package indexes refreshed: an update is available"
+msgstr "软件源索引已刷新：有可用更新"
+
+msgid "Package indexes refreshed: everything is up to date"
+msgstr "软件源索引已刷新：全部为最新版本"
+
+msgid "Rill Runtime installed"
+msgstr "已安装 Rill 运行时"
+
+msgid "Rill Runtime repaired"
+msgstr "已修复 Rill 运行时"
+
+msgid "Package updated"
+msgstr "软件包已更新"
