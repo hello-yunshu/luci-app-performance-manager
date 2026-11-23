@@ -1,6 +1,9 @@
 # macOS
 .DS_Store
 
+# Local agent workspace data (never committed)
+.workbuddy/
+
 # Planning packages and prompts
 luci-app-performance-manager-Planning-v0.3.2/
 docs/planning-v0.3.2/
