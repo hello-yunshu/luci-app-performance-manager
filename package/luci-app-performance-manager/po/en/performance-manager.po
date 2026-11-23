@@ -2592,3 +2592,63 @@ msgstr "An incompatible Rill Runtime is installed. Resolve that package conflict
 
 msgid "Runtime version"
 msgstr "Runtime version"
+
+msgid "The signed Runtime package feed is not configured"
+msgstr "The signed Runtime package feed is not configured"
+
+msgid "The package feed could not be refreshed"
+msgstr "The package feed could not be refreshed"
+
+msgid "A legacy Rill package feed is still configured"
+msgstr "A legacy Rill package feed is still configured"
+
+msgid "The legacy Preview Runtime needs a manual migration"
+msgstr "The legacy Preview Runtime needs a manual migration"
+
+msgid "A legacy Preview Runtime is installed"
+msgstr "A legacy Preview Runtime is installed"
+
+msgid "Another package operation is already running"
+msgstr "Another package operation is already running"
+
+msgid "The system package manager failed"
+msgstr "The system package manager failed"
+
+msgid "The system package manager is unavailable"
+msgstr "The system package manager is unavailable"
+
+msgid "This package operation is not supported here"
+msgstr "This package operation is not supported here"
+
+msgid "This package may not be changed by Performance Manager"
+msgstr "This package may not be changed by Performance Manager"
+
+msgid "The package feed signing key is not installed"
+msgstr "The package feed signing key is not installed"
+
+msgid "The Rill Runtime is not installed"
+msgstr "The Rill Runtime is not installed"
+
+msgid "The Rill Runtime executable is missing"
+msgstr "The Rill Runtime executable is missing"
+
+msgid "No Runtime package is available from the feed"
+msgstr "No Runtime package is available from the feed"
+
+msgid "The Rill Runtime needs a repair"
+msgstr "The Rill Runtime needs a repair"
+
+msgid "The Rill Runtime does not support this architecture"
+msgstr "The Rill Runtime does not support this architecture"
+
+msgid "The package owning the Runtime cannot be identified"
+msgstr "The package owning the Runtime cannot be identified"
+
+msgid "An installed consumer package is incompatible with this Runtime"
+msgstr "An installed consumer package is incompatible with this Runtime"
+
+msgid "The compatibility of an installed consumer package is unknown"
+msgstr "The compatibility of an installed consumer package is unknown"
+
+msgid "This OpenWrt release is not supported"
+msgstr "This OpenWrt release is not supported"

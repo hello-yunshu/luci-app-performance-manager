@@ -460,7 +460,30 @@ const ERROR_CODE = {
 	'rill-outcome-arm-failed': _('The Rill outcome could not be armed'),
 	'rill-outcome-intent-write-failed': _('The Rill outcome journal could not be written'),
 	'rill-mutation-journal-write-failed': _('The Rill mutation journal could not be written'),
-	'stopped-by-user': _('The performance test was stopped by the user')
+	'stopped-by-user': _('The performance test was stopped by the user'),
+	/* rill-runtime-manager error codes: the shared Runtime package manager
+	 * reports these verbatim, and without a mapping the page can only say
+	 * "unknown error" while the real reason sits in the message field. */
+	'feed-not-configured': _('The signed Runtime package feed is not configured'),
+	'feed-refresh-failed': _('The package feed could not be refreshed'),
+	'legacy-feed-configured': _('A legacy Rill package feed is still configured'),
+	'legacy-runtime-migration-required': _('The legacy Preview Runtime needs a manual migration'),
+	'legacy-preview': _('A legacy Preview Runtime is installed'),
+	'package-manager-busy': _('Another package operation is already running'),
+	'package-manager-failed': _('The system package manager failed'),
+	'package-manager-unavailable': _('The system package manager is unavailable'),
+	'package-action-not-supported': _('This package operation is not supported here'),
+	'package-not-allowed': _('This package may not be changed by Performance Manager'),
+	'trust-key-missing': _('The package feed signing key is not installed'),
+	'runtime-not-installed': _('The Rill Runtime is not installed'),
+	'runtime-binary-missing': _('The Rill Runtime executable is missing'),
+	'runtime-package-unavailable': _('No Runtime package is available from the feed'),
+	'runtime-repair-required': _('The Rill Runtime needs a repair'),
+	'runtime-unsupported-architecture': _('The Rill Runtime does not support this architecture'),
+	'unknown-runtime-owner': _('The package owning the Runtime cannot be identified'),
+	'consumer-runtime-incompatible': _('An installed consumer package is incompatible with this Runtime'),
+	'consumer-compatibility-unknown': _('The compatibility of an installed consumer package is unknown'),
+	'unsupported-release': _('This OpenWrt release is not supported')
 };
 
 function has(table, key) {

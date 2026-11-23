@@ -2516,3 +2516,63 @@ msgstr "检测到不兼容的 Rill 运行时。请先解决软件包冲突，再
 
 msgid "Runtime version"
 msgstr "运行时版本"
+
+msgid "The signed Runtime package feed is not configured"
+msgstr "尚未配置签名的运行时软件源"
+
+msgid "The package feed could not be refreshed"
+msgstr "软件源刷新失败"
+
+msgid "A legacy Rill package feed is still configured"
+msgstr "仍配置着旧的 Rill 软件源"
+
+msgid "The legacy Preview Runtime needs a manual migration"
+msgstr "旧 Preview 运行时需要手动迁移"
+
+msgid "A legacy Preview Runtime is installed"
+msgstr "当前安装的是旧 Preview 运行时"
+
+msgid "Another package operation is already running"
+msgstr "另一个软件包操作正在进行"
+
+msgid "The system package manager failed"
+msgstr "系统包管理器执行失败"
+
+msgid "The system package manager is unavailable"
+msgstr "系统包管理器不可用"
+
+msgid "This package operation is not supported here"
+msgstr "当前环境不支持该软件包操作"
+
+msgid "This package may not be changed by Performance Manager"
+msgstr "该软件包不允许由 Performance Manager 更改"
+
+msgid "The package feed signing key is not installed"
+msgstr "尚未安装软件源签名公钥"
+
+msgid "The Rill Runtime is not installed"
+msgstr "尚未安装 Rill 运行时"
+
+msgid "The Rill Runtime executable is missing"
+msgstr "Rill 运行时程序缺失"
+
+msgid "No Runtime package is available from the feed"
+msgstr "软件源中没有可用的运行时包"
+
+msgid "The Rill Runtime needs a repair"
+msgstr "Rill 运行时需要修复"
+
+msgid "The Rill Runtime does not support this architecture"
+msgstr "Rill 运行时不支持该架构"
+
+msgid "The package owning the Runtime cannot be identified"
+msgstr "无法确定当前运行时的软件包归属"
+
+msgid "An installed consumer package is incompatible with this Runtime"
+msgstr "已安装的消费者包与该运行时不兼容"
+
+msgid "The compatibility of an installed consumer package is unknown"
+msgstr "已安装的消费者包兼容性未知"
+
+msgid "This OpenWrt release is not supported"
+msgstr "不支持该 OpenWrt 版本"

@@ -2373,3 +2373,63 @@ msgstr ""
 
 msgid "Runtime version"
 msgstr ""
+
+msgid "The signed Runtime package feed is not configured"
+msgstr ""
+
+msgid "The package feed could not be refreshed"
+msgstr ""
+
+msgid "A legacy Rill package feed is still configured"
+msgstr ""
+
+msgid "The legacy Preview Runtime needs a manual migration"
+msgstr ""
+
+msgid "A legacy Preview Runtime is installed"
+msgstr ""
+
+msgid "Another package operation is already running"
+msgstr ""
+
+msgid "The system package manager failed"
+msgstr ""
+
+msgid "The system package manager is unavailable"
+msgstr ""
+
+msgid "This package operation is not supported here"
+msgstr ""
+
+msgid "This package may not be changed by Performance Manager"
+msgstr ""
+
+msgid "The package feed signing key is not installed"
+msgstr ""
+
+msgid "The Rill Runtime is not installed"
+msgstr ""
+
+msgid "The Rill Runtime executable is missing"
+msgstr ""
+
+msgid "No Runtime package is available from the feed"
+msgstr ""
+
+msgid "The Rill Runtime needs a repair"
+msgstr ""
+
+msgid "The Rill Runtime does not support this architecture"
+msgstr ""
+
+msgid "The package owning the Runtime cannot be identified"
+msgstr ""
+
+msgid "An installed consumer package is incompatible with this Runtime"
+msgstr ""
+
+msgid "The compatibility of an installed consumer package is unknown"
+msgstr ""
+
+msgid "This OpenWrt release is not supported"
+msgstr ""

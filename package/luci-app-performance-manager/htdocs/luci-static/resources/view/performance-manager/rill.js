@@ -39,11 +39,21 @@ return view.extend({
 				? pm.runtimeManagerInstall(packageName)
 				: (action === 'repair' ? pm.runtimeManagerRepair(packageName) : (action === 'refresh' ? pm.runtimeManagerRefresh() : pm.runtimeManagerUpdate(packageName)));
 			call.then(function(result) {
-				if (!result || result.ok !== true)
-					throw new Error((result && (result.message || result.errorCode)) || _('Unable to manage packages.'));
+				if (!result || result.ok !== true) {
+					/* Carry the manager's error code into the summary so the page
+					 * can translate it; the manager's own sentence is kept as the
+					 * detail line instead of being shown as "unknown error". */
+					const failure = new Error((result && (result.errorCode || result.message)) || _('Unable to manage packages.'));
+					if (result && result.errorCode && result.message)
+						failure.detail = result.message;
+					throw failure;
+				}
 				if (typeof window !== 'undefined') window.location.reload();
 			}).catch(function(error) {
-				ui.addNotification(null, E('p', {}, [ _('Package operation failed: %s').format(labels.errorSummary(error)) ]), 'error');
+				const body = [ _('Package operation failed: %s').format(labels.errorSummary(error)) ];
+				if (error && error.detail)
+					body.push(E('p', {}, [ error.detail ]));
+				ui.addNotification(null, E('div', {}, body), 'error');
 			}).finally(restore);
 		}
 		const managerAvailable = manager && manager.ok === true && !manager._loadError;

@@ -412,6 +412,24 @@ await expect('every ERROR_CODE table key resolves instead of falling back', () =
     if (text === _('Unknown error, see technical details')) throw new Error('unmapped error code: ' + key);
   }
 });
+/* The shared rill-runtime-manager reports these codes verbatim in its RPC
+ * result.  Package actions surface the code, so an unmapped one turns a precise
+ * manager failure into "未知错误，详见技术详情". */
+const MANAGER_ERROR_CODES = [
+  'feed-not-configured', 'feed-refresh-failed', 'legacy-feed-configured',
+  'legacy-runtime-migration-required', 'legacy-preview', 'package-manager-busy',
+  'package-manager-failed', 'package-manager-unavailable', 'package-action-not-supported',
+  'package-not-allowed', 'trust-key-missing', 'runtime-not-installed',
+  'runtime-binary-missing', 'runtime-package-unavailable', 'runtime-repair-required',
+  'runtime-unsupported-architecture', 'unknown-runtime-owner',
+  'consumer-runtime-incompatible', 'consumer-compatibility-unknown', 'unsupported-release',
+];
+await expect('every rill-runtime-manager error code maps to text', () => {
+  for (const code of MANAGER_ERROR_CODES) {
+    const text = labels.errorSummary(code);
+    if (text === _('Unknown error, see technical details')) throw new Error('unmapped manager error code: ' + code);
+  }
+});
 
 /* ---------- percent / duration / identity / error formatting ---------- */
 await expect('percent renders ratios above 1 as percentages', () => {
