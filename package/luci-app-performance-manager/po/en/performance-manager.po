@@ -2679,3 +2679,21 @@ msgstr "Rill Runtime repaired"
 
 msgid "Package updated"
 msgstr "Package updated"
+
+msgid "Package index"
+msgstr "Package index"
+
+msgid "Refreshes the trusted feed index, then reports whether an update is available."
+msgstr "Refreshes the trusted feed index, then reports whether an update is available."
+
+msgid "Installs the shared Runtime package for this release and architecture."
+msgstr "Installs the shared Runtime package for this release and architecture."
+
+msgid "Updates only a compatible Stable Runtime; Preview installs are never replaced."
+msgstr "Updates only a compatible Stable Runtime; Preview installs are never replaced."
+
+msgid "Reinstalls the same Stable package when its executable is missing; the version does not change."
+msgstr "Reinstalls the same Stable package when its executable is missing; the version does not change."
+
+msgid "Installs the newer Performance Manager package from the unified feed."
+msgstr "Installs the newer Performance Manager package from the unified feed."

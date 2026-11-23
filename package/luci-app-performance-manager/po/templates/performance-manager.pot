@@ -2460,3 +2460,21 @@ msgstr ""
 
 msgid "Package updated"
 msgstr ""
+
+msgid "Package index"
+msgstr ""
+
+msgid "Refreshes the trusted feed index, then reports whether an update is available."
+msgstr ""
+
+msgid "Installs the shared Runtime package for this release and architecture."
+msgstr ""
+
+msgid "Updates only a compatible Stable Runtime; Preview installs are never replaced."
+msgstr ""
+
+msgid "Reinstalls the same Stable package when its executable is missing; the version does not change."
+msgstr ""
+
+msgid "Installs the newer Performance Manager package from the unified feed."
+msgstr ""

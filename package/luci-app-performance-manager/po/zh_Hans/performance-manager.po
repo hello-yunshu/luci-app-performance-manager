@@ -2603,3 +2603,21 @@ msgstr "已修复 Rill 运行时"
 
 msgid "Package updated"
 msgstr "软件包已更新"
+
+msgid "Package index"
+msgstr "软件源索引"
+
+msgid "Refreshes the trusted feed index, then reports whether an update is available."
+msgstr "刷新可信软件源索引，然后报告是否有可用更新。"
+
+msgid "Installs the shared Runtime package for this release and architecture."
+msgstr "安装适用于当前版本和架构的共享运行时软件包。"
+
+msgid "Updates only a compatible Stable Runtime; Preview installs are never replaced."
+msgstr "仅更新兼容的稳定版运行时；预览版安装不会被替换。"
+
+msgid "Reinstalls the same Stable package when its executable is missing; the version does not change."
+msgstr "运行时程序缺失时重装同一稳定版软件包；不改变运行时版本。"
+
+msgid "Installs the newer Performance Manager package from the unified feed."
+msgstr "从统一软件源安装更新版本的性能管理器软件包。"

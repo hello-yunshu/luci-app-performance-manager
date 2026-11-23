@@ -55,8 +55,9 @@
 .pm-overview-details { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .pm-rill-ranking-actions { margin-bottom: .75em; }
 /* The package card states the facts first (native cbi-value rows) and then
- * offers the buttons that change them, in their own row with a little air
- * above it. No status text rides along with the buttons. */
+ * offers one titled row per action, with a little air above the block. Each
+ * row names the thing its button acts on, so no status text has to ride along
+ * with a bare button. */
 #maincontent .pm-package-actions { margin-top: .75em; }
 
 /* ===== Benchmark Stage List ===== */

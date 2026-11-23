@@ -124,37 +124,40 @@ return view.extend({
 		 * print that into the details table. */
 		const managerVersion = (typeof manager.version === 'string' && /^[0-9][0-9A-Za-z.+~_-]*$/.test(manager.version) && manager.version.length <= 40) ? manager.version : null;
 		const runtimeConflict = managerAvailable && (legacyPreviewConflict || manager.channel === 'unknown' || (managerIncompatible && !managerVerdictOverridden));
-		/* The verdict of the last check belongs beside the button that produced
-		 * it, inside the same action row: theme spacing, wraps as a unit when
-		 * the row runs out of width. */
+		/* The verdict of the last check is a fact about the feed, not an action:
+		 * it lives in the details table, so the rows below stay pure
+		 * affordances. */
 		const refreshRecord = managerAvailable ? readRefreshRecord() : null;
 		const refreshNote = labels.managerRefreshNote(refreshRecord);
+		/* One native row per action, titled with the object it acts on. A bar of
+		 * bare buttons left "Check for updates" ambiguous: nothing on the page
+		 * said it refreshes the feed index instead of upgrading something. The
+		 * Cloudflare IP Runtime block labels its buttons the same way. */
 		const packageActions = [];
 		const checkPackages = E('button', { 'class': 'btn cbi-button', 'type': 'button', 'disabled': managerSupportsDevice && !managerBusy ? null : '' }, [ _('Check for updates') ]);
 		checkPackages.addEventListener('click', function() { managerAction('refresh', null, checkPackages); });
-		packageActions.push(checkPackages);
+		packageActions.push(pu.field(_('Package index'), checkPackages, _('Refreshes the trusted feed index, then reports whether an update is available.')));
 		if (managerAvailable && manager.supported === true && manager.installed !== true && !runtimeConflict) {
 			const installRuntime = E('button', { 'class': 'btn cbi-button cbi-button-action', 'type': 'button', 'disabled': managerBusy ? '' : null }, [ _('Install Rill Runtime') ]);
 			installRuntime.addEventListener('click', function() { managerAction('install', 'rill-runtime', installRuntime); });
-			packageActions.push(installRuntime);
+			packageActions.push(pu.field(_('Install Rill Runtime'), installRuntime, _('Installs the shared Runtime package for this release and architecture.')));
 		}
 		if (managerAvailable && manager.supported === true && manager.runtimeUpdateAvailable === true && !runtimeConflict) {
 			const updateRuntime = E('button', { 'class': 'btn cbi-button cbi-button-action', 'type': 'button', 'disabled': managerBusy ? '' : null }, [ _('Update Rill Runtime') ]);
 			updateRuntime.addEventListener('click', function() { managerAction('update', 'rill-runtime', updateRuntime); });
-			packageActions.push(updateRuntime);
+			packageActions.push(pu.field(_('Update Rill Runtime'), updateRuntime, _('Updates only a compatible Stable Runtime; Preview installs are never replaced.')));
 		}
 		if (managerAvailable && manager.repairAvailable === true && !runtimeConflict) {
 			const repairRuntime = E('button', { 'class': 'btn cbi-button cbi-button-action', 'type': 'button', 'disabled': managerBusy ? '' : null }, [ _('Repair Rill Runtime') ]);
 			repairRuntime.addEventListener('click', function() { managerAction('repair', 'rill-runtime', repairRuntime); });
-			packageActions.push(repairRuntime);
+			packageActions.push(pu.field(_('Repair Rill Runtime'), repairRuntime, _('Reinstalls the same Stable package when its executable is missing; the version does not change.')));
 		}
 		if (managerAvailable && manager.pmUpdateAvailable === true) {
 			const updatePm = E('button', { 'class': 'btn cbi-button cbi-button-action', 'type': 'button', 'disabled': managerBusy ? '' : null }, [ _('Update Performance Manager') ]);
 			updatePm.addEventListener('click', function() { managerAction('update', 'luci-app-performance-manager-all', updatePm); });
-			packageActions.push(updatePm);
+			packageActions.push(pu.field(_('Update Performance Manager'), updatePm, _('Installs the newer Performance Manager package from the unified feed.')));
 		}
-		const packageToolbar = pu.toolbar(packageActions);
-		packageToolbar.classList.add('pm-package-actions');
+		const packageActionRows = E('div', { 'class': 'pm-package-actions' }, packageActions);
 		let packageStatus = null;
 		if (!managerAvailable)
 			packageStatus = pu.note(_('Package manager controls are unavailable. Update Performance Manager from the unified feed to enable them.'), 'warning');
@@ -254,7 +257,7 @@ return view.extend({
 		const eligible = rillUnavailable ? _('Rill unavailable') : (s.autoEligible === true ? _('Ready') : (s.autoEligible === false ? _('Paused') : _('Not evaluated')));
 		const decisionReason = s.reason ? labels.smartReason(s.reason) : (s.selectedActionId === 'pm.noop' ? _('The current configuration meets the policy.') : _('No decision reason is available yet.'));
 		const pageNodes = [
-			pu.card(_('Package management'), E('div', {}, [ packageStatus, packageDetails, packageToolbar ].filter(function(node) { return node != null; }))),
+			pu.card(_('Package management'), E('div', {}, [ packageStatus, packageDetails, packageActionRows ].filter(function(node) { return node != null; }))),
 			pu.card(_('Current decision'), E('div', {}, [
 				pu.badge(labels.runtimeStatus(r.status)),
 				pu.kv([
