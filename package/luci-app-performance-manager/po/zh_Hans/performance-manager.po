@@ -2583,6 +2583,12 @@ msgstr "正在刷新软件源索引……"
 msgid "Update available"
 msgstr "发现可用更新"
 
+msgid "Last update check"
+msgstr "上次检查"
+
+msgid "Not checked in this session."
+msgstr "本次会话尚未检查。"
+
 msgid "checked at %s"
 msgstr "检查于 %s"
 

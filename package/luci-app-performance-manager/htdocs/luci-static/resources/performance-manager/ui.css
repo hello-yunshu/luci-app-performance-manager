@@ -54,19 +54,10 @@
 .pm-grid > .alert-message { grid-column: 1 / -1; }
 .pm-overview-details { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .pm-rill-ranking-actions { margin-bottom: .75em; }
-/* The first block of the Runtime card reads like the Cloudflare IP one: state
- * first, then the actions, then the details. State is a row of native theme
- * labels with one short rider (the time of the last check); spacing comes from
- * the theme scale, and a label never wraps inside itself. */
-#maincontent .pm-package-state {
-	display: flex;
-	flex-wrap: wrap;
-	align-items: center;
-	gap: calc(var(--spacing, .25rem) * 2);
-	margin-bottom: .75em;
-}
-#maincontent .pm-package-state > .label { flex: 0 0 auto; white-space: nowrap; }
-#maincontent .pm-package-state > small { margin: 0; }
+/* The package card states the facts first (native cbi-value rows) and then
+ * offers the buttons that change them, in their own row with a little air
+ * above it. No status text rides along with the buttons. */
+#maincontent .pm-package-actions { margin-top: .75em; }
 
 /* ===== Benchmark Stage List ===== */
 .pm-stage-list {

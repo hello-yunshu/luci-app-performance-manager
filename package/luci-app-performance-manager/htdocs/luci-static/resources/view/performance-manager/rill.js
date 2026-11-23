@@ -154,7 +154,7 @@ return view.extend({
 			packageActions.push(updatePm);
 		}
 		const packageToolbar = pu.toolbar(packageActions);
-		packageToolbar.classList.add('pm-rill-ranking-actions');
+		packageToolbar.classList.add('pm-package-actions');
 		let packageStatus = null;
 		if (!managerAvailable)
 			packageStatus = pu.note(_('Package manager controls are unavailable. Update Performance Manager from the unified feed to enable them.'), 'warning');
@@ -174,24 +174,29 @@ return view.extend({
 		}
 		else if (manager.installed !== true)
 			packageStatus = pu.note(_('Rill Runtime is not installed. Install it to enable Rill decisions.'), 'warning');
-		/* Same reading order as the Cloudflare IP Runtime block: the state of the
-		 * installed Runtime comes first, then the actions that change it, then
-		 * the technical details. PM keeps its card and its kv facts; CFI keeps
-		 * its UCI form rows. */
+		/* One information block, one interaction block. The facts about the
+		 * installed Runtime - including when the feed was last checked and what
+		 * it answered - are rows of the same native table; the buttons that
+		 * change those facts are a separate row underneath and carry no status
+		 * of their own. Same split as the Cloudflare IP Runtime block, which
+		 * also states before it offers. */
 		const compatText = (managerVerdictOverridden || manager.compatible === true)
 			? _('Compatible')
 			: (manager.compatible === false ? _('Needs attention') : _('Unknown'));
-		const packageState = (managerAvailable && manager.supported !== false) ? E('div', { 'class': 'pm-package-state' }, [
-			pu.badge(compatText, (managerVerdictOverridden || manager.compatible === true) ? 'success' : 'warning'),
-			refreshNote ? pu.badge(refreshNote.text, refreshNote.hasUpdate ? 'warning' : 'success') : null,
-			refreshNote ? E('small', {}, [ _('checked at %s').format(refreshNote.clock) ]) : null
-		].filter(function(node) { return node != null; })) : null;
+		const lastCheck = refreshNote
+			? E('span', {}, [
+				pu.badge(refreshNote.hasUpdate ? _('Update available') : _('Up to date'), refreshNote.hasUpdate ? 'warning' : 'success'),
+				' · ' + refreshNote.clock
+			])
+			: _('Not checked in this session.');
 		const packageDetails = managerAvailable ? pu.kv([
 			[_('OpenWrt release'), manager.release || _('Unknown')],
 			[_('Package architecture'), manager.architecture || _('Unknown')],
 			[_('Runtime package'), manager.installed === true ? (legacyPreviewConflict ? 'rill-runtime-preview' : (manager.package || 'rill-runtime')) : 'rill-runtime'],
 			[_('Runtime version'), managerVersion || (manager.installed === true ? _('Unknown') : _('Not installed'))],
-			[_('Runtime channel'), manager.channel || _('Unknown')]
+			[_('Runtime channel'), manager.channel || _('Unknown')],
+			[_('Runtime compatibility'), compatText],
+			[_('Last update check'), lastCheck]
 		]) : null;
 		const ranking = (s.ranking || []).slice(0, 5);
 		const rows = ranking.length ? ranking.map(function(row, i) {
@@ -249,7 +254,7 @@ return view.extend({
 		const eligible = rillUnavailable ? _('Rill unavailable') : (s.autoEligible === true ? _('Ready') : (s.autoEligible === false ? _('Paused') : _('Not evaluated')));
 		const decisionReason = s.reason ? labels.smartReason(s.reason) : (s.selectedActionId === 'pm.noop' ? _('The current configuration meets the policy.') : _('No decision reason is available yet.'));
 		const pageNodes = [
-			pu.card(_('Package management'), E('div', {}, [ packageState, packageToolbar, packageStatus, packageDetails ].filter(function(node) { return node != null; }))),
+			pu.card(_('Package management'), E('div', {}, [ packageStatus, packageDetails, packageToolbar ].filter(function(node) { return node != null; }))),
 			pu.card(_('Current decision'), E('div', {}, [
 				pu.badge(labels.runtimeStatus(r.status)),
 				pu.kv([

@@ -2659,6 +2659,12 @@ msgstr "Refreshing package indexes..."
 msgid "Update available"
 msgstr "Update available"
 
+msgid "Last update check"
+msgstr "Last update check"
+
+msgid "Not checked in this session."
+msgstr "Not checked in this session."
+
 msgid "checked at %s"
 msgstr "checked at %s"
 

@@ -2440,6 +2440,12 @@ msgstr ""
 msgid "Update available"
 msgstr ""
 
+msgid "Last update check"
+msgstr ""
+
+msgid "Not checked in this session."
+msgstr ""
+
 msgid "checked at %s"
 msgstr ""
 

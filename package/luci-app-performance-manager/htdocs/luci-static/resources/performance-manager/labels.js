@@ -599,11 +599,7 @@ function managerRefreshNote(record) {
 		return null;
 	}
 	const clock = `${twodigit(when.getHours())}:${twodigit(when.getMinutes())}`;
-	return {
-		hasUpdate: record.hasUpdate === true,
-		text: record.hasUpdate === true ? _('Update available') : _('Up to date'),
-		clock: clock
-	};
+	return { hasUpdate: record.hasUpdate === true, clock: clock };
 }
 
 function managerActionOutcome(action) {
