@@ -50,7 +50,24 @@ return view.extend({
 		const managerSupportsDevice = managerAvailable && manager.supported !== false;
 		const managerBusy = manager && manager.busy === true;
 		const legacyPreviewConflict = managerAvailable && (manager.channel === 'legacy-preview' || manager.channel === 'preview' || manager.package === 'rill-runtime-preview' || manager.legacyPreviewInstalled === true);
-		const runtimeConflict = managerAvailable && (legacyPreviewConflict || manager.channel === 'unknown' || (manager.installed === true && manager.compatible === false));
+		/* The shared rill-runtime-manager parses the installed package metadata
+		 * itself, so a failed parse (for example `apk info -v` printing the
+		 * package description instead of `name-version` on apk 3.x) makes it
+		 * report the Runtime as incompatible even though the Runtime answered
+		 * PM's own version handshake. The handshake is the authoritative
+		 * signal: a disagreement must neither raise the conflict banner nor
+		 * block Runtime package management. Legacy Preview ownership and
+		 * unknown ownership remain real conflicts. */
+		const managerIncompatible = manager.installed === true && manager.compatible === false;
+		const handshakeCompatible = r.compatibility === 'compatible';
+		const managerVerdictOverridden = managerAvailable && managerIncompatible && handshakeCompatible;
+		if (managerVerdictOverridden && typeof console !== 'undefined' && console.warn)
+			console.warn('performance-manager: rill-runtime-manager reports the Runtime as incompatible while the Runtime handshake succeeded; the handshake verdict is used');
+		/* A parsed version is short and starts with a digit. The manager can
+		 * hand back a whole package description when its parse failed; never
+		 * print that into the details table. */
+		const managerVersion = (typeof manager.version === 'string' && /^[0-9][0-9A-Za-z.+~_-]*$/.test(manager.version) && manager.version.length <= 40) ? manager.version : null;
+		const runtimeConflict = managerAvailable && (legacyPreviewConflict || manager.channel === 'unknown' || (managerIncompatible && !managerVerdictOverridden));
 		const packageActions = [];
 		const checkPackages = E('button', { 'class': 'btn cbi-button', 'type': 'button', 'disabled': managerSupportsDevice && !managerBusy ? null : '' }, [ _('Check for updates') ]);
 		checkPackages.addEventListener('click', function() { managerAction('refresh', null, checkPackages); });
@@ -85,7 +102,7 @@ return view.extend({
 		else if (runtimeConflict) {
 			if (legacyPreviewConflict) {
 				const migration = E('div', {}, [
-					E('p', {}, [ _('The installed owner is rill-runtime-preview, version %s. PM will not remove or replace it automatically.').format(manager.version || _('Unknown')) ]),
+					E('p', {}, [ _('The installed owner is rill-runtime-preview, version %s. PM will not remove or replace it automatically.').format(managerVersion || _('Unknown')) ]),
 					E('p', {}, [ _('Back up /etc/config/performance-manager and /etc/performance-manager/. Check for other packages that use rill-runtime-preview before continuing.') ]),
 					E('pre', {}, [ 'cp -a /etc/config/performance-manager /root/performance-manager.config.backup\ntar -czf /root/performance-manager-data.backup.tgz /etc/performance-manager\n\n# OpenWrt 24.10 (opkg)\nopkg remove luci-app-performance-manager-all rill-runtime-preview\nopkg update\nopkg install luci-app-performance-manager-all\n\n# OpenWrt 25.12 (apk)\napk del luci-app-performance-manager-all rill-runtime-preview\napk update\napk add luci-app-performance-manager-all' ])
 				]);
@@ -100,9 +117,9 @@ return view.extend({
 			[_('OpenWrt release'), manager.release || _('Unknown')],
 			[_('Package architecture'), manager.architecture || _('Unknown')],
 			[_('Runtime package'), manager.installed === true ? (legacyPreviewConflict ? 'rill-runtime-preview' : (manager.package || 'rill-runtime')) : 'rill-runtime'],
-			[_('Runtime version'), manager.version || _('Not installed')],
+			[_('Runtime version'), managerVersion || (manager.installed === true ? _('Unknown') : _('Not installed'))],
 			[_('Runtime channel'), manager.channel || _('Unknown')],
-			[_('Runtime compatibility'), manager.compatible === true ? _('Compatible') : (manager.compatible === false ? _('Needs attention') : _('Unknown'))]
+			[_('Runtime compatibility'), (managerVerdictOverridden || manager.compatible === true) ? _('Compatible') : (manager.compatible === false ? _('Needs attention') : _('Unknown'))]
 		]) : null;
 		const ranking = (s.ranking || []).slice(0, 5);
 		const rows = ranking.length ? ranking.map(function(row, i) {

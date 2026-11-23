@@ -593,6 +593,35 @@ await expect('PM update action follows the PM-specific availability flag', () =>
     throw new Error('unknown Runtime ownership must not show an install action');
 });
 
+/* The shared rill-runtime-manager parses the installed package metadata itself.
+ * When that parse fails (apk 3.x prints the package description for
+ * `apk info -v`) it reports incompatible while the Runtime answered PM's own
+ * version handshake.  The handshake is authoritative, so the page must not
+ * raise the conflict banner, must keep the package actions enabled, and must
+ * never print the unparsed description as the Runtime version. */
+await expect('a manager version-parse failure does not fake a Runtime conflict', () => {
+  const view = loadModule(path.join(VIEW_DIR, 'rill.js'), baseGlobals);
+  const description = 'Generic Rill Runtime packaged for OpenWrt. This distribution recipe installs only the runtime executable from an immutable upstream Git commit promoted to the Stable package channel.';
+  const handshakeOk = { ...mockRill, compatibility: 'compatible' };
+  const page = visibleText(view.render([handshakeOk, mockRec, {
+    ok: true, supported: true, installed: true, channel: 'stable',
+    compatible: false, version: description, runtimeUpdateAvailable: true,
+  }]));
+  if (page.includes(_('An incompatible Rill Runtime is installed. Resolve that package conflict before changing Runtime packages.')))
+    throw new Error('handshake-compatible Runtime was reported as a package conflict');
+  if (!page.includes(_('Update Rill Runtime')))
+    throw new Error('Runtime update action stayed hidden after the handshake cleared the conflict');
+  if (page.includes('packaged for OpenWrt'))
+    throw new Error('unparsed manager version leaked the package description into the details table');
+  /* A real ownership conflict still wins over a passing handshake. */
+  const legacy = visibleText(view.render([handshakeOk, mockRec, {
+    ok: true, supported: true, installed: true, channel: 'legacy-preview',
+    compatible: false, version: description, runtimeUpdateAvailable: true,
+  }]));
+  if (!legacy.includes('rill-runtime-preview'))
+    throw new Error('handshake override silently dropped the legacy Preview conflict');
+});
+
 /* Prove the scanner itself would catch the exact regressions it is meant to
  * catch, so a future refactor cannot silently weaken it. */
 await expect('raw-value scanner self-test', () => {
