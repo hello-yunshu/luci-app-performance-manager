@@ -1,7 +1,10 @@
 # Changelog
 
-## Unreleased — unified feed and shared Runtime (package release 1.0.7-r9)
+## Unreleased — unified feed and shared Runtime (package release 1.0.7-r10)
 
+- History rows are bounded on both sides. Three 833 KiB `benchmark.observed` rows were enough to kill Core inside the startup compaction pass, which procd turned into a crash loop: `diagnostics` and `history` hung and then the ubus object disappeared. Writers now replace an over-large row with a scalar summary plus a `truncated` marker, and the reader skips any legacy row above 64 KiB instead of handing it to the JSON parser.
+- The command failure report is keyed by the exact command instead of `argv[0]`: a successful `ethtool -k` used to clear the failure streak of `ethtool -g`, so the same stderr came back on every telemetry tick.
+- Package-manager failures now surface the shared manager's error code: its twenty codes (`feed-refresh-failed`, `package-manager-busy`, legacy Preview migration, feed trust key, and so on) are translated, and the manager's own sentence stays visible as the detail line instead of collapsing into "unknown error".
 - The Rill page no longer renders a literal `null` under the package-management actions: LuCI stringifies a `null` member of a children array, so empty conditional blocks are filtered out (the Overview path card had the same latent leak).
 - The Rill page no longer turns a failed `rill-runtime-manager` version parse into a package conflict: when the shared manager reports the Runtime as incompatible while the Runtime answers PM's own version handshake, the handshake verdict wins, so a healthy install keeps its Runtime update/repair actions instead of showing "an incompatible Rill Runtime is installed". Legacy Preview and unknown ownership stay real conflicts, and an unparsed manager version is no longer printed into the details table.
 - Keep `luci-app-performance-manager-all` as the single user-facing PM package; it depends on the shared `rill-runtime-preview` and `rill-runtime-manager` packages.
