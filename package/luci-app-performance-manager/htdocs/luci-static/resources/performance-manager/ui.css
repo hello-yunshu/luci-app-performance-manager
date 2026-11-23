@@ -54,6 +54,14 @@
 .pm-grid > .alert-message { grid-column: 1 / -1; }
 .pm-overview-details { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .pm-rill-ranking-actions { margin-bottom: .75em; }
+/* The "check for updates" verdict is a native theme .label sitting in the
+ * action row beside the button that produced it. Same rhythm as .pm-stage:
+ * a fixed-size unit that never wraps its own text, so a narrow viewport moves
+ * it onto its own line instead of squeezing the buttons. */
+#maincontent .pm-rill-ranking-actions > .label {
+	flex: 0 0 auto;
+	white-space: nowrap;
+}
 
 /* ===== Benchmark Stage List ===== */
 .pm-stage-list {

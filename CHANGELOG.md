@@ -1,8 +1,9 @@
 # Changelog
 
-## Unreleased — unified feed and shared Runtime (package release 1.0.7-r13)
+## Unreleased — unified feed and shared Runtime (package release 1.0.7-r14)
 
-- "Check for updates" keeps its answer on screen. The page still reloads, but the verdict of the refresh now survives the reload as a status label under the package actions — `Everything is up to date (checked at 02:07)` or `An update is available (checked at 02:07)` — so a refresh that found nothing new no longer looks like a dead button. Install, repair, and update still announce themselves with a notification, and their effect is visible in the card afterwards.
+- The refresh verdict is a native theme `.label` inside the plugin action row (`.ys-actions`), directly after the button that produced it, instead of a paragraph under the toolbar: same theme spacing and wrap behaviour as the sibling pages, no plugin-specific margins, and it stays next to "check for updates" when the Runtime update/repair actions appear.
+- "Check for updates" keeps its answer on screen. The page still reloads, but the verdict of the refresh now survives the reload as a status label — `Everything is up to date (checked at 02:07)` or `An update is available (checked at 02:07)` — so a refresh that found nothing new no longer looks like a dead button. Install, repair, and update still announce themselves with a notification, and their effect is visible in the card afterwards.
 - `run_key()` is declared before `run()`. ucode has no function hoisting and, worse, a body that names a function declared later in the file binds a global that is never created: `run()` referenced a `run_key()` that sits forty lines below it, so the daemon died at startup with `Reference error: access to undeclared variable run_key` and procd turned it into a crash loop — the ubus object disappeared and the LuCI pages stayed blank. The command-failure dedupe itself is unchanged.
 
 - History rows are bounded on both sides. Three 833 KiB `benchmark.observed` rows were enough to kill Core inside the startup compaction pass, which procd turned into a crash loop: `diagnostics` and `history` hung and then the ubus object disappeared. Writers now replace an over-large row with a scalar summary plus a `truncated` marker, and the reader skips any legacy row above 64 KiB instead of handing it to the JSON parser.

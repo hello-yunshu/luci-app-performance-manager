@@ -124,10 +124,17 @@ return view.extend({
 		 * print that into the details table. */
 		const managerVersion = (typeof manager.version === 'string' && /^[0-9][0-9A-Za-z.+~_-]*$/.test(manager.version) && manager.version.length <= 40) ? manager.version : null;
 		const runtimeConflict = managerAvailable && (legacyPreviewConflict || manager.channel === 'unknown' || (managerIncompatible && !managerVerdictOverridden));
+		/* The verdict of the last check belongs beside the button that produced
+		 * it, inside the same action row: theme spacing, wraps as a unit when
+		 * the row runs out of width. */
+		const refreshRecord = managerAvailable ? readRefreshRecord() : null;
+		const refreshNote = labels.managerRefreshNote(refreshRecord);
 		const packageActions = [];
 		const checkPackages = E('button', { 'class': 'btn cbi-button', 'type': 'button', 'disabled': managerSupportsDevice && !managerBusy ? null : '' }, [ _('Check for updates') ]);
 		checkPackages.addEventListener('click', function() { managerAction('refresh', null, checkPackages); });
 		packageActions.push(checkPackages);
+		if (refreshNote)
+			packageActions.push(pu.badge(refreshNote, refreshRecord.hasUpdate === true ? 'warning' : 'success'));
 		if (managerAvailable && manager.supported === true && manager.installed !== true && !runtimeConflict) {
 			const installRuntime = E('button', { 'class': 'btn cbi-button cbi-button-action', 'type': 'button', 'disabled': managerBusy ? '' : null }, [ _('Install Rill Runtime') ]);
 			installRuntime.addEventListener('click', function() { managerAction('install', 'rill-runtime', installRuntime); });
@@ -150,11 +157,6 @@ return view.extend({
 		}
 		const packageToolbar = pu.toolbar(packageActions);
 		packageToolbar.classList.add('pm-rill-ranking-actions');
-		const refreshRecord = managerAvailable ? readRefreshRecord() : null;
-		const refreshNote = labels.managerRefreshNote(refreshRecord);
-		const packageRefreshStatus = refreshNote
-			? E('p', {}, [ pu.badge(refreshNote, refreshRecord.hasUpdate === true ? 'warning' : 'success') ])
-			: null;
 		let packageStatus = null;
 		if (!managerAvailable)
 			packageStatus = pu.note(_('Package manager controls are unavailable. Update Performance Manager from the unified feed to enable them.'), 'warning');
@@ -238,7 +240,7 @@ return view.extend({
 		const eligible = rillUnavailable ? _('Rill unavailable') : (s.autoEligible === true ? _('Ready') : (s.autoEligible === false ? _('Paused') : _('Not evaluated')));
 		const decisionReason = s.reason ? labels.smartReason(s.reason) : (s.selectedActionId === 'pm.noop' ? _('The current configuration meets the policy.') : _('No decision reason is available yet.'));
 		const pageNodes = [
-			pu.card(_('Package management'), E('div', {}, [ packageToolbar, packageRefreshStatus, packageStatus, packageDetails ].filter(function(node) { return node != null; }))),
+			pu.card(_('Package management'), E('div', {}, [ packageToolbar, packageStatus, packageDetails ].filter(function(node) { return node != null; }))),
 			pu.card(_('Current decision'), E('div', {}, [
 				pu.badge(labels.runtimeStatus(r.status)),
 				pu.kv([
