@@ -177,7 +177,7 @@ return view.extend({
 		const eligible = rillUnavailable ? _('Rill unavailable') : (s.autoEligible === true ? _('Ready') : (s.autoEligible === false ? _('Paused') : _('Not evaluated')));
 		const decisionReason = s.reason ? labels.smartReason(s.reason) : (s.selectedActionId === 'pm.noop' ? _('The current configuration meets the policy.') : _('No decision reason is available yet.'));
 		const pageNodes = [
-			pu.card(_('Package management'), E('div', {}, [ packageToolbar, packageStatus, packageDetails ])),
+			pu.card(_('Package management'), E('div', {}, [ packageToolbar, packageStatus, packageDetails ].filter(function(node) { return node != null; }))),
 			pu.card(_('Current decision'), E('div', {}, [
 				pu.badge(labels.runtimeStatus(r.status)),
 				pu.kv([

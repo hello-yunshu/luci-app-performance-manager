@@ -2,6 +2,7 @@
 
 ## Unreleased — unified feed and shared Runtime (package release 1.0.7-r9)
 
+- The Rill page no longer renders a literal `null` under the package-management actions: LuCI stringifies a `null` member of a children array, so empty conditional blocks are filtered out (the Overview path card had the same latent leak).
 - The Rill page no longer turns a failed `rill-runtime-manager` version parse into a package conflict: when the shared manager reports the Runtime as incompatible while the Runtime answers PM's own version handshake, the handshake verdict wins, so a healthy install keeps its Runtime update/repair actions instead of showing "an incompatible Rill Runtime is installed". Legacy Preview and unknown ownership stay real conflicts, and an unparsed manager version is no longer printed into the details table.
 - Keep `luci-app-performance-manager-all` as the single user-facing PM package; it depends on the shared `rill-runtime-preview` and `rill-runtime-manager` packages.
 - Add guarded Runtime status, install, repair, and update actions to the Rill page. Runtime repair is exposed only when the manager confirms a safe same-version recovery.

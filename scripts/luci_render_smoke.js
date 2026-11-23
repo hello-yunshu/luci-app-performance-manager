@@ -67,7 +67,14 @@ class FakeEl {
       contains: (name) => String(this.attrs['class'] || '').split(/\s+/).includes(name),
     };
     if (this.attrs.class) this.class = this.attrs['class'];
-    (Array.isArray(children) ? children : children == null ? [] : [children]).forEach((c) => this.appendChild(c));
+    /* LuCI's `dom.append` stringifies every array member that is not a node and
+     * guards with `children !== null` — the ARRAY, never the member — so a null
+     * element inside a children array renders as the literal text "null".
+     * Mirror that exactly, otherwise the smoke run cannot see the leak. */
+    if (Array.isArray(children))
+      children.forEach((c) => this.children.push(c instanceof FakeEl ? c : String(c)));
+    else if (children != null)
+      this.appendChild(children);
   }
   get value() { return this._value !== undefined ? this._value : (this.options.length ? this.options[0].attrs.value : ''); }
   set value(v) { this._value = v; }
@@ -518,6 +525,10 @@ function assertCleanPage(name, payload) {
   const shortUuid = text.match(/(^|[^0-9A-Za-z])[0-9a-f]{8}(?=$|[^0-9A-Za-z])/i);
   if (shortUuid) throw new Error('short UUID leaked to UI: ' + shortUuid[0]);
   if (/\b\d+\s*ms\b/.test(text)) throw new Error('bare millisecond value leaked to UI');
+  /* LuCI stringifies a null/undefined children entry, so a conditional block
+   * that stays empty must be filtered out instead of rendered. */
+  const placeholder = text.match(/(^|[^A-Za-z0-9_])(null|undefined|NaN)(?=$|[^A-Za-z0-9_])/);
+  if (placeholder) throw new Error('placeholder value rendered to UI: ' + placeholder[2]);
   const english = text.match(/[A-Za-z][A-Za-z0-9-]*(?:\s+[A-Za-z][A-Za-z0-9-]*){2,}/);
   if (english) throw new Error('English prose leaked to UI: ' + english[0]);
   const attrs = attributeText(rendered);

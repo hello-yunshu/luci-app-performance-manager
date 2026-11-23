@@ -123,7 +123,7 @@ return view.extend({
 					workloadClass: t.paths[0].workloadClass,
 					targetRefs: t.paths[0].targetRefs
 				}, _('Technical details')) : null
-			])),
+			].filter(function(node) { return node != null; }))),
 
 			pu.card(_('Advanced details'), pu.jsonBox({
 				status: s,
