@@ -1,7 +1,8 @@
 # Changelog
 
-## Unreleased — unified feed and shared Runtime (package release 1.0.7-r11)
+## Unreleased — unified feed and shared Runtime (package release 1.0.7-r12)
 
+- `run_key()` is declared before `run()`. ucode has no function hoisting and, worse, a body that names a function declared later in the file binds a global that is never created: `run()` referenced a `run_key()` that sits forty lines below it, so the daemon died at startup with `Reference error: access to undeclared variable run_key` and procd turned it into a crash loop — the ubus object disappeared and the LuCI pages stayed blank. The command-failure dedupe itself is unchanged.
 - Package actions now report their outcome. "Check for updates" used to end in an unconditional reload, so a refresh that found nothing new came back to a byte-identical page and read as "nothing happened": the button said `Working...`, the page blinked, and the user was left guessing. The outcome helper now says whether the indexes were already current or an update is available, and the page only reloads when the new state actually changes what it offers. Install, repair, and update say what they did too, and the refresh button names the work it is waiting on.
 
 - History rows are bounded on both sides. Three 833 KiB `benchmark.observed` rows were enough to kill Core inside the startup compaction pass, which procd turned into a crash loop: `diagnostics` and `history` hung and then the ubus object disappeared. Writers now replace an over-large row with a scalar summary plus a `truncated` marker, and the reader skips any legacy row above 64 KiB instead of handing it to the JSON parser.

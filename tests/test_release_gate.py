@@ -29,7 +29,7 @@ class ReleaseGateSourceTests(unittest.TestCase):
         self.assertIn('performance-manager-rill/files',bundle)
         self.assertIn('+rill-runtime', bundle)
         self.assertNotIn('+rill-runtime-preview', bundle)
-        self.assertIn('PKG_RELEASE:=11', bundle)
+        self.assertIn('PKG_RELEASE:=12', bundle)
         split_glue = (ROOT/'package/performance-manager-rill/Makefile').read_text()
         self.assertIn('PKG_RELEASE:=2', split_glue)
         self.assertNotIn('RILL_RUNTIME_BINARY', bundle)
