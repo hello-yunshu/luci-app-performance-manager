@@ -1419,11 +1419,30 @@ function service_running(name) {
 	return run([ script, 'running' ]).rc == 0;
 }
 
+/* Same reasoning as the nft snapshot cache: the fingerprint folds the live
+ * ruleset identity, per-service running state and UCI digests, and one request
+ * asks for it several times (observe, advisory drift check, selector context).
+ * The key carries everything that varies between callers - the masked UCI keys
+ * and the frozen ruleset hash - so two different questions never share a
+ * cached answer. */
+let integration_fp_cache = {};
+const INTEGRATION_FP_TTL_MS = 10000;
+
+function integration_fingerprint_invalidate() {
+	integration_fp_cache = {};
+}
+
 function integration_fingerprint(masked_keys, nft) {
 	/* Canonical context fingerprint: installed-boolean detection (the old
 	 * integration_state) is NOT evidence of unchanged runtime behavior, so the
 	 * fingerprint adds per-service running state, UCI config digests and the
 	 * live ip rule policy set (PBR/mwan3/policy routing surfaces). */
+	let nft_hash = nft != null ? (nft.hash ?? fnv1a32(nft.canonical)) : 'none';
+	let cache_key = sprintf('%s|nft:%s', join(',', masked_keys ?? []), nft_hash);
+	let now = monotonic_ms();
+	let cached = integration_fp_cache[cache_key];
+	if (cached != null && (now - cached.at) < INTEGRATION_FP_TTL_MS)
+		return cached.value;
 	let rows = [];
 	for (let name in [ 'openclash', 'passwall', 'passwall2', 'homeproxy', 'sqm', 'qosify', 'mwan3', 'pbr', 'openvpn' ]) {
 		if (!integration_present(name)) continue;
@@ -1449,8 +1468,10 @@ function integration_fingerprint(masked_keys, nft) {
 	 * strict mode, so the caller ALWAYS supplies the snapshot explicitly: a
 	 * real snapshot (or `null` when nft is unavailable) to fold the nft row in,
 	 * or `null` to suppress it (fastpath Blocker B sessions). */
-	if (nft != null && length(nft.items)) push(rows, `nft:${fnv1a32(nft.canonical)}`);
-	return `integ-v1:${fnv1a32(join('\n', rows))}`;
+	if (nft != null && length(nft.items)) push(rows, `nft:${nft_hash}`);
+	let value = `integ-v1:${fnv1a32(join('\n', rows))}`;
+	integration_fp_cache[cache_key] = { at: now, value: value };
+	return value;
 }
 
 function proxy_health() {
@@ -3145,11 +3166,32 @@ function topology() {
 	return topology_cache;
 }
 
-function nft_snapshot() {
+/* A canonicalised ruleset costs ~250 ms (nft -j plus per-item canonical
+ * serialisation of ~235 KB) and hashing it in ucode costs another ~400 ms.  One
+ * LuCI page load used to pay both three or four times over: rill_observe, the
+ * advisory drift check and the selector context each rebuilt the same
+ * fingerprint.  Reuse the snapshot inside a short window instead, and let the
+ * structural hash ride along so no caller re-hashes the text.  `fresh` bypasses
+ * the window for callers that freeze a snapshot as benchmark evidence; ubus
+ * interface/network/firewall events and refresh() drop the cache, so drift
+ * arrives through the event that caused it rather than through a poll. */
+let nft_snapshot_cache = null, nft_snapshot_cache_ms = 0;
+const NFT_SNAPSHOT_TTL_MS = 10000;
+
+function nft_snapshot_invalidate() {
+	nft_snapshot_cache = null;
+	nft_snapshot_cache_ms = 0;
+}
+
+function nft_snapshot(fresh) {
 	/* Canonical structural snapshot of the live nft ruleset.  Volatile fields
 	 * (handle/packets/bytes) are dropped so the snapshot reflects topology,
-	 * not transient traffic.  Returns { items, parsed, canonical } or null. */
+	 * not transient traffic.  Returns { items, parsed, canonical, hash } or
+	 * null. */
 	if (!command_exists('nft')) return null;
+	let now = monotonic_ms();
+	if (fresh !== true && nft_snapshot_cache && (now - nft_snapshot_cache_ms) < NFT_SNAPSHOT_TTL_MS)
+		return nft_snapshot_cache;
 	let r = run([ 'nft', '-j', 'list', 'ruleset' ]);
 	if (r.rc != 0) return null;
 	let root = null;
@@ -3165,7 +3207,10 @@ function nft_snapshot() {
 	}
 	if (!length(parts)) return null;
 	sort(parts);
-	return { items: parts, parsed: parsed, canonical: join('\n', parts) };
+	let canonical = join('\n', parts);
+	nft_snapshot_cache = { items: parts, parsed: parsed, canonical: canonical, hash: fnv1a32(canonical) };
+	nft_snapshot_cache_ms = now;
+	return nft_snapshot_cache;
 }
 
 function nft_ruleset_fingerprint() {
@@ -3174,7 +3219,7 @@ function nft_ruleset_fingerprint() {
 	 * unavailable. */
 	let snap = nft_snapshot();
 	if (snap == null) return null;
-	return sprintf('nft-v2:%s', fnv1a32(snap.canonical));
+	return sprintf('nft-v2:%s', snap.hash);
 }
 
 function dns_health() {
@@ -3634,7 +3679,10 @@ function benchmark_context(path_id, masked_keys) {
 	 * fingerprint; everything else must match exactly.  The snapshot is stored
 	 * on the session so the candidate leg can compute the structural delta. */
 	let fastpath = index(masked_keys ?? [], 'fastpath-expected-delta') >= 0;
-	let nft = nft_snapshot();
+	/* The snapshot is stored on the session as the control leg of a structural
+	 * delta, so it must describe the ruleset as it is right now - never a
+	 * cached copy. */
+	let nft = nft_snapshot(true);
 	return {
 		capabilityHash:capability_hash(caps), topologyGeneration:topology_generation,
 		routeIdentity:path?.routeIdentity ?? 'unresolved', routeProvider:path?.routeProvider ?? null,
@@ -4596,6 +4644,10 @@ function topology_signature(t) {
 }
 
 function refresh(reason) {
+	/* A topology/interface/firewall event is exactly the signal that the
+	 * cached live-state views are stale, so drop them before re-reading. */
+	nft_snapshot_invalidate();
+	integration_fingerprint_invalidate();
 	let observed=topology(), signature=topology_signature(observed), changed=false;
 	if (last_topology_signature == null) last_topology_signature=signature;
 	else if (signature != last_topology_signature) { topology_generation++; last_topology_signature=signature; changed=true; }
