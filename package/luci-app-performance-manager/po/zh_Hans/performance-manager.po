@@ -2503,7 +2503,7 @@ msgid "Package management"
 msgstr "软件包管理"
 
 msgid "Repair Rill Runtime"
-msgstr "修复 Rill Runtime"
+msgstr "修复 Rill 运行环境"
 
 msgid "The installed owner is rill-runtime-preview, version %s. PM will not remove or replace it automatically."
 msgstr "当前运行环境由 rill-runtime-preview（版本 %s）拥有。PM 不会自动删除或替换它。"
