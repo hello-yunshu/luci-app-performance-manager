@@ -154,7 +154,7 @@ msgstr "历史"
 
 #: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/settings.js:27
 msgid "Store action and runtime events for review and rollback."
-msgstr "保存操作和 Rill 运行时事件，供查看和回滚使用。"
+msgstr "保存操作和 Rill 运行环境事件，供查看和回滚使用。"
 
 #: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/settings.js:28
 msgid "Failsafe"
@@ -182,25 +182,25 @@ msgstr "深度测量数据的收集间隔。"
 
 #: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/settings.js:33
 msgid "Rill Runtime"
-msgstr "Rill 运行时"
+msgstr "Rill 运行环境"
 
 #: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/settings.js:34
 msgid "Enable Runtime"
-msgstr "启用 Rill 运行时"
+msgstr "启用 Rill 运行环境"
 
 #: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/settings.js:34
 msgid ""
 "Enable the optional Rill Runtime integration. Core remains the execution "
 "authority."
-msgstr "启用可选的 Rill 运行时集成。最终执行权由核心引擎掌握。"
+msgstr "启用可选的 Rill 运行环境集成。最终执行权由核心引擎掌握。"
 
 #: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/settings.js:35
 msgid "Generic Runtime binary"
-msgstr "通用 Rill 运行时二进制文件"
+msgstr "通用 Rill 运行环境二进制文件"
 
 #: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/settings.js:35
 msgid "Path to the external generic Rill Runtime binary."
-msgstr "外部通用 Rill 运行时二进制文件的路径。"
+msgstr "外部通用 Rill 运行环境二进制文件的路径。"
 
 #: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/settings.js:36
 msgid "Use Rill ranking in automatic modes"
@@ -337,7 +337,7 @@ msgstr "结果"
 
 #: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/rill.js:33
 msgid "Runtime status"
-msgstr "Rill 运行时状态"
+msgstr "Rill 运行环境状态"
 
 #: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/rill.js:34
 #: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/overview.js:36
@@ -730,7 +730,7 @@ msgstr "历史与回滚"
 msgid ""
 "Review pending confirmations, verified rollbacks, and runtime events with "
 "their safety context."
-msgstr "查看待确认事务、已验证回滚和 Rill 运行时事件，同时保留安全上下文。"
+msgstr "查看待确认事务、已验证回滚和 Rill 运行环境事件，同时保留安全上下文。"
 
 #: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/history.js:40
 #: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/advanced.js:17
@@ -752,11 +752,11 @@ msgstr "历史 JSON"
 
 #: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/history.js:42
 msgid "Runtime event history"
-msgstr "Rill 运行时事件历史"
+msgstr "Rill 运行环境事件历史"
 
 #: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/history.js:42
 msgid "Runtime History JSON"
-msgstr "Rill 运行时历史 JSON"
+msgstr "Rill 运行环境历史 JSON"
 
 #: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/benchmark.js:9
 msgid "Unable to read evidence. Paste valid JSON and try again."
@@ -1578,40 +1578,40 @@ msgid ""
 msgstr "在应用任何候选项之前，先运行配套测试工具，然后粘贴其 JSON 结果。"
 
 msgid "Runtime available"
-msgstr "Rill 运行时可用"
+msgstr "Rill 运行环境可用"
 
 msgid "Runtime binary invalid"
-msgstr "Rill 运行时二进制文件无效"
+msgstr "Rill 运行环境二进制文件无效"
 
 msgid "Runtime disabled"
-msgstr "Rill 运行时已禁用"
+msgstr "Rill 运行环境已禁用"
 
 msgid "Runtime error"
-msgstr "Rill 运行时错误"
+msgstr "Rill 运行环境错误"
 
 msgid "Runtime learning"
-msgstr "Rill 运行时学习中"
+msgstr "Rill 运行环境学习中"
 
 msgid "Runtime missing capabilities"
-msgstr "Rill 运行时缺少能力"
+msgstr "Rill 运行环境缺少能力"
 
 msgid "Runtime not provisioned"
-msgstr "Rill 运行时未部署"
+msgstr "Rill 运行环境未部署"
 
 msgid "Not provisioned"
 msgstr "未部署"
 
 msgid "Runtime protocol v%s"
-msgstr "Rill 运行时协议 v%s"
+msgstr "Rill 运行环境协议 v%s"
 
 msgid "Runtime unavailable"
-msgstr "Rill 运行时不可用"
+msgstr "Rill 运行环境不可用"
 
 msgid "Runtime unhealthy"
-msgstr "Rill 运行时状态异常"
+msgstr "Rill 运行环境状态异常"
 
 msgid "Runtime version mismatch"
-msgstr "Rill 运行时版本不匹配"
+msgstr "Rill 运行环境版本不匹配"
 
 msgid "SQM shaping"
 msgstr "SQM 流量整形"
@@ -1741,13 +1741,13 @@ msgid "The route could not be resolved"
 msgstr "路由无法解析"
 
 msgid "The runtime binary is invalid"
-msgstr "Rill 运行时二进制文件无效"
+msgstr "Rill 运行环境二进制文件无效"
 
 msgid "The runtime is unavailable"
-msgstr "Rill 运行时不可用"
+msgstr "Rill 运行环境不可用"
 
 msgid "The runtime version does not match"
-msgstr "Rill 运行时版本不匹配"
+msgstr "Rill 运行环境版本不匹配"
 
 msgid "The same attempt was already applied"
 msgstr "同一次尝试已应用"
@@ -2007,34 +2007,34 @@ msgid "The Rill response was not an object"
 msgstr "Rill 响应不是对象"
 
 msgid "The Rill runtime could not be started"
-msgstr "Rill 运行时无法启动"
+msgstr "Rill 运行环境无法启动"
 
 msgid "The Rill runtime does not support this operation"
-msgstr "Rill 运行时不支持此操作"
+msgstr "Rill 运行环境不支持此操作"
 
 msgid "The Rill runtime exited with code %s"
-msgstr "Rill 运行时已退出（退出码 %s）"
+msgstr "Rill 运行环境已退出（退出码 %s）"
 
 msgid "The Rill runtime is incompatible"
-msgstr "Rill 运行时不兼容"
+msgstr "Rill 运行环境不兼容"
 
 msgid "The Rill runtime is starting"
-msgstr "Rill 运行时正在启动"
+msgstr "Rill 运行环境正在启动"
 
 msgid "The Rill runtime is unavailable"
-msgstr "Rill 运行时不可用"
+msgstr "Rill 运行环境不可用"
 
 msgid "The Rill runtime is unhealthy"
-msgstr "Rill 运行时状态异常"
+msgstr "Rill 运行环境状态异常"
 
 msgid "The Rill runtime rejected the outcome"
-msgstr "Rill 运行时拒绝了该结果"
+msgstr "Rill 运行环境拒绝了该结果"
 
 msgid "The Rill runtime returned an empty response"
-msgstr "Rill 运行时返回了空响应"
+msgstr "Rill 运行环境返回了空响应"
 
 msgid "The Rill runtime returned an unreadable response"
-msgstr "Rill 运行时返回了无法解析的响应"
+msgstr "Rill 运行环境返回了无法解析的响应"
 
 msgid "The Rill status response has no version"
 msgstr "Rill 状态响应缺少版本号"
@@ -2087,7 +2087,7 @@ msgid "The evidence was produced for a different test context"
 msgstr "该证据产生于不同的测试上下文"
 
 msgid "The external Rill runtime is not installed"
-msgstr "未安装外部 Rill 运行时"
+msgstr "未安装外部 Rill 运行环境"
 
 msgid "The health guard blocked this action"
 msgstr "系统健康保护阻止了该操作"
@@ -2165,7 +2165,7 @@ msgid "The rollback target could not be resolved"
 msgstr "回滚目标无法解析"
 
 msgid "The saved Rill runtime state is invalid"
-msgstr "已保存的 Rill 运行时状态无效"
+msgstr "已保存的 Rill 运行环境状态无效"
 
 msgid "The scores contain an unknown action"
 msgstr "评分中包含未知操作"
@@ -2281,7 +2281,7 @@ msgstr "系统信息"
 
 #: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/overview.js:70
 msgid "Rill runtime"
-msgstr "Rill 运行时"
+msgstr "Rill 运行环境"
 
 #: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/overview.js:103
 msgid "No transactions are available yet."
@@ -2344,7 +2344,7 @@ msgid "Rill ranks actions that passed the Core engine review; the Core engine ke
 msgstr "Rill 会为通过核心引擎审核的操作排序；是否执行仍由核心引擎最终决定。"
 
 msgid "Runtime, decision and candidate details"
-msgstr "运行时、决策与候选项详情"
+msgstr "运行环境、决策与候选项详情"
 
 msgid "Status, path and provider details"
 msgstr "状态、路径与提供方详情"
@@ -2374,7 +2374,7 @@ msgid "Needs attention"
 msgstr "需要处理"
 
 msgid "Runtime needs attention"
-msgstr "运行时需要处理"
+msgstr "运行环境需要处理"
 
 msgid "Network adapter tuning"
 msgstr "网卡调优能力"
@@ -2443,7 +2443,7 @@ msgid "Unable to load feedback records: %s"
 msgstr "无法加载反馈记录：%s"
 
 msgid "Expand to load detailed history and runtime events."
-msgstr "展开后加载详细历史和运行时事件。"
+msgstr "展开后加载详细历史和运行环境事件。"
 
 msgid "Check for updates"
 msgstr "检查更新"
@@ -2455,10 +2455,10 @@ msgid "Package operation failed: %s"
 msgstr "软件包操作失败：%s"
 
 msgid "Install Rill Runtime"
-msgstr "安装 Rill 运行时"
+msgstr "安装 Rill 运行环境"
 
 msgid "Update Rill Runtime"
-msgstr "更新 Rill 运行时"
+msgstr "更新 Rill 运行环境"
 
 msgid "Update Performance Manager"
 msgstr "更新性能管理器"
@@ -2467,13 +2467,13 @@ msgid "Package manager controls are unavailable. Update Performance Manager from
 msgstr "软件包管理功能不可用。请从统一软件源更新性能管理器以启用此功能。"
 
 msgid "Rill Runtime is not available for this OpenWrt release and architecture."
-msgstr "此 OpenWrt 版本和架构暂不提供 Rill 运行时。"
+msgstr "此 OpenWrt 版本和架构暂不提供 Rill 运行环境。"
 
 msgid "A Stable or incompatible Rill Runtime is installed. Resolve that package conflict before changing Runtime packages."
-msgstr "检测到 Stable 通道或不兼容的 Rill 运行时。请先解决软件包冲突，再更改运行时。"
+msgstr "检测到 Stable 通道或不兼容的 Rill 运行环境。请先解决软件包冲突，再更改运行环境。"
 
 msgid "Rill Runtime is not installed. Install it to enable Rill decisions."
-msgstr "Rill 运行时尚未安装。安装后即可启用 Rill 决策。"
+msgstr "Rill 运行环境尚未安装。安装后即可启用 Rill 决策。"
 
 msgid "OpenWrt release"
 msgstr "OpenWrt 版本"
@@ -2482,13 +2482,13 @@ msgid "Package architecture"
 msgstr "软件包架构"
 
 msgid "Runtime package"
-msgstr "运行时软件包"
+msgstr "运行环境软件包"
 
 msgid "Runtime channel"
-msgstr "运行时通道"
+msgstr "运行环境通道"
 
 msgid "Runtime compatibility"
-msgstr "运行时兼容性"
+msgstr "运行环境兼容性"
 
 msgid "Installed"
 msgstr "已安装"
@@ -2503,22 +2503,22 @@ msgid "Package management"
 msgstr "软件包管理"
 
 msgid "Repair Rill Runtime"
-msgstr "修复 Rill Runtime"
+msgstr "修复 Rill 运行环境"
 
 msgid "The installed owner is rill-runtime-preview, version %s. PM will not remove or replace it automatically."
-msgstr "当前运行时由 rill-runtime-preview（版本 %s）拥有。PM 不会自动删除或替换它。"
+msgstr "当前运行环境由 rill-runtime-preview（版本 %s）拥有。PM 不会自动删除或替换它。"
 
 msgid "Back up /etc/config/performance-manager and /etc/performance-manager/. Check for other packages that use rill-runtime-preview before continuing."
 msgstr "请先备份 /etc/config/performance-manager 和 /etc/performance-manager/。继续前检查是否有其他软件包依赖 rill-runtime-preview。"
 
 msgid "An incompatible Rill Runtime is installed. Resolve that package conflict before changing Runtime packages."
-msgstr "检测到不兼容的 Rill 运行时。请先解决软件包冲突，再更改运行时。"
+msgstr "检测到不兼容的 Rill 运行环境。请先解决软件包冲突，再更改运行环境。"
 
 msgid "Runtime version"
-msgstr "运行时版本"
+msgstr "运行环境版本"
 
 msgid "The signed Runtime package feed is not configured"
-msgstr "尚未配置签名的运行时软件源"
+msgstr "尚未配置签名的运行环境软件源"
 
 msgid "The package feed could not be refreshed"
 msgstr "软件源刷新失败"
@@ -2527,10 +2527,10 @@ msgid "A legacy Rill package feed is still configured"
 msgstr "仍配置着旧的 Rill 软件源"
 
 msgid "The legacy Preview Runtime needs a manual migration"
-msgstr "旧 Preview 运行时需要手动迁移"
+msgstr "旧 Preview 运行环境需要手动迁移"
 
 msgid "A legacy Preview Runtime is installed"
-msgstr "当前安装的是旧 Preview 运行时"
+msgstr "当前安装的是旧 Preview 运行环境"
 
 msgid "Another package operation is already running"
 msgstr "另一个软件包操作正在进行"
@@ -2551,25 +2551,25 @@ msgid "The package feed signing key is not installed"
 msgstr "尚未安装软件源签名公钥"
 
 msgid "The Rill Runtime is not installed"
-msgstr "尚未安装 Rill 运行时"
+msgstr "尚未安装 Rill 运行环境"
 
 msgid "The Rill Runtime executable is missing"
-msgstr "Rill 运行时程序缺失"
+msgstr "Rill 运行环境程序缺失"
 
 msgid "No Runtime package is available from the feed"
-msgstr "软件源中没有可用的运行时包"
+msgstr "软件源中没有可用的运行环境包"
 
 msgid "The Rill Runtime needs a repair"
-msgstr "Rill 运行时需要修复"
+msgstr "Rill 运行环境需要修复"
 
 msgid "The Rill Runtime does not support this architecture"
-msgstr "Rill 运行时不支持该架构"
+msgstr "Rill 运行环境不支持该架构"
 
 msgid "The package owning the Runtime cannot be identified"
-msgstr "无法确定当前运行时的软件包归属"
+msgstr "无法确定当前运行环境的软件包归属"
 
 msgid "An installed consumer package is incompatible with this Runtime"
-msgstr "已安装的消费者包与该运行时不兼容"
+msgstr "已安装的消费者包与该运行环境不兼容"
 
 msgid "The compatibility of an installed consumer package is unknown"
 msgstr "已安装的消费者包兼容性未知"
@@ -2596,10 +2596,10 @@ msgid "Up to date"
 msgstr "已是最新版本"
 
 msgid "Rill Runtime installed"
-msgstr "已安装 Rill 运行时"
+msgstr "已安装 Rill 运行环境"
 
 msgid "Rill Runtime repaired"
-msgstr "已修复 Rill 运行时"
+msgstr "已修复 Rill 运行环境"
 
 msgid "Package updated"
 msgstr "软件包已更新"
@@ -2611,13 +2611,13 @@ msgid "Refreshes the trusted feed index, then reports whether an update is avail
 msgstr "刷新可信软件源索引，然后报告是否有可用更新。"
 
 msgid "Installs the shared Runtime package for this release and architecture."
-msgstr "安装适用于当前版本和架构的共享运行时软件包。"
+msgstr "安装适用于当前版本和架构的共享运行环境软件包。"
 
 msgid "Updates only a compatible Stable Runtime; Preview installs are never replaced."
-msgstr "仅更新兼容的稳定版运行时；预览版安装不会被替换。"
+msgstr "仅更新兼容的稳定版运行环境；预览版安装不会被替换。"
 
 msgid "Reinstalls the same Stable package when its executable is missing; the version does not change."
-msgstr "运行时程序缺失时重装同一稳定版软件包；不改变运行时版本。"
+msgstr "运行环境程序缺失时重装同一稳定版软件包；不改变运行环境版本。"
 
 msgid "Installs the newer Performance Manager package from the unified feed."
 msgstr "从统一软件源安装更新版本的性能管理器软件包。"

@@ -81,7 +81,7 @@ async function capture(page, theme, route, width, height, viewId) {
 	let metrics = null, navigationError = null;
 	try {
 		await page.setViewportSize({ width, height });
-		await page.goto(base + '/cgi-bin/luci/admin/network/performance-manager/' + route.path, { waitUntil: 'domcontentloaded', timeout: 30000 });
+		await page.goto(base + '/cgi-bin/luci/admin/services/performance-manager/' + route.path, { waitUntil: 'domcontentloaded', timeout: 30000 });
 		await page.waitForFunction(() => {
 			const main = document.querySelector('#maincontent');
 			return main && main.innerText.trim().length > 10 && !/Loading view|加载视图/.test(main.innerText);
@@ -163,7 +163,7 @@ async function capture(page, theme, route, width, height, viewId) {
 	}
 	if (browserErrors.length) failures.push('browser-errors');
 	const row = {
-		theme: theme.id, language, route: 'admin/network/performance-manager/' + route.path,
+		theme: theme.id, language, route: 'admin/services/performance-manager/' + route.path,
 		view: viewId, viewport: `${width}x${height}`, result: failures.length ? 'FAIL' : 'PASS',
 		failures, metrics, screenshot: fileName, viewportScreenshot: typeof viewportScreenshot === 'undefined' ? undefined : viewportScreenshot, browserErrors: browserErrors.slice(0, 8)
 	};
@@ -232,7 +232,7 @@ async function captureBenchmarkScenario(page, theme, mode, scenarioId, width, he
 		if (width <= 600 && !metrics.benchmarkSelectFits) failures.push('benchmark-action-select-exceeds-available-width');
 	}
 	const row = {
-		theme: theme.id, language, route: 'admin/network/performance-manager/benchmark', view: 'benchmark', scenario: scenarioId,
+		theme: theme.id, language, route: 'admin/services/performance-manager/benchmark', view: 'benchmark', scenario: scenarioId,
 		viewport: `${width}x${height}`, result: failures.length ? 'FAIL' : 'PASS', failures, metrics, screenshot: fileName
 	};
 	report.rows.push(row);
@@ -243,7 +243,7 @@ async function captureBenchmarkScenario(page, theme, mode, scenarioId, width, he
 
 async function runBenchmarkScenario(page, theme, mode, scenarioId) {
 	await page.setViewportSize({ width: 1280, height: 900 });
-	await page.goto(base + '/cgi-bin/luci/admin/network/performance-manager/benchmark', { waitUntil: 'domcontentloaded', timeout: 30000 });
+	await page.goto(base + '/cgi-bin/luci/admin/services/performance-manager/benchmark', { waitUntil: 'domcontentloaded', timeout: 30000 });
 	await page.waitForFunction(() => {
 		const main = document.querySelector('#maincontent');
 		return main && main.innerText.trim().length > 10 && !/Loading view|加载视图/.test(main.innerText);

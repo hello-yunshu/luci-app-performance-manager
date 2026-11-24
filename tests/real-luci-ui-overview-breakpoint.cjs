@@ -34,7 +34,7 @@ async function login(page) {
 	// Target the PM route directly so the stock Status Overview page is not
 	// rendered as an intermediate route after login. That page can emit its own
 	// optional service/RPC warnings, which are unrelated to this PM visual gate.
-	await page.goto(base + '/cgi-bin/luci/admin/network/performance-manager/overview', { waitUntil: 'domcontentloaded' });
+	await page.goto(base + '/cgi-bin/luci/admin/services/performance-manager/overview', { waitUntil: 'domcontentloaded' });
 	const username = page.locator('input[name="luci_username"]');
 	if (await username.count()) {
 		await username.fill('root');
@@ -65,7 +65,7 @@ async function login(page) {
 					const screenshot = `${theme.id}-${width}-overview-breakpoint.png`;
 					const failures = [];
 					await page.setViewportSize({ width, height: 900 });
-					await page.goto(base + '/cgi-bin/luci/admin/network/performance-manager/overview', { waitUntil: 'domcontentloaded', timeout: 30000 });
+					await page.goto(base + '/cgi-bin/luci/admin/services/performance-manager/overview', { waitUntil: 'domcontentloaded', timeout: 30000 });
 					await page.waitForFunction(() => {
 						const main = document.querySelector('#maincontent');
 						return main && main.querySelector('.pm-overview-stats > .pm-overview-stat-card');

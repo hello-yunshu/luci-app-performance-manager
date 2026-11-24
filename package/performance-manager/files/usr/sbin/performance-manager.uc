@@ -1419,11 +1419,30 @@ function service_running(name) {
 	return run([ script, 'running' ]).rc == 0;
 }
 
+/* Same reasoning as the nft snapshot cache: the fingerprint folds the live
+ * ruleset identity, per-service running state and UCI digests, and one request
+ * asks for it several times (observe, advisory drift check, selector context).
+ * The key carries everything that varies between callers - the masked UCI keys
+ * and the frozen ruleset hash - so two different questions never share a
+ * cached answer. */
+let integration_fp_cache = {};
+const INTEGRATION_FP_TTL_MS = 10000;
+
+function integration_fingerprint_invalidate() {
+	integration_fp_cache = {};
+}
+
 function integration_fingerprint(masked_keys, nft) {
 	/* Canonical context fingerprint: installed-boolean detection (the old
 	 * integration_state) is NOT evidence of unchanged runtime behavior, so the
 	 * fingerprint adds per-service running state, UCI config digests and the
 	 * live ip rule policy set (PBR/mwan3/policy routing surfaces). */
+	let nft_hash = nft != null ? (nft.hash ?? fnv1a32(nft.canonical)) : 'none';
+	let cache_key = sprintf('%s|nft:%s', join(',', masked_keys ?? []), nft_hash);
+	let now = monotonic_ms();
+	let cached = integration_fp_cache[cache_key];
+	if (cached != null && (now - cached.at) < INTEGRATION_FP_TTL_MS)
+		return cached.value;
 	let rows = [];
 	for (let name in [ 'openclash', 'passwall', 'passwall2', 'homeproxy', 'sqm', 'qosify', 'mwan3', 'pbr', 'openvpn' ]) {
 		if (!integration_present(name)) continue;
@@ -1449,8 +1468,10 @@ function integration_fingerprint(masked_keys, nft) {
 	 * strict mode, so the caller ALWAYS supplies the snapshot explicitly: a
 	 * real snapshot (or `null` when nft is unavailable) to fold the nft row in,
 	 * or `null` to suppress it (fastpath Blocker B sessions). */
-	if (nft != null && length(nft.items)) push(rows, `nft:${fnv1a32(nft.canonical)}`);
-	return `integ-v1:${fnv1a32(join('\n', rows))}`;
+	if (nft != null && length(nft.items)) push(rows, `nft:${nft_hash}`);
+	let value = `integ-v1:${fnv1a32(join('\n', rows))}`;
+	integration_fp_cache[cache_key] = { at: now, value: value };
+	return value;
 }
 
 function proxy_health() {
@@ -3145,11 +3166,49 @@ function topology() {
 	return topology_cache;
 }
 
-function nft_snapshot() {
+/* A canonicalised ruleset costs ~250 ms (nft -j plus per-item canonical
+ * serialisation of ~235 KB) and hashing it in ucode costs another ~400 ms.  One
+ * LuCI page load used to pay both three or four times over: rill_observe, the
+ * advisory drift check and the selector context each rebuilt the same
+ * fingerprint.  Reuse the snapshot inside a short window instead, and let the
+ * structural hash ride along so no caller re-hashes the text.  `fresh` bypasses
+ * the window for callers that freeze a snapshot as benchmark evidence; ubus
+ * interface/network/firewall events and refresh() drop the cache, so drift
+ * arrives through the event that caused it rather than through a poll. */
+let nft_snapshot_cache = null, nft_snapshot_cache_ms = 0;
+const NFT_SNAPSHOT_TTL_MS = 10000;
+
+/* Content-keyed memo for the structural digest.  Hashing the canonical text
+ * costs ~390 ms per 235 KB because ucode has no native digest module and the
+ * per-byte loop is interpreted.  Invalidation is driven by interface/rtnl
+ * events, which fire far more often than nft actually changes, so the same
+ * canonical text is re-hashed over and over.  Comparing the text first is a
+ * memcmp, so an unchanged ruleset keeps its digest for free; only a real
+ * structural change pays the hashing cost.  This memo is deliberately NOT
+ * cleared by nft_snapshot_invalidate() — it is keyed by content, not by time. */
+let nft_digest_text = null, nft_digest_hash = null;
+
+function nft_digest(canonical) {
+	if (nft_digest_text != null && canonical == nft_digest_text) return nft_digest_hash;
+	nft_digest_hash = fnv1a32(canonical);
+	nft_digest_text = canonical;
+	return nft_digest_hash;
+}
+
+function nft_snapshot_invalidate() {
+	nft_snapshot_cache = null;
+	nft_snapshot_cache_ms = 0;
+}
+
+function nft_snapshot(fresh) {
 	/* Canonical structural snapshot of the live nft ruleset.  Volatile fields
 	 * (handle/packets/bytes) are dropped so the snapshot reflects topology,
-	 * not transient traffic.  Returns { items, parsed, canonical } or null. */
+	 * not transient traffic.  Returns { items, parsed, canonical, hash } or
+	 * null. */
 	if (!command_exists('nft')) return null;
+	let now = monotonic_ms();
+	if (fresh !== true && nft_snapshot_cache && (now - nft_snapshot_cache_ms) < NFT_SNAPSHOT_TTL_MS)
+		return nft_snapshot_cache;
 	let r = run([ 'nft', '-j', 'list', 'ruleset' ]);
 	if (r.rc != 0) return null;
 	let root = null;
@@ -3165,7 +3224,10 @@ function nft_snapshot() {
 	}
 	if (!length(parts)) return null;
 	sort(parts);
-	return { items: parts, parsed: parsed, canonical: join('\n', parts) };
+	let canonical = join('\n', parts);
+	nft_snapshot_cache = { items: parts, parsed: parsed, canonical: canonical, hash: nft_digest(canonical) };
+	nft_snapshot_cache_ms = now;
+	return nft_snapshot_cache;
 }
 
 function nft_ruleset_fingerprint() {
@@ -3174,7 +3236,7 @@ function nft_ruleset_fingerprint() {
 	 * unavailable. */
 	let snap = nft_snapshot();
 	if (snap == null) return null;
-	return sprintf('nft-v2:%s', fnv1a32(snap.canonical));
+	return sprintf('nft-v2:%s', snap.hash);
 }
 
 function dns_health() {
@@ -3519,7 +3581,25 @@ function benchmark_provider_plan(action_id, path_id) {
 	return { ok:false, error:'provider-unavailable:unknown-action' };
 }
 
+/* The catalog probes a provider plan for 13 action ids on every forwarding path
+ * (ethtool / tc / sysctl / /proc reads), which costs ~200 ms.  It is a pure
+ * observation of topology plus live provider availability, and every caller
+ * only reads it, so reuse it inside a short window the same way the nft
+ * snapshot and the integration fingerprint are reused.  refresh() drops it on
+ * every interface/network/firewall/rtnl event, so a provider that appears or
+ * disappears still shows up through the event that caused it. */
+let benchmark_catalog_cache = null, benchmark_catalog_cache_ms = 0;
+const BENCHMARK_CATALOG_TTL_MS = 10000;
+
+function benchmark_catalog_invalidate() {
+	benchmark_catalog_cache = null;
+	benchmark_catalog_cache_ms = 0;
+}
+
 function benchmark_catalog() {
+	let catalog_now = monotonic_ms();
+	if (benchmark_catalog_cache != null && (catalog_now - benchmark_catalog_cache_ms) < BENCHMARK_CATALOG_TTL_MS)
+		return benchmark_catalog_cache;
 	let topo=topology(), integ=integration_state(), ids=[
 		'service.irqbalance','network.backlog','network.budget','network.buffers','network.busy_poll','netdev.tx_queue_len','nic.coalescing','tcp.cc','qdisc.replace','fastpath.software_flow_offload','fastpath.hardware_flow_offload','fastpath.third_party_sfe','cpu.governor'
 	], out=[];
@@ -3540,6 +3620,8 @@ function benchmark_catalog() {
 		}
 		push(out,{id:id,applyScope:length(provider_rows) && match(provider_rows[0].resource ?? '',/^netdev:/)?'device':'system',risk:'benchmark',oneVariableDefault:true,evaluationSemantics:semantics,evaluationPaths:usable,requiresExplicitEndpoints:true,requiredClientRole:semantics=='local'?'router-local-client':'lan-client',status:length(usable)?'endpoint-required':'blocked',providers:provider_rows,blockers:blockers,integrationState:integ});
 	}
+	benchmark_catalog_cache = out;
+	benchmark_catalog_cache_ms = catalog_now;
 	return out;
 }
 
@@ -3634,7 +3716,10 @@ function benchmark_context(path_id, masked_keys) {
 	 * fingerprint; everything else must match exactly.  The snapshot is stored
 	 * on the session so the candidate leg can compute the structural delta. */
 	let fastpath = index(masked_keys ?? [], 'fastpath-expected-delta') >= 0;
-	let nft = nft_snapshot();
+	/* The snapshot is stored on the session as the control leg of a structural
+	 * delta, so it must describe the ruleset as it is right now - never a
+	 * cached copy. */
+	let nft = nft_snapshot(true);
 	return {
 		capabilityHash:capability_hash(caps), topologyGeneration:topology_generation,
 		routeIdentity:path?.routeIdentity ?? 'unresolved', routeProvider:path?.routeProvider ?? null,
@@ -4300,11 +4385,55 @@ function recommendations(allow_observe) {
 	};
 }
 
+/* `apk list -I` without a filter dumps every installed package (501 entries,
+ * 47 KB) in ~10 ms, while a filtered query costs ~15 ms per package because it
+ * still walks the whole installed database.  The recommended profile asks
+ * about nine packages on every status()/profile_status() call, so the
+ * per-package form used to cost ~140 ms per page load for information that one
+ * query already answers.  Read the database once, answer from memory. */
+let installed_fields_cache = null, installed_fields_cache_ms = 0;
+const INSTALLED_FIELDS_TTL_MS = 10000;
+
+function installed_fields_invalidate() {
+	installed_fields_cache = null;
+	installed_fields_cache_ms = 0;
+}
+
+function installed_fields() {
+	/* Returns the first field ("name-version") of every installed package, or
+	 * null when the release has no batch form and the caller must fall back to
+	 * a per-package query. */
+	let now = monotonic_ms();
+	if (installed_fields_cache != null && (now - installed_fields_cache_ms) < INSTALLED_FIELDS_TTL_MS)
+		return installed_fields_cache;
+	if (!command_exists('apk')) return null;
+	let r = run([ 'apk', 'list', '-I' ]);
+	if (r.rc != 0) return null;
+	let fields = [];
+	for (let line in split(r.out, '\n')) {
+		let trimmed = trimstr(line);
+		if (!length(trimmed)) continue;
+		let field = split(trimmed, ' ')[0];
+		if (field != null && length(field)) push(fields, field);
+	}
+	installed_fields_cache = fields;
+	installed_fields_cache_ms = now;
+	return fields;
+}
+
 function package_installed(name) {
 	if (!match(name ?? '', /^[A-Za-z0-9_.+-]+$/)) return false;
-	if (command_exists('apk')) {
-		let r=run([ 'apk', 'list', '-I', name ]);
-		if (r.rc == 0) for (let line in split(r.out,'\n')) if (substr(trimstr(line),0,length(name)+1) == `${name}-`) return true;
+	let fields = installed_fields();
+	if (fields != null) {
+		/* Same prefix test the filtered query relied on, tightened so a shorter
+		 * name cannot match a longer package ("luci-app-nginx" must not match
+		 * "luci-app-nginx-manager-1.8.11-r34"): the character after the dash
+		 * starts an apk version and is therefore always a digit. */
+		let prefix = `${name}-`;
+		for (let field in fields)
+			if (substr(field, 0, length(prefix)) == prefix && match(substr(field, length(prefix), 1), /^[0-9]$/))
+				return true;
+		return false;
 	}
 	if (command_exists('opkg')) return run([ 'opkg', 'status', name ]).rc == 0;
 	/* Package-manager metadata may be unavailable in stripped recovery images.
@@ -4596,6 +4725,12 @@ function topology_signature(t) {
 }
 
 function refresh(reason) {
+	/* A topology/interface/firewall event is exactly the signal that the
+	 * cached live-state views are stale, so drop them before re-reading. */
+	nft_snapshot_invalidate();
+	integration_fingerprint_invalidate();
+	installed_fields_invalidate();
+	benchmark_catalog_invalidate();
 	let observed=topology(), signature=topology_signature(observed), changed=false;
 	if (last_topology_signature == null) last_topology_signature=signature;
 	else if (signature != last_topology_signature) { topology_generation++; last_topology_signature=signature; changed=true; }

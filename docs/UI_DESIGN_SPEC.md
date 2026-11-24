@@ -10,7 +10,8 @@
 
 | 项 | 本仓取值 |
 |---|---|
-| 路由根 | `admin/network/performance-manager` — overview / optimize / benchmark / capabilities / rill / history / settings / advanced |
+| 菜单归属 | `Services`（`admin/services`）—— 第三方应用统一挂服务菜单；`Network` 只留给原生网络能力（接口 / 防火墙 / DHCP / SQM 等）。四仓同一规则 |
+| 路由根 | `admin/services/performance-manager` — overview / optimize / benchmark / capabilities / rill / history / settings / advanced |
 | 视图 | `package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/*.js` |
 | 共享 CSS | `package/luci-app-performance-manager/htdocs/luci-static/resources/performance-manager/ui.css` |
 | 注入与缓存键 | `performance-manager/ui.js`：`L.resource('performance-manager/ui.css') + '?ui=pm-overview-rhythm-v7'` —— **改 CSS 必须递增 `-vN`** |

@@ -129,10 +129,13 @@ return view.extend({
 		 * affordances. */
 		const refreshRecord = managerAvailable ? readRefreshRecord() : null;
 		const refreshNote = labels.managerRefreshNote(refreshRecord);
-		/* One native row per action, titled with the object it acts on. A bar of
-		 * bare buttons left "Check for updates" ambiguous: nothing on the page
-		 * said it refreshes the feed index instead of upgrading something. The
-		 * Cloudflare IP Runtime block labels its buttons the same way. */
+		/* One native row per action, titled with the object it acts on and never
+		 * with the button label itself. A bar of bare buttons left "Check for
+		 * updates" ambiguous: nothing on the page said it refreshes the feed
+		 * index instead of upgrading something. The row title used to repeat the
+		 * button verbatim ("Install Rill Runtime" over an "Install Rill Runtime"
+		 * button), which said the same thing twice and named no object; the
+		 * Cloudflare IP Runtime block titles its rows the same way. */
 		const packageActions = [];
 		const checkPackages = E('button', { 'class': 'btn cbi-button', 'type': 'button', 'disabled': managerSupportsDevice && !managerBusy ? null : '' }, [ _('Check for updates') ]);
 		checkPackages.addEventListener('click', function() { managerAction('refresh', null, checkPackages); });
@@ -140,22 +143,22 @@ return view.extend({
 		if (managerAvailable && manager.supported === true && manager.installed !== true && !runtimeConflict) {
 			const installRuntime = E('button', { 'class': 'btn cbi-button cbi-button-action', 'type': 'button', 'disabled': managerBusy ? '' : null }, [ _('Install Rill Runtime') ]);
 			installRuntime.addEventListener('click', function() { managerAction('install', 'rill-runtime', installRuntime); });
-			packageActions.push(pu.field(_('Install Rill Runtime'), installRuntime, _('Installs the shared Runtime package for this release and architecture.')));
+			packageActions.push(pu.field(_('Rill Runtime'), installRuntime, _('Installs the shared Runtime package for this release and architecture.')));
 		}
 		if (managerAvailable && manager.supported === true && manager.runtimeUpdateAvailable === true && !runtimeConflict) {
 			const updateRuntime = E('button', { 'class': 'btn cbi-button cbi-button-action', 'type': 'button', 'disabled': managerBusy ? '' : null }, [ _('Update Rill Runtime') ]);
 			updateRuntime.addEventListener('click', function() { managerAction('update', 'rill-runtime', updateRuntime); });
-			packageActions.push(pu.field(_('Update Rill Runtime'), updateRuntime, _('Updates only a compatible Stable Runtime; Preview installs are never replaced.')));
+			packageActions.push(pu.field(_('Rill Runtime'), updateRuntime, _('Updates only a compatible Stable Runtime; Preview installs are never replaced.')));
 		}
 		if (managerAvailable && manager.repairAvailable === true && !runtimeConflict) {
 			const repairRuntime = E('button', { 'class': 'btn cbi-button cbi-button-action', 'type': 'button', 'disabled': managerBusy ? '' : null }, [ _('Repair Rill Runtime') ]);
 			repairRuntime.addEventListener('click', function() { managerAction('repair', 'rill-runtime', repairRuntime); });
-			packageActions.push(pu.field(_('Repair Rill Runtime'), repairRuntime, _('Reinstalls the same Stable package when its executable is missing; the version does not change.')));
+			packageActions.push(pu.field(_('Rill Runtime'), repairRuntime, _('Reinstalls the same Stable package when its executable is missing; the version does not change.')));
 		}
 		if (managerAvailable && manager.pmUpdateAvailable === true) {
 			const updatePm = E('button', { 'class': 'btn cbi-button cbi-button-action', 'type': 'button', 'disabled': managerBusy ? '' : null }, [ _('Update Performance Manager') ]);
 			updatePm.addEventListener('click', function() { managerAction('update', 'luci-app-performance-manager-all', updatePm); });
-			packageActions.push(pu.field(_('Update Performance Manager'), updatePm, _('Installs the newer Performance Manager package from the unified feed.')));
+			packageActions.push(pu.field(_('Performance Manager'), updatePm, _('Installs the newer Performance Manager package from the unified feed.')));
 		}
 		const packageActionRows = E('div', { 'class': 'pm-package-actions' }, packageActions);
 		let packageStatus = null;
