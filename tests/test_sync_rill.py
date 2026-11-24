@@ -85,7 +85,7 @@ class SyncContractTransactionTests(unittest.TestCase):
             recipe=package/'package/rill-runtime/Makefile';recipe.write_text(f"PKG_NAME:=rill-runtime\nPKG_VERSION:={version}\nPKG_RELEASE:={stable['package']['release']}\n")
             def api(path):
                 return {'workflow_runs':[{'id':run,'run_attempt':2,'conclusion':'success'}]}
-            def proof(*args):return {'package':{'name':stable['package']['name'],'version':version,'release':stable['package']['release'],'upstream':stable['upstream']}},raw,[]
+            def proof(*args):return {'package':{'name':stable['package']['name'],'version':version,'release':stable['package']['release']},'upstream':stable['upstream']},raw,[]
             with patch.object(sync_rill,'CONTRACT',destination),patch.object(sync_rill,'api',api), \
                  patch.object(sync_rill,'git_head',return_value=package_commit),patch.object(sync_rill,'qualified_manifest',proof), \
                  contextlib.redirect_stdout(io.StringIO()):

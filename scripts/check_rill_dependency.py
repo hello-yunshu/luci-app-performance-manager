@@ -145,8 +145,15 @@ def sync(package_dir: Path) -> int:
     if type(attempt) is not int or attempt<=0:raise ValueError('qualification has no exact attempt')
     evidence,raw,_=qualified_manifest(passed['id'],attempt,package_commit,package_dir)
     stable=evidence.get('package',{})
-    if stable.get('upstream',{}).get('commit') != upstream.get('commit'):
-        raise ValueError('qualified Stable source differs from package metadata')
+    # Schema 4 moved the upstream identity to the top level; older manifests kept it
+    # under package. Read both so a feed schema bump cannot look like a provenance
+    # mismatch. Mirrors the read in CFI's check_rill_dependency.py.
+    qualified_upstream=evidence.get('upstream') or stable.get('upstream',{})
+    if qualified_upstream.get('commit') != upstream.get('commit'):
+        raise ValueError(
+            'qualified Stable source differs from package metadata: '
+            f"manifest {qualified_upstream.get('commit')} vs metadata {upstream.get('commit')}"
+        )
     if any(stable.get(key)!=package.get(field) for key,field in [('name','name'),('version','version'),('release','release')]):
         raise ValueError('qualified Stable package differs from package metadata')
     candidate=copy.deepcopy(old)
