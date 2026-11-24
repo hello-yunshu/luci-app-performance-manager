@@ -128,8 +128,8 @@ Only remove these packages after confirming all other consumers have migrated. I
 | Recommended package | `luci-app-performance-manager-all` (one PM package) |
 | Target | OpenWrt 24.10.8 IPK / 25.12.6 APK; verify each target against CI and release assets |
 | Current source candidate | `1.1.0` |
-| Unified PM package version | `1.1.0-r1` |
-| Split Rill glue package version | `1.1.0-r1` |
+| Unified PM package version | `1.1.0-r2` |
+| Split Rill glue package version | `1.1.0-r2` |
 | Service script | `/etc/init.d/performance-manager` |
 | UCI config | `/etc/config/performance-manager` |
 | Core binary | `/usr/sbin/performance-manager.uc` |

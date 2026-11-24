@@ -1,6 +1,8 @@
 # Changelog
 
-## Unreleased — unified feed and shared Runtime (package release 1.1.0-r1)
+## Unreleased — unified feed and shared Runtime (package release 1.1.0-r2)
+
+- Smart decision no longer queries the Rill Runtime twice. `recommendations` already reads `rill_status()` for the page payload and then handed `select_smart_action` to a second full Runtime round trip, so opening Smart Optimization paid the external subprocess twice for the same answer; the selector now takes the already-computed status as an optional fourth argument (defaulting to a fresh read for every other caller), and the verdict, confidence, block reasons and ranking are unchanged.
 
 - 中文口径把 `Rill Runtime` 的译法由「运行时」改为「运行环境」。`运行时`在中文里首先读作「正在运行的时候」，放在「Rill 运行时状态」「运行时通道」这类词组里会被当成时间状语，而它其实是一个要安装、要修复、要更新版本的外部软件包；「运行环境」读起来是一个东西。Cloudflare IP 对同一个共享组件采用同一译法，`docs/I18N_TERMINOLOGY.md` 同步改口径，「运行时间」「运行时租约」这类真正的时间/运行期含义不受影响。
 
