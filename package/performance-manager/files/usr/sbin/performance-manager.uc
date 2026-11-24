@@ -3178,6 +3178,23 @@ function topology() {
 let nft_snapshot_cache = null, nft_snapshot_cache_ms = 0;
 const NFT_SNAPSHOT_TTL_MS = 10000;
 
+/* Content-keyed memo for the structural digest.  Hashing the canonical text
+ * costs ~390 ms per 235 KB because ucode has no native digest module and the
+ * per-byte loop is interpreted.  Invalidation is driven by interface/rtnl
+ * events, which fire far more often than nft actually changes, so the same
+ * canonical text is re-hashed over and over.  Comparing the text first is a
+ * memcmp, so an unchanged ruleset keeps its digest for free; only a real
+ * structural change pays the hashing cost.  This memo is deliberately NOT
+ * cleared by nft_snapshot_invalidate() — it is keyed by content, not by time. */
+let nft_digest_text = null, nft_digest_hash = null;
+
+function nft_digest(canonical) {
+	if (nft_digest_text != null && canonical == nft_digest_text) return nft_digest_hash;
+	nft_digest_hash = fnv1a32(canonical);
+	nft_digest_text = canonical;
+	return nft_digest_hash;
+}
+
 function nft_snapshot_invalidate() {
 	nft_snapshot_cache = null;
 	nft_snapshot_cache_ms = 0;
@@ -3208,7 +3225,7 @@ function nft_snapshot(fresh) {
 	if (!length(parts)) return null;
 	sort(parts);
 	let canonical = join('\n', parts);
-	nft_snapshot_cache = { items: parts, parsed: parsed, canonical: canonical, hash: fnv1a32(canonical) };
+	nft_snapshot_cache = { items: parts, parsed: parsed, canonical: canonical, hash: nft_digest(canonical) };
 	nft_snapshot_cache_ms = now;
 	return nft_snapshot_cache;
 }
@@ -3564,7 +3581,25 @@ function benchmark_provider_plan(action_id, path_id) {
 	return { ok:false, error:'provider-unavailable:unknown-action' };
 }
 
+/* The catalog probes a provider plan for 13 action ids on every forwarding path
+ * (ethtool / tc / sysctl / /proc reads), which costs ~200 ms.  It is a pure
+ * observation of topology plus live provider availability, and every caller
+ * only reads it, so reuse it inside a short window the same way the nft
+ * snapshot and the integration fingerprint are reused.  refresh() drops it on
+ * every interface/network/firewall/rtnl event, so a provider that appears or
+ * disappears still shows up through the event that caused it. */
+let benchmark_catalog_cache = null, benchmark_catalog_cache_ms = 0;
+const BENCHMARK_CATALOG_TTL_MS = 10000;
+
+function benchmark_catalog_invalidate() {
+	benchmark_catalog_cache = null;
+	benchmark_catalog_cache_ms = 0;
+}
+
 function benchmark_catalog() {
+	let catalog_now = monotonic_ms();
+	if (benchmark_catalog_cache != null && (catalog_now - benchmark_catalog_cache_ms) < BENCHMARK_CATALOG_TTL_MS)
+		return benchmark_catalog_cache;
 	let topo=topology(), integ=integration_state(), ids=[
 		'service.irqbalance','network.backlog','network.budget','network.buffers','network.busy_poll','netdev.tx_queue_len','nic.coalescing','tcp.cc','qdisc.replace','fastpath.software_flow_offload','fastpath.hardware_flow_offload','fastpath.third_party_sfe','cpu.governor'
 	], out=[];
@@ -3585,6 +3620,8 @@ function benchmark_catalog() {
 		}
 		push(out,{id:id,applyScope:length(provider_rows) && match(provider_rows[0].resource ?? '',/^netdev:/)?'device':'system',risk:'benchmark',oneVariableDefault:true,evaluationSemantics:semantics,evaluationPaths:usable,requiresExplicitEndpoints:true,requiredClientRole:semantics=='local'?'router-local-client':'lan-client',status:length(usable)?'endpoint-required':'blocked',providers:provider_rows,blockers:blockers,integrationState:integ});
 	}
+	benchmark_catalog_cache = out;
+	benchmark_catalog_cache_ms = catalog_now;
 	return out;
 }
 
@@ -4348,11 +4385,55 @@ function recommendations(allow_observe) {
 	};
 }
 
+/* `apk list -I` without a filter dumps every installed package (501 entries,
+ * 47 KB) in ~10 ms, while a filtered query costs ~15 ms per package because it
+ * still walks the whole installed database.  The recommended profile asks
+ * about nine packages on every status()/profile_status() call, so the
+ * per-package form used to cost ~140 ms per page load for information that one
+ * query already answers.  Read the database once, answer from memory. */
+let installed_fields_cache = null, installed_fields_cache_ms = 0;
+const INSTALLED_FIELDS_TTL_MS = 10000;
+
+function installed_fields_invalidate() {
+	installed_fields_cache = null;
+	installed_fields_cache_ms = 0;
+}
+
+function installed_fields() {
+	/* Returns the first field ("name-version") of every installed package, or
+	 * null when the release has no batch form and the caller must fall back to
+	 * a per-package query. */
+	let now = monotonic_ms();
+	if (installed_fields_cache != null && (now - installed_fields_cache_ms) < INSTALLED_FIELDS_TTL_MS)
+		return installed_fields_cache;
+	if (!command_exists('apk')) return null;
+	let r = run([ 'apk', 'list', '-I' ]);
+	if (r.rc != 0) return null;
+	let fields = [];
+	for (let line in split(r.out, '\n')) {
+		let trimmed = trimstr(line);
+		if (!length(trimmed)) continue;
+		let field = split(trimmed, ' ')[0];
+		if (field != null && length(field)) push(fields, field);
+	}
+	installed_fields_cache = fields;
+	installed_fields_cache_ms = now;
+	return fields;
+}
+
 function package_installed(name) {
 	if (!match(name ?? '', /^[A-Za-z0-9_.+-]+$/)) return false;
-	if (command_exists('apk')) {
-		let r=run([ 'apk', 'list', '-I', name ]);
-		if (r.rc == 0) for (let line in split(r.out,'\n')) if (substr(trimstr(line),0,length(name)+1) == `${name}-`) return true;
+	let fields = installed_fields();
+	if (fields != null) {
+		/* Same prefix test the filtered query relied on, tightened so a shorter
+		 * name cannot match a longer package ("luci-app-nginx" must not match
+		 * "luci-app-nginx-manager-1.8.11-r34"): the character after the dash
+		 * starts an apk version and is therefore always a digit. */
+		let prefix = `${name}-`;
+		for (let field in fields)
+			if (substr(field, 0, length(prefix)) == prefix && match(substr(field, length(prefix), 1), /^[0-9]$/))
+				return true;
+		return false;
 	}
 	if (command_exists('opkg')) return run([ 'opkg', 'status', name ]).rc == 0;
 	/* Package-manager metadata may be unavailable in stripped recovery images.
@@ -4648,6 +4729,8 @@ function refresh(reason) {
 	 * cached live-state views are stale, so drop them before re-reading. */
 	nft_snapshot_invalidate();
 	integration_fingerprint_invalidate();
+	installed_fields_invalidate();
+	benchmark_catalog_invalidate();
 	let observed=topology(), signature=topology_signature(observed), changed=false;
 	if (last_topology_signature == null) last_topology_signature=signature;
 	else if (signature != last_topology_signature) { topology_generation++; last_topology_signature=signature; changed=true; }
