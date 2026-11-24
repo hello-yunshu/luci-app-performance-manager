@@ -33,19 +33,25 @@ jobs:
           GITHUB_TOKEN: ${{ github.token }}
           GH_TOKEN: ${{ github.token }}
         run: python3 scripts/check_rill_dependency.py --sync --package-dir rill-openwrt-packages
+      - name: Regenerate the checked-in contract snapshot
+        # docs/rill-integration-status.json mirrors the same pin and
+        # tests/test_contracts.py asserts they agree, so a contract-only bump
+        # fails `make audit` on the update branch. Move them together.
+        run: python3 scripts/rill_contract_check.py
       - name: Verify no contract drift
         shell: bash
         run: |
           set -euo pipefail
-          # The sync may only rewrite the single immutable Runtime contract.
+          # The sync may only rewrite the immutable Runtime contract and the
+          # snapshot that mirrors it.
           changed=$(git status --porcelain --untracked-files=no | cut -c4-)
-          unexpected=$(printf '%s\n' "$changed" | grep -vE '^(contracts/rill-runtime\.json)?$' || true)
+          unexpected=$(printf '%s\n' "$changed" | grep -vE '^(contracts/rill-runtime\.json|docs/rill-integration-status\.json)?$' || true)
           if [ -n "$unexpected" ]; then
-            echo '::error::Qualified Runtime sync changed files outside contracts/rill-runtime.json.'
+            echo '::error::Qualified Runtime sync changed files outside the Runtime contract and its snapshot.'
             printf '%s\n' "$unexpected"
             exit 1
           fi
-          git diff -- contracts/rill-runtime.json
+          git diff -- contracts/rill-runtime.json docs/rill-integration-status.json
       - name: Open update pull request
         env:
           GH_TOKEN: ${{ github.token }}
@@ -68,7 +74,7 @@ jobs:
             git config user.name 'github-actions[bot]'
             git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
             git switch -c "$branch"
-            git add contracts/rill-runtime.json
+            git add contracts/rill-runtime.json docs/rill-integration-status.json
             git commit -m "deps(rill): update runtime to v${version}"
             git push origin "HEAD:${branch}"
           fi
