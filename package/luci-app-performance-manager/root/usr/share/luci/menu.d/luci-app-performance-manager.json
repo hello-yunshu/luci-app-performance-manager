@@ -1,5 +1,5 @@
 {
-  "admin/network/performance-manager": {
+  "admin/services/performance-manager": {
     "title": "Performance Manager",
     "order": 75,
     "action": {
@@ -11,7 +11,7 @@
       ]
     }
   },
-  "admin/network/performance-manager/overview": {
+  "admin/services/performance-manager/overview": {
     "title": "Overview",
     "order": 10,
     "action": {
@@ -19,7 +19,7 @@
       "path": "performance-manager/overview"
     }
   },
-  "admin/network/performance-manager/optimize": {
+  "admin/services/performance-manager/optimize": {
     "title": "Smart optimization",
     "order": 20,
     "action": {
@@ -27,7 +27,7 @@
       "path": "performance-manager/optimize"
     }
   },
-  "admin/network/performance-manager/benchmark": {
+  "admin/services/performance-manager/benchmark": {
     "title": "Performance test",
     "order": 30,
     "action": {
@@ -35,7 +35,7 @@
       "path": "performance-manager/benchmark"
     }
   },
-  "admin/network/performance-manager/capabilities": {
+  "admin/services/performance-manager/capabilities": {
     "title": "Capabilities",
     "order": 40,
     "action": {
@@ -43,7 +43,7 @@
       "path": "performance-manager/capabilities"
     }
   },
-  "admin/network/performance-manager/rill": {
+  "admin/services/performance-manager/rill": {
     "title": "Rill intelligence",
     "order": 50,
     "action": {
@@ -51,7 +51,7 @@
       "path": "performance-manager/rill"
     }
   },
-  "admin/network/performance-manager/history": {
+  "admin/services/performance-manager/history": {
     "title": "History and rollback",
     "order": 60,
     "action": {
@@ -59,7 +59,7 @@
       "path": "performance-manager/history"
     }
   },
-  "admin/network/performance-manager/settings": {
+  "admin/services/performance-manager/settings": {
     "title": "Settings",
     "order": 70,
     "action": {
@@ -67,7 +67,7 @@
       "path": "performance-manager/settings"
     }
   },
-  "admin/network/performance-manager/advanced": {
+  "admin/services/performance-manager/advanced": {
     "title": "Advanced",
     "order": 65,
     "action": {

@@ -55,7 +55,7 @@ function shell(command) {
 }
 
 async function login(page) {
-	await page.goto(base + '/cgi-bin/luci/admin/network/performance-manager/benchmark', { waitUntil: 'domcontentloaded' });
+	await page.goto(base + '/cgi-bin/luci/admin/services/performance-manager/benchmark', { waitUntil: 'domcontentloaded' });
 	const username = page.locator('input[name="luci_username"]');
 	if (await username.count()) {
 		await username.fill('root');
@@ -191,7 +191,7 @@ async function capture(page, theme, scenario, width, height) {
 	if (!metrics.pluginCssLoaded) errors.push('plugin-css-not-loaded');
 	await page.screenshot({ path: file, fullPage: true, animations: 'disabled' });
 	if (height < 900) await page.screenshot({ path: file.replace(/\.png$/, '-viewport.png'), fullPage: false, animations: 'disabled' });
-	const row = { theme: theme.id, language, route: 'admin/network/performance-manager/benchmark', scenario, viewport: `${width}x${height}`, result: errors.length ? 'FAIL' : 'PASS', errors, metrics, screenshot: name };
+	const row = { theme: theme.id, language, route: 'admin/services/performance-manager/benchmark', scenario, viewport: `${width}x${height}`, result: errors.length ? 'FAIL' : 'PASS', errors, metrics, screenshot: name };
 	report.rows.push(row);
 	if (errors.length) report.errors.push(row);
 	fs.writeFileSync(path.join(output, 'report.json'), JSON.stringify(report, null, 2) + '\n');
@@ -228,7 +228,7 @@ async function capture(page, theme, scenario, width, height) {
 				await installRpcFixture(page, fixtureState);
 				for (const scenario of selectedScenarios) {
 					fixtureState.scenario = scenario;
-					await page.goto(base + '/cgi-bin/luci/admin/network/performance-manager/benchmark', { waitUntil: 'domcontentloaded' });
+					await page.goto(base + '/cgi-bin/luci/admin/services/performance-manager/benchmark', { waitUntil: 'domcontentloaded' });
 					await page.waitForFunction(() => {
 						const main = document.querySelector('#maincontent');
 						return main && main.innerText.trim().length > 10 && !/Loading view|加载视图/.test(main.innerText);
