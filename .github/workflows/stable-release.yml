@@ -308,3 +308,19 @@ jobs:
           gh release download "v$(cat VERSION)" --dir published
           (cd published && sha256sum -c SHA256SUMS.txt)
           python3 scripts/verify_public_release_assets.py --assets published --version "$(cat VERSION)"
+      - name: Trigger unified feed refresh
+        env:
+          GH_TOKEN: ${{ secrets.FEED_DISPATCH_TOKEN }}
+          SOURCE: ${{ github.repository }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          tag="v$(cat VERSION)"
+          if [ -z "${GH_TOKEN}" ]; then
+            echo "::notice::未配置 FEED_DISPATCH_TOKEN，跳过 yun-openwrt-packages 刷新"
+            exit 0
+          fi
+          payload="$(jq -nc --arg source "${SOURCE}" --arg tag "${tag}" \
+            '{event_type: "upstream-release", client_payload: {source: $source, tag: $tag}}')"
+          printf '%s' "${payload}" | gh api -X POST repos/hello-yunshu/yun-openwrt-packages/dispatches --input -
+          echo "已通知 yun-openwrt-packages 刷新（${tag}）"
