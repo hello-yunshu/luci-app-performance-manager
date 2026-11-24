@@ -199,12 +199,18 @@ check(index(wl_wifi, 'wireless') >= 0, 'non-wlan0-named wireless device -> wirel
 print('== [4] fastpath nft fingerprint: real expected-delta attribution ==\n');
 /* Control: fastpath offload disabled -> NO PM flowtable/flow-rule present. */
 _NFT_RULESET = '{"nftables":[{"metainfo":{}},{"chain":{"family":"inet","table":"fw4","name":"forward"}}]}';
+/* The Core reuses one nft snapshot for a short window and drops it on the ubus
+ * interface/network/firewall events that a real ruleset change fires.  This
+ * mock swaps the ruleset without an event, so replay the invalidation the
+ * event would have caused before reading the new live state. */
+nft_snapshot_invalidate();
 let snap_ctl = nft_snapshot();
 let fp_ctl = nft_ruleset_fingerprint([ 'fastpath-mask-nft' ]);
 /* Candidate: fastpath offload enabled -> PM flowtable `ft` + `flow add @ft`. */
 _NFT_RULESET = '{"nftables":[{"metainfo":{}},{"chain":{"family":"inet","table":"fw4","name":"forward"}},' +
 	'{"flowtable":{"family":"inet","table":"fw4","name":"ft"}},' +
 	'{"rule":{"family":"inet","table":"fw4","chain":"forward","flow":{"add":"@ft"}}}]}';
+nft_snapshot_invalidate();
 let snap_cand = nft_snapshot();
 let fp_cand = nft_ruleset_fingerprint([ 'fastpath-mask-nft' ]);
 /* The unmasked fingerprint reflects the candidate's own flowtable/rule toggle ... */
@@ -218,6 +224,7 @@ let _NFT_EXTERNAL = '{"nftables":[{"metainfo":{}},{"chain":{"family":"inet","tab
 	'{"rule":{"family":"inet","table":"fw4","chain":"forward","flow":{"add":"@ft"}}},' +
 	'{"rule":{"family":"inet","table":"fw4","chain":"forward","dnat":{"to":["1.2.3.4"]}}}]}';
 _NFT_RULESET = _NFT_EXTERNAL;
+nft_snapshot_invalidate();
 let snap_ext = nft_snapshot();
 let fp_ext = nft_ruleset_fingerprint([ 'fastpath-mask-nft' ]);
 check(fp_cand != fp_ext, 'unrelated external nft rule changes fingerprint', { fp_cand, fp_ext });
