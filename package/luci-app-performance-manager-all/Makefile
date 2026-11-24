@@ -2,7 +2,7 @@ include $(TOPDIR)/rules.mk
 
 PKG_NAME:=luci-app-performance-manager-all
 PKG_VERSION:=1.0.7
-PKG_RELEASE:=17
+PKG_RELEASE:=18
 PKG_LICENSE:=GPL-3.0-only
 PKG_MAINTAINER:=OpenWrt Performance Manager contributors
 PKG_BUILD_DEPENDS:=luci-base/host
