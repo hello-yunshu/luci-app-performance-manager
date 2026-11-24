@@ -22,7 +22,7 @@ class SmartDecisionTests(unittest.TestCase):
         ]
 
     def test_unified_selector_is_in_both_auto_paths(self):
-        self.assertIn("function select_smart_action(mode, candidates, context)", CORE)
+        self.assertIn("function select_smart_action(mode, candidates, context, runtime_status)", CORE)
         self.assertIn("select_smart_action('assisted', actions, context)", CORE)
         self.assertIn("select_smart_action('conservative', actions, context)", CORE)
         self.assertNotIn("let action = actions[0];", CORE[CORE.index("function assisted_auto_tick"):CORE.index("function benchmark_active")])

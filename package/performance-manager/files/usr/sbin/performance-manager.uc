@@ -4242,7 +4242,7 @@ function smart_eligible_action(action, mode, context) {
 	return { ok: true, action: action, ref: ref };
 }
 
-function select_smart_action(mode, candidates, context) {
+function select_smart_action(mode, candidates, context, runtime_status) {
 	/* One selector is shared by Conservative and Assisted.  Mode can narrow
 	 * the legal set, never widen it; Rill can only rank a Core-approved set. */
 	let all = [ { id: 'pm.noop', risk: 'none', executionAuthority: 'none', mutation: false, actionFamily: 'noop', available: true } ];
@@ -4259,7 +4259,7 @@ function select_smart_action(mode, candidates, context) {
 		confidence: 0, learningStage: 'cold', autoEligible: true, reason: fallback ? 'deterministic-core-fallback' : 'no-legal-action',
 		fallback: fallback?.id ?? 'pm.noop', coreRecommendation: fallback?.id ?? 'pm.noop', blockedReasons: blocked, ranking: [], goal: context.goal, contextKey: context.contextKey, context: context };
 	if (!bool_cfg('main.smart_rill_auto', true)) { result.reason = 'smart-rill-opt-out'; return result; }
-	let rill = rill_status(), advisory = rill_advisory_get();
+	let rill = runtime_status ?? rill_status(), advisory = rill_advisory_get();
 	/* A decision made for one Auto mode is not reusable by the other mode:
 	 * Conservative receives only safe-direct candidates, while Assisted may
 	 * inspect benchmark recommendations as non-direct advice. */
@@ -4373,7 +4373,7 @@ function recommendations(allow_observe) {
 	let smart_selection = null;
 	if (allow_observe) {
 		let selector_context = smart_selector_context();
-		if (selector_context.ok !== false) smart_selection = select_smart_action(selector_mode, acts, selector_context);
+		if (selector_context.ok !== false) smart_selection = select_smart_action(selector_mode, acts, selector_context, rill);
 	}
 	return {
 		topologyGeneration: topology_generation, actions: acts, observations: notes,
