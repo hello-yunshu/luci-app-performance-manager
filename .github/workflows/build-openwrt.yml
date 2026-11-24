@@ -412,7 +412,9 @@ jobs:
           path: |
             ${{ runner.temp }}/runtime-ownership/results.json
             ${{ runner.temp }}/runtime-ownership/*-then-*/commands.jsonl
-          if-no-files-found: warn
+          # Cancelled/failed targets legitimately produce no evidence; their
+          # check conclusion already says why, so do not annotate a warning.
+          if-no-files-found: ignore
       - name: Generate build metadata (auditable evidence)
         shell: bash
         run: |
