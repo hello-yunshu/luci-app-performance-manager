@@ -607,6 +607,9 @@ function managerActionOutcome(action) {
 		return _('Rill Runtime installed');
 	if (action === 'repair')
 		return _('Rill Runtime repaired');
+	/* "Check for updates" refreshes the feed index; it does not update packages. */
+	if (action === 'refresh')
+		return _('Package index refreshed');
 	return _('Package updated');
 }
 

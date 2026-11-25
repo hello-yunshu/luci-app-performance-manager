@@ -322,5 +322,16 @@ jobs:
           fi
           payload="$(jq -nc --arg source "${SOURCE}" --arg tag "${tag}" \
             '{event_type: "upstream-release", client_payload: {source: $source, tag: $tag}}')"
-          printf '%s' "${payload}" | gh api -X POST repos/hello-yunshu/yun-openwrt-packages/dispatches --input -
+          # A re-run after this version was published cannot retry this step, so
+          # absorb transient API/network failures here instead of dropping the
+          # notification for the whole release.
+          attempt=1
+          until printf '%s' "${payload}" | gh api -X POST repos/hello-yunshu/yun-openwrt-packages/dispatches --input -; do
+            if [ "${attempt}" -ge 3 ]; then
+              echo "::error::通知 yun-openwrt-packages 失败（已重试 3 次）" >&2
+              exit 1
+            fi
+            attempt=$((attempt + 1))
+            sleep $((attempt * 5))
+          done
           echo "已通知 yun-openwrt-packages 刷新（${tag}）"

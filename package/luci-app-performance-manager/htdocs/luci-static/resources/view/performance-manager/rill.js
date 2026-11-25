@@ -25,12 +25,14 @@ function readRefreshRecord() {
 	}
 }
 
-function rememberRefresh(result) {
+function rememberRefresh(result, at) {
 	try {
 		if (typeof window === 'undefined' || !window.sessionStorage)
 			return;
 		window.sessionStorage.setItem(REFRESH_RECORD_KEY, JSON.stringify({
-			at: Date.now(),
+			/* Page load retiring a stale verdict is not a new check; keep the
+			 * timestamp of the observation the verdict came from. */
+			at: (typeof at === 'number' && !isNaN(at)) ? at : Date.now(),
 			hasUpdate: labels.managerUpdatePending(result)
 		}));
 	}
@@ -38,6 +40,92 @@ function rememberRefresh(result) {
 		/* Private mode or a full quota: the page still reloads, it just cannot
 		 * carry the verdict over. */
 	}
+}
+
+function forgetRefresh() {
+	try {
+		if (typeof window !== 'undefined' && window.sessionStorage)
+			window.sessionStorage.removeItem(REFRESH_RECORD_KEY);
+	}
+	catch (e) {
+		/* Storage may be unavailable; the page renders its empty state. */
+	}
+}
+
+/* A verdict written before an install/update can survive the reload that
+ * follows it. The manager status read on page load is a fresh observation:
+ * retire a stale "update available" claim when it says nothing is pending. */
+function reconcileRefreshRecord(manager) {
+	if (!manager || manager.ok !== true || labels.managerUpdatePending(manager) !== false)
+		return;
+	const flags = [ 'updateAvailable', 'runtimeUpdateAvailable', 'pmUpdateAvailable', 'cfiUpdateAvailable', 'clientUpdateAvailable' ];
+	if (!flags.some(function(flag) { return manager[flag] === false; }))
+		return;
+	const record = readRefreshRecord();
+	if (record && record.hasUpdate === true)
+		rememberRefresh({ updateAvailable: false }, record.at);
+}
+
+/* LuCI bounds every ubus RPC by L.env.rpctimeout (seconds, default 20). The
+ * shared package manager can legitimately take longer; a client timeout does
+ * not cancel the router-side work, so verify before declaring failure. */
+const MANAGER_RPC_TIMEOUT_SECONDS = 120;
+const MANAGER_STATUS_INTERVAL_MS = 2000;
+const MANAGER_STATUS_ATTEMPTS = 15;
+const managerTimer = (typeof window !== 'undefined' && window.setTimeout) ? window.setTimeout : setTimeout;
+/* A reload wipes the outcome notice before it can be read; give it a moment on
+ * screen, the same way the Cloudflare IP Runtime actions do. */
+const MANAGER_RELOAD_DELAY_MS = 1500;
+/* Package actions share one opkg lock on the router. Track every rendered
+ * action button so one running action locks the others too; disabling only the
+ * clicked button still lets a second click queue a duplicate transaction. */
+const managerActionButtons = [];
+
+function setManagerActionButtonsBusy(except, busy) {
+	managerActionButtons.forEach(function(btn) {
+		if (!btn || btn === except)
+			return;
+		if (busy) {
+			if (!Object.prototype.hasOwnProperty.call(btn, '__pmBusyBefore'))
+				btn.__pmBusyBefore = btn.disabled === true;
+			btn.disabled = true;
+		} else {
+			const wasDisabled = btn.__pmBusyBefore === true;
+			delete btn.__pmBusyBefore;
+			if (!wasDisabled)
+				btn.disabled = false;
+		}
+	});
+}
+
+function managerRequestTimedOut(error) {
+	return /timed out|timeout/i.test(String((error && error.message) || error || ''));
+}
+
+function withManagerTimeout(call) {
+	const env = (typeof L !== 'undefined' && L && L.env) ? L.env : null;
+	const previous = env ? env.rpctimeout : undefined;
+	if (!env || previous === MANAGER_RPC_TIMEOUT_SECONDS)
+		return Promise.resolve().then(call);
+	env.rpctimeout = MANAGER_RPC_TIMEOUT_SECONDS;
+	return Promise.resolve().then(call).finally(function() { env.rpctimeout = previous; });
+}
+
+function waitForManagerIdle() {
+	let attempts = 0;
+	function poll() {
+		attempts += 1;
+		return pm.runtimeManagerStatus().then(function(state) {
+			if (state && state.busy === true)
+				throw new Error(_('The package manager is still busy. Do not retry until it is idle.'));
+			return state || null;
+		}).catch(function(error) {
+			if (attempts < MANAGER_STATUS_ATTEMPTS)
+				return new Promise(function(resolve) { managerTimer(resolve, MANAGER_STATUS_INTERVAL_MS); }).then(poll);
+			throw error;
+		});
+	}
+	return poll();
 }
 
 return view.extend({
@@ -72,10 +160,42 @@ return view.extend({
 			/* Name the work: refreshing the indexes downloads them, and "Working..."
 			 * for a minute reads as a hang. */
 			const restore = pu.setBusy(button, action === 'refresh' ? _('Refreshing package indexes...') : _('Working...'));
-			const call = action === 'install'
-				? pm.runtimeManagerInstall(packageName)
-				: (action === 'repair' ? pm.runtimeManagerRepair(packageName) : (action === 'refresh' ? pm.runtimeManagerRefresh() : pm.runtimeManagerUpdate(packageName)));
-			call.then(function(result) {
+			setManagerActionButtonsBusy(button, true);
+			const invoke = function() {
+				if (action === 'install')
+					return pm.runtimeManagerInstall(packageName);
+				if (action === 'repair')
+					return pm.runtimeManagerRepair(packageName);
+				if (action === 'refresh')
+					return pm.runtimeManagerRefresh();
+				return pm.runtimeManagerUpdate(packageName);
+			};
+			function reloadAndRestore() {
+				const finish = function() {
+					restore();
+					setManagerActionButtonsBusy(button, false);
+				};
+				if (typeof window === 'undefined') {
+					finish();
+					return;
+				}
+				managerTimer(function() {
+					window.location.reload();
+					finish();
+				}, MANAGER_RELOAD_DELAY_MS);
+			}
+			function finishWithStatus(state) {
+				/* The verdict of the earlier check can be stale after an
+				 * install/update. Use this fresh status, or drop the claim if
+				 * the manager cannot be read. */
+				if (state && state.ok === true)
+					rememberRefresh(state);
+				else
+					forgetRefresh();
+				ui.addNotification(null, E('p', {}, [ labels.managerActionOutcome(action) ]));
+				reloadAndRestore();
+			}
+			withManagerTimeout(invoke).then(function(result) {
 				if (!result || result.ok !== true) {
 					/* Carry the manager's error code into the summary so the page
 					 * can translate it; the manager's own sentence is kept as the
@@ -85,22 +205,51 @@ return view.extend({
 						failure.detail = result.message;
 					throw failure;
 				}
-				/* "Check for updates" reloads the page, which wipes the
-				 * notification, so its verdict is stored instead and rendered
-				 * as a status label in the package card. The other actions do
-				 * change the card, so a notification plus the reload is enough. */
-				if (action === 'refresh')
+				if (action === 'refresh') {
+					/* "Check for updates" owns its own verdict; no second status
+					 * call is needed before the reload. */
 					rememberRefresh(result);
-				else
 					ui.addNotification(null, E('p', {}, [ labels.managerActionOutcome(action) ]));
-				if (typeof window !== 'undefined')
-					window.location.reload();
+					reloadAndRestore();
+					return;
+				}
+				return pm.runtimeManagerStatus().then(finishWithStatus).catch(function() {
+					finishWithStatus(null);
+				});
 			}).catch(function(error) {
-				const body = [ _('Package operation failed: %s').format(labels.errorSummary(error)) ];
-				if (error && error.detail)
-					body.push(E('p', {}, [ error.detail ]));
-				ui.addNotification(null, E('div', {}, body), 'error');
-			}).finally(restore);
+				if (!managerRequestTimedOut(error)) {
+					const body = [ _('Package operation failed: %s').format(labels.errorSummary(error)) ];
+					if (error && error.detail)
+						body.push(E('p', {}, [ error.detail ]));
+					ui.addNotification(null, E('div', {}, body), 'error');
+					restore();
+					setManagerActionButtonsBusy(button, false);
+					return;
+				}
+				/* A client timeout does not cancel the ubus call. Keep the
+				 * buttons busy until the manager says it is idle. */
+				return waitForManagerIdle().then(function(state) {
+					/* An unreadable status is not confirmation that the manager
+					 * is idle. Keep the buttons locked instead of claiming the
+					 * action finished. */
+					if (!state || state.ok !== true) {
+						forgetRefresh();
+						ui.addNotification(null, E('p', {}, [ _('The package manager status could not be read. Do not retry until it is idle.') ]), 'warning');
+						return;
+					}
+					rememberRefresh(state);
+					ui.addNotification(null, E('p', {}, [ _('The package manager request timed out, but the manager is now idle. The page will reload; check the package status above before retrying.') ]), 'warning');
+					reloadAndRestore();
+				}).catch(function(verifyError) {
+					forgetRefresh();
+					const busyTitle = _('The package manager is still busy. Do not retry until it is idle.');
+					const body = [ busyTitle ];
+					if (verifyError && verifyError.message && verifyError.message !== busyTitle)
+						body.push(E('p', {}, [ verifyError.message ]));
+					ui.addNotification(null, E('div', {}, body), 'error');
+					/* No restore(): an unverified action must not be queued twice. */
+				});
+			});
 		}
 		const managerAvailable = manager && manager.ok === true && !manager._loadError;
 		const managerSupportsDevice = managerAvailable && manager.supported !== false;
@@ -127,6 +276,8 @@ return view.extend({
 		/* The verdict of the last check is a fact about the feed, not an action:
 		 * it lives in the details table, so the rows below stay pure
 		 * affordances. */
+		if (managerAvailable)
+			reconcileRefreshRecord(manager);
 		const refreshRecord = managerAvailable ? readRefreshRecord() : null;
 		const refreshNote = labels.managerRefreshNote(refreshRecord);
 		/* One native row per action, titled with the object it acts on and never
@@ -137,26 +288,32 @@ return view.extend({
 		 * button), which said the same thing twice and named no object; the
 		 * Cloudflare IP Runtime block titles its rows the same way. */
 		const packageActions = [];
+		managerActionButtons.length = 0;
 		const checkPackages = E('button', { 'class': 'btn cbi-button', 'type': 'button', 'disabled': managerSupportsDevice && !managerBusy ? null : '' }, [ _('Check for updates') ]);
+		managerActionButtons.push(checkPackages);
 		checkPackages.addEventListener('click', function() { managerAction('refresh', null, checkPackages); });
 		packageActions.push(pu.field(_('Package index'), checkPackages, _('Refreshes the trusted feed index, then reports whether an update is available.')));
 		if (managerAvailable && manager.supported === true && manager.installed !== true && !runtimeConflict) {
 			const installRuntime = E('button', { 'class': 'btn cbi-button cbi-button-action', 'type': 'button', 'disabled': managerBusy ? '' : null }, [ _('Install Rill Runtime') ]);
+			managerActionButtons.push(installRuntime);
 			installRuntime.addEventListener('click', function() { managerAction('install', 'rill-runtime', installRuntime); });
 			packageActions.push(pu.field(_('Rill Runtime'), installRuntime, _('Installs the shared Runtime package for this release and architecture.')));
 		}
 		if (managerAvailable && manager.supported === true && manager.runtimeUpdateAvailable === true && !runtimeConflict) {
 			const updateRuntime = E('button', { 'class': 'btn cbi-button cbi-button-action', 'type': 'button', 'disabled': managerBusy ? '' : null }, [ _('Update Rill Runtime') ]);
+			managerActionButtons.push(updateRuntime);
 			updateRuntime.addEventListener('click', function() { managerAction('update', 'rill-runtime', updateRuntime); });
 			packageActions.push(pu.field(_('Rill Runtime'), updateRuntime, _('Updates only a compatible Stable Runtime; Preview installs are never replaced.')));
 		}
 		if (managerAvailable && manager.repairAvailable === true && !runtimeConflict) {
 			const repairRuntime = E('button', { 'class': 'btn cbi-button cbi-button-action', 'type': 'button', 'disabled': managerBusy ? '' : null }, [ _('Repair Rill Runtime') ]);
+			managerActionButtons.push(repairRuntime);
 			repairRuntime.addEventListener('click', function() { managerAction('repair', 'rill-runtime', repairRuntime); });
 			packageActions.push(pu.field(_('Rill Runtime'), repairRuntime, _('Reinstalls the same Stable package when its executable is missing; the version does not change.')));
 		}
 		if (managerAvailable && manager.pmUpdateAvailable === true) {
 			const updatePm = E('button', { 'class': 'btn cbi-button cbi-button-action', 'type': 'button', 'disabled': managerBusy ? '' : null }, [ _('Update Performance Manager') ]);
+			managerActionButtons.push(updatePm);
 			updatePm.addEventListener('click', function() { managerAction('update', 'luci-app-performance-manager-all', updatePm); });
 			packageActions.push(pu.field(_('Performance Manager'), updatePm, _('Installs the newer Performance Manager package from the unified feed.')));
 		}

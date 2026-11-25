@@ -2680,6 +2680,9 @@ msgstr "Rill Runtime repaired"
 msgid "Package updated"
 msgstr "Package updated"
 
+msgid "Package index refreshed"
+msgstr "Package index refreshed"
+
 msgid "Package index"
 msgstr "Package index"
 
@@ -2697,3 +2700,12 @@ msgstr "Reinstalls the same Stable package when its executable is missing; the v
 
 msgid "Installs the newer Performance Manager package from the unified feed."
 msgstr "Installs the newer Performance Manager package from the unified feed."
+
+msgid "The package manager is still busy. Do not retry until it is idle."
+msgstr "The package manager is still busy. Do not retry until it is idle."
+
+msgid "The package manager status could not be read. Do not retry until it is idle."
+msgstr "The package manager status could not be read. Do not retry until it is idle."
+
+msgid "The package manager request timed out, but the manager is now idle. The page will reload; check the package status above before retrying."
+msgstr "The package manager request timed out, but the manager is now idle. The page will reload; check the package status above before retrying."

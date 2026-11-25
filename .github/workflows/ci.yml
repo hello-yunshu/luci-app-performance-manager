@@ -32,6 +32,7 @@ jobs:
             node --check /tmp/luci-check.js
           done
           node scripts/luci_render_smoke.js
+          node tests/pm-rill-package-verdict.cjs
       - name: Upload static audit evidence
         if: always()
         uses: actions/upload-artifact@v7

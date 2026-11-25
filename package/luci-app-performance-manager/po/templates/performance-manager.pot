@@ -2461,6 +2461,9 @@ msgstr ""
 msgid "Package updated"
 msgstr ""
 
+msgid "Package index refreshed"
+msgstr ""
+
 msgid "Package index"
 msgstr ""
 
@@ -2477,4 +2480,13 @@ msgid "Reinstalls the same Stable package when its executable is missing; the ve
 msgstr ""
 
 msgid "Installs the newer Performance Manager package from the unified feed."
+msgstr ""
+
+msgid "The package manager is still busy. Do not retry until it is idle."
+msgstr ""
+
+msgid "The package manager status could not be read. Do not retry until it is idle."
+msgstr ""
+
+msgid "The package manager request timed out, but the manager is now idle. The page will reload; check the package status above before retrying."
 msgstr ""

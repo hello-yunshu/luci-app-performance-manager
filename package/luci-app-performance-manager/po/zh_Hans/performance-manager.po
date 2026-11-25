@@ -2604,6 +2604,9 @@ msgstr "已修复 Rill 运行环境"
 msgid "Package updated"
 msgstr "软件包已更新"
 
+msgid "Package index refreshed"
+msgstr "软件源索引已刷新"
+
 msgid "Package index"
 msgstr "软件源索引"
 
@@ -2621,3 +2624,12 @@ msgstr "运行环境程序缺失时重装同一稳定版软件包；不改变运
 
 msgid "Installs the newer Performance Manager package from the unified feed."
 msgstr "从统一软件源安装更新版本的性能管理器软件包。"
+
+msgid "The package manager is still busy. Do not retry until it is idle."
+msgstr "软件包管理器仍在处理中。空闲前请勿重试。"
+
+msgid "The package manager status could not be read. Do not retry until it is idle."
+msgstr "无法读取软件包管理器状态。在确认其空闲前请勿重试。"
+
+msgid "The package manager request timed out, but the manager is now idle. The page will reload; check the package status above before retrying."
+msgstr "软件包管理器请求超时，但管理器现已空闲。页面即将刷新；重试前请先查看上方软件包状态。"
