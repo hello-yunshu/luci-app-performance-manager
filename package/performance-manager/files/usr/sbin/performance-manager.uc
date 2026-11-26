@@ -4464,7 +4464,7 @@ function profile_status() {
 	for (let item in p.conditionalPackages ?? []) if ((cmap[item.whenCapability]?.availability ?? 'unavailable') == 'available' && !profile_package_installed(item.name)) push(missing_conditional,item.name);
 	let arch=trimstr(run(['uname','-m']).out), target_ok=index(p.targets ?? ['*'],'*') >= 0 || index(p.targets ?? [],arch) >= 0;
 	let healthy=target_ok && !length(missing_required) && !length(missing_commands) && !length(missing_caps) && !length(missing_conditional);
-	return {id:id,chain:p.chain,healthy:healthy,degraded:healthy && length(missing_recommended)>0,targetMatched:target_ok,architecture:arch,missingRequiredPackages:missing_required,missingRecommendedPackages:missing_recommended,missingConditionalPackages:missing_conditional,missingCommands:missing_commands,missingCapabilities:missing_caps,requiredPackages:p.requiredPackages,recommendedPackages:p.recommendedPackages,conditionalPackages:p.conditionalPackages,expectedCommands:p.expectedCommands,expectedCapabilities:p.expectedCapabilities,targets:p.targets};
+	return {id:id,chain:p.chain,healthy:healthy,degraded:healthy && length(missing_recommended)>0,targetMatched:target_ok,architecture:arch,packageManager:command_exists('apk') ? 'apk' : (command_exists('opkg') ? 'opkg' : null),missingRequiredPackages:missing_required,missingRecommendedPackages:missing_recommended,missingConditionalPackages:missing_conditional,missingCommands:missing_commands,missingCapabilities:missing_caps,requiredPackages:p.requiredPackages,recommendedPackages:p.recommendedPackages,conditionalPackages:p.conditionalPackages,expectedCommands:p.expectedCommands,expectedCapabilities:p.expectedCapabilities,targets:p.targets};
 }
 
 function clock_hhmm() {

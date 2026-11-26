@@ -134,7 +134,7 @@ return view.extend({
 	handleReset: null,
 
 	load: function() {
-		return Promise.all([ pm.rill(), pm.recommendations(), pm.runtimeManagerStatus() ].map(function(p) {
+		return Promise.all([ pm.rill(), pm.runtimeManagerStatus() ].map(function(p) {
 			return p.catch(function(err) {
 				console.error('performance-manager: Rill status load failed', err);
 				return { _loadError: err };
@@ -142,9 +142,9 @@ return view.extend({
 		}));
 	},
 	render: function(payload) {
-		if ((payload || []).slice(0, 2).some(function(d) { return d && d._loadError; }))
+		if ((payload || []).some(function(d) { return d && d._loadError; }))
 			return pu.page(_('Rill smart decisions'), null, pu.note(_('Unable to load this page. Retry the page; if it keeps failing, check the service log.'), 'danger'));
-		const r = (payload && payload[0]) || {}, rec = (payload && payload[1]) || {}, manager = (payload && payload[2]) || {}, s = rec.smartSelection || {};
+		const r = (payload && payload[0]) || {}, rec = (payload && payload[2]) || null, manager = (payload && payload[1]) || {}, s = (rec && rec.smartSelection) || {};
 		const refresh = E('button', { 'class': 'btn cbi-button cbi-button-action', 'type': 'button' }, [ _('Refresh Rill decision') ]);
 		refresh.addEventListener('click', function() {
 			const restore = pu.setBusy(refresh, _('Refreshing...'));
@@ -418,7 +418,7 @@ return view.extend({
 		const decisionReason = s.reason ? labels.smartReason(s.reason) : (s.selectedActionId === 'pm.noop' ? _('The current configuration meets the policy.') : _('No decision reason is available yet.'));
 		const pageNodes = [
 			pu.card(_('Package management'), E('div', {}, [ packageStatus, packageDetails, packageActionRows ].filter(function(node) { return node != null; }))),
-			pu.card(_('Current decision'), E('div', {}, [
+			rec ? pu.card(_('Current decision'), E('div', {}, [
 				pu.badge(labels.runtimeStatus(r.status)),
 				pu.kv([
 					[_('Selected action'), labels.actionName(s.selectedActionId)],
@@ -428,7 +428,7 @@ return view.extend({
 					[_('Last outcome'), outcomeText],
 					[_('Why'), decisionReason]
 				])
-			])),
+			])) : pu.card(_('Smart policy'), E('p', { 'class': 'cbi-value-description pm-rill-recommendations-placeholder', 'role': 'status', 'aria-live': 'polite' }, _('Loading recommendations when this section is reached…'))),
 			pu.note(_('Rill provides observations and recommendations. Core checks safety and keeps final control over every change.'), 'info'),
 			pu.grid([
 				pu.card(_('Top ranking'), E('div', {}, [ rankingActions, pu.tableWrap(table) ])),
@@ -439,11 +439,49 @@ return view.extend({
 				context: context,
 				selection: s,
 				candidateHistory: candidateHistory,
-				advisory: rec.learnedAdvisory || []
+				advisory: (rec && rec.learnedAdvisory) || []
 			}, _('Runtime, decision and candidate details')))
 		];
 		if (s.drifted)
 			pageNodes.splice(1, 0, pu.note(_('Performance drift detected. Rill Auto temporarily paused.'), 'warning'));
-		return pu.page(_('Rill smart decisions'), _('Rill ranks actions that passed the Core engine review; the Core engine keeps the final authority to execute them.'), pageNodes);
+		const page = pu.page(_('Rill smart decisions'), _('Rill ranks actions that passed the Core engine review; the Core engine keeps the final authority to execute them.'), pageNodes);
+		if (!rec) {
+			const placeholder = page.querySelector('.pm-rill-recommendations-placeholder');
+			let started = false;
+			const loadRecommendations = function() {
+				if (started) return;
+				started = true;
+				if (placeholder) {
+					placeholder.replaceChildren(E('span', {
+						'class': 'cbi-value-description', 'role': 'status', 'aria-live': 'polite'
+					}, _('Loading...')));
+				}
+				pm.recommendations().then(function(result) {
+					page.replaceWith(this.render([r, manager, result]));
+				}.bind(this)).catch(function(error) {
+					started = false;
+					if (placeholder) {
+						placeholder.replaceChildren(
+							E('span', { 'role': 'alert', 'aria-live': 'assertive' }, _('Unable to load recommendations: %s').format(labels.errorSummary(error))),
+							' ',
+							E('button', {
+								'class': 'btn cbi-button', 'type': 'button',
+								'click': loadRecommendations
+							}, _('Retry'))
+						);
+					}
+				}.bind(this));
+			}.bind(this);
+			if (placeholder && typeof window.IntersectionObserver === 'function') {
+				const observer = new window.IntersectionObserver(function(entries) {
+					if (entries.some(function(entry) { return entry.isIntersecting; })) {
+						observer.disconnect();
+						loadRecommendations();
+					}
+				}, { threshold: 0.01 });
+				observer.observe(placeholder);
+			} else window.setTimeout(loadRecommendations, 0);
+		}
+		return page;
 	}
 });

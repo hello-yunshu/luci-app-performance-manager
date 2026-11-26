@@ -37,9 +37,14 @@ const themes = [
 	{ id: 'aurora-light', media: 'aurora', theme: 'aurora', colorScheme: 'light', dark: 'false', aurora: 'light' },
 	{ id: 'aurora-dark', media: 'aurora', theme: 'aurora', colorScheme: 'dark', dark: 'true', aurora: 'dark' }
 ];
+const themeSet = process.env.LUCI_UI_THEME_SET || 'all';
+if (!['all', 'bootstrap-only'].includes(themeSet)) throw new Error('Unsupported LUCI_UI_THEME_SET: ' + themeSet);
 const smoke = process.env.PM_UI_SMOKE_ONLY === '1';
 if (smoke && process.env.GITHUB_ACTIONS === 'true') throw new Error('Smoke-only mode is prohibited in GitHub Actions');
-const selectedThemes = smoke ? themes.filter(t => t.id === 'aurora-light') : themes;
+const themeCandidates = themeSet === 'bootstrap-only' ? themes.filter(t => !t.id.startsWith('aurora-')) : themes;
+if (themeCandidates.length !== (themeSet === 'all' ? 6 : 4)) throw new Error('Unexpected theme count for LUCI_UI_THEME_SET=' + themeSet);
+const smokeThemeId = themeSet === 'bootstrap-only' ? 'bootstrap-default-light' : 'aurora-light';
+const selectedThemes = smoke ? themeCandidates.filter(t => t.id === smokeThemeId) : themeCandidates;
 const selectedWidths = smoke ? [320, 1280] : allWidths;
 
 const report = {
@@ -48,10 +53,19 @@ const report = {
 	environment: 'OpenWrt 24.10.8 rootfs with LuCI, uhttpd, rpcd, Performance Manager and Chromium',
 	language, mode: smoke ? 'local-smoke-only' : 'full-matrix',
 	routes: routes.map(r => r.path), widths: selectedWidths, shortViewports,
-	method: 'All 8 registered views; common and breakpoint-adjacent CSS widths; short portrait and landscape; Bootstrap system/default, explicit Light/Dark, Aurora Light/Dark.',
+	themeSet, themes: selectedThemes.map(t => t.id),
+	playwrightVersion: JSON.parse(fs.readFileSync(path.join(path.dirname(require.resolve('playwright')), 'package.json'), 'utf8')).version,
+	method: `All 8 registered views; common and breakpoint-adjacent CSS widths; short portrait and landscape; selected theme set: ${themeSet}.`,
 	notCovered: ['manual visual review', 'controlled A/B apply and restore lifecycle', 'business mutations outside health/passive benchmark observations', 'installed router behavior'], rows: [], errors: []
 };
 fs.mkdirSync(output, { recursive: true });
+const viewportsPerTheme = selectedWidths.length + shortViewports.length;
+const rowsPerTheme = viewportsPerTheme * routes.length + 2 * viewportsPerTheme;
+const expectedRows = selectedThemes.length * rowsPerTheme;
+if (!smoke && expectedRows !== (themeSet === 'all' ? 2460 : 1640))
+	throw new Error('Unexpected full matrix row count for LUCI_UI_THEME_SET=' + themeSet + ': ' + expectedRows);
+report.rowsPerTheme = rowsPerTheme;
+report.expectedRows = expectedRows;
 
 function shell(cmd) {
 	return execFileSync('docker', ['exec', container, 'sh', '-c', cmd], { encoding: 'utf8' }).trim();
@@ -262,6 +276,7 @@ async function runBenchmarkScenario(page, theme, mode, scenarioId) {
 
 (async () => {
 	const browser = await chromium.launch({ headless: true, executablePath: process.env.PLAYWRIGHT_EXECUTABLE || undefined });
+	report.browserVersion = browser.version();
 	try {
 		for (const theme of selectedThemes) {
 			shell(`uci set luci.main.mediaurlbase='/luci-static/${theme.media}'; uci set luci.main.theme='${theme.theme}'; uci commit luci; rm -rf /tmp/luci-indexcache* /tmp/luci-modulecache*; /etc/init.d/uhttpd restart >/dev/null 2>&1`);
@@ -280,9 +295,8 @@ async function runBenchmarkScenario(page, theme, mode, scenarioId) {
 			} finally { await context.close(); }
 		}
 	} finally { await browser.close(); }
-	const expected = selectedThemes.length * ((selectedWidths.length + shortViewports.length) * routes.length + 2 * (selectedWidths.length + shortViewports.length));
-	console.log('VISUAL_MATRIX ' + JSON.stringify({ total: report.rows.length, expected, pass: report.rows.filter(x => x.result === 'PASS').length, fail: report.errors.length }));
-	if (report.rows.length !== expected || report.errors.length) process.exitCode = 1;
+	console.log('VISUAL_MATRIX ' + JSON.stringify({ total: report.rows.length, expected: expectedRows, pass: report.rows.filter(x => x.result === 'PASS').length, fail: report.errors.length }));
+	if (report.rows.length !== expectedRows || report.errors.length) process.exitCode = 1;
 })().catch(e => {
 	report.errors.push({ fatal: e.stack || e.message });
 	fs.writeFileSync(path.join(output, 'report.json'), JSON.stringify(report, null, 2) + '\n');

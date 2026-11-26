@@ -51,12 +51,29 @@ return view.extend({
 			? (profile.degraded ? _('Degraded') : _('Healthy'))
 			: _('Incomplete');
 		let profileNote = '';
+		const missingRequiredPackages = profile.missingRequiredPackages || [];
+		const missingRecommendedPackages = profile.missingRecommendedPackages || [];
+		const missingConditionalPackages = profile.missingConditionalPackages || [];
+		const missingCapabilities = profile.missingCapabilities || [];
+		const missingCommands = profile.missingCommands || [];
+		const recommendedPackages = profile.recommendedPackages || [];
+		const expectedCommands = profile.expectedCommands || [];
+		/* Missing recommended tools should explain a partial profile without
+		 * making it look like required components or capabilities are broken. */
+		const recommendedToolsMissing = !profile.healthy &&
+			!missingRequiredPackages.length && !missingConditionalPackages.length &&
+			!missingCapabilities.length && profile.targetMatched !== false &&
+			(missingRecommendedPackages.length > 0 || missingCommands.length > 0);
+		if (recommendedToolsMissing)
+			profileValue = _('Recommended tools missing');
 		if (!profile.healthy) {
-			if ((profile.missingRequiredPackages || []).length)
-				profileNote = _('Required components are unavailable.');
-			else if ((profile.missingCommands || []).length || (profile.missingRecommendedPackages || []).length)
+			if (recommendedToolsMissing)
 				profileNote = _('Some recommended testing and diagnostic tools are missing.');
-			else if ((profile.missingCapabilities || []).length || (profile.missingConditionalPackages || []).length)
+			else if (missingRequiredPackages.length)
+				profileNote = _('Required components are unavailable.');
+			else if (missingCommands.length || missingRecommendedPackages.length)
+				profileNote = _('Some recommended testing and diagnostic tools are missing.');
+			else if (missingCapabilities.length || missingConditionalPackages.length)
 				profileNote = _('Some profile capabilities are unavailable.');
 			else
 				profileNote = _('Review profile details for unavailable components.');
@@ -91,6 +108,34 @@ return view.extend({
 			], 'pm-overview-info-table')
 		]);
 		overview.push(serviceInfo);
+
+		if (recommendedPackages.length || expectedCommands.length) {
+			const dependencyRows = [];
+			if (missingRecommendedPackages.length || missingCommands.length) {
+				dependencyRows.push(pu.note(_('Some recommended testing and diagnostic tools are missing.'), 'warning'));
+				function dependencyLine(label, value) {
+					return E('p', {}, [ E('strong', {}, [ label + ':' ]), ' ', E('code', {}, [ value ]) ]);
+				}
+				if (missingRecommendedPackages.length)
+					dependencyRows.push(dependencyLine(_('Missing recommended packages'), missingRecommendedPackages.join(' ')));
+				if (missingCommands.length)
+					dependencyRows.push(dependencyLine(_('Missing commands'), missingCommands.join(' ')));
+
+				if (missingRecommendedPackages.length && missingRecommendedPackages.indexOf('ip-full') < 0 &&
+					(profile.packageManager === 'apk' || profile.packageManager === 'opkg')) {
+					const installCommand = (profile.packageManager === 'apk' ? 'apk add ' : 'opkg install ') + missingRecommendedPackages.join(' ');
+					dependencyRows.push(dependencyLine(_('Install command'), installCommand));
+				}
+			}
+			else {
+				dependencyRows.push(pu.note(_('All recommended dependencies are available.'), 'success'));
+			}
+
+			overview.push(E('div', { 'class': 'cbi-section pm-overview-dependency-status' }, [
+				E('h3', {}, [ _('Dependency Status') ]),
+				E('div', {}, dependencyRows)
+			]));
+		}
 
 		const recentBody = [
 			pu.kv([

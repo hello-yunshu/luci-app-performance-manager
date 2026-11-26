@@ -2316,6 +2316,30 @@ msgid "Incomplete"
 msgstr "Incomplete"
 
 #: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/overview.js
+msgid "Recommended tools missing"
+msgstr "Recommended tools missing"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/overview.js
+msgid "Dependency Status"
+msgstr "Dependency Status"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/overview.js
+msgid "Missing recommended packages"
+msgstr "Missing recommended packages"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/overview.js
+msgid "Missing commands"
+msgstr "Missing commands"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/overview.js
+msgid "Install command"
+msgstr "Install command"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/overview.js
+msgid "All recommended dependencies are available."
+msgstr "All recommended dependencies are available."
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/overview.js
 msgid "Required components are unavailable."
 msgstr "Required components are unavailable."
 
@@ -2709,3 +2733,18 @@ msgstr "The package manager status could not be read. Do not retry until it is i
 
 msgid "The package manager request timed out, but the manager is now idle. The page will reload; check the package status above before retrying."
 msgstr "The package manager request timed out, but the manager is now idle. The page will reload; check the package status above before retrying."
+
+msgid "Loading recommendations when this section is reached…"
+msgstr "Loading recommendations when this section is reached…"
+
+msgid "Loading..."
+msgstr "Loading..."
+
+msgid "Optimization recommendations"
+msgstr "Optimization recommendations"
+
+msgid "Retry"
+msgstr "Retry"
+
+msgid "Unable to load recommendations: %s"
+msgstr "Unable to load recommendations: %s"

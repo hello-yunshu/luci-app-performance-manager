@@ -80,6 +80,10 @@ class FakeEl {
   set value(v) { this._value = v; }
   appendChild(c) { if (c != null) this.children.push(c); return c; }
   replaceChildren(...nodes) { this.children = []; nodes.forEach((n) => this.appendChild(n)); }
+  querySelector(selector) {
+    if (selector.startsWith('.')) return byClass(this, selector.slice(1));
+    return null;
+  }
   addEventListener(evt, fn) { (this._listeners[evt] = this._listeners[evt] || []).push(fn); }
   setAttribute(name, value) { this.attrs[name] = String(value); }
   removeAttribute(name) { delete this.attrs[name]; }
@@ -286,7 +290,7 @@ const mockPayloads = {
   optimize: mockRec,
   capabilities: [{ capabilities: mockCaps }, mockTopology],
   history: [{ transactions: [mockTx] }, { locks: [] }, { history: [mockFeedback], runtimeHistory: [] }],
-  rill: [mockRill, mockRec, { history: [mockFeedback] }],
+  rill: [mockRill, { history: [mockFeedback] }, mockRec],
   benchmark: mockRec,
 };
 
@@ -475,7 +479,7 @@ const MOCK = {
   optimize: mockRec,
   capabilities: [{ capabilities: mockCaps }, mockTopology],
   history: [{ transactions: [mockTx] }, { locks: [] }, { history: [mockFeedback], runtimeHistory: [] }],
-  rill: [mockRill, mockRec, { history: [mockFeedback] }],
+  rill: [mockRill, { history: [mockFeedback] }, mockRec],
   benchmark: mockRec,
   settings: undefined,
   advanced: [mockStatus, { capabilities: mockCaps }, mockTopology, mockRec, { transactions: [mockTx] }, { locks: [] }, { resources: {} }],
@@ -508,6 +512,40 @@ for (const name of PAGES) {
     if (!/[\u4e00-\u9fff]/.test(visibleText(rendered))) throw new Error('empty state rendered without Chinese text');
   });
 }
+
+await expect('overview explains missing recommended tools and guards ip-full install advice', () => {
+  const view = loadModule(path.join(VIEW_DIR, 'overview.js'), baseGlobals);
+  const profile = {
+    ...mockStatus.profile,
+    healthy: false,
+    degraded: false,
+    targetMatched: true,
+    packageManager: 'opkg',
+    missingRecommendedPackages: ['iperf3', 'ethtool'],
+    missingCommands: ['iperf3'],
+    recommendedPackages: ['iperf3', 'ethtool'],
+    expectedCommands: ['iperf3'],
+  };
+  const text = visibleText(view.render([{ ...mockStatus, profile }, mockTopology, { transactions: [] }]));
+  if (!text.includes(_('Recommended tools missing'))) throw new Error('overview status does not identify missing recommended tools');
+  for (const name of ['iperf3', 'ethtool']) {
+    if (!text.includes(name)) throw new Error('overview did not list missing package: ' + name);
+  }
+  if (!text.includes(_('Install command')) || !text.includes('opkg install iperf3 ethtool'))
+    throw new Error('overview did not show the supported package install command');
+
+  const ipFullProfile = {
+    ...profile,
+    missingRecommendedPackages: ['ip-full'],
+    missingCommands: ['ip'],
+    recommendedPackages: ['ip-full'],
+    expectedCommands: ['ip'],
+  };
+  const ipFullText = visibleText(view.render([{ ...mockStatus, profile: ipFullProfile }, mockTopology, { transactions: [] }]));
+  if (!ipFullText.includes('ip-full')) throw new Error('overview hid the missing ip-full package');
+  if (ipFullText.includes(_('Install command')) || ipFullText.includes('opkg install ip-full'))
+    throw new Error('overview suggested an install command that could conflict with ip-full');
+});
 
 /* ---------- no raw contract value or English prose reaches the UI ---------- */
 const RAW_VALUES = [
@@ -567,8 +605,8 @@ for (const name of PAGES) {
  * falling back to the generic "unknown state" label. */
 const DEFAULT_INSTALL_RILL = [
   { status: 'Runtime · Not provisioned', transport: 'unavailable' },
-  { smartSelection: { reason: 'external-runtime-not-provisioned', ranking: [] } },
   { history: [] },
+  { smartSelection: { reason: 'external-runtime-not-provisioned', ranking: [] } },
 ];
 await expect('default install Rill page explains the missing runtime', () => {
   assertCleanPage('rill', DEFAULT_INSTALL_RILL);
@@ -585,12 +623,58 @@ await expect('default install Rill page explains the missing runtime', () => {
   if (unknown) throw new Error('default install shows an unknown value: ' + unknown[0]);
 });
 
+await expect('lazy recommendation failures expose a working retry on Optimize and Rill', async () => {
+  const previousWindow = global.window;
+  const previousRecommendations = pm.recommendations;
+  try {
+    const observers = [];
+    global.window = {
+      IntersectionObserver: function (callback) {
+        this.callback = callback;
+        this.observe = function () {};
+        this.disconnect = function () {};
+        observers.push(this);
+      },
+    };
+    for (const [name, payload] of [
+      ['optimize', { _lazy: true }],
+      ['rill', [mockRill, { ok: true, supported: true, installed: true, compatible: true }, null]],
+    ]) {
+      let attempts = 0;
+      pm.recommendations = () => {
+        attempts++;
+        return Promise.reject(new Error('controlled recommendation failure'));
+      };
+      const page = loadModule(path.join(VIEW_DIR, name + '.js'), baseGlobals).render(payload);
+      const observer = observers.pop();
+      if (!observer) throw new Error(name + ' did not register a lazy-load observer');
+      observer.callback([{ isIntersecting: true }]);
+      await new Promise((resolve) => setImmediate(resolve));
+
+      const retry = findByText(page, 'button', _('Retry'));
+      if (!retry) throw new Error(name + ' did not offer Retry after the first RPC failure');
+      if (!visibleText(page).includes(_('Unable to load recommendations: %s').split('%s')[0]))
+        throw new Error(name + ' did not explain the recommendation load failure');
+
+      retry.attrs.click.call(retry);
+      await new Promise((resolve) => setImmediate(resolve));
+      if (attempts !== 2) throw new Error(name + ' Retry did not issue a second recommendations RPC');
+      if (!findByText(page, 'button', _('Retry')))
+        throw new Error(name + ' did not retain Retry after the second RPC failure');
+    }
+  } finally {
+    pm.recommendations = previousRecommendations;
+    if (previousWindow === undefined) delete global.window;
+    else global.window = previousWindow;
+  }
+});
+
 await expect('PM update action follows the PM-specific availability flag', () => {
   const view = loadModule(path.join(VIEW_DIR, 'rill.js'), baseGlobals);
-  const renderPackageControls = (manager) => visibleText(view.render([mockRill, mockRec, {
+  const renderPackageControls = (manager) => visibleText(view.render([mockRill, {
     ok: true, supported: true, installed: true, channel: 'stable', compatible: true,
     runtimeUpdateAvailable: false, ...manager,
-  }]));
+  }, mockRec]));
   const noRuntime = renderPackageControls({ installed: false, channel: 'none', compatible: false });
   if (!noRuntime.includes(_('Install Rill Runtime')))
     throw new Error('missing Runtime incorrectly hid the install action');
@@ -632,10 +716,10 @@ await expect('a manager version-parse failure does not fake a Runtime conflict',
   const view = loadModule(path.join(VIEW_DIR, 'rill.js'), baseGlobals);
   const description = 'Generic Rill Runtime packaged for OpenWrt. This distribution recipe installs only the runtime executable from an immutable upstream Git commit promoted to the Stable package channel.';
   const handshakeOk = { ...mockRill, compatibility: 'compatible' };
-  const page = visibleText(view.render([handshakeOk, mockRec, {
+  const page = visibleText(view.render([handshakeOk, {
     ok: true, supported: true, installed: true, channel: 'stable',
     compatible: false, version: description, runtimeUpdateAvailable: true,
-  }]));
+  }, mockRec]));
   if (page.includes(_('An incompatible Rill Runtime is installed. Resolve that package conflict before changing Runtime packages.')))
     throw new Error('handshake-compatible Runtime was reported as a package conflict');
   if (!page.includes(_('Update Rill Runtime')))
@@ -643,10 +727,10 @@ await expect('a manager version-parse failure does not fake a Runtime conflict',
   if (page.includes('packaged for OpenWrt'))
     throw new Error('unparsed manager version leaked the package description into the details table');
   /* A real ownership conflict still wins over a passing handshake. */
-  const legacy = visibleText(view.render([handshakeOk, mockRec, {
+  const legacy = visibleText(view.render([handshakeOk, {
     ok: true, supported: true, installed: true, channel: 'legacy-preview',
     compatible: false, version: description, runtimeUpdateAvailable: true,
-  }]));
+  }, mockRec]));
   if (!legacy.includes('rill-runtime-preview'))
     throw new Error('handshake override silently dropped the legacy Preview conflict');
 });

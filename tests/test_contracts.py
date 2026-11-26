@@ -372,6 +372,7 @@ class AuditConvergenceTests(unittest.TestCase):
         self.assertIn("profile.healthy", ui)
         self.assertIn("profile.degraded ? _('Degraded') : _('Healthy')", ui)
         self.assertIn("_('Incomplete')", ui)
+        self.assertIn("_('Recommended tools missing')", ui)
         self.assertIn("_('Some recommended testing and diagnostic tools are missing.')", ui)
         self.assertIn("profile.missingCommands", ui)
         self.assertNotIn("_('Needs attention')", ui)

@@ -32,6 +32,12 @@ on:
         required: false
         type: boolean
         default: false
+      theme_set:
+        description: Theme profile for the full real-browser matrix
+        required: false
+        type: choice
+        options: [all, bootstrap-only]
+        default: all
 
 permissions:
   contents: read
@@ -158,6 +164,7 @@ jobs:
           echo "PLAYWRIGHT_EXECUTABLE=$browser" >> "$GITHUB_ENV"
           "$browser" --version
       - name: Install checksum-pinned Aurora theme
+        if: ${{ inputs.theme_set != 'bootstrap-only' }}
         run: |
           set -euo pipefail
           curl -fL --retry 3 -o "$RUNNER_TEMP/luci-theme-aurora.ipk" https://github.com/eamonxg/luci-theme-aurora/releases/download/v1.4.0/luci-theme-aurora_1.4.0-r20260920_all.ipk
@@ -169,24 +176,27 @@ jobs:
         run: |
           set -euo pipefail
           language='${{ matrix.language }}'
+          theme_set='${{ inputs.theme_set || 'all' }}'
           docker exec pm-ui-gate sh -c "uci set luci.main.lang='$language'; uci commit luci; rm -rf /tmp/luci-indexcache* /tmp/luci-modulecache*"
           NODE_PATH="$RUNNER_TEMP/ui/node_modules" PM_UI_CONTAINER=pm-ui-gate \
-            PM_UI_LANG="$language" PM_VISUAL_OUT="$GITHUB_WORKSPACE/real-luci-ui-evidence/visual/$language" \
+            PM_UI_LANG="$language" LUCI_UI_THEME_SET="$theme_set" PM_VISUAL_OUT="$GITHUB_WORKSPACE/real-luci-ui-evidence/visual/$language" \
             node tests/real-luci-ui-visual.cjs
       - name: Capture PM Overview 27rem and 64rem breakpoint neighbors
         if: ${{ !inputs.benchmark_result_only }}
         run: |
           set -euo pipefail
           language='${{ matrix.language }}'
+          theme_set='${{ inputs.theme_set || 'all' }}'
           NODE_PATH="$RUNNER_TEMP/ui/node_modules" PM_UI_CONTAINER=pm-ui-gate \
-            PM_UI_LANG="$language" PM_BREAKPOINT_OUT="$GITHUB_WORKSPACE/real-luci-ui-evidence/overview-breakpoint/$language" \
+            PM_UI_LANG="$language" LUCI_UI_THEME_SET="$theme_set" PM_BREAKPOINT_OUT="$GITHUB_WORKSPACE/real-luci-ui-evidence/overview-breakpoint/$language" \
             node tests/real-luci-ui-overview-breakpoint.cjs
       - name: Capture controlled A/B completion states across themes and widths
         run: |
           set -euo pipefail
           language='${{ matrix.language }}'
+          theme_set='${{ inputs.theme_set || 'all' }}'
           NODE_PATH="$RUNNER_TEMP/ui/node_modules" PM_UI_CONTAINER=pm-ui-gate \
-            PM_UI_LANG="$language" PM_BENCHMARK_RESULT_OUT="$GITHUB_WORKSPACE/real-luci-ui-evidence/benchmark-result/$language" \
+            PM_UI_LANG="$language" LUCI_UI_THEME_SET="$theme_set" PM_BENCHMARK_RESULT_OUT="$GITHUB_WORKSPACE/real-luci-ui-evidence/benchmark-result/$language" \
             node tests/real-luci-ui-benchmark-result.cjs
       - uses: actions/upload-artifact@v7
         if: always()

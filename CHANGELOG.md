@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.1.1-r1
+
+- Distinguish missing recommended tools from incomplete setup, show missing commands, and allow retrying recommendation requests.
+
 ## Unreleased — unified feed and shared Runtime (package release 1.1.0-r2)
 
 - "Check for updates" now announces `Package index refreshed` instead of reusing `Package updated`. The action only refreshes the trusted feed index; it does not install or upgrade a package, so the notice now names the outcome it actually produced. English and Simplified Chinese catalogs carry the new wording, and the static contract distinguishes a refresh from a real package update.

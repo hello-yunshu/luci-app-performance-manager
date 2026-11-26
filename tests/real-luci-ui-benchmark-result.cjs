@@ -30,7 +30,11 @@ const breakpoints = [600, 700, 768, 900, 991, 1048, 1100, 1200, 1280, 1319];
 const widths = [...new Set([...commonWidths, ...breakpoints.flatMap(w => [w - 1, w, w + 1])])].sort((a, b) => a - b);
 const shortViewports = [{ width: 320, height: 568 }, { width: 568, height: 320 }];
 const scenarios = ['validated', 'unvalidated'];
-const selectedThemes = smoke ? themes.filter(theme => theme.id === 'bootstrap-dark') : themes;
+const themeSet = process.env.LUCI_UI_THEME_SET || 'all';
+if (!['all', 'bootstrap-only'].includes(themeSet)) throw new Error('Unsupported LUCI_UI_THEME_SET: ' + themeSet);
+const themeCandidates = themeSet === 'bootstrap-only' ? themes.filter(theme => !theme.id.startsWith('aurora-')) : themes;
+if (themeCandidates.length !== (themeSet === 'all' ? 6 : 4)) throw new Error('Unexpected theme count for LUCI_UI_THEME_SET=' + themeSet);
+const selectedThemes = smoke ? themeCandidates.filter(theme => theme.id === 'bootstrap-dark') : themeCandidates;
 const selectedWidths = smoke ? [320, 1280] : widths;
 const selectedViewports = smoke ? [shortViewports[0]] : shortViewports;
 const selectedScenarios = smoke ? ['validated', 'unvalidated'] : scenarios;
@@ -39,6 +43,8 @@ const report = {
 	sha: process.env.GITHUB_SHA || 'unknown',
 	language,
 	mode: smoke ? 'local-smoke-only' : 'full-matrix',
+	themeSet,
+	playwrightVersion: JSON.parse(fs.readFileSync(path.join(path.dirname(require.resolve('playwright')), 'package.json'), 'utf8')).version,
 	method: 'Real LuCI benchmark view and theme assets; controlled A/B completion response is fixture-backed. Real apply/measurement/rollback is covered by a separate disposable-device run.',
 	widths: selectedWidths,
 	shortViewports: selectedViewports,
@@ -49,6 +55,11 @@ const report = {
 	errors: []
 };
 fs.mkdirSync(output, { recursive: true });
+const expectedRows = selectedThemes.length * selectedScenarios.length * (selectedWidths.length + selectedViewports.length);
+if (!smoke && expectedRows !== (themeSet === 'all' ? 492 : 328))
+	throw new Error('Unexpected benchmark result matrix row count for LUCI_UI_THEME_SET=' + themeSet + ': ' + expectedRows);
+report.rowsPerTheme = selectedScenarios.length * (selectedWidths.length + selectedViewports.length);
+report.expectedRows = expectedRows;
 
 function shell(command) {
 	return execFileSync('docker', ['exec', container, 'sh', '-c', command], { encoding: 'utf8' }).trim();
@@ -199,6 +210,7 @@ async function capture(page, theme, scenario, width, height) {
 
 (async () => {
 	const browser = await chromium.launch({ headless: true, executablePath: process.env.PLAYWRIGHT_EXECUTABLE || undefined });
+	report.browserVersion = browser.version();
 	try {
 		for (const theme of selectedThemes) {
 			shell(`uci set luci.main.mediaurlbase='/luci-static/${theme.media}'; uci set luci.main.theme='${theme.theme}'; uci commit luci; rm -rf /tmp/luci-indexcache* /tmp/luci-modulecache*; /etc/init.d/uhttpd restart >/dev/null 2>&1`);
@@ -262,9 +274,8 @@ async function capture(page, theme, scenario, width, height) {
 			} finally { await context.close(); }
 		}
 	} finally { await browser.close(); }
-	const expected = selectedThemes.length * selectedScenarios.length * (selectedWidths.length + selectedViewports.length);
-	console.log('BENCHMARK_RESULT_MATRIX ' + JSON.stringify({ total: report.rows.length, expected, pass: report.rows.filter(x => x.result === 'PASS').length, fail: report.errors.length }));
-	if (report.rows.length !== expected || report.errors.length) process.exitCode = 1;
+	console.log('BENCHMARK_RESULT_MATRIX ' + JSON.stringify({ total: report.rows.length, expected: expectedRows, pass: report.rows.filter(x => x.result === 'PASS').length, fail: report.errors.length }));
+	if (report.rows.length !== expectedRows || report.errors.length) process.exitCode = 1;
 })().catch(e => {
 	report.errors.push({ fatal: e.stack || e.message });
 	fs.writeFileSync(path.join(output, 'report.json'), JSON.stringify(report, null, 2) + '\n');

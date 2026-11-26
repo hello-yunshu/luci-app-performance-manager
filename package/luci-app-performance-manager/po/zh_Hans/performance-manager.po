@@ -2240,6 +2240,30 @@ msgid "Incomplete"
 msgstr "未完整配置"
 
 #: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/overview.js
+msgid "Recommended tools missing"
+msgstr "推荐工具未安装"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/overview.js
+msgid "Dependency Status"
+msgstr "依赖状态"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/overview.js
+msgid "Missing recommended packages"
+msgstr "缺失的推荐软件包"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/overview.js
+msgid "Missing commands"
+msgstr "缺失的命令"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/overview.js
+msgid "Install command"
+msgstr "安装命令"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/overview.js
+msgid "All recommended dependencies are available."
+msgstr "所有推荐依赖均可用。"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/overview.js
 msgid "Required components are unavailable."
 msgstr "必需组件当前不可用。"
 
@@ -2633,3 +2657,18 @@ msgstr "无法读取软件包管理器状态。在确认其空闲前请勿重试
 
 msgid "The package manager request timed out, but the manager is now idle. The page will reload; check the package status above before retrying."
 msgstr "软件包管理器请求超时，但管理器现已空闲。页面即将刷新；重试前请先查看上方软件包状态。"
+
+msgid "Loading recommendations when this section is reached…"
+msgstr "滚动到此区域后加载优化建议…"
+
+msgid "Loading..."
+msgstr "正在加载…"
+
+msgid "Optimization recommendations"
+msgstr "优化建议"
+
+msgid "Retry"
+msgstr "重试"
+
+msgid "Unable to load recommendations: %s"
+msgstr "无法加载优化建议：%s"

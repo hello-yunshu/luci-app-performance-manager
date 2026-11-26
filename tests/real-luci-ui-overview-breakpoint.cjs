@@ -20,15 +20,34 @@ const themes = [
 	{ id: 'aurora-light', media: 'aurora', theme: 'aurora', colorScheme: 'light', dark: 'false', aurora: 'light' },
 	{ id: 'aurora-dark', media: 'aurora', theme: 'aurora', colorScheme: 'dark', dark: 'true', aurora: 'dark' }
 ];
+const themeSet = process.env.LUCI_UI_THEME_SET || 'all';
+if (!['all', 'bootstrap-only'].includes(themeSet)) throw new Error('Unsupported LUCI_UI_THEME_SET: ' + themeSet);
+const selectedThemes = themeSet === 'bootstrap-only' ? themes.filter(theme => !theme.id.startsWith('aurora-')) : themes;
+if (selectedThemes.length !== (themeSet === 'all' ? 6 : 4)) throw new Error('Unexpected theme count for LUCI_UI_THEME_SET=' + themeSet);
 const widths = [431, 432, 433, 1023, 1024, 1025];
+const expectedRows = selectedThemes.length * widths.length;
+if (expectedRows !== (themeSet === 'all' ? 36 : 24))
+	throw new Error('Unexpected Overview breakpoint matrix row count for LUCI_UI_THEME_SET=' + themeSet + ': ' + expectedRows);
 const report = { schemaVersion: 1, sha: process.env.GITHUB_SHA || 'unknown', language,
-	method: 'Real LuCI Overview screenshots at 431/432/433px and 1023/1024/1025px, adjacent to the 27rem and 64rem summary-card grid breakpoints; six supported theme modes.',
-	widths, rows: [], errors: [] };
+	themeSet, themes: selectedThemes.map(theme => theme.id),
+	playwrightVersion: JSON.parse(fs.readFileSync(path.join(path.dirname(require.resolve('playwright')), 'package.json'), 'utf8')).version,
+	method: `Real LuCI Overview screenshots at 431/432/433px and 1023/1024/1025px, adjacent to the 27rem and 64rem summary-card grid breakpoints; selected theme set: ${themeSet}.`,
+	widths, rowsPerTheme: widths.length, expectedRows, rows: [], errors: [] };
 fs.mkdirSync(output, { recursive: true });
 
 function shell(command) {
 	return execFileSync('docker', ['exec', container, 'sh', '-c', command], { encoding: 'utf8' }).trim();
 }
+
+const profile = JSON.parse(shell("ubus call performance-manager status '{}'" )).profile || {};
+const expectedMissingPackages = profile.missingRecommendedPackages || [];
+const expectedMissingCommands = profile.missingCommands || [];
+const dependencySectionExpected = (profile.recommendedPackages || []).length > 0 || (profile.expectedCommands || []).length > 0;
+const recommendedToolsStateExpected = !profile.healthy &&
+	!(profile.missingRequiredPackages || []).length && !(profile.missingConditionalPackages || []).length &&
+	!(profile.missingCapabilities || []).length && profile.targetMatched !== false &&
+	(expectedMissingPackages.length > 0 || expectedMissingCommands.length > 0);
+const recommendedToolsStateLabel = language === 'zh_cn' ? '推荐工具未安装' : 'Recommended tools missing';
 
 async function login(page) {
 	// Target the PM route directly so the stock Status Overview page is not
@@ -48,8 +67,9 @@ async function login(page) {
 
 (async () => {
 	const browser = await chromium.launch({ headless: true, executablePath: process.env.PLAYWRIGHT_EXECUTABLE || undefined });
+	report.browserVersion = browser.version();
 	try {
-		for (const theme of themes) {
+		for (const theme of selectedThemes) {
 			shell(`uci set luci.main.mediaurlbase='/luci-static/${theme.media}'; uci set luci.main.theme='${theme.theme}'; uci commit luci; rm -rf /tmp/luci-indexcache* /tmp/luci-modulecache*; /etc/init.d/uhttpd restart >/dev/null 2>&1`);
 			await new Promise(resolve => setTimeout(resolve, 800));
 			const context = await browser.newContext({ viewport: { width: 1280, height: 900 }, colorScheme: theme.colorScheme });
@@ -71,10 +91,13 @@ async function login(page) {
 						return main && main.querySelector('.pm-overview-stats > .pm-overview-stat-card');
 					}, null, { timeout: 20000 });
 					await page.waitForTimeout(350);
-					const metrics = await page.evaluate(({ media, expectedColumns, dark }) => {
+					const metrics = await page.evaluate(({ media, expectedColumns, dark, expectedMissingPackages, expectedMissingCommands, dependencySectionExpected, recommendedToolsStateExpected, recommendedToolsStateLabel }) => {
 						const root = document.documentElement;
 						const grid = document.querySelector('#maincontent .pm-overview-stats');
 						const cards = grid ? Array.from(grid.querySelectorAll(':scope > .pm-overview-stat-card')) : [];
+						const dependencies = document.querySelector('#maincontent .pm-overview-dependency-status');
+						const dependencyText = dependencies ? dependencies.textContent : '';
+						const profileCardText = cards[0] ? cards[0].textContent : '';
 						const columns = grid ? getComputedStyle(grid).gridTemplateColumns.trim().split(/\s+/).length : 0;
 						const labels = cards.flatMap(card => Array.from(card.querySelectorAll('.pm-overview-stat-label, .pm-overview-stat-value')).map(el => ({
 							text: el.textContent.trim(), width: Math.round(el.getBoundingClientRect().width), scrollWidth: el.scrollWidth,
@@ -82,13 +105,23 @@ async function login(page) {
 						})));
 						const resources = Array.from(document.querySelectorAll('link[href],script[src]')).map(el => el.href || el.src);
 						return { columns, expectedColumns, cardCount: cards.length, labels,
+							dependencySectionExpected, dependencySectionPresent: !!dependencies,
+							missingPackagesVisible: expectedMissingPackages.every(name => dependencyText.includes(name)),
+							missingCommandsVisible: expectedMissingCommands.every(name => dependencyText.includes(name)),
+						recommendedToolsStateExpected, recommendedToolsStateVisible: !recommendedToolsStateExpected || profileCardText.includes(recommendedToolsStateLabel),
+						dependencyOverflow: dependencies ? Array.from(dependencies.querySelectorAll('.cbi-value-field, code')).some(el => el.scrollWidth > el.clientWidth + 1) : false,
 							horizontalOverflow: root.scrollWidth > innerWidth + 1, scrollWidth: root.scrollWidth,
 							darkMode: root.getAttribute('data-darkmode'), expectedDarkMode: dark,
 							themeLoaded: resources.some(src => src.includes('/luci-static/' + media + '/')),
 							pluginCssLoaded: resources.some(src => src.includes('performance-manager/ui.css')) };
-					}, { media: theme.media, expectedColumns: width < 432 ? 1 : width < 1024 ? 2 : 4, dark: theme.dark });
+					}, { media: theme.media, expectedColumns: width < 432 ? 1 : width < 1024 ? 2 : 4, dark: theme.dark,
+						expectedMissingPackages, expectedMissingCommands, dependencySectionExpected, recommendedToolsStateExpected, recommendedToolsStateLabel });
 					if (metrics.columns !== metrics.expectedColumns) failures.push('unexpected-grid-column-count');
 					if (metrics.cardCount !== 4) failures.push('expected-four-summary-cards');
+					if (metrics.dependencySectionPresent !== metrics.dependencySectionExpected) failures.push('dependency-status-visibility-mismatch');
+					if (!metrics.missingPackagesVisible || !metrics.missingCommandsVisible) failures.push('missing-dependency-details-not-visible');
+					if (!metrics.recommendedToolsStateVisible) failures.push('recommended-tools-state-label-mismatch');
+					if (metrics.dependencyOverflow) failures.push('dependency-content-overflow');
 					if (metrics.horizontalOverflow) failures.push('horizontal-overflow');
 					if (metrics.darkMode !== metrics.expectedDarkMode) failures.push('theme-mode-mismatch');
 					if (!metrics.themeLoaded || !metrics.pluginCssLoaded) failures.push('theme-or-plugin-css-not-loaded');
@@ -104,8 +137,8 @@ async function login(page) {
 			} finally { await context.close(); }
 		}
 	} finally { await browser.close(); }
-	console.log('OVERVIEW_BREAKPOINT_MATRIX ' + JSON.stringify({ total: report.rows.length, expected: themes.length * widths.length, pass: report.rows.filter(row => row.result === 'PASS').length, fail: report.errors.length }));
-	if (report.rows.length !== themes.length * widths.length || report.errors.length) process.exitCode = 1;
+	console.log('OVERVIEW_BREAKPOINT_MATRIX ' + JSON.stringify({ total: report.rows.length, expected: expectedRows, pass: report.rows.filter(row => row.result === 'PASS').length, fail: report.errors.length }));
+	if (report.rows.length !== expectedRows || report.errors.length) process.exitCode = 1;
 })().catch(error => {
 	report.errors.push({ fatal: error.stack || error.message });
 	fs.writeFileSync(path.join(output, 'report.json'), JSON.stringify(report, null, 2) + '\n');

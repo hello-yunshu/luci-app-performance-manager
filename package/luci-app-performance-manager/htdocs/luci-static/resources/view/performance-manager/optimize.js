@@ -11,12 +11,47 @@ return view.extend({
 	handleReset: null,
 
 	load: function() {
-		return pm.recommendations().catch(function(err) {
-			console.error('performance-manager: optimize load failed', err);
-			return { _loadError: err };
-		});
+		return Promise.resolve({ _lazy: true });
 	},
 	render: function(r) {
+		if (r && r._lazy) {
+			const placeholderTitle = E('h3', {}, [ _('Optimization recommendations') ]);
+			const placeholder = E('div', { 'class': 'cbi-section' }, [ placeholderTitle, E('p', {
+				'class': 'cbi-value-description', 'role': 'status', 'aria-live': 'polite'
+			}, _('Loading recommendations when this section is reached…')) ]);
+			const page = pu.page(_('Smart optimization'), _('Review supported actions and apply them only after Core safety checks. Existing user and external settings are preserved.'), [ placeholder ]);
+			let started = false;
+			const load = function() {
+				if (started) return;
+				started = true;
+				placeholder.replaceChildren(placeholderTitle, E('p', {
+					'class': 'cbi-value-description', 'role': 'status', 'aria-live': 'polite'
+				}, _('Loading...')));
+				pm.recommendations().then(function(result) {
+					page.replaceWith(this.render(result));
+				}.bind(this)).catch(function(error) {
+					started = false;
+					placeholder.replaceChildren(
+						placeholderTitle,
+						E('p', { 'role': 'alert', 'aria-live': 'assertive' }, _('Unable to load recommendations: %s').format(labels.errorSummary(error))),
+						E('button', {
+							'class': 'btn cbi-button', 'type': 'button',
+							'click': load
+						}, _('Retry'))
+					);
+				}.bind(this));
+			}.bind(this);
+			if (typeof window.IntersectionObserver === 'function') {
+				const observer = new window.IntersectionObserver(function(entries) {
+					if (entries.some(function(entry) { return entry.isIntersecting; })) {
+						observer.disconnect();
+						load();
+					}
+				}, { threshold: 0.01 });
+				observer.observe(placeholder);
+			} else window.setTimeout(load, 0);
+			return page;
+		}
 		if (r && r._loadError)
 			return pu.page(_('Smart optimization'), null, pu.note(_('Unable to load this page. Retry the page; if it keeps failing, check the service log.'), 'danger'));
 		const actions = (r && r.actions) || [];
