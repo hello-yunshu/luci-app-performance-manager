@@ -254,9 +254,8 @@ jobs:
           fi
           mkdir -p package/openwrt-performance-manager
           cp -a "$GITHUB_WORKSPACE"/package/* package/openwrt-performance-manager/
-          cp "$GITHUB_WORKSPACE/VERSION" package/openwrt-performance-manager/VERSION
-          cp "$GITHUB_WORKSPACE/VERSION" package/openwrt-performance-manager/performance-manager/VERSION
-          cp "$GITHUB_WORKSPACE/VERSION" package/openwrt-performance-manager/luci-app-performance-manager/VERSION
+          cp "$GITHUB_WORKSPACE/VERSION" package/VERSION
+          cp "$GITHUB_WORKSPACE/package-version.mk" package/package-version.mk
           # Runtime and its updater are canonical packages from the pinned Rill
           # feed. Include both recipes in the SDK package graph; stage only the
           # already qualified Runtime artifact later, without rebuilding it.
@@ -265,7 +264,11 @@ jobs:
             mkdir -p "package/$name"
             cp -a "$GITHUB_WORKSPACE/rill-openwrt-packages/package/$name"/. "package/$name/"
           done
+          # The PM resolver is also the SDK's common implementation for the
+          # separately locked Rill recipe, which may be on an older commit.
+          cp "$GITHUB_WORKSPACE/package-version.mk" package-version.mk
           if [ -f "$GITHUB_WORKSPACE/rill-openwrt-packages/VERSION" ]; then
+            rm -f package/rill-runtime/VERSION
             cp "$GITHUB_WORKSPACE/rill-openwrt-packages/VERSION" package/rill-runtime/VERSION
           fi
           make defconfig
