@@ -58,8 +58,9 @@ class RuntimeCompatibilityManifestTests(unittest.TestCase):
         self.assertIn("manager.package === 'rill-runtime-preview'", view)
         self.assertIn("!runtimeConflict", view)
         self.assertIn("PM will not remove or replace it automatically", view)
-        self.assertIn("rill-runtime-preview", makefile.splitlines()[8])
-        self.assertNotIn("rill-runtime-preview", makefile.splitlines()[18])
+        self.assertIn("rill-runtime-preview", makefile)
+        dependency_line = next(line for line in makefile.splitlines() if line.startswith("\tDEPENDS:="))
+        self.assertNotIn("rill-runtime-preview", dependency_line)
 
     def test_sdk_workflow_matches_exact_six_arch_dual_format_policy(self):
         policy = json.loads((ROOT / "contracts/openwrt-native-targets.json").read_text())
