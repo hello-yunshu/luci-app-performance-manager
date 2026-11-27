@@ -3,7 +3,7 @@ include $(TOPDIR)/rules.mk
 PKG_NAME:=performance-manager
 # Source checkouts and SDK staging place VERSION at different depths.
 PM_PACKAGE_DIR:=$(dir $(realpath $(lastword $(MAKEFILE_LIST))))
-PM_VERSION_FILE:=$(firstword $(wildcard $(PM_PACKAGE_DIR)../VERSION $(PM_PACKAGE_DIR)../../VERSION))
+PM_VERSION_FILE:=$(firstword $(wildcard $(PM_PACKAGE_DIR)VERSION $(PM_PACKAGE_DIR)../VERSION $(PM_PACKAGE_DIR)../../VERSION $(TOPDIR)/package/openwrt-performance-manager/VERSION $(TOPDIR)/package/performance-manager-local/VERSION))
 PKG_VERSION:=$(shell sed -E 's/-rc\./_rc/' "$(or $(PM_VERSION_FILE),$(error Missing PM VERSION beside the packages))")
 PKG_RELEASE:=1
 PKG_LICENSE:=GPL-3.0-only
