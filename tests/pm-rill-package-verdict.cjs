@@ -101,7 +101,7 @@ function load(handlers) {
 		updateAvailable: false, runtimeUpdateAvailable: false, pmUpdateAvailable: false,
 		version: '1.5.6-r9'
 	};
-	return { api, manager, storage, notices, reloads, delays, L, window, render: extra => api.render([{}, {}, Object.assign({}, manager, extra || {})]) };
+	return { api, manager, storage, notices, reloads, delays, L, window, render: extra => api.render([{}, Object.assign({}, manager, extra || {}), {}]) };
 }
 
 function seed(env, hasUpdate) {
