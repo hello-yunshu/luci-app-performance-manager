@@ -1,13 +1,13 @@
-# Source Audit — 1.0.7
+# Source Audit — 1.1.1
 
 ## Decision
 
-**FAIL — 1.0.7 source audit FAILED.**
+**PASS — 1.1.1 source candidate PASS; functional integration and Stable release are NOT_EVALUATED.**
 
 This is a source-only, non-promotable audit. It does not consume old runtime
 artifacts and cannot claim functional-integration or Stable-release PASS.
 
-Snapshot source commit: **8b9cfa369633619e672636b6dadbea3929f7326c**. A commit that only changes
+Snapshot source commit: **9ecd3929bb026d4a14aad2999d86c6e95672db74**. A commit that only changes
 generated audit files is treated as a snapshot child, not a new source revision.
 
 ## Orchestrated local gates
@@ -18,7 +18,7 @@ generated audit files is treated as a snapshot child, not a new source revision.
 - rill-static-contract: **PASS** (source)
 - resource-budget: **PASS** (source)
 
-- Executable unit/contract tests in this checked-in source-audit snapshot: **210**, status **FAIL**.
+- Executable unit/contract tests in this checked-in source-audit snapshot: **214**, status **PASS**.
 - Current test counts and conclusions come from the same-SHA CI artifacts, not this historical/generated snapshot.
 - Rill static contract: **PASS**.
 - Rill release-pin structure: **PASS**.
