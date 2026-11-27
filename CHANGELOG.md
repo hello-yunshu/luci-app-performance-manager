@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.1.2-r1
+
+- Clarify the complete Core/LuCI dependency list and optional profile tools, and make the target gate compatible with BusyBox sleep.
+- Simplify LuCI copy and refresh the English and Simplified Chinese catalogs.
+- Align Core's reported version and package metadata with the 1.1.2 source candidate.
+
 ## 1.1.1-r1
 
 - Distinguish missing recommended tools from incomplete setup, show missing commands, and allow retrying recommendation requests.
