@@ -264,13 +264,9 @@ jobs:
             mkdir -p "package/$name"
             cp -a "$GITHUB_WORKSPACE/rill-openwrt-packages/package/$name"/. "package/$name/"
           done
-          if [ -f "$GITHUB_WORKSPACE/rill-openwrt-packages/package-version.mk" ]; then
-            cp "$GITHUB_WORKSPACE/rill-openwrt-packages/package-version.mk" package-version.mk
-          else
-            # The locked external Rill recipe may predate the shared include;
-            # the PM resolver has identical behavior and keeps its symlink valid.
-            cp "$GITHUB_WORKSPACE/package-version.mk" package-version.mk
-          fi
+          # The PM resolver is also the SDK's common implementation for the
+          # separately locked Rill recipe, which may be on an older commit.
+          cp "$GITHUB_WORKSPACE/package-version.mk" package-version.mk
           if [ -f "$GITHUB_WORKSPACE/rill-openwrt-packages/VERSION" ]; then
             rm -f package/rill-runtime/VERSION
             cp "$GITHUB_WORKSPACE/rill-openwrt-packages/VERSION" package/rill-runtime/VERSION
