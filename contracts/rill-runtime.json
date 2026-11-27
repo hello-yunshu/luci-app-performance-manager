@@ -6,23 +6,23 @@
   },
   "resolved": {
     "version": "1.5.6",
-    "tag": "stable-main-1e962a8",
-    "upstreamCommit": "1e962a82443088229714877eee98617f1596eee8"
+    "tag": "stable-main-50175cd",
+    "upstreamCommit": "50175cd54fce3a8b1cac77ec851dc468719181e8"
   },
   "openwrtPackage": {
     "repository": "hello-yunshu/rill-openwrt-packages",
-    "commit": "9ef47d6e372677a256afbde534bc1964bfd8990f",
+    "commit": "78ba109e9a5a2f4db55d02b62ead5fa93038aeae",
     "package": "rill-runtime",
     "packageVersion": "1.5.6",
-    "packageRelease": 8,
+    "packageRelease": 11,
     "binary": "/usr/bin/rill-runtime"
   },
   "qualification": {
     "required": true,
     "workflow": "qualify.yml",
-    "runId": 45174192577,
+    "runId": 45984125953,
     "runAttempt": 1,
-    "manifestSha256": "5c69efe58993ef28f1a7395374f073665862db2ee5379734e2481add0d5f23da",
+    "manifestSha256": "59b02e1a2cdc5fcbf949a7ddd371cf8db06861f9f9762c1aff76e54d195781b9",
     "verdict": "PASS"
   },
   "packageMigration": {
