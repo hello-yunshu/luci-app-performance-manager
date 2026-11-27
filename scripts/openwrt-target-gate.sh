@@ -42,9 +42,10 @@ if [ "$rill_present" = false ]; then pass core-with-rill-absent; elif [ "$REQUIR
 start_ms=$(awk '{printf "%d", $1*1000}' /proc/uptime)
 /etc/init.d/performance-manager restart >/dev/null 2>&1 || fail core-restart
 ready=0; i=0
-while [ "$i" -lt 50 ]; do
+while [ "$i" -lt 10 ]; do
   if ubus -S list performance-manager >/dev/null 2>&1; then ready=1; break; fi
-  sleep 0.1; i=$((i+1))
+  # OpenWrt's BusyBox sleep may not support fractional seconds.
+  sleep 1; i=$((i+1))
 done
 end_ms=$(awk '{printf "%d", $1*1000}' /proc/uptime)
 boot_ms=$((end_ms-start_ms))

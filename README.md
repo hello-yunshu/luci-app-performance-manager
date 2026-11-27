@@ -140,8 +140,10 @@ apk add luci-app-performance-manager-all
 ### 依赖
 
 ```text
-ucode ucode-mod-ubus ucode-mod-uci ucode-mod-rtnl ucode-mod-uloop ucode-mod-jsonc ubusd rpcd luci-base
+ucode ucode-mod-fs ucode-mod-ubus ucode-mod-uci ucode-mod-rtnl ucode-mod-uloop ucode-mod-log ucode-mod-socket uci ubus coreutils-timeout rpcd luci-base luci-i18n-base-zh-cn
 ```
+
+统一包会自动解析以上 Core / LuCI 运行依赖，并额外依赖共享的 `rill-runtime-manager` 与 `rill-runtime`。`recommended` 性能 profile 中的 `ethtool`、`ip-full`、`tc-tiny`、`ss`、`nstat` 等属于可选诊断工具，不影响 PM 核心启动；缺失时 profile 会报告不完整。
 
 ## 使用指南
 

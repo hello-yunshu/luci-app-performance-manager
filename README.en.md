@@ -138,8 +138,10 @@ Only remove these packages after confirming all other consumers have migrated. I
 ### Dependencies
 
 ```text
-ucode ucode-mod-ubus ucode-mod-uci ucode-mod-rtnl ucode-mod-uloop ucode-mod-jsonc ubusd rpcd luci-base
+ucode ucode-mod-fs ucode-mod-ubus ucode-mod-uci ucode-mod-rtnl ucode-mod-uloop ucode-mod-log ucode-mod-socket uci ubus coreutils-timeout rpcd luci-base luci-i18n-base-zh-cn
 ```
+
+The unified package resolves the Core and LuCI runtime dependencies above, and additionally depends on the shared `rill-runtime-manager` and `rill-runtime`. Tools in the `recommended` performance profile, such as `ethtool`, `ip-full`, `tc-tiny`, `ss`, and `nstat`, are optional diagnostics and do not prevent the PM core from starting; the profile reports them as missing when they are absent.
 
 ## Usage
 
