@@ -18,11 +18,8 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  # Official OpenWrt SDK build for the packages this repository OWNS:
-  # performance-manager (Core), luci-app-performance-manager (UI), the
-  # performance-manager-rill integration package, plus the target-specific
-  # unified PM IPK/APK. PM split/full and independent
-  # consumers share one exact-qualified rill-runtime package owner.
+  # Build the unified PM package and Core on every target. Only the x86/64
+  # APK composition gate needs the legacy split UI and integration packages.
   # Real build evidence comes from this remote Action — never a local mock.
   openwrt-sdk-build:
     permissions:
@@ -266,12 +263,21 @@ jobs:
             mkdir -p "package/$name"
             cp -a "$GITHUB_WORKSPACE/rill-openwrt-packages/package/$name"/. "package/$name/"
           done
+          if [ -f "$GITHUB_WORKSPACE/rill-openwrt-packages/VERSION" ]; then
+            cp "$GITHUB_WORKSPACE/rill-openwrt-packages/VERSION" package/rill-runtime/VERSION
+          fi
           make defconfig
           config="$SDKDIR/.config"
           test -f "$config"
+          if ! grep -Eq '^CONFIG_PACKAGE_luci-i18n-base-zh-cn=[my]$' "$config"; then
+            sed -i '/^# CONFIG_PACKAGE_luci-i18n-base-zh-cn is not set$/d' "$config"
+            printf '%s\n' 'CONFIG_PACKAGE_luci-i18n-base-zh-cn=m' >> "$config"
+            make defconfig
+          fi
           grep -qx "CONFIG_TARGET_${OPENWRT_TARGET}=y" "$config"
           grep -qx "CONFIG_TARGET_SUBTARGET=\"${OPENWRT_SUBTARGET}\"" "$config"
           grep -qx "CONFIG_TARGET_ARCH_PACKAGES=\"${PACKAGE_ARCH}\"" "$config"
+          grep -Eq '^CONFIG_PACKAGE_luci-i18n-base-zh-cn=[my]$' "$config"
           for package in rill-runtime rill-runtime-manager; do
             # package-metadata.pl emits package symbols indented inside their
             # menu, so match the config record instead of the raw line start.
@@ -283,20 +289,15 @@ jobs:
           done
       - name: Build Core
         run: cd "$SDKDIR" && bash "$GITHUB_WORKSPACE/scripts/openwrt-build-diagnostic.sh" package/performance-manager/compile
-      - name: Clean stale LuCI package output
+      - name: Build LuCI dependencies for unified PM
         shell: bash
         run: |
           set -euo pipefail
           cd "$SDKDIR"
-          make package/luci-app-performance-manager/clean
-          # A pre-existing same-version APK must never survive a failed or
-          # skipped rebuild and then be selected by the exact package verifier.
-          package_version=$(sed -E 's/-rc\./_rc/' "$GITHUB_WORKSPACE/VERSION")
-          find bin -type f \( \
-            -name "luci-app-performance-manager-${package_version}-*.apk" -o \
-            -name "luci-app-performance-manager-all-${package_version}-*.apk" \
-          \) -delete
-      - name: Build LuCI
+          bash "$GITHUB_WORKSPACE/scripts/openwrt-build-diagnostic.sh" package/luci-base/host/compile
+          bash "$GITHUB_WORKSPACE/scripts/openwrt-build-diagnostic.sh" package/luci-base/compile
+      - name: Build legacy split LuCI fixture
+        if: matrix.package_manager == 'apk' && matrix.package_arch == 'x86_64'
         run: cd "$SDKDIR" && bash "$GITHUB_WORKSPACE/scripts/openwrt-build-diagnostic.sh" package/luci-app-performance-manager/compile
       - name: Download exact qualified shared Stable Runtime package
         env:
@@ -317,7 +318,8 @@ jobs:
             echo "RILL_QUALIFIED_PACKAGE=$(jq -r .package "$RUNNER_TEMP/qualified-rill-selection.json")"
             echo "RILL_QUALIFIED_BINARY_SHA256=$(jq -r .qualifiedTarget.binarySha256 "$RUNNER_TEMP/qualified-rill-selection.json")"
           } >> "$GITHUB_ENV"
-      - name: Build Rill integration package (glue payload only)
+      - name: Build legacy split Rill fixture
+        if: matrix.package_manager == 'apk' && matrix.package_arch == 'x86_64'
         # NO_DEPS keeps the SDK from rebuilding rill-runtime from source; the
         # dependency closure was completed by the Core/LuCI builds, and the
         # already-qualified Runtime package is staged after this step.
@@ -350,8 +352,8 @@ jobs:
           test "$(find "$SDKDIR/bin" -type f -name "rill-runtime[-_]*.$PACKAGE_MANAGER" ! -name 'rill-runtime-manager*' | wc -l | tr -d ' ')" -eq 1
           echo "RILL_SHARED_BINARY_SHA256=$runtime_sha" >> "$GITHUB_ENV"
       - name: Build full architecture-specific unified PM package
-        # Dependencies (Core, LuCI, glue, manager) are already built and the
-        # qualified Runtime is staged; NO_DEPS avoids rebuilding rill-runtime.
+        # The Core and LuCI system dependencies and manager are already built.
+        # The qualified Runtime is staged; NO_DEPS avoids rebuilding it.
         run: cd "$SDKDIR" && NO_DEPS=1 bash "$GITHUB_WORKSPACE/scripts/openwrt-build-diagnostic.sh" package/luci-app-performance-manager-all/compile
       - name: Assert expected packages present (exact package metadata match)
         shell: bash
@@ -360,7 +362,7 @@ jobs:
           cd "$SDKDIR"
           find bin -name "*.$PACKAGE_MANAGER" | sort
           package_version="$(sed -E 's/-rc\./_rc/' "$GITHUB_WORKSPACE/VERSION")"
-          rill_runtime_version="$(sed -n 's/^PKG_VERSION:=//p' "$GITHUB_WORKSPACE/rill-openwrt-packages/package/rill-runtime/Makefile")"
+          rill_runtime_version="$(jq -er '.upstream.version' "$GITHUB_WORKSPACE/rill-openwrt-packages/metadata/rill-runtime.json")"
           # Exact verification reads package metadata (pkgname/pkgver/arch/deps) instead
           # of filename prefix, so performance-manager and performance-manager-rill
           # can never be confused and a stale rc.3 artifact can never pass.
@@ -371,7 +373,7 @@ jobs:
             python3 -m pip install --disable-pip-version-check zstandard
           fi
           python3 "$GITHUB_WORKSPACE/scripts/verify_apks.py" "$PWD" "$package_version" "$PACKAGE_ARCH" "$rill_runtime_version" "$PACKAGE_MANAGER"
-      - name: Verify Full, split and independent consumer share Runtime
+      - name: Verify PM and an independent consumer share Runtime
         if: matrix.package_manager == 'apk'
         shell: bash
         run: |
@@ -380,10 +382,12 @@ jobs:
           import os, subprocess, sys
           from pathlib import Path
           sys.path.insert(0, 'scripts')
-          from verify_apks import apk_pkginfo
+          from verify_apks import apk_pkginfo, expects_legacy_split
           sdk = Path(os.environ['SDKDIR']).resolve()
-          wanted = {'full':'luci-app-performance-manager-all', 'core':'performance-manager',
-                    'luci':'luci-app-performance-manager', 'glue':'performance-manager-rill'}
+          wanted = {'full': 'luci-app-performance-manager-all'}
+          if expects_legacy_split(os.environ['PACKAGE_ARCH'], os.environ['PACKAGE_MANAGER']):
+              wanted.update(core='performance-manager', luci='luci-app-performance-manager',
+                            glue='performance-manager-rill')
           found = {role:[] for role in wanted}
           for path in sdk.joinpath('bin').rglob('*.apk'):
               metadata = apk_pkginfo(path)
@@ -412,7 +416,8 @@ jobs:
           name: runtime-ownership-${{ matrix.package_arch }}-${{ github.run_id }}-${{ github.run_attempt }}
           path: |
             ${{ runner.temp }}/runtime-ownership/results.json
-            ${{ runner.temp }}/runtime-ownership/*-then-*/commands.jsonl
+            ${{ runner.temp }}/runtime-ownership/*/install.json
+            ${{ runner.temp }}/runtime-ownership/*/remove.json
           # Cancelled/failed targets legitimately produce no evidence; their
           # check conclusion already says why, so do not annotate a warning.
           if-no-files-found: ignore

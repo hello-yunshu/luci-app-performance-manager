@@ -1,7 +1,10 @@
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=performance-manager-rill
-PKG_VERSION:=$(shell sed -E 's/-rc\./_rc/' $(dir $(realpath $(lastword $(MAKEFILE_LIST))))../../VERSION)
+# Source checkouts and SDK staging place VERSION at different depths.
+PM_PACKAGE_DIR:=$(dir $(realpath $(lastword $(MAKEFILE_LIST))))
+PM_VERSION_FILE:=$(firstword $(wildcard $(PM_PACKAGE_DIR)../VERSION $(PM_PACKAGE_DIR)../../VERSION))
+PKG_VERSION:=$(shell sed -E 's/-rc\./_rc/' "$(or $(PM_VERSION_FILE),$(error Missing PM VERSION beside the packages))")
 PKG_RELEASE:=1
 PKG_LICENSE:=GPL-3.0-only
 PKG_MAINTAINER:=OpenWrt Performance Manager contributors

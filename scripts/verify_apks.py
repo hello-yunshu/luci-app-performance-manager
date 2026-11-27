@@ -36,14 +36,23 @@ import gzip, hashlib, io, json, os, struct, subprocess, sys, tarfile, tempfile, 
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-EXPECTED = [
-    'performance-manager',
-    'luci-app-performance-manager',
-    'performance-manager-rill',
-    'rill-runtime',
-    'luci-app-performance-manager-all',
-]
+LEGACY_SPLIT_PACKAGES = ('luci-app-performance-manager', 'performance-manager-rill')
 ALL_IN_ONE = 'luci-app-performance-manager-all'
+EXPECTED = (
+    'performance-manager',
+    'rill-runtime',
+    ALL_IN_ONE,
+)
+
+
+def expects_legacy_split(arch, pkgtype):
+    """The OpenWrt x86/64 APK composition gate still exercises old split installs."""
+    return arch == 'x86_64' and pkgtype == 'apk'
+
+
+def expected_packages(arch, pkgtype):
+    return EXPECTED + (LEGACY_SPLIT_PACKAGES if expects_legacy_split(arch, pkgtype) else ())
+
 # Built from the pinned Rill repository as the all-in-one glue dependency. It
 # is not a PM-owned package but the Stable gate installs it from the same build
 # output, so its identity must be recorded here.
@@ -649,7 +658,8 @@ def main(argv):
     failures = []
 
     split_runtime_sha = None
-    for name in EXPECTED:
+    expected = expected_packages(arch, pkgtype)
+    for name in expected:
         found = by_name.get(name, [])
         if not found:
             failures.append(f'{name}: no {pkgtype.upper()} with pkgname=={name} found')
@@ -671,8 +681,8 @@ def main(argv):
         # version (e.g. 1.0.0_rc10) so a stale candidate can never pass.
         ver_part = pkgver.split('-r')[0]
         package_version = rill_runtime_version if name == 'rill-runtime' else expected_version
-        # Core/LuCI/glue remain noarch split packages. The full package is
-        # intentionally target-specific because it owns a native Runtime ELF.
+        # Core and the legacy split packages are noarch. The full package
+        # keeps the architecture of the SDK target used for distribution.
         arch_ok = (pkgarch in ('noarch', 'all') if name in ARCH_INDEPENDENT else pkgarch == arch)
         if ver_part != package_version:
             failures.append(f'{name}: pkgver {pkgver!r} != expected {package_version!r}')
@@ -844,8 +854,8 @@ def main(argv):
     for apk in sorted(packages):
         meta = package_pkginfo(apk)
         name = (meta or {}).get('pkgname')
-        if name and name not in EXPECTED and name not in SHARED_DEPENDENCIES \
-                and any(name.startswith(p + '-') or name.startswith(p + '_') for p in EXPECTED):
+        if name and name not in expected and name not in SHARED_DEPENDENCIES \
+                and any(name.startswith(p + '-') or name.startswith(p + '_') for p in expected):
             extra.append(apk.name)
     if extra:
             failures.append(f'unexpected prefix-colliding {pkgtype.upper()}s present: {", ".join(extra)}')

@@ -31,7 +31,11 @@ def verify(args):
     output.mkdir(parents=True, exist_ok=False)
     feed = output / 'feed'
     feed.mkdir()
-    inputs = {name: getattr(args, name).resolve() for name in ('full', 'runtime', 'core', 'luci', 'glue')}
+    split_roles = ('core', 'luci', 'glue')
+    split_present = [role for role in split_roles if getattr(args, role) is not None]
+    if split_present and tuple(split_present) != split_roles:
+        raise ValueError('legacy split verification requires --core, --luci and --glue together')
+    inputs = {name: getattr(args, name).resolve() for name in ('full', 'runtime', *split_present)}
     expected = {'full': 'luci-app-performance-manager-all', 'runtime': 'rill-runtime',
                 'core': 'performance-manager', 'luci': 'luci-app-performance-manager',
                 'glue': 'performance-manager-rill'}
@@ -70,7 +74,8 @@ def verify(args):
     assert runtime and hashlib.sha256(runtime).hexdigest() == args.runtime_sha256
     assert apk_file_content(inputs['runtime'], '/usr/share/rill/runtime-channel') == b'stable\n'
     assert 'rill-runtime' in products['full']['depends']
-    assert 'rill-runtime' in products['glue']['depends']
+    if split_present:
+        assert 'rill-runtime' in products['glue']['depends']
     assert apk_file_content(inputs['full'], '/usr/bin/rill-runtime') is None
 
     # Build a neutral third-party package whose only relationship to Rill is
@@ -100,8 +105,9 @@ def verify(args):
                     *map(str, sorted(feed.glob('*.apk')))], check=True, capture_output=True)
     cases = []
     arch = products['runtime']['arch']
-    scenarios = [('all-in-one-plus-independent-consumer', ['full', 'consumer']),
-                 ('split-pm-plus-independent-consumer', ['core', 'luci', 'glue', 'consumer'])]
+    scenarios = [('all-in-one-plus-independent-consumer', ['full', 'consumer'])]
+    if split_present:
+        scenarios.append(('split-pm-plus-independent-consumer', [*split_roles, 'consumer']))
     for name, roles in scenarios:
         root = output / name
         (root / 'etc/apk/keys').mkdir(parents=True)
@@ -121,16 +127,31 @@ def verify(args):
         assert result.returncode == 0, result.stdout + result.stderr
         installed = sorted(subprocess.check_output([*base, 'info'], text=True).splitlines())
         assert installed.count('rill-runtime') == 1, 'shared Runtime was not installed exactly once'
+        assert 'generic-rill-consumer-probe' in installed
         runtime_path = root / 'usr/bin/rill-runtime'
         assert hashlib.sha256(runtime_path.read_bytes()).hexdigest() == args.runtime_sha256
         assert (root / 'usr/share/rill/runtime-channel').read_bytes() == b'stable\n'
         assert state.read_bytes() == b'preserve independent user state\n'
+        pm_packages = [expected[role] for role in roles if role != 'consumer']
+        removal = subprocess.run(
+            [*base, '--no-scripts', 'del', *pm_packages],
+            capture_output=True, text=True, timeout=120)
+        (root / 'remove.json').write_text(json.dumps({
+            'exitCode': removal.returncode, 'stdout': removal.stdout, 'stderr': removal.stderr
+        }, indent=2) + '\n')
+        assert removal.returncode == 0, removal.stdout + removal.stderr
+        remaining = subprocess.check_output([*base, 'info'], text=True).splitlines()
+        assert all(name not in remaining for name in pm_packages)
+        assert 'generic-rill-consumer-probe' in remaining
+        assert remaining.count('rill-runtime') == 1
+        assert hashlib.sha256(runtime_path.read_bytes()).hexdigest() == args.runtime_sha256
+        assert state.read_bytes() == b'preserve independent user state\n'
         cases.append({'scenario': name, 'installedPackages': installed,
                       'singleRuntimeOwner': True, 'runtimeBinarySha256': args.runtime_sha256,
-                      'independentConsumerInstalled': 'generic-rill-consumer-probe' in installed,
+                      'independentConsumerInstalled': True, 'runtimePreservedAfterPmRemoval': True,
                       'statePreserved': True})
 
-    result = {'scope': 'Full/split PM and independent consumers sharing Stable Runtime',
+    result = {'scope': 'PM and an independent consumer sharing Stable Runtime',
               'releaseEligible': False, 'deviceQualification': False,
               'runtimeBinarySha256': args.runtime_sha256, 'products': products, 'cases': cases}
     (output / 'results.json').write_text(json.dumps(result, indent=2) + '\n')
@@ -139,8 +160,10 @@ def verify(args):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    for key in ('apk', 'full', 'runtime', 'core', 'luci', 'glue', 'output', 'sdk-dir'):
+    for key in ('apk', 'full', 'runtime', 'output', 'sdk-dir'):
         parser.add_argument('--' + key, type=Path, required=True)
+    for key in ('core', 'luci', 'glue'):
+        parser.add_argument('--' + key, type=Path)
     parser.add_argument('--runtime-sha256', required=True)
     args = parser.parse_args()
     print(json.dumps(verify(args), indent=2))

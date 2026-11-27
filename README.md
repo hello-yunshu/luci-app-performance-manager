@@ -43,85 +43,27 @@
 - 被动 / 健康类 benchmark 观察保持 `validated=false`；只有真实 validated outcome 才更新 Rill 学习
 - Smart History 以 `candidateId`（business action + stable target + evaluation path）隔离；旧的无法安全映射到 target/path 的 action history 会被丢弃，不会复制到多个候选
 
-## OpenWrt 包
-
-| 包 | 说明 |
-|---|---|
-| `performance-manager`、`luci-app-performance-manager`、`performance-manager-rill` | 源码构建与旧版迁移用的拆分组件；新安装统一使用下方的单一 PM 包 |
-| `rill-runtime-manager` | 共享 Runtime 的 LuCI/RPC 安装、刷新与更新控制器 |
-| `rill-runtime` | Canonical external Stable Runtime package；由 PM、CFI 等消费者共享并唯一拥有 `/usr/bin/rill-runtime` |
-| `luci-app-performance-manager-all` | 唯一推荐的 PM 包，包含 Core、LuCI、ACL/menu、简体中文、Rill glue、兼容清单和 keep rules；依赖共享 Runtime，不含 Runtime 二进制 |
-
 ## 安装
 
-### 前置条件
-
-- 统一软件源目标为 OpenWrt 24.10.8 IPK 与 25.12.6 APK，覆盖 x86_64、aarch64_generic、aarch64_cortex-a53/a72/a76、arm_cortex-a7_neon-vfpv4；请以各目标实际构建和发布资产为准
-- OpenWrt SDK 或 buildroot 构建环境（用于源码构建）
-
-### 源码构建（OpenWrt SDK / buildroot）
-
-```sh
-# 1. Runtime 与管理器由 canonical Rill OpenWrt feed 提供
-cd /path/to/openwrt-performance-manager
-
-# 2. 再进入 OpenWrt SDK
-cd /path/to/openwrt-sdk
-./scripts/feeds update -a
-./scripts/feeds install -a
-mkdir -p package/openwrt-performance-manager
-cp -a /path/to/openwrt-performance-manager/package/* package/openwrt-performance-manager/
-make defconfig
-make package/rill-runtime-manager/compile V=s
-make package/rill-runtime/compile V=s
-make package/performance-manager/compile V=s
-make package/luci-app-performance-manager/compile V=s
-make package/performance-manager-rill/compile V=s
-make package/luci-app-performance-manager-all/compile V=s
-```
-
-统一包依赖共享 Runtime 管理器和 Stable Runtime；它自身不包含 Runtime 二进制。生产构建请使用 GitHub Actions 官方 SDK workflow，并确认对应目标已有验证结果。
-
-> 也可以直接依赖 GitHub Actions 的 `build-openwrt.yml` → `openwrt-sdk-build` job 产出构建结果，无需本地 SDK。
-
-### 推荐：每台设备一个统一 PM 包
-
-从 [GitHub Releases](https://github.com/hello-yunshu/luci-app-performance-manager/releases) 按 OpenWrt 版本、包格式与设备架构选择一个 `luci-app-performance-manager-all` 包。Rill 页面提供 Runtime 的安装与更新操作。
-
-统一 PM 包包含 Performance Manager Core、LuCI、简体中文和 Rill 集成；安装时会从统一软件源解析共享 `rill-runtime`。已安装旧 `rill-runtime-preview` 时，包管理器会拒绝迁移；先检查其他消费者并手动规划迁移，不会自动卸载或覆盖。
+先按设备版本和架构配置[统一软件源](https://github.com/hello-yunshu/yun-openwrt-packages/blob/main/docs/INSTALL.md)，然后安装 `luci-app-performance-manager-all`。
 
 ```sh
 # OpenWrt 24.10.8
-opkg install /tmp/performance-manager-all-v<VERSION>-openwrt-24.10.8-x86_64.ipk
-# OpenWrt 25.12.6
-apk add --allow-untrusted /tmp/performance-manager-all-v<VERSION>-openwrt-25.12.6-x86_64.apk
-```
-
-目标架构包括 `x86_64`、`aarch64_generic`、`aarch64_cortex-a53`、`aarch64_cortex-a72`、`aarch64_cortex-a76` 和 `arm_cortex-a7_neon-vfpv4`；只安装与设备版本、包格式和架构匹配的资产。
-
-统一 PM 包从软件源解析系统依赖、`rill-runtime-manager` 和共享 `rill-runtime`；它与旧 PM split owners（包括 `performance-manager-rill`）及旧 `rill-runtime-preview` 互斥。冲突会阻止安装，不会自动卸载旧包。
-
-如果当前安装的也是 `luci-app-performance-manager-all`，包名保持不变，可通过已配置的软件源执行常规包升级；不要先卸载 PM，也不要手动删除 `/usr/bin/rill-runtime`。历史全功能包曾把 Runtime 放在 PM 包内，新包改由 `rill-runtime` 独立拥有该文件。现有 APK 升级门禁用带 Runtime 文件的低版本合成包验证了同名升级和配置保留；这不是历史发行包验证。24.10 opkg 同名升级仍待真实 SDK/rootfs 场景验证。
-
-若页面检测到旧 Preview Runtime，会显示当前 package owner 和版本，并给出以下手动步骤。先确认没有其他软件包依赖 `rill-runtime-preview`，备份配置和 PM 数据；再于维护窗口卸载旧 PM 单包及 Preview package，最后从已配置的软件源安装新版单包：
-
-```sh
-# OpenWrt 24.10（opkg）
-cp -a /etc/config/performance-manager /root/performance-manager.config.backup
-tar -czf /root/performance-manager-data.backup.tgz /etc/performance-manager
-opkg remove luci-app-performance-manager-all rill-runtime-preview
-opkg update
 opkg install luci-app-performance-manager-all
 
-# OpenWrt 25.12（apk）
-cp -a /etc/config/performance-manager /root/performance-manager.config.backup
-tar -czf /root/performance-manager-data.backup.tgz /etc/performance-manager
-apk del luci-app-performance-manager-all rill-runtime-preview
-apk update
+# OpenWrt 25.12.6
 apk add luci-app-performance-manager-all
 ```
 
-移除命令只在已核实其他消费者均已迁移后执行；如果包管理器提示仍有依赖，停止并先完成这些消费者的迁移，不要强制覆盖或盲目删除。统一包将 `/etc/config/performance-manager` 声明为 conffile，卸载脚本只请求 PM 清理其运行时租约，不执行配置或数据目录清除；两个 keep.d 规则用于 sysupgrade 保留 `/etc/performance-manager/` 与 Rill 状态。
+也可以从 [GitHub Releases](https://github.com/hello-yunshu/luci-app-performance-manager/releases) 下载匹配设备版本和架构的 IPK 或 APK。两种安装方式都需要配置统一软件源，以便解析 `rill-runtime` 和 `rill-runtime-manager`。PM 单包包含 Core、LuCI 和 Rill 集成。其他插件可共用软件源提供的 Runtime。
+
+已经安装同名单包的设备，可以通过软件源直接升级。
+
+### 从旧拆分包或 Preview 迁移
+
+如果设备装的是旧拆分包（`performance-manager`、`luci-app-performance-manager`、`performance-manager-rill`、`luci-i18n-performance-manager-zh-cn`），先备份 `/etc/config/performance-manager` 和 `/etc/performance-manager/`，在维护窗口移除已安装的旧 PM 包，再安装统一包。
+
+如果设备有 `rill-runtime-preview`，先确认其他插件已迁移到 Stable Runtime。在维护窗口备份 PM 配置和数据，移除旧 PM 包及 Preview 后，再安装统一包。包管理器报告还有依赖时，先处理依赖它的插件。共享 Stable 包 `rill-runtime` 可以留在设备上。
 
 ### 包信息
 
@@ -131,7 +73,6 @@ apk add luci-app-performance-manager-all
 | 目标 | OpenWrt 24.10.8 IPK / 25.12.6 APK；以 CI 和发布资产逐项验证为准 |
 | 当前源码候选 | `1.1.2` |
 | 统一 PM 包版本 | `1.1.2-r1` |
-| 拆分 Rill glue 包版本 | `1.1.2-r1` |
 | 服务脚本 | `/etc/init.d/performance-manager` |
 | UCI 配置 | `/etc/config/performance-manager` |
 | 核心程序 | `/usr/sbin/performance-manager.uc` |
@@ -317,11 +258,28 @@ Smart Decision 默认使用 8 个已验证样本进入 `ready`，Conservative/As
 - **openwrt-ucode**：官方 OpenWrt 25.12.6 rootfs 中编译校验 Core ucode
 
 **`build-openwrt.yml`（远程官方 SDK 构建）**
-- **openwrt-sdk-build**：官方 SDK 按 OpenWrt 24.10.8/IPK 与 25.12.6/APK × 六个原生架构构建四个 split packages 和 unified PM package，并产出 `build-metadata.json`、Runtime provenance 与审计证据 artifact
+- **openwrt-sdk-build**：为 OpenWrt 24.10.8/IPK 与 25.12.6/APK 的六个架构构建统一 PM 包和 Core。旧 LuCI 和 Rill 拆分包只在 x86_64 APK 目标构建，供迁移和包组合门禁使用。
 
 Public release staging 只输出 12 个目标专属 unified PM IPK/APK 与 `SHA256SUMS.txt`；JSON、MD、ZIP、split packages 和 standalone Runtime 全部留在 Actions artifacts。
 
 > Runtime v3 的主机子进程 job 证明通用 Runtime 行为；PM Core-to-Runtime 的 OpenWrt 生产 roundtrip 仍是独立门禁，未完成时证据保持 `NOT_EVALUATED`/`BLOCKED`，不会被脚本升级成 PASS。
+
+### 使用 OpenWrt SDK 从源码构建
+
+先在 SDK 中配置提供 `rill-runtime` 和 `rill-runtime-manager` 的 Rill 源码 feed。常规构建只需指定统一包。
+
+```sh
+cd /path/to/openwrt-sdk
+./scripts/feeds update -a
+./scripts/feeds install -a
+mkdir -p package/openwrt-performance-manager
+cp -a /path/to/luci-app-performance-manager/package/* package/openwrt-performance-manager/
+cp /path/to/luci-app-performance-manager/VERSION package/openwrt-performance-manager/
+make defconfig
+make package/luci-app-performance-manager-all/compile V=s
+```
+
+只验证 Core 时，使用 `make package/performance-manager/compile V=s`。
 
 本地快速验证：
 

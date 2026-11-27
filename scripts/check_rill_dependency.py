@@ -79,7 +79,12 @@ def check_data(data: dict, package_dir: Path | None) -> list[str]:
         else:
             make = makefile.read_text(encoding="utf-8")
             meta = json.loads(metadata.read_text(encoding="utf-8"))
-            if f"PKG_VERSION:={version}" not in make or "PKG_NAME:=rill-runtime" not in make:
+            version_file = package_dir / "VERSION"
+            versioned_recipe = any(line.startswith("PKG_VERSION:=") and "$(RILL_VERSION_FILE)" in line
+                                   for line in make.splitlines())
+            version_matches = (version_file.is_file() and version_file.read_text(encoding="utf-8").strip() == version
+                               if versioned_recipe else f"PKG_VERSION:={version}" in make.splitlines())
+            if not version_matches or "PKG_NAME:=rill-runtime" not in make.splitlines():
                 errors.append("package Makefile identity does not match contract")
             if meta.get("package",{}).get("release")!=package.get("packageRelease") or f"PKG_RELEASE:={package.get('packageRelease')}\n" not in make:
                 errors.append("package release differs from contract")

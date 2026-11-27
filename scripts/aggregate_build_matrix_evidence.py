@@ -114,8 +114,8 @@ def main(argv: list[str] | None = None) -> int:
         raise RuntimeError(f"target architecture coverage mismatch: {arches!r}")
 
     package_names = sorted({
-        name for _, _, _, verification in pairs
-        for name in (verification.get("packages") or {})
+        name for _, _, metadata, verification in pairs
+        for name in set(verification.get("packages") or {}) | set(metadata.get("expectedApkPackages") or [])
     })
     package_matrix = {}
     # Shared dependencies (e.g. rill-runtime-manager) are recorded with their
@@ -126,6 +126,13 @@ def main(argv: list[str] | None = None) -> int:
         for metadata_path, verification_path, metadata, verification in pairs:
             verified = (verification.get("packages") or {}).get(name) or {}
             built = (metadata.get("packages") or {}).get(name) or {}
+            # Legacy split packages are only built for the APK composition target.
+            if (name in {"luci-app-performance-manager", "performance-manager-rill"}
+                    and not verified and not built
+                    and name not in (metadata.get("expectedApkPackages") or [])
+                    and (metadata.get("architecture"), metadata.get("packageManagerFormat"))
+                    != ("x86_64", "apk")):
+                continue
             if verified.get("status") not in verified_statuses \
                     or built.get("status") not in verified_statuses:
                 raise RuntimeError(f"{name} is not verified for {metadata.get('architecture')}")

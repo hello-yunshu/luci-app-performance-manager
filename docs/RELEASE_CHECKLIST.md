@@ -25,10 +25,10 @@ precondition. Either profile may authorize a Stable release:
 
 ## Build / package
 
-- [ ] Official OpenWrt 25.12.5 SDK builds `performance-manager`, `luci-app-performance-manager`, and split `performance-manager-rill`.
-- [ ] The SDK builds one architecture-specific `luci-app-performance-manager-all` APK per target, physically containing Core, LuCI, zh-cn, glue, keep rules, notices, and the exact qualified Runtime binary.
-- [ ] Exact APK verification proves the full package has no `+rill-runtime` dependency and conflicts with every split owner; split packages remain independently buildable.
-- [ ] Public assembly includes exactly three normalized full APKs (`x86_64`, `aarch64_generic`, `aarch64_cortex-a53`) plus `SHA256SUMS.txt`; Runtime, glue, source, and evidence remain private inputs.
+- [ ] The official SDK builds `luci-app-performance-manager-all` and Core for every supported target. The legacy LuCI and Rill split packages are built for the x86_64 APK composition gate.
+- [ ] The unified package contains Core, LuCI, zh-cn, Rill integration, and upgrade keep rules. The separate qualified `rill-runtime` package owns the Runtime binary.
+- [ ] Exact verification checks the shared Runtime dependency and legacy package conflicts. Every APK target verifies that the unified package and a separate consumer share one Runtime.
+- [ ] Public assembly includes one unified IPK or APK per target in `contracts/openwrt-native-targets.json`, plus `SHA256SUMS.txt`. Core, legacy fixtures, and Runtime remain private build inputs.
 - [ ] Official OpenWrt rootfs compiles Core ucode with all declared modules.
 
 ## Runtime / topology / ownership

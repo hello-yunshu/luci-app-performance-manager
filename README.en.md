@@ -42,84 +42,27 @@
 - Ordinary telemetry and topology refreshes stay in tmpfs; persistent history is bounded
 - Passive / health benchmark observations remain `validated=false`; only genuine validated outcomes update Rill learning
 
-## OpenWrt packages
-
-| Package | Purpose |
-|---|---|
-| `performance-manager`, `luci-app-performance-manager`, `performance-manager-rill` | Split source and migration packages; use the single PM package for new installs |
-| `rill-runtime-manager` | Shared Runtime LuCI/RPC install, refresh, and update controller |
-| `rill-runtime` | Canonical shared Stable Runtime package; uniquely owns `/usr/bin/rill-runtime` |
-| `luci-app-performance-manager-all` | Only recommended PM package, containing Core, LuCI, ACL/menu, Simplified Chinese, Rill glue and compatibility manifest; depends on shared Runtime and never bundles its binary |
-
 ## Installation
 
-### Prerequisites
-
-- OpenWrt 24.10.8 IPK and 25.12.6 APK target matrix across x86_64, aarch64_generic, aarch64_cortex-a53/a72/a76, and arm_cortex-a7_neon-vfpv4; verify published artifacts for each target
-- An OpenWrt SDK or buildroot environment (for source builds)
-
-### Build from source (OpenWrt SDK / buildroot)
-
-```sh
-# 1. The canonical Rill feed provides the shared Runtime and package manager
-cd /path/to/openwrt-performance-manager
-# 2. Then enter the OpenWrt SDK
-cd /path/to/openwrt-sdk
-./scripts/feeds update -a
-./scripts/feeds install -a
-mkdir -p package/openwrt-performance-manager
-cp -a /path/to/openwrt-performance-manager/package/* package/openwrt-performance-manager/
-make defconfig
-make package/rill-runtime-manager/compile V=s
-make package/rill-runtime/compile V=s
-make package/performance-manager/compile V=s
-make package/luci-app-performance-manager/compile V=s
-make package/performance-manager-rill/compile V=s
-make package/luci-app-performance-manager-all/compile V=s
-```
-
-The unified PM package depends on the shared Runtime manager and Stable Runtime; it does not contain the Runtime binary. Use the official GitHub Actions SDK workflow and check that CI has verified the target.
-
-> You can also rely on the GitHub Actions `build-openwrt.yml` → `openwrt-sdk-build` job to produce the build instead of using a local SDK.
-
-### Recommended: one unified PM package per device
-
-From [GitHub Releases](https://github.com/hello-yunshu/luci-app-performance-manager/releases), select one `luci-app-performance-manager-all` package matching the OpenWrt release, package format, and device architecture. The Rill page provides Runtime install and update actions.
-
-The unified PM package contains Performance Manager Core, LuCI, Simplified Chinese, and Rill integration. It resolves the shared `rill-runtime` dependency from the configured feed. If legacy `rill-runtime-preview` is installed, the package manager rejects migration; review its other consumers and plan migration manually. It will not be removed or overwritten automatically.
+Configure the [unified package feed](https://github.com/hello-yunshu/yun-openwrt-packages/blob/main/docs/INSTALL.md) for your OpenWrt release and device architecture, then install `luci-app-performance-manager-all`.
 
 ```sh
 # OpenWrt 24.10.8
-opkg install /tmp/performance-manager-all-v<VERSION>-openwrt-24.10.8-x86_64.ipk
-# OpenWrt 25.12.6
-apk add --allow-untrusted /tmp/performance-manager-all-v<VERSION>-openwrt-25.12.6-x86_64.apk
-```
-
-Mainstream targets are `x86_64`, `aarch64_generic`, `aarch64_cortex-a53`, `aarch64_cortex-a72`, `aarch64_cortex-a76`, and `arm_cortex-a7_neon-vfpv4`. Install only an artifact matching the device release, package format, and architecture.
-
-OpenWrt resolves system libraries, `rill-runtime-manager`, and shared `rill-runtime` from configured repositories. The unified package conflicts with legacy PM split owners and `rill-runtime-preview`; conflicts reject installation without removing packages automatically.
-
-If `luci-app-performance-manager-all` is already installed, the package name is unchanged and it can be upgraded through a configured feed; do not uninstall PM first or manually delete `/usr/bin/rill-runtime`. Historical full packages bundled Runtime in the PM package, while the new package transfers ownership to the separate `rill-runtime` package. The existing APK upgrade gate exercises a same-name upgrade from a lower-version synthetic package containing the Runtime file and checks config preservation; it is not a test against a historical release artifact. The OpenWrt 24.10 opkg same-name upgrade still needs a real SDK/rootfs run.
-
-When the page detects the legacy Preview Runtime, it shows the package owner and version plus these manual steps. First confirm no other packages depend on `rill-runtime-preview`, back up PM configuration and data, then during a maintenance window remove the old PM bundle and Preview package before installing the current bundle from the configured feed:
-
-```sh
-# OpenWrt 24.10 (opkg)
-cp -a /etc/config/performance-manager /root/performance-manager.config.backup
-tar -czf /root/performance-manager-data.backup.tgz /etc/performance-manager
-opkg remove luci-app-performance-manager-all rill-runtime-preview
-opkg update
 opkg install luci-app-performance-manager-all
 
-# OpenWrt 25.12 (apk)
-cp -a /etc/config/performance-manager /root/performance-manager.config.backup
-tar -czf /root/performance-manager-data.backup.tgz /etc/performance-manager
-apk del luci-app-performance-manager-all rill-runtime-preview
-apk update
+# OpenWrt 25.12.6
 apk add luci-app-performance-manager-all
 ```
 
-Only remove these packages after confirming all other consumers have migrated. If the package manager reports remaining dependencies, stop and migrate those consumers first; do not force file replacement. The unified package declares `/etc/config/performance-manager` as a conffile; its removal script requests cleanup of PM-owned runtime leases but does not delete config or data directories. Its two keep rules preserve `/etc/performance-manager/` and Rill state across sysupgrade.
+You can also download the IPK or APK for your release and architecture from [GitHub Releases](https://github.com/hello-yunshu/luci-app-performance-manager/releases). Both methods use the configured feed to resolve `rill-runtime` and `rill-runtime-manager`. The PM package includes Core, LuCI, and Rill integration. Other plugins can use the same Runtime from the feed.
+
+If you already have the package with this name, upgrade it through the feed.
+
+### Migrating from legacy split packages or Preview
+
+If you have legacy split packages (`performance-manager`, `luci-app-performance-manager`, `performance-manager-rill`, or `luci-i18n-performance-manager-zh-cn`), back up `/etc/config/performance-manager` and `/etc/performance-manager/`. During a maintenance window, remove the installed legacy PM packages and install the unified package.
+
+If you have `rill-runtime-preview`, first confirm that other plugins have migrated to Stable Runtime. During a maintenance window, back up PM configuration and data, remove the old PM packages and Preview, then install the unified package. If the package manager reports remaining dependencies, migrate those plugins first. The shared Stable package `rill-runtime` can stay installed.
 
 ### Package info
 
@@ -129,7 +72,6 @@ Only remove these packages after confirming all other consumers have migrated. I
 | Target | OpenWrt 24.10.8 IPK / 25.12.6 APK; verify each target against CI and release assets |
 | Current source candidate | `1.1.2` |
 | Unified PM package version | `1.1.2-r1` |
-| Split Rill glue package version | `1.1.2-r1` |
 | Service script | `/etc/init.d/performance-manager` |
 | UCI config | `/etc/config/performance-manager` |
 | Core binary | `/usr/sbin/performance-manager.uc` |
@@ -312,11 +254,28 @@ This project is built and verified automatically with GitHub Actions, triggered 
 - **openwrt-ucode**: compiles and validates Core ucode inside the official OpenWrt 25.12.6 rootfs
 
 **`build-openwrt.yml` (remote official SDK build)**
-- **openwrt-sdk-build**: builds four split packages and unified PM packages for OpenWrt 24.10.8/IPK and 25.12.6/APK across six native architectures, and emits Runtime provenance and audit-evidence artifacts
+- **openwrt-sdk-build**: builds unified PM and Core packages for OpenWrt 24.10.8/IPK and 25.12.6/APK across six architectures. The legacy LuCI and Rill split packages are built only for the x86_64 APK composition and migration gates.
 
 Public release staging emits only the 12 target-specific unified PM IPK/APK packages and `SHA256SUMS.txt`; JSON, MD, ZIP, split packages and standalone Runtime artifacts remain private Actions artifacts.
 
 > The generic Runtime binary is intentionally external and is installed or updated through the shared Runtime manager.
+
+### Building from source with the OpenWrt SDK
+
+Configure the Rill source feed that provides `rill-runtime` and `rill-runtime-manager` in the SDK first. Build the unified package using the commands below.
+
+```sh
+cd /path/to/openwrt-sdk
+./scripts/feeds update -a
+./scripts/feeds install -a
+mkdir -p package/openwrt-performance-manager
+cp -a /path/to/luci-app-performance-manager/package/* package/openwrt-performance-manager/
+cp /path/to/luci-app-performance-manager/VERSION package/openwrt-performance-manager/
+make defconfig
+make package/luci-app-performance-manager-all/compile V=s
+```
+
+For Core-only verification, use `make package/performance-manager/compile V=s`.
 
 Local quick verification:
 

@@ -24,6 +24,7 @@ from __future__ import annotations
 import hashlib, json, os, subprocess, sys
 from datetime import datetime, timezone
 from pathlib import Path
+from verify_apks import SHARED_DEPENDENCIES, expected_packages
 ROOT = Path(__file__).resolve().parents[1]
 
 
@@ -180,14 +181,7 @@ def main(argv):
             return _core_job.get('verdict')
         return _rt.get('pmCoreRoundtripVerdict')
 
-    packages = [
-        'performance-manager',
-        'luci-app-performance-manager',
-        'performance-manager-rill',
-        'rill-runtime',
-        'rill-runtime-manager',
-        'luci-app-performance-manager-all',
-    ]
+    packages = [*expected_packages(arch, pkg_manager), *sorted(SHARED_DEPENDENCIES)]
     package_shas = {}
     for name in packages:
         mk = ROOT / 'package' / name / 'Makefile'
