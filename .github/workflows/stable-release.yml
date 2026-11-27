@@ -134,8 +134,16 @@ jobs:
           version=$(cat VERSION)
           [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]
           for makefile in package/*/Makefile; do
-            grep -Fq "PM_VERSION_FILE:=\$(firstword \$(wildcard \$(PM_PACKAGE_DIR)VERSION" "$makefile" || {
-              echo "$makefile does not derive PKG_VERSION from VERSION" >&2
+            grep -Fq 'include $(PKG_MAKEFILE_DIR)package-version.mk' "$makefile" || {
+              echo "$makefile does not include the shared VERSION rule" >&2
+              exit 1
+            }
+            test -L "$(dirname "$makefile")/package-version.mk" || {
+              echo "$makefile is missing its shared VERSION rule link" >&2
+              exit 1
+            }
+            test -e "$(dirname "$makefile")/VERSION" || {
+              echo "$makefile is missing its adjacent VERSION authority" >&2
               exit 1
             }
           done

@@ -80,8 +80,9 @@ def check_data(data: dict, package_dir: Path | None) -> list[str]:
             make = makefile.read_text(encoding="utf-8")
             meta = json.loads(metadata.read_text(encoding="utf-8"))
             version_file = package_dir / "VERSION"
-            versioned_recipe = any(line.startswith("PKG_VERSION:=") and "$(RILL_VERSION_FILE)" in line
-                                   for line in make.splitlines())
+            shared_include = 'include $(PKG_MAKEFILE_DIR)package-version.mk'
+            versioned_recipe = (shared_include in make and (package_dir / "package-version.mk").is_file()
+                                and (package_dir / "package/rill-runtime/VERSION").is_file())
             version_matches = (version_file.is_file() and version_file.read_text(encoding="utf-8").strip() == version
                                if versioned_recipe else f"PKG_VERSION:={version}" in make.splitlines())
             if not version_matches or "PKG_NAME:=rill-runtime" not in make.splitlines():
