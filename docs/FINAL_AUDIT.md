@@ -1,13 +1,13 @@
-# Source Audit — 1.1.1
+# Source Audit — 1.1.2
 
 ## Decision
 
-**PASS — 1.1.1 source candidate PASS; functional integration and Stable release are NOT_EVALUATED.**
+**PASS — 1.1.2 source candidate PASS; functional integration and Stable release are NOT_EVALUATED.**
 
 This is a source-only, non-promotable audit. It does not consume old runtime
 artifacts and cannot claim functional-integration or Stable-release PASS.
 
-Snapshot source commit: **9ecd3929bb026d4a14aad2999d86c6e95672db74**. A commit that only changes
+Snapshot source commit: **717148d139957335168b8162556f23c9a3632475**. A commit that only changes
 generated audit files is treated as a snapshot child, not a new source revision.
 
 ## Orchestrated local gates

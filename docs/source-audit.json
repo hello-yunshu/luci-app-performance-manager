@@ -1,8 +1,8 @@
 {
   "schemaVersion": 3,
   "project": "OpenWrt Performance Manager",
-  "version": "1.1.1",
-  "pmCommitSha": "9ecd3929bb026d4a14aad2999d86c6e95672db74",
+  "version": "1.1.2",
+  "pmCommitSha": "717148d139957335168b8162556f23c9a3632475",
   "scope": "source-only",
   "sourceTreeClean": true,
   "sourceTreeDirtyPaths": [],
@@ -401,22 +401,22 @@
     "performance-manager": {
       "files": 42,
       "bytes": 327382,
-      "makefileSha256": "3c9115ef2d598126ca6cbb1779a06af61fb3ea90c3c620f64f02a8f908bb65e5"
+      "makefileSha256": "82a744f05d037ed2b934435e94e98f529088a56cabf0d807061a246fc52a746b"
     },
     "luci-app-performance-manager": {
       "files": 18,
       "bytes": 404596,
-      "makefileSha256": "941c1cd92bdcfd94a39e8784b7b04a191a3bb2af154a48302864fb146580ae2b"
+      "makefileSha256": "4979329365f2eca0290ea2b220f8381dd69eff7d28b68d2bd55ecb7b47f5634d"
     },
     "performance-manager-rill": {
       "files": 2,
       "bytes": 1495,
-      "makefileSha256": "616f4091b66e443818d6f80debb07d528f955a9d39e8da4592adbf1b284ab276"
+      "makefileSha256": "a3c6d22adf93b47fb62e6b0269172bf4c539de11f9853c46fc267f7b3370ee99"
     },
     "luci-app-performance-manager-all": {
       "files": 2,
       "bytes": 5256,
-      "makefileSha256": "deefc97e96116a7c6d9e5e75a58e1935625a2fa7018828b9ed88c3a660602572"
+      "makefileSha256": "73b7fd93d1e3c75f11e1c8f5f6a5f7d2f99b74ec1f17977ca021c6b34a391e0f"
     }
   },
   "toolchainAvailability": {
@@ -424,5 +424,5 @@
     "rustc": true,
     "ucode": false
   },
-  "decision": "1.1.1 source candidate PASS; functional integration and Stable release are NOT_EVALUATED"
+  "decision": "1.1.2 source candidate PASS; functional integration and Stable release are NOT_EVALUATED"
 }
