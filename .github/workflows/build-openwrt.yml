@@ -257,6 +257,7 @@ jobs:
           fi
           mkdir -p package/openwrt-performance-manager
           cp -a "$GITHUB_WORKSPACE"/package/* package/openwrt-performance-manager/
+          cp "$GITHUB_WORKSPACE/VERSION" package/openwrt-performance-manager/VERSION
           # Runtime and its updater are canonical packages from the pinned Rill
           # feed. Include both recipes in the SDK package graph; stage only the
           # already qualified Runtime artifact later, without rebuilding it.

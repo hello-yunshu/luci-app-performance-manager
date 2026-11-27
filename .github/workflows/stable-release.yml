@@ -132,9 +132,8 @@ jobs:
           version=$(cat VERSION)
           [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]
           for makefile in package/*/Makefile; do
-            package_version=$(sed -n 's/^PKG_VERSION:=//p' "$makefile")
-            test "$package_version" = "$version" || {
-              echo "$makefile has version $package_version, expected $version" >&2
+            grep -Fq "PKG_VERSION:=\$(shell sed -E 's/-rc\\./_rc/' \$(dir \$(realpath \$(lastword \$(MAKEFILE_LIST))))../../VERSION)" "$makefile" || {
+              echo "$makefile does not derive PKG_VERSION from VERSION" >&2
               exit 1
             }
           done

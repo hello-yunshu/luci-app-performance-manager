@@ -1,7 +1,7 @@
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=performance-manager-rill
-PKG_VERSION:=1.1.2
+PKG_VERSION:=$(shell sed -E 's/-rc\./_rc/' $(dir $(realpath $(lastword $(MAKEFILE_LIST))))../../VERSION)
 PKG_RELEASE:=1
 PKG_LICENSE:=GPL-3.0-only
 PKG_MAINTAINER:=OpenWrt Performance Manager contributors
