@@ -16,7 +16,7 @@
 
 const UNKNOWN = _('Unknown');
 const UNKNOWN_STATE = _('Unknown state');
-const UNKNOWN_REASON = _('Unrecognized reason, see technical details');
+const UNKNOWN_REASON = _('Unknown reason');
 const UNKNOWN_ACTION = _('Unknown action');
 const UNKNOWN_CAPABILITY = _('Unknown capability');
 const DASH = '—';
@@ -65,7 +65,7 @@ const GUARD_REASON = {
 const SMART_REASON = {
 	'deterministic-core-fallback': _('Using the deterministic core policy'),
 	'no-legal-action': _('No action is allowed right now'),
-	'smart-rill-opt-out': _('Rill smart decisions are turned off'),
+	'smart-rill-opt-out': _('Rill decisions are disabled'),
 	'confidence-below-policy': _('Confidence is below the policy threshold'),
 	'recommended-for-benchmark': _('Recommended for a performance test only'),
 	'missing-exact-decision': _('No exact decision is available'),
@@ -132,10 +132,10 @@ const RILL_REASON = {
 };
 
 const LEARNING_STAGE = {
-	cold: _('Cold start (not enough samples)'),
+	cold: _('Not enough samples'),
 	warming: _('Learning'),
-	ready: _('Ready'),
-	drifted: _('Drifted')
+	ready: _('Ready for decisions'),
+	drifted: _('Performance changed too much')
 };
 
 const RISK = {

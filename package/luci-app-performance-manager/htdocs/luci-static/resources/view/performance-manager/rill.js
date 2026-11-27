@@ -143,7 +143,7 @@ return view.extend({
 	},
 	render: function(payload) {
 		if ((payload || []).some(function(d) { return d && d._loadError; }))
-			return pu.page(_('Rill smart decisions'), null, pu.note(_('Unable to load this page. Retry the page; if it keeps failing, check the service log.'), 'danger'));
+			return pu.page(_('Rill decisions'), null, pu.note(_('Unable to load this page. Retry; if it keeps failing, check the service log.'), 'danger'));
 		const r = (payload && payload[0]) || {}, rec = (payload && payload[2]) || null, manager = (payload && payload[1]) || {}, s = (rec && rec.smartSelection) || {};
 		const refresh = E('button', { 'class': 'btn cbi-button cbi-button-action', 'type': 'button' }, [ _('Refresh Rill decision') ]);
 		refresh.addEventListener('click', function() {
@@ -414,7 +414,7 @@ return view.extend({
 			: '—';
 		const candidateHistory = s.candidateHistory || {};
 		const rillUnavailable = !!r.state && r.state !== 'available' && r.state !== 'learning';
-		const eligible = rillUnavailable ? _('Rill unavailable') : (s.autoEligible === true ? _('Ready') : (s.autoEligible === false ? _('Paused') : _('Not evaluated')));
+		const eligible = rillUnavailable ? _('Rill unavailable') : (s.autoEligible === true ? _('Eligible') : (s.autoEligible === false ? _('Paused') : _('Not evaluated')));
 		const decisionReason = s.reason ? labels.smartReason(s.reason) : (s.selectedActionId === 'pm.noop' ? _('The current configuration meets the policy.') : _('No decision reason is available yet.'));
 		const pageNodes = [
 			pu.card(_('Package management'), E('div', {}, [ packageStatus, packageDetails, packageActionRows ].filter(function(node) { return node != null; }))),
@@ -429,7 +429,6 @@ return view.extend({
 					[_('Why'), decisionReason]
 				])
 			])) : pu.card(_('Smart policy'), E('p', { 'class': 'cbi-value-description pm-rill-recommendations-placeholder', 'role': 'status', 'aria-live': 'polite' }, _('Loading recommendations when this section is reached…'))),
-			pu.note(_('Rill provides observations and recommendations. Core checks safety and keeps final control over every change.'), 'info'),
 			pu.grid([
 				pu.card(_('Top ranking'), E('div', {}, [ rankingActions, pu.tableWrap(table) ])),
 				pu.card(_('Recent feedback'), feedbackDetails)
@@ -443,8 +442,8 @@ return view.extend({
 			}, _('Runtime, decision and candidate details')))
 		];
 		if (s.drifted)
-			pageNodes.splice(1, 0, pu.note(_('Performance drift detected. Rill Auto temporarily paused.'), 'warning'));
-		const page = pu.page(_('Rill smart decisions'), _('Rill ranks actions that passed the Core engine review; the Core engine keeps the final authority to execute them.'), pageNodes);
+			pageNodes.splice(1, 0, pu.note(_('Performance changed too much. Rill automation paused.'), 'warning'));
+		const page = pu.page(_('Rill decisions'), _('Rill ranks eligible actions. Performance Manager checks safety and applies changes.'), pageNodes);
 		if (!rec) {
 			const placeholder = page.querySelector('.pm-rill-recommendations-placeholder');
 			let started = false;

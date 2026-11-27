@@ -1,13 +1,14 @@
+#
 msgid ""
 msgstr ""
+"Project-Id-Version: luci-app-performance-manager\n"
 "Report-Msgid-Bugs-To: \n"
 "POT-Creation-Date: 2026-09-04 02:46+0800\n"
-"Project-Id-Version: luci-app-performance-manager\n"
 "PO-Revision-Date: 2026-09-04 03:00+0800\n"
 "Last-Translator: Performance Manager contributors\n"
 "Language-Team: English\n"
-"MIME-Version: 1.0\n"
 "Language: en\n"
+"MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
@@ -32,14 +33,6 @@ msgstr "Core"
 msgid "Enable Core"
 msgstr "Enable Core"
 
-#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/settings.js:10
-msgid ""
-"Run the Performance Manager core service. Disable this to stop performance "
-"management."
-msgstr ""
-"Run the Performance Manager core service. Disable this to stop performance "
-"management."
-
 #: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/settings.js:11
 msgid "Automation mode"
 msgstr "Automation mode"
@@ -56,29 +49,13 @@ msgstr "Conservative"
 msgid "Assisted automation (opt-in; safe actions only)"
 msgstr "Assisted automation (opt-in; safe actions only)"
 
-#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/settings.js:11
-msgid ""
-"Choose how Core responds: manual, conservative, or assisted automation."
-msgstr ""
-"Choose how Core responds: manual, conservative, or assisted automation."
-
 #: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/settings.js:13
 msgid "Enable assisted automation"
 msgstr "Enable assisted automation"
 
-#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/settings.js:13
-msgid "Allow assisted automation to apply only actions on the safe allowlist."
-msgstr ""
-"Allow assisted automation to apply only actions on the safe allowlist."
-
 #: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/settings.js:14
 msgid "Maintenance window start"
 msgstr "Maintenance window start"
-
-#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/settings.js:14
-#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/settings.js:15
-msgid "Assisted automation may run only within this local time window."
-msgstr "Assisted automation may run only within this local time window."
 
 #: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/settings.js:15
 msgid "Maintenance window end"
@@ -196,45 +173,17 @@ msgstr "Rill Runtime"
 msgid "Enable Runtime"
 msgstr "Enable Runtime"
 
-#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/settings.js:34
-msgid ""
-"Enable the optional Rill Runtime integration. Core remains the execution "
-"authority."
-msgstr ""
-"Enable the optional Rill Runtime integration. Core remains the execution "
-"authority."
-
 #: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/settings.js:35
 msgid "Generic Runtime binary"
 msgstr "Generic Runtime binary"
-
-#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/settings.js:35
-msgid "Path to the external generic Rill Runtime binary."
-msgstr "Path to the external generic Rill Runtime binary."
 
 #: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/settings.js:36
 msgid "Use Rill ranking in automatic modes"
 msgstr "Use Rill ranking in automatic modes"
 
-#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/settings.js:36
-msgid ""
-"Let Rill rank Core-approved actions in automatic modes. Core still decides "
-"and executes."
-msgstr ""
-"Let Rill rank Core-approved actions in automatic modes. Core still decides "
-"and executes."
-
 #: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/settings.js:37
 msgid "Minimum validated samples"
 msgstr "Minimum validated samples"
-
-#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/settings.js:37
-msgid ""
-"Minimum validated samples before an action can be considered for automatic "
-"selection."
-msgstr ""
-"Minimum validated samples before an action can be considered for automatic "
-"selection."
 
 #: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/settings.js:41
 msgid "Action cooldown (seconds)"
@@ -248,15 +197,6 @@ msgstr "Minimum time between repeated applications of the same action."
 #: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/settings.js:46
 msgid "Settings"
 msgstr "Settings"
-
-#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/settings.js:44
-#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/settings.js:46
-msgid ""
-"Keep conservative automation as the safe default; assisted actions remain "
-"explicitly opt-in."
-msgstr ""
-"Keep conservative automation as the safe default; assisted actions remain "
-"explicitly opt-in."
 
 #: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/settings.js:44
 #: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/settings.js:46
@@ -493,10 +433,6 @@ msgstr "Auto eligibility"
 msgid "Paused"
 msgstr "Paused"
 
-#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/rill.js:51
-msgid "Performance drift detected. Rill Auto temporarily paused."
-msgstr "Performance drift detected. Rill Auto temporarily paused."
-
 #: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/rill.js:52
 msgid ""
 "Rill provides observation and recommendations only. It cannot write UCI, "
@@ -684,14 +620,6 @@ msgstr "No capabilities are available from the current provider."
 msgid "Capabilities"
 msgstr "Capabilities"
 
-#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/capabilities.js:20
-msgid ""
-"Review the capabilities available on this device. Unsupported capabilities "
-"are hidden from action controls; expected profile gaps appear as degraded."
-msgstr ""
-"Review the capabilities available on this device. Unsupported capabilities "
-"are hidden from action controls; expected profile gaps appear as degraded."
-
 #: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/capabilities.js:22
 #: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/advanced.js:16
 msgid "Capability / Topology / TargetRef JSON"
@@ -747,14 +675,6 @@ msgstr "No transactions are currently recorded."
 msgid "History and rollback"
 msgstr "History and rollback"
 
-#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/history.js:37
-msgid ""
-"Review pending confirmations, verified rollbacks, and runtime events with "
-"their safety context."
-msgstr ""
-"Review pending confirmations, verified rollbacks, and runtime events with "
-"their safety context."
-
 #: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/history.js:40
 #: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/advanced.js:17
 msgid "Resource locks"
@@ -784,10 +704,6 @@ msgstr "Runtime History JSON"
 #: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/benchmark.js:9
 msgid "Unable to read evidence. Paste valid JSON and try again."
 msgstr "Unable to read evidence. Paste valid JSON and try again."
-
-#: package/luci-app-performance-manager/htdocs/luci-static/resources/performance-manager/ui.js
-msgid "Unable to load this page. Retry the page; if it keeps failing, check the service log."
-msgstr "Unable to load this page. Retry the page; if it keeps failing, check the service log."
 
 #: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/benchmark.js:14
 msgid "Complete"
@@ -850,11 +766,14 @@ msgstr "Test blocked"
 
 #: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/benchmark.js
 msgid "Test complete. The candidate was rolled back and health checks passed."
-msgstr "Test complete. The candidate was rolled back and health checks passed."
+msgstr ""
+"Test complete. The candidate was rolled back and health checks passed."
 
 #: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/benchmark.js
-msgid "Test complete, but the result was not validated. Review the details below."
-msgstr "Test complete, but the result was not validated. Review the details below."
+msgid ""
+"Test complete, but the result was not validated. Review the details below."
+msgstr ""
+"Test complete, but the result was not validated. Review the details below."
 
 #: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/benchmark.js:45
 msgid "Details"
@@ -926,21 +845,13 @@ msgstr "No benchmark action is currently available for this device."
 msgid "Performance test"
 msgstr "Performance test"
 
-#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/benchmark.js:100
-msgid ""
-"Run one explicit test at a time. Controlled A/B results require stable "
-"context, health checks, and verified rollback."
-msgstr ""
-"Run one explicit test at a time. Controlled A/B results require stable "
-"context, health checks, and verified rollback."
-
 #: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/benchmark.js:101
 msgid ""
-"Environment → Path → Compatibility → Locks/Failsafe → Baseline → Candidate "
-"→ Commit-confirm → Result"
+"Environment → Path → Compatibility → Locks/Failsafe → Baseline → Candidate →"
+" Commit-confirm → Result"
 msgstr ""
-"Environment → Path → Compatibility → Locks/Failsafe → Baseline → Candidate "
-"→ Commit-confirm → Result"
+"Environment → Path → Compatibility → Locks/Failsafe → Baseline → Candidate →"
+" Commit-confirm → Result"
 
 #: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/benchmark.js:102
 msgid "Unavailable benchmark providers"
@@ -974,16 +885,6 @@ msgstr "Policy reason"
 #: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/optimize.js:52
 msgid "Rill recommends keeping the current configuration."
 msgstr "Rill recommends keeping the current configuration."
-
-#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/optimize.js:20
-msgid ""
-"Performance drift detected. Automatic Rill decisions are temporarily paused."
-msgstr ""
-"Performance drift detected. Automatic Rill decisions are temporarily paused."
-
-#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/optimize.js:21
-msgid "No conservative changes are needed right now."
-msgstr "No conservative changes are needed right now."
 
 #: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/optimize.js:23
 msgid "Apply safely"
@@ -1074,25 +975,9 @@ msgstr "Observations"
 msgid "Smart optimization"
 msgstr "Smart optimization"
 
-#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/optimize.js:58
-msgid ""
-"Review supported actions and apply them only after Core safety checks. "
-"Existing user and external settings are preserved."
-msgstr ""
-"Review supported actions and apply them only after Core safety checks. "
-"Existing user and external settings are preserved."
-
 #: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/advanced.js:11
 msgid "Advanced"
 msgstr "Advanced"
-
-#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/advanced.js:11
-msgid ""
-"Inspect the read-only contracts and resource state behind the supported "
-"views."
-msgstr ""
-"Inspect the read-only contracts and resource state behind the supported "
-"views."
 
 #: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/advanced.js:13
 msgid "Profile contract"
@@ -1211,11 +1096,11 @@ msgid "Blocked by the current mode policy"
 msgstr "Blocked by the current mode policy"
 
 msgid ""
-"Built-in OpenWrt packet steering. It is observed only; existing ownership "
-"is never seized."
+"Built-in OpenWrt packet steering. It is observed only; existing ownership is"
+" never seized."
 msgstr ""
-"Built-in OpenWrt packet steering. It is observed only; existing ownership "
-"is never seized."
+"Built-in OpenWrt packet steering. It is observed only; existing ownership is"
+" never seized."
 
 msgid "CPU"
 msgstr "CPU"
@@ -1231,9 +1116,6 @@ msgstr "Candidate applied"
 
 msgid "Capacity test only when conditions are met"
 msgstr "Capacity test only when conditions are met"
-
-msgid "Cold start (not enough samples)"
-msgstr "Cold start (not enough samples)"
 
 msgid ""
 "Collect kernel network parameters and available benchmark candidates for "
@@ -1611,12 +1493,6 @@ msgstr "Reward %s · %s"
 msgid "Rill selected an eligible candidate"
 msgstr "Rill selected an eligible candidate"
 
-msgid "Rill smart decisions"
-msgstr "Rill smart decisions"
-
-msgid "Rill smart decisions are turned off"
-msgstr "Rill smart decisions are turned off"
-
 msgid "Rolled back"
 msgstr "Rolled back"
 
@@ -1625,13 +1501,6 @@ msgstr "Rolling back..."
 
 msgid "Router local client"
 msgstr "Router local client"
-
-msgid ""
-"Run the companion test tool before any candidate is applied, then paste its "
-"JSON result."
-msgstr ""
-"Run the companion test tool before any candidate is applied, then paste its "
-"JSON result."
 
 msgid "Runtime available"
 msgstr "Runtime available"
@@ -1758,15 +1627,6 @@ msgstr "The backend method does not exist"
 msgid "The backend reported an unknown error"
 msgstr "The backend reported an unknown error"
 
-msgid ""
-"The companion test tool runs on a separate client or on the router itself "
-"and produces the evidence JSON this page needs. Only use this path when you "
-"must validate a benchmark by hand; it is not required for normal use."
-msgstr ""
-"The companion test tool runs on a separate client or on the router itself "
-"and produces the evidence JSON this page needs. Only use this path when you "
-"must validate a benchmark by hand; it is not required for normal use."
-
 msgid "The compatibility check failed"
 msgstr "The compatibility check failed"
 
@@ -1838,15 +1698,6 @@ msgstr ""
 
 msgid "This goal cannot be validated with a controlled A/B test"
 msgstr "This goal cannot be validated with a controlled A/B test"
-
-msgid ""
-"This recommendation is for a performance test only. Open Performance test "
-"and complete both detection phases with the companion test tool; it cannot "
-"be applied directly."
-msgstr ""
-"This recommendation is for a performance test only. Open Performance test "
-"and complete both detection phases with the companion test tool; it cannot "
-"be applied directly."
 
 msgid "Throughput first"
 msgstr "Throughput first"
@@ -2008,26 +1859,11 @@ msgstr ""
 msgid "Live state changed, so the stale rollback was refused"
 msgstr "Live state changed, so the stale rollback was refused"
 
-msgid "Minimum confidence required by assisted automation. 0.75 means 75%."
-msgstr "Minimum confidence required by assisted automation. 0.75 means 75%."
-
-msgid ""
-"Minimum confidence required by conservative automation. 0.65 means 65%."
-msgstr ""
-"Minimum confidence required by conservative automation. 0.65 means 65%."
-
 msgid "No action is available for Rill to rank"
 msgstr "No action is available for Rill to rank"
 
 msgid "No safe action is available right now"
 msgstr "No safe action is available right now"
-
-msgid ""
-"Pause automatic Rill decisions when measured performance drifts beyond this "
-"threshold. 0.20 means 20%."
-msgstr ""
-"Pause automatic Rill decisions when measured performance drifts beyond this "
-"threshold. 0.20 means 20%."
 
 msgid "Performance drift threshold (0–1 ratio)"
 msgstr "Performance drift threshold (0–1 ratio)"
@@ -2047,13 +1883,13 @@ msgid "Rill decisions are throttled; try again shortly"
 msgstr "Rill decisions are throttled; try again shortly"
 
 msgid ""
-"Rill ranks actions that passed the Core engine review; the Core engine "
-"keeps the final authority to execute them. Confidence and scores are shown "
-"as percentages (0–1 maps to 0–100%)."
+"Rill ranks actions that passed the Core engine review; the Core engine keeps"
+" the final authority to execute them. Confidence and scores are shown as "
+"percentages (0–1 maps to 0–100%)."
 msgstr ""
-"Rill ranks actions that passed the Core engine review; the Core engine "
-"keeps the final authority to execute them. Confidence and scores are shown "
-"as percentages (0–1 maps to 0–100%)."
+"Rill ranks actions that passed the Core engine review; the Core engine keeps"
+" the final authority to execute them. Confidence and scores are shown as "
+"percentages (0–1 maps to 0–100%)."
 
 msgid ""
 "Rill recommendation was not applied: %s. Review the safety state and try "
@@ -2129,15 +1965,6 @@ msgstr "The candidate change could not be rolled back"
 msgid "The candidate change is no longer active"
 msgstr "The candidate change is no longer active"
 
-msgid ""
-"The candidate is temporarily active and protected by commit-confirm. Run "
-"the same endpoint test now; the Core engine will restore the original value "
-"before validating the result."
-msgstr ""
-"The candidate is temporarily active and protected by commit-confirm. Run "
-"the same endpoint test now; the Core engine will restore the original value "
-"before validating the result."
-
 msgid "The change could not be written to storage"
 msgstr "The change could not be written to storage"
 
@@ -2171,8 +1998,12 @@ msgstr "The external Rill runtime is not installed"
 msgid "The health guard blocked this action"
 msgstr "The health guard blocked this action"
 
-msgid "The ip command needed for route evidence is missing or cannot emit JSON; install either ip-tiny or ip-full"
-msgstr "The ip command needed for route evidence is missing or cannot emit JSON; install either ip-tiny or ip-full"
+msgid ""
+"The ip command needed for route evidence is missing or cannot emit JSON; "
+"install either ip-tiny or ip-full"
+msgstr ""
+"The ip command needed for route evidence is missing or cannot emit JSON; "
+"install either ip-tiny or ip-full"
 
 msgid "The last result reduced measured performance"
 msgstr "The last result reduced measured performance"
@@ -2273,19 +2104,12 @@ msgstr "Unknown action"
 msgid "Unknown capability"
 msgstr "Unknown capability"
 
-msgid "Unrecognized reason, see technical details"
-msgstr "Unrecognized reason, see technical details"
-
 msgid "Verification after applying the action failed"
 msgstr "Verification after applying the action failed"
 
 #: package/luci-app-performance-manager/root/usr/share/luci/menu.d/luci-app-performance-manager.json
 msgid "Overview"
 msgstr "Overview"
-
-#: package/luci-app-performance-manager/root/usr/share/luci/menu.d/luci-app-performance-manager.json
-msgid "Rill intelligence"
-msgstr "Rill intelligence"
 
 #: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/overview.js:35
 msgid "Performance Manager is running"
@@ -2437,11 +2261,12 @@ msgstr "Provider and policy details"
 msgid "Ready for automatic action"
 msgstr "Ready for automatic action"
 
-msgid "Rill provides observations and recommendations. Core checks safety and keeps final control over every change."
-msgstr "Rill provides observations and recommendations. Core checks safety and keeps final control over every change."
-
-msgid "Rill ranks actions that passed the Core engine review; the Core engine keeps the final authority to execute them."
-msgstr "Rill ranks actions that passed the Core engine review; the Core engine keeps the final authority to execute them."
+msgid ""
+"Rill provides observations and recommendations. Core checks safety and keeps"
+" final control over every change."
+msgstr ""
+"Rill provides observations and recommendations. Core checks safety and keeps"
+" final control over every change."
 
 msgid "Runtime, decision and candidate details"
 msgstr "Runtime, decision and candidate details"
@@ -2452,8 +2277,12 @@ msgstr "Status, path and provider details"
 msgid "Transaction details"
 msgstr "Transaction details"
 
-msgid "Tune measurement, learning and assisted-automation thresholds. The recommended defaults are suitable for most users."
-msgstr "Tune measurement, learning and assisted-automation thresholds. The recommended defaults are suitable for most users."
+msgid ""
+"Tune measurement, learning and assisted-automation thresholds. The "
+"recommended defaults are suitable for most users."
+msgstr ""
+"Tune measurement, learning and assisted-automation thresholds. The "
+"recommended defaults are suitable for most users."
 
 msgid "Unavailable benchmark providers and reasons"
 msgstr "Unavailable benchmark providers and reasons"
@@ -2479,8 +2308,12 @@ msgstr "Runtime needs attention"
 msgid "Network adapter tuning"
 msgstr "Network adapter tuning"
 
-msgid "Network adapter features are grouped here to keep repeated hardware details out of the main list."
-msgstr "Network adapter features are grouped here to keep repeated hardware details out of the main list."
+msgid ""
+"Network adapter features are grouped here to keep repeated hardware details "
+"out of the main list."
+msgstr ""
+"Network adapter features are grouped here to keep repeated hardware details "
+"out of the main list."
 
 msgid "Adapter capabilities and details"
 msgstr "Adapter capabilities and details"
@@ -2506,8 +2339,10 @@ msgstr "Active Rill operations"
 msgid "Detailed diagnostics"
 msgstr "Detailed diagnostics"
 
-msgid "Expand to load detailed capability, topology, transaction and lock records."
-msgstr "Expand to load detailed capability, topology, transaction and lock records."
+msgid ""
+"Expand to load detailed capability, topology, transaction and lock records."
+msgstr ""
+"Expand to load detailed capability, topology, transaction and lock records."
 
 msgid "Loading diagnostics…"
 msgstr "Loading diagnostics…"
@@ -2563,14 +2398,24 @@ msgstr "Update Rill Runtime"
 msgid "Update Performance Manager"
 msgstr "Update Performance Manager"
 
-msgid "Package manager controls are unavailable. Update Performance Manager from the unified feed to enable them."
-msgstr "Package manager controls are unavailable. Update Performance Manager from the unified feed to enable them."
+msgid ""
+"Package manager controls are unavailable. Update Performance Manager from "
+"the unified feed to enable them."
+msgstr ""
+"Package manager controls are unavailable. Update Performance Manager from "
+"the unified feed to enable them."
 
-msgid "Rill Runtime is not available for this OpenWrt release and architecture."
-msgstr "Rill Runtime is not available for this OpenWrt release and architecture."
+msgid ""
+"Rill Runtime is not available for this OpenWrt release and architecture."
+msgstr ""
+"Rill Runtime is not available for this OpenWrt release and architecture."
 
-msgid "A Stable or incompatible Rill Runtime is installed. Resolve that package conflict before changing Runtime packages."
-msgstr "A Stable or incompatible Rill Runtime is installed. Resolve that package conflict before changing Runtime packages."
+msgid ""
+"A Stable or incompatible Rill Runtime is installed. Resolve that package "
+"conflict before changing Runtime packages."
+msgstr ""
+"A Stable or incompatible Rill Runtime is installed. Resolve that package "
+"conflict before changing Runtime packages."
 
 msgid "Rill Runtime is not installed. Install it to enable Rill decisions."
 msgstr "Rill Runtime is not installed. Install it to enable Rill decisions."
@@ -2605,14 +2450,26 @@ msgstr "Package management"
 msgid "Repair Rill Runtime"
 msgstr "Repair Rill Runtime"
 
-msgid "The installed owner is rill-runtime-preview, version %s. PM will not remove or replace it automatically."
-msgstr "The installed owner is rill-runtime-preview, version %s. PM will not remove or replace it automatically."
+msgid ""
+"The installed owner is rill-runtime-preview, version %s. PM will not remove "
+"or replace it automatically."
+msgstr ""
+"The installed owner is rill-runtime-preview, version %s. PM will not remove "
+"or replace it automatically."
 
-msgid "Back up /etc/config/performance-manager and /etc/performance-manager/. Check for other packages that use rill-runtime-preview before continuing."
-msgstr "Back up /etc/config/performance-manager and /etc/performance-manager/. Check for other packages that use rill-runtime-preview before continuing."
+msgid ""
+"Back up /etc/config/performance-manager and /etc/performance-manager/. Check"
+" for other packages that use rill-runtime-preview before continuing."
+msgstr ""
+"Back up /etc/config/performance-manager and /etc/performance-manager/. Check"
+" for other packages that use rill-runtime-preview before continuing."
 
-msgid "An incompatible Rill Runtime is installed. Resolve that package conflict before changing Runtime packages."
-msgstr "An incompatible Rill Runtime is installed. Resolve that package conflict before changing Runtime packages."
+msgid ""
+"An incompatible Rill Runtime is installed. Resolve that package conflict "
+"before changing Runtime packages."
+msgstr ""
+"An incompatible Rill Runtime is installed. Resolve that package conflict "
+"before changing Runtime packages."
 
 msgid "Runtime version"
 msgstr "Runtime version"
@@ -2710,17 +2567,30 @@ msgstr "Package index refreshed"
 msgid "Package index"
 msgstr "Package index"
 
-msgid "Refreshes the trusted feed index, then reports whether an update is available."
-msgstr "Refreshes the trusted feed index, then reports whether an update is available."
+msgid ""
+"Refreshes the trusted feed index, then reports whether an update is "
+"available."
+msgstr ""
+"Refreshes the trusted feed index, then reports whether an update is "
+"available."
 
 msgid "Installs the shared Runtime package for this release and architecture."
-msgstr "Installs the shared Runtime package for this release and architecture."
+msgstr ""
+"Installs the shared Runtime package for this release and architecture."
 
-msgid "Updates only a compatible Stable Runtime; Preview installs are never replaced."
-msgstr "Updates only a compatible Stable Runtime; Preview installs are never replaced."
+msgid ""
+"Updates only a compatible Stable Runtime; Preview installs are never "
+"replaced."
+msgstr ""
+"Updates only a compatible Stable Runtime; Preview installs are never "
+"replaced."
 
-msgid "Reinstalls the same Stable package when its executable is missing; the version does not change."
-msgstr "Reinstalls the same Stable package when its executable is missing; the version does not change."
+msgid ""
+"Reinstalls the same Stable package when its executable is missing; the "
+"version does not change."
+msgstr ""
+"Reinstalls the same Stable package when its executable is missing; the "
+"version does not change."
 
 msgid "Installs the newer Performance Manager package from the unified feed."
 msgstr "Installs the newer Performance Manager package from the unified feed."
@@ -2728,11 +2598,17 @@ msgstr "Installs the newer Performance Manager package from the unified feed."
 msgid "The package manager is still busy. Do not retry until it is idle."
 msgstr "The package manager is still busy. Do not retry until it is idle."
 
-msgid "The package manager status could not be read. Do not retry until it is idle."
-msgstr "The package manager status could not be read. Do not retry until it is idle."
+msgid ""
+"The package manager status could not be read. Do not retry until it is idle."
+msgstr ""
+"The package manager status could not be read. Do not retry until it is idle."
 
-msgid "The package manager request timed out, but the manager is now idle. The page will reload; check the package status above before retrying."
-msgstr "The package manager request timed out, but the manager is now idle. The page will reload; check the package status above before retrying."
+msgid ""
+"The package manager request timed out, but the manager is now idle. The page"
+" will reload; check the package status above before retrying."
+msgstr ""
+"The package manager request timed out, but the manager is now idle. The page"
+" will reload; check the package status above before retrying."
 
 msgid "Loading recommendations when this section is reached…"
 msgstr "Loading recommendations when this section is reached…"
@@ -2748,3 +2624,196 @@ msgstr "Retry"
 
 msgid "Unable to load recommendations: %s"
 msgstr "Unable to load recommendations: %s"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/settings.js:14
+msgid "Local time when assisted automation may start."
+msgstr "Local time when assisted automation may start."
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/settings.js:15
+msgid "Local time when assisted automation must stop."
+msgstr "Local time when assisted automation must stop."
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/settings.js:10
+msgid "Enable the Performance Manager service."
+msgstr "Enable the Performance Manager service."
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/settings.js:35
+msgid "Path to the external Rill program."
+msgstr "Path to the external Rill program."
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/settings.js:37
+msgid ""
+"Validated samples needed before an action can be considered automatically."
+msgstr ""
+"Validated samples needed before an action can be considered automatically."
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/settings.js:44
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/settings.js:46
+msgid ""
+"Conservative mode is the default. Enable assisted automation separately."
+msgstr ""
+"Conservative mode is the default. Enable assisted automation separately."
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/optimize.js:21
+msgid "No changes are recommended right now."
+msgstr "No changes are recommended right now."
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/history.js:37
+msgid "Review pending confirmations, rollbacks and runtime events."
+msgstr "Review pending confirmations, rollbacks and runtime events."
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/benchmark.js:100
+msgid ""
+"Run one test at a time. Controlled A/B tests check system health and restore"
+" the original settings."
+msgstr ""
+"Run one test at a time. Controlled A/B tests check system health and restore"
+" the original settings."
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/advanced.js:11
+msgid "View diagnostic data and resource use."
+msgstr "View diagnostic data and resource use."
+
+msgid "Not enough samples"
+msgstr "Not enough samples"
+
+msgid "Adjust measurement, learning and automation thresholds."
+msgstr "Adjust measurement, learning and automation thresholds."
+
+msgid "Collect data for health checks and decisions."
+msgstr "Collect data for health checks and decisions."
+
+msgid "Load this profile and its expected capabilities."
+msgstr "Load this profile and its expected capabilities."
+
+msgid "Protect changes with locks, health checks and verified rollback."
+msgstr "Protect changes with locks, health checks and verified rollback."
+
+msgid "Rank supported actions and evaluate results against this goal."
+msgstr "Rank supported actions and evaluate results against this goal."
+
+msgid "Save events for review and rollback."
+msgstr "Save events for review and rollback."
+
+#: package/luci-app-performance-manager/root/usr/share/luci/menu.d/luci-app-performance-manager.json
+msgid "Rill decisions"
+msgstr "Rill decisions"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/performance-manager/ui.js
+msgid ""
+"Unable to load this page. Retry; if it keeps failing, check the service log."
+msgstr ""
+"Unable to load this page. Retry; if it keeps failing, check the service log."
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/settings.js:13
+msgid "Allow only preset safe actions."
+msgstr "Allow only preset safe actions."
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/settings.js:34
+msgid ""
+"Enable Rill. Performance Manager still checks safety and applies changes."
+msgstr ""
+"Enable Rill. Performance Manager still checks safety and applies changes."
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/settings.js:36
+msgid ""
+"Let Rill rank eligible actions. Performance Manager still chooses and "
+"applies them."
+msgstr ""
+"Let Rill rank eligible actions. Performance Manager still chooses and "
+"applies them."
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/optimize.js:58
+msgid ""
+"Review supported actions. Performance Manager checks safety before applying "
+"changes."
+msgstr ""
+"Review supported actions. Performance Manager checks safety before applying "
+"changes."
+
+msgid ""
+"Rill ranks eligible actions. Performance Manager checks safety and applies "
+"changes."
+msgstr ""
+"Rill ranks eligible actions. Performance Manager checks safety and applies "
+"changes."
+
+msgid "Rill decisions are disabled"
+msgstr "Rill decisions are disabled"
+
+msgid ""
+"Run the companion test tool on a client or the router to create test "
+"evidence. Use this only for manual performance-test validation."
+msgstr ""
+"Run the companion test tool on a client or the router to create test "
+"evidence. Use this only for manual performance-test validation."
+
+msgid "Run the companion test tool, then paste its JSON result."
+msgstr "Run the companion test tool, then paste its JSON result."
+
+msgid ""
+"The candidate is active temporarily with automatic rollback protection. Run "
+"the same endpoint test now; the system restores the original setting before "
+"checking the result."
+msgstr ""
+"The candidate is active temporarily with automatic rollback protection. Run "
+"the same endpoint test now; the system restores the original setting before "
+"checking the result."
+
+msgid ""
+"Run a performance test for this action. Use the companion tool for both "
+"stages; do not apply it directly."
+msgstr ""
+"Run a performance test for this action. Use the companion tool for both "
+"stages; do not apply it directly."
+
+msgid "Minimum confidence for conservative mode. 0.65 = 65%."
+msgstr "Minimum confidence for conservative mode. 0.65 = 65%."
+
+msgid "Minimum confidence for assisted mode. 0.75 = 75%."
+msgstr "Minimum confidence for assisted mode. 0.75 = 75%."
+
+msgid ""
+"Pause automatic Rill decisions when performance changes by more than this "
+"value. 0.20 = 20%."
+msgstr ""
+"Pause automatic Rill decisions when performance changes by more than this "
+"value. 0.20 = 20%."
+
+msgid "Performance changed too much"
+msgstr "Performance changed too much"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/rill.js:51
+msgid "Performance changed too much. Rill automation paused."
+msgstr "Performance changed too much. Rill automation paused."
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/optimize.js:20
+msgid "Performance changed too much. Automatic Rill decisions paused."
+msgstr "Performance changed too much. Automatic Rill decisions paused."
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/capabilities.js:20
+msgid "Review capabilities detected on this device."
+msgstr "Review capabilities detected on this device."
+
+msgid "Unknown reason"
+msgstr "Unknown reason"
+
+msgid ""
+"Run assisted automation only while traffic is below this limit. The default "
+"is about 1 MiB/s."
+msgstr ""
+"Run assisted automation only while traffic is below this limit. The default "
+"is about 1 MiB/s."
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/settings.js:11
+msgid ""
+"Manual mode leaves each action to you. Conservative mode applies safe "
+"actions automatically. Assisted mode also needs a separate switch, a time "
+"window and low traffic."
+msgstr ""
+"Manual mode leaves each action to you. Conservative mode applies safe "
+"actions automatically. Assisted mode also needs a separate switch, a time "
+"window and low traffic."
+
+msgid "Ready for decisions"
+msgstr "Ready for decisions"

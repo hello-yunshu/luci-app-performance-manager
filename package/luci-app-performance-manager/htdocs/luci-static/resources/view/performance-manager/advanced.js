@@ -19,7 +19,7 @@ return view.extend({
 	},
 	render: function(data) {
 		if ((data || []).some(function(d) { return d && d._loadError; }))
-			return pu.page(_('Advanced'), null, pu.note(_('Unable to load this page. Retry the page; if it keeps failing, check the service log.'), 'danger'));
+			return pu.page(_('Advanced'), null, pu.note(_('Unable to load this page. Retry; if it keeps failing, check the service log.'), 'danger'));
 		const s = data[0] || {}, resources = (data[1] && data[1].resources) || {};
 		const profile = s.profile || {};
 		const diagnosticOutput = E('div', {}, [ _('Expand to load detailed capability, topology, transaction and lock records.') ]);
@@ -46,7 +46,7 @@ return view.extend({
 					diagnosticsLoaded = false;
 				});
 		});
-		return pu.page(_('Advanced'), _('Inspect the read-only contracts and resource state behind the supported views.'), [
+		return pu.page(_('Advanced'), _('View diagnostic data and resource use.'), [
 			pu.grid([
 				pu.card(_('Runtime and profile'), E('div', {}, [
 					pu.kv([

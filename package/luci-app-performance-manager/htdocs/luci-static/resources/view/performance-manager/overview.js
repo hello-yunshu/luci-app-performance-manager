@@ -19,7 +19,7 @@ return view.extend({
 	},
 	render: function(data) {
 		if ((data || []).some(function(d) { return d && d._loadError; }))
-			return pu.page(_('Performance Manager'), null, pu.note(_('Unable to load this page. Retry the page; if it keeps failing, check the service log.'), 'danger'));
+			return pu.page(_('Performance Manager'), null, pu.note(_('Unable to load this page. Retry; if it keeps failing, check the service log.'), 'danger'));
 		const s = data[0] || {}, t = data[1] || {};
 		const txs = (data[2] && data[2].transactions) || [];
 		const profile = s.profile || {}, rill = s.rill || {}, guard = s.healthGuard || {};

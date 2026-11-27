@@ -20,7 +20,7 @@ return view.extend({
 	},
 	render: function(data) {
 		if ((data || []).some(function(d) { return d && d._loadError; }))
-			return pu.page(_('History and rollback'), null, pu.note(_('Unable to load this page. Retry the page; if it keeps failing, check the service log.'), 'danger'));
+			return pu.page(_('History and rollback'), null, pu.note(_('Unable to load this page. Retry; if it keeps failing, check the service log.'), 'danger'));
 		const txs = (data[0] && data[0].transactions) || [], locks = (data[1] && data[1].locks) || [];
 		const historyOutput = E('div', {}, [ _('Expand to view recent history summaries.') ]);
 		const historyDetails = E('details', { 'class': 'pm-disclosure' }, [
@@ -91,7 +91,7 @@ return view.extend({
 			nodes.push(pu.card(labels.transaction(tx.transactionId), E('div', {}, body)));
 		});
 		if (!txs.length) nodes.push(pu.note(_('No transactions are currently recorded.'), 'success'));
-		return pu.page(_('History and rollback'), _('Review pending confirmations, verified rollbacks, and runtime events with their safety context.'), [
+		return pu.page(_('History and rollback'), _('Review pending confirmations, rollbacks and runtime events.'), [
 			pu.grid(nodes),
 			pu.card(_('Advanced history details'), historyDetails)
 		]);

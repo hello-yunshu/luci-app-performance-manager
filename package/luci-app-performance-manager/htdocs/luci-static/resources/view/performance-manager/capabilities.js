@@ -17,7 +17,7 @@ return view.extend({
 	},
 	render: function(data) {
 		if (data && data._loadError)
-			return pu.page(_('Capabilities'), null, pu.note(_('Unable to load this page. Retry the page; if it keeps failing, check the service log.'), 'danger'));
+			return pu.page(_('Capabilities'), null, pu.note(_('Unable to load this page. Retry; if it keeps failing, check the service log.'), 'danger'));
 		const c = data || {};
 		const nodes = [];
 		const nicCapabilities = [];
@@ -41,7 +41,7 @@ return view.extend({
 				pu.jsonBox(nicCapabilities, _('Adapter capabilities and details'))
 			])));
 		if (!nodes.length) nodes.push(pu.note(_('No capabilities are available from the current provider.'), 'warning'));
-		return pu.page(_('Capabilities'), _('Review the capabilities available on this device. Unsupported capabilities are hidden from action controls; expected profile gaps appear as degraded.'), [
+		return pu.page(_('Capabilities'), _('Review capabilities detected on this device.'), [
 			pu.grid(nodes)
 		]);
 	}

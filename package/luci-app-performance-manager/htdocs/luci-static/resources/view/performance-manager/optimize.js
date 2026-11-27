@@ -19,7 +19,7 @@ return view.extend({
 			const placeholder = E('div', { 'class': 'cbi-section' }, [ placeholderTitle, E('p', {
 				'class': 'cbi-value-description', 'role': 'status', 'aria-live': 'polite'
 			}, _('Loading recommendations when this section is reached…')) ]);
-			const page = pu.page(_('Smart optimization'), _('Review supported actions and apply them only after Core safety checks. Existing user and external settings are preserved.'), [ placeholder ]);
+			const page = pu.page(_('Smart optimization'), _('Review supported actions. Performance Manager checks safety before applying changes.'), [ placeholder ]);
 			let started = false;
 			const load = function() {
 				if (started) return;
@@ -53,7 +53,7 @@ return view.extend({
 			return page;
 		}
 		if (r && r._loadError)
-			return pu.page(_('Smart optimization'), null, pu.note(_('Unable to load this page. Retry the page; if it keeps failing, check the service log.'), 'danger'));
+			return pu.page(_('Smart optimization'), null, pu.note(_('Unable to load this page. Retry; if it keeps failing, check the service log.'), 'danger'));
 		const actions = (r && r.actions) || [];
 		const nodes = [];
 		const observationItems = [];
@@ -62,7 +62,7 @@ return view.extend({
 		const rillUnavailable = !!smart.rillState && smart.rillState !== 'available' && smart.rillState !== 'learning';
 		const autoState = rillUnavailable ? _('Rill unavailable') :
 			noChangeNeeded ? _('No change needed') :
-			smart.autoEligible === true ? _('Ready') :
+			smart.autoEligible === true ? _('Eligible') :
 			smart.autoEligible === false ? _('Paused') : _('Not evaluated');
 		const statusText = rillUnavailable ? _('Rill unavailable') :
 			noChangeNeeded ? _('No change needed') :
@@ -89,8 +89,8 @@ return view.extend({
 			}, _('Learning and policy details'))
 		]);
 		const smartCard = pu.card(_('Smart policy'), smartBody);
-		if (smart.drifted) nodes.push(pu.note(_('Performance drift detected. Automatic Rill decisions are temporarily paused.'), 'warning'));
-		if (!actions.length && smart.selectedActionId !== 'pm.noop') nodes.push(pu.note(_('No conservative changes are needed right now.'), 'success'));
+		if (smart.drifted) nodes.push(pu.note(_('Performance changed too much. Automatic Rill decisions paused.'), 'warning'));
+		if (!actions.length && smart.selectedActionId !== 'pm.noop') nodes.push(pu.note(_('No changes are recommended right now.'), 'success'));
 		actions.forEach(function(a) {
 			const apply = E('button', { 'class': 'btn cbi-button cbi-button-action', 'type': 'button' }, [ _('Apply safely') ]);
 			apply.addEventListener('click', function() {
@@ -150,7 +150,7 @@ return view.extend({
 				/* The selected-action summary already communicates the no-change
 				 * outcome; avoid repeating the same sentence in a second card. */
 			} else {
-				body.appendChild(E('p', { 'class': 'cbi-value-description' }, [ _('This recommendation is for a performance test only. Open Performance test and complete both detection phases with the companion test tool; it cannot be applied directly.') ]));
+				body.appendChild(E('p', { 'class': 'cbi-value-description' }, [ _('Run a performance test for this action. Use the companion tool for both stages; do not apply it directly.') ]));
 			}
 			body.appendChild(pu.jsonBox({ actionId: a.actionId, kind: a.kind, authority: a.authority, decisionId: a.decisionId }, _('Technical details')));
 			const advisoryTitle = a.kind === 'noop' ? _('Rill recommendation') : _('Rill recommendation: %s').format(labels.actionName(a.actionId));
@@ -160,6 +160,6 @@ return view.extend({
 		/* Keep the policy and grouped observations in the native-theme grid.
 		 * Rill's advisory stays inside policy so it does not repeat a no-op action
 		 * or leave a lone card in themes whose content column fits two cards. */
-		return pu.page(_('Smart optimization'), _('Review supported actions and apply them only after Core safety checks. Existing user and external settings are preserved.'), [ pu.grid([ smartCard, ...nodes ]) ]);
+		return pu.page(_('Smart optimization'), _('Review supported actions. Performance Manager checks safety before applying changes.'), [ pu.grid([ smartCard, ...nodes ]) ]);
 	}
 });

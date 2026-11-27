@@ -36,7 +36,7 @@ return view.extend({
 	},
 	render: function(rec) {
 		if (rec && rec._loadError)
-			return pu.page(_('Performance test'), null, pu.note(_('Unable to load this page. Retry the page; if it keeps failing, check the service log.'), 'danger'));
+			return pu.page(_('Performance test'), null, pu.note(_('Unable to load this page. Retry; if it keeps failing, check the service log.'), 'danger'));
 		const benchmarkActions = (rec && rec.benchmarkActions) || [];
 		const actions = benchmarkActions.filter(function(a) { return a.status !== 'blocked'; });
 		const blockedActions = benchmarkActions.filter(function(a) { return a.status === 'blocked'; });
@@ -107,7 +107,7 @@ return view.extend({
 				const submitEvidence = E('button', { class: 'btn cbi-button cbi-button-positive', type: 'button' }, [ phase === 'control' ? _('Validate baseline and apply candidate') : _('Validate candidate and restore original state') ]);
 				const advanced = E('details', { 'class': 'pm-disclosure' }, [
 					E('summary', {}, [ _('Advanced: submit evidence manually') ]),
-					E('p', {}, [ _('The companion test tool runs on a separate client or on the router itself and produces the evidence JSON this page needs. Only use this path when you must validate a benchmark by hand; it is not required for normal use.') ]),
+					E('p', {}, [ _('Run the companion test tool on a client or the router to create test evidence. Use this only for manual performance-test validation.') ]),
 					E('p', { 'class': 'cbi-value-description' }, [ _('Required role: %s').format(labels.clientRole((s.companion && s.companion.requiredRole) || 'lan-client')) ]),
 					E('p', { 'class': 'cbi-value-description' }, [ _('Replace <WAN_SERVER> with the router WAN address before running the command.') ]),
 					E('pre', {}, [ command ])
@@ -122,7 +122,7 @@ return view.extend({
 						.finally(restore);
 				});
 				output.appendChild(pu.inset(phase === 'control' ? _('Baseline evidence') : _('Candidate evidence'), E('div', {}, [
-					E('p', {}, [ phase === 'control' ? _('Run the companion test tool before any candidate is applied, then paste its JSON result.') : _('The candidate is temporarily active and protected by commit-confirm. Run the same endpoint test now; the Core engine will restore the original value before validating the result.') ]),
+					E('p', {}, [ phase === 'control' ? _('Run the companion test tool, then paste its JSON result.') : _('The candidate is active temporarily with automatic rollback protection. Run the same endpoint test now; the system restores the original setting before checking the result.') ]),
 					evidenceBox, E('div', {}, [ submitEvidence ]), advanced
 				])));
 			}
@@ -159,6 +159,6 @@ return view.extend({
 		const content = [ pu.card(_('Test setup and progress'), root) ];
 		if (blockedActions.length)
 			content.push(pu.jsonBox(blockedActions, _('Unavailable benchmark providers and reasons')));
-		return pu.page(_('Performance test'), _('Run one explicit test at a time. Controlled A/B results require stable context, health checks, and verified rollback.'), content);
+		return pu.page(_('Performance test'), _('Run one test at a time. Controlled A/B tests check system health and restore the original settings.'), content);
 	}
 });

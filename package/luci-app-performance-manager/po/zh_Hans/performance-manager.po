@@ -1,13 +1,14 @@
+#
 msgid ""
 msgstr ""
+"Project-Id-Version: luci-app-performance-manager\n"
 "Report-Msgid-Bugs-To: \n"
 "POT-Creation-Date: 2026-09-04 02:46+0800\n"
-"Project-Id-Version: luci-app-performance-manager\n"
 "PO-Revision-Date: 2026-09-04 03:00+0800\n"
 "Last-Translator: Performance Manager contributors\n"
 "Language-Team: Simplified Chinese\n"
-"MIME-Version: 1.0\n"
 "Language: zh_Hans\n"
+"MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=1; plural=0;\n"
@@ -30,12 +31,6 @@ msgstr "核心引擎"
 msgid "Enable Core"
 msgstr "启用核心引擎"
 
-#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/settings.js:10
-msgid ""
-"Run the Performance Manager core service. Disable this to stop performance "
-"management."
-msgstr "运行性能管理器核心引擎服务。禁用后将停止性能管理。"
-
 #: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/settings.js:11
 msgid "Automation mode"
 msgstr "自动化模式"
@@ -52,27 +47,13 @@ msgstr "保守"
 msgid "Assisted automation (opt-in; safe actions only)"
 msgstr "辅助自动化（需明确启用；仅执行安全操作）"
 
-#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/settings.js:11
-msgid ""
-"Choose how Core responds: manual, conservative, or assisted automation."
-msgstr "选择核心引擎的响应方式：手动、保守或辅助自动化。"
-
 #: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/settings.js:13
 msgid "Enable assisted automation"
 msgstr "启用辅助自动化"
 
-#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/settings.js:13
-msgid "Allow assisted automation to apply only actions on the safe allowlist."
-msgstr "允许辅助自动化仅应用安全允许列表中的操作。"
-
 #: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/settings.js:14
 msgid "Maintenance window start"
 msgstr "维护窗口开始"
-
-#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/settings.js:14
-#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/settings.js:15
-msgid "Assisted automation may run only within this local time window."
-msgstr "辅助自动化只能在此本地时间窗口内运行。"
 
 #: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/settings.js:15
 msgid "Maintenance window end"
@@ -80,7 +61,7 @@ msgstr "维护窗口结束"
 
 #: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/settings.js:16
 msgid "Low-traffic threshold (bytes/s)"
-msgstr "低速阈值（字节/秒）"
+msgstr "低流量阈值（字节/秒）"
 
 #: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/settings.js:19
 #: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/rill.js:31
@@ -186,43 +167,19 @@ msgstr "Rill 运行环境"
 
 #: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/settings.js:34
 msgid "Enable Runtime"
-msgstr "启用 Rill 运行环境"
-
-#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/settings.js:34
-msgid ""
-"Enable the optional Rill Runtime integration. Core remains the execution "
-"authority."
-msgstr "启用可选的 Rill 运行环境集成。最终执行权由核心引擎掌握。"
+msgstr "启用 Rill"
 
 #: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/settings.js:35
 msgid "Generic Runtime binary"
-msgstr "通用 Rill 运行环境二进制文件"
-
-#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/settings.js:35
-msgid "Path to the external generic Rill Runtime binary."
-msgstr "外部通用 Rill 运行环境二进制文件的路径。"
+msgstr "Rill 程序路径"
 
 #: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/settings.js:36
 msgid "Use Rill ranking in automatic modes"
 msgstr "在自动化模式中使用 Rill 排名"
 
-#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/settings.js:36
-msgid ""
-"Let Rill rank Core-approved actions in automatic modes. Core still decides "
-"and executes."
-msgstr ""
-"允许 Rill 在自动模式下对核心引擎已批准的操作排序。决策与执行仍由核心引擎负"
-"责。"
-
 #: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/settings.js:37
 msgid "Minimum validated samples"
 msgstr "最小已验证样本数"
-
-#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/settings.js:37
-msgid ""
-"Minimum validated samples before an action can be considered for automatic "
-"selection."
-msgstr "操作进入自动选择候选范围前所需的最少已验证样本数。"
 
 #: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/settings.js:41
 msgid "Action cooldown (seconds)"
@@ -236,13 +193,6 @@ msgstr "同一操作重复应用之间的最短间隔。"
 #: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/settings.js:46
 msgid "Settings"
 msgstr "设置"
-
-#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/settings.js:44
-#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/settings.js:46
-msgid ""
-"Keep conservative automation as the safe default; assisted actions remain "
-"explicitly opt-in."
-msgstr "保持保守自动化为安全默认值；辅助操作仍需明确选择启用。"
 
 #: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/settings.js:44
 #: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/settings.js:46
@@ -270,13 +220,13 @@ msgstr "已选中"
 #: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/rill.js:44
 #: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/optimize.js:16
 msgid "Eligible"
-msgstr "可执行"
+msgstr "符合条件"
 
 #: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/rill.js:26
 msgid ""
 "No ranking is available yet. Refresh the decision or wait for the next "
 "evaluation."
-msgstr "暂时没有可用的排名。请刷新决策，或等待下一次评估。"
+msgstr "暂无排序结果。请刷新或等待下次评估。"
 
 #: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/rill.js:27
 #: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/rill.js:48
@@ -315,7 +265,7 @@ msgstr "已对账"
 
 #: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/rill.js:30
 msgid "No validated feedback yet."
-msgstr "暂时没有已验证的反馈。"
+msgstr "暂无已验证的反馈。"
 
 #: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/rill.js:31
 #: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/rill.js:49
@@ -337,7 +287,7 @@ msgstr "结果"
 
 #: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/rill.js:33
 msgid "Runtime status"
-msgstr "Rill 运行环境状态"
+msgstr "Rill 状态"
 
 #: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/rill.js:34
 #: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/overview.js:36
@@ -470,25 +420,19 @@ msgstr "稳定"
 #: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/rill.js:44
 #: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/optimize.js:16
 msgid "Auto eligibility"
-msgstr "自动执行资格"
+msgstr "自动操作资格"
 
 #: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/rill.js:44
 #: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/optimize.js:16
 msgid "Paused"
 msgstr "已暂停"
 
-#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/rill.js:51
-msgid "Performance drift detected. Rill Auto temporarily paused."
-msgstr "检测到性能漂移，Rill 自动决策已暂时暂停。"
-
 #: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/rill.js:52
 msgid ""
 "Rill provides observation and recommendations only. It cannot write UCI, "
 "sysctl, or firewall state, execute arbitrary shell commands, or apply "
 "actions."
-msgstr ""
-"Rill 仅提供观察和建议。它不能写入 UCI、sysctl 或防火墙状态，不能执行任意 "
-"Shell 命令，也不能应用操作。"
+msgstr "Rill 仅提供观察和建议。它不能写入 UCI、sysctl 或防火墙状态，不能执行任意 Shell 命令，也不能应用操作。"
 
 #: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/rill.js:53
 msgid "Rill details"
@@ -559,11 +503,11 @@ msgstr "系统健康保护"
 
 #: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/overview.js:27
 msgid "Health guard passed"
-msgstr "健康保护已通过"
+msgstr "健康检查通过"
 
 #: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/overview.js:27
 msgid "Blocked by health guard"
-msgstr "未通过健康保护"
+msgstr "健康检查未通过"
 
 #: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/overview.js:29
 msgid "Reasons"
@@ -667,14 +611,6 @@ msgstr "当前提供方没有可用能力。"
 msgid "Capabilities"
 msgstr "能力"
 
-#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/capabilities.js:20
-msgid ""
-"Review the capabilities available on this device. Unsupported capabilities "
-"are hidden from action controls; expected profile gaps appear as degraded."
-msgstr ""
-"查看此设备可用的能力。不受支持的能力不会出现在操作控件中；配置方案预期能力缺"
-"失时会显示为降级。"
-
 #: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/capabilities.js:22
 #: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/advanced.js:16
 msgid "Capability / Topology / TargetRef JSON"
@@ -726,12 +662,6 @@ msgstr "当前没有记录的事务。"
 msgid "History and rollback"
 msgstr "历史与回滚"
 
-#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/history.js:37
-msgid ""
-"Review pending confirmations, verified rollbacks, and runtime events with "
-"their safety context."
-msgstr "查看待确认事务、已验证回滚和 Rill 运行环境事件，同时保留安全上下文。"
-
 #: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/history.js:40
 #: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/advanced.js:17
 msgid "Resource locks"
@@ -773,7 +703,7 @@ msgstr "待处理"
 #: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/benchmark.js:25
 #: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/benchmark.js:93
 msgid "Benchmark action"
-msgstr "性能测试动作"
+msgstr "测试动作"
 
 #: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/benchmark.js:27
 #: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/benchmark.js:94
@@ -826,7 +756,8 @@ msgid "Test complete. The candidate was rolled back and health checks passed."
 msgstr "测试已完成，候选项已回滚，健康检查通过。"
 
 #: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/benchmark.js
-msgid "Test complete, but the result was not validated. Review the details below."
+msgid ""
+"Test complete, but the result was not validated. Review the details below."
 msgstr "测试已完成，但结果未通过验证。请查看下方详情。"
 
 #: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/benchmark.js:45
@@ -899,27 +830,19 @@ msgstr "当前设备没有可用的性能测试动作。"
 msgid "Performance test"
 msgstr "性能测试"
 
-#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/benchmark.js:100
-msgid ""
-"Run one explicit test at a time. Controlled A/B results require stable "
-"context, health checks, and verified rollback."
-msgstr ""
-"一次只运行一个明确启动的测试。受控 A/B 结果必须满足上下文稳定、健康检查通过"
-"且回滚已验证。"
-
 #: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/benchmark.js:101
 msgid ""
-"Environment → Path → Compatibility → Locks/Failsafe → Baseline → Candidate "
-"→ Commit-confirm → Result"
+"Environment → Path → Compatibility → Locks/Failsafe → Baseline → Candidate →"
+" Commit-confirm → Result"
 msgstr "环境 → 路径 → 兼容性 → 锁/故障保护 → 基线 → 候选项 → 提交确认 → 结果"
 
 #: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/benchmark.js:102
 msgid "Unavailable benchmark providers"
-msgstr "不可用的性能测试提供方"
+msgstr "不可用的测试提供方"
 
 #: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/benchmark.js:102
 msgid "Why benchmark actions are unavailable"
-msgstr "性能测试动作不可用的原因"
+msgstr "测试动作不可用的原因"
 
 #: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/optimize.js:13
 msgid "Smart policy"
@@ -927,7 +850,7 @@ msgstr "智能策略"
 
 #: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/optimize.js:14
 msgid "Automatic action paused"
-msgstr "自动操作已暂停"
+msgstr "自动应用已暂停"
 
 #: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/optimize.js:14
 msgid "Eligible for automatic action"
@@ -945,15 +868,6 @@ msgstr "策略原因"
 #: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/optimize.js:52
 msgid "Rill recommends keeping the current configuration."
 msgstr "Rill 建议保持当前配置。"
-
-#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/optimize.js:20
-msgid ""
-"Performance drift detected. Automatic Rill decisions are temporarily paused."
-msgstr "检测到性能漂移，Rill 自动决策已暂时暂停。"
-
-#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/optimize.js:21
-msgid "No conservative changes are needed right now."
-msgstr "当前无需进行保守变更。"
 
 #: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/optimize.js:23
 msgid "Apply safely"
@@ -1041,23 +955,9 @@ msgstr "系统观察"
 msgid "Smart optimization"
 msgstr "智能优化"
 
-#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/optimize.js:58
-msgid ""
-"Review supported actions and apply them only after Core safety checks. "
-"Existing user and external settings are preserved."
-msgstr ""
-"查看受支持的操作，并仅在核心安全检查通过后应用。现有用户设置和外部设置会保"
-"留。"
-
 #: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/advanced.js:11
 msgid "Advanced"
 msgstr "高级"
-
-#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/advanced.js:11
-msgid ""
-"Inspect the read-only contracts and resource state behind the supported "
-"views."
-msgstr "查看受支持视图背后的只读契约和资源状态。"
 
 #: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/advanced.js:13
 msgid "Profile contract"
@@ -1161,7 +1061,7 @@ msgid "Applied"
 msgstr "已应用"
 
 msgid "Applying..."
-msgstr "正在应用..."
+msgstr "正在应用…"
 
 msgid "Assisted"
 msgstr "辅助"
@@ -1176,8 +1076,8 @@ msgid "Blocked by the current mode policy"
 msgstr "被当前模式策略阻止"
 
 msgid ""
-"Built-in OpenWrt packet steering. It is observed only; existing ownership "
-"is never seized."
+"Built-in OpenWrt packet steering. It is observed only; existing ownership is"
+" never seized."
 msgstr "OpenWrt 内置的数据包转向能力。仅做观测，不会接管现有所有权。"
 
 msgid "CPU"
@@ -1190,13 +1090,10 @@ msgid "CPU frequency governor"
 msgstr "CPU 调频策略"
 
 msgid "Candidate applied"
-msgstr "候选项已启用"
+msgstr "候选操作已应用"
 
 msgid "Capacity test only when conditions are met"
 msgstr "仅在条件满足时进行容量测试"
-
-msgid "Cold start (not enough samples)"
-msgstr "冷启动（样本不足）"
 
 msgid ""
 "Collect kernel network parameters and available benchmark candidates for "
@@ -1216,7 +1113,7 @@ msgid "Confidence is below the policy threshold"
 msgstr "置信度低于策略阈值"
 
 msgid "Confirming..."
-msgstr "正在确认..."
+msgstr "正在确认…"
 
 msgid "Connected"
 msgstr "已连接"
@@ -1339,7 +1236,7 @@ msgid "Learning"
 msgstr "学习中"
 
 msgid "Limited"
-msgstr "受限可用"
+msgstr "受限"
 
 msgid "Linux kernel"
 msgstr "Linux 内核"
@@ -1360,15 +1257,12 @@ msgid ""
 "Local port capacity matters under proxy or high-connection pressure. "
 "Reserved ports and existing ownership are preserved, and any change is "
 "limited to a performance test."
-msgstr ""
-"本机端口容量在代理或高连接压力场景下才有意义。保留端口与现有所有权都会保留，"
-"任何变更都仅限性能测试。"
+msgstr "本机端口容量在代理或高连接压力场景下才有意义。保留端口与现有所有权都会保留，任何变更都仅限性能测试。"
 
 msgid ""
 "Local port range, reserved ports and connection tracking capacity. Relevant "
 "under proxy or high connection pressure."
-msgstr ""
-"本机端口范围、保留端口与连接跟踪容量。仅在代理或高连接压力场景下相关。"
+msgstr "本机端口范围、保留端口与连接跟踪容量。仅在代理或高连接压力场景下相关。"
 
 msgid "Local subprocess"
 msgstr "本机子进程"
@@ -1428,10 +1322,10 @@ msgid "No action is allowed right now"
 msgstr "当前没有可执行的操作"
 
 msgid "No change is recommended right now."
-msgstr "当前无需变更。"
+msgstr "目前无需更改。"
 
 msgid "No data is available"
-msgstr "没有可用数据"
+msgstr "暂无数据"
 
 msgid "No exact decision is available"
 msgstr "缺少精确匹配的决策"
@@ -1535,7 +1429,7 @@ msgid "Recommended for a performance test only"
 msgstr "仅建议用于性能测试"
 
 msgid "Refreshing..."
-msgstr "正在刷新..."
+msgstr "正在刷新…"
 
 msgid ""
 "Replace the network card queueing discipline; no reversible provider is "
@@ -1557,61 +1451,50 @@ msgstr "收益 %s · %s"
 msgid "Rill selected an eligible candidate"
 msgstr "Rill 已选出符合条件的候选"
 
-msgid "Rill smart decisions"
-msgstr "Rill 智能决策"
-
-msgid "Rill smart decisions are turned off"
-msgstr "已关闭 Rill 智能决策"
-
 msgid "Rolled back"
 msgstr "已回滚"
 
 msgid "Rolling back..."
-msgstr "正在回滚..."
+msgstr "正在回滚…"
 
 msgid "Router local client"
 msgstr "路由器本机客户端"
 
-msgid ""
-"Run the companion test tool before any candidate is applied, then paste its "
-"JSON result."
-msgstr "在应用任何候选项之前，先运行配套测试工具，然后粘贴其 JSON 结果。"
-
 msgid "Runtime available"
-msgstr "Rill 运行环境可用"
+msgstr "Rill 已响应"
 
 msgid "Runtime binary invalid"
-msgstr "Rill 运行环境二进制文件无效"
+msgstr "Rill 程序无效"
 
 msgid "Runtime disabled"
-msgstr "Rill 运行环境已禁用"
+msgstr "Rill 已关闭"
 
 msgid "Runtime error"
-msgstr "Rill 运行环境错误"
+msgstr "Rill 异常"
 
 msgid "Runtime learning"
-msgstr "Rill 运行环境学习中"
+msgstr "Rill 学习中"
 
 msgid "Runtime missing capabilities"
-msgstr "Rill 运行环境缺少能力"
+msgstr "缺少必要能力"
 
 msgid "Runtime not provisioned"
-msgstr "Rill 运行环境未部署"
+msgstr "Rill 未安装"
 
 msgid "Not provisioned"
-msgstr "未部署"
+msgstr "未安装"
 
 msgid "Runtime protocol v%s"
 msgstr "Rill 运行环境协议 v%s"
 
 msgid "Runtime unavailable"
-msgstr "Rill 运行环境不可用"
+msgstr "Rill 不可用"
 
 msgid "Runtime unhealthy"
-msgstr "Rill 运行环境状态异常"
+msgstr "Rill 异常"
 
 msgid "Runtime version mismatch"
-msgstr "Rill 运行环境版本不匹配"
+msgstr "Rill 版本不匹配"
 
 msgid "SQM shaping"
 msgstr "SQM 流量整形"
@@ -1622,9 +1505,7 @@ msgstr "安全"
 msgid ""
 "See system health, active safeguards, and the latest verified action. "
 "Confidence and scores are shown as percentages (0–1 maps to 0–100%)."
-msgstr ""
-"查看系统健康度、生效中的保护措施与最近一次已验证操作。置信度与评分均以百分比"
-"显示（0–1 映射为 0–100%）。"
+msgstr "查看系统健康度、生效中的保护措施与最近一次已验证操作。置信度与评分均以百分比显示（0–1 映射为 0–100%）。"
 
 msgid "Service"
 msgstr "服务"
@@ -1645,7 +1526,7 @@ msgid "Software flow offloading"
 msgstr "软件流量卸载"
 
 msgid "Starting..."
-msgstr "正在启动..."
+msgstr "正在启动…"
 
 msgid "State storage unavailable"
 msgstr "状态存储不可用"
@@ -1683,8 +1564,7 @@ msgstr "仅用于测试"
 msgid ""
 "The Hyper-V hv_netvsc ring buffer is below the conservative floor of 1024 "
 "even though the hardware maximum allows raising it."
-msgstr ""
-"Hyper-V hv_netvsc 的环形缓冲区低于 1024 的保守下限，而硬件上限允许提升。"
+msgstr "Hyper-V hv_netvsc 的环形缓冲区低于 1024 的保守下限，而硬件上限允许提升。"
 
 msgid "The Rill selection requires no change"
 msgstr "Rill 选中的操作无需执行"
@@ -1700,14 +1580,6 @@ msgstr "后端接口方法不存在"
 
 msgid "The backend reported an unknown error"
 msgstr "后端返回未知错误"
-
-msgid ""
-"The companion test tool runs on a separate client or on the router itself "
-"and produces the evidence JSON this page needs. Only use this path when you "
-"must validate a benchmark by hand; it is not required for normal use."
-msgstr ""
-"配套测试工具可运行在独立客户端或路由器本机上，用于生成本页所需的证据 JSON。"
-"仅在需要手动验证性能测试时使用，日常使用无需此步骤。"
 
 msgid "The compatibility check failed"
 msgstr "兼容性检查未通过"
@@ -1778,14 +1650,6 @@ msgstr "已在设备上检测到该能力。展开技术详情可查看原始输
 msgid "This goal cannot be validated with a controlled A/B test"
 msgstr "该目标无法通过受控 A/B 测试验证"
 
-msgid ""
-"This recommendation is for a performance test only. Open Performance test "
-"and complete both detection phases with the companion test tool; it cannot "
-"be applied directly."
-msgstr ""
-"该建议仅用于性能测试。请打开“性能测试”，使用配套测试工具完成两个测试阶段；该"
-"建议不能直接应用。"
-
 msgid "Throughput first"
 msgstr "吞吐优先"
 
@@ -1841,7 +1705,7 @@ msgid "Wireless stack (nl80211/iw)"
 msgstr "无线协议栈（nl80211/iw）"
 
 msgid "Working..."
-msgstr "处理中..."
+msgstr "处理中…"
 
 msgid "mwan3 multi-WAN"
 msgstr "mwan3 多拨"
@@ -1898,8 +1762,7 @@ msgstr "另一操作占用了所需锁"
 msgid ""
 "Assisted automation runs only while traffic stays below this threshold. The "
 "default of 1048576 bytes per second is about 1 MiB/s."
-msgstr ""
-"辅助自动化仅在流量低于此阈值时运行。默认值 1048576 字节/秒，约合 1 MiB/s。"
+msgstr "辅助自动化仅在流量低于此阈值时运行。默认值 1048576 字节/秒，约合 1 MiB/s。"
 
 msgid "Assisted minimum confidence (0–1 ratio)"
 msgstr "辅助模式最低置信度（0–1 比例）"
@@ -1939,23 +1802,11 @@ msgstr "标识保留在技术详情中，避免过长的 UUID 挤占页面。"
 msgid "Live state changed, so the stale rollback was refused"
 msgstr "实时状态已变化，已拒绝过期回滚"
 
-msgid "Minimum confidence required by assisted automation. 0.75 means 75%."
-msgstr "辅助自动化要求的最低置信度。0.75 表示 75%。"
-
-msgid ""
-"Minimum confidence required by conservative automation. 0.65 means 65%."
-msgstr "保守自动化要求的最低置信度。0.65 表示 65%。"
-
 msgid "No action is available for Rill to rank"
 msgstr "没有可供 Rill 排序的可用操作"
 
 msgid "No safe action is available right now"
 msgstr "当前没有安全的可用操作"
-
-msgid ""
-"Pause automatic Rill decisions when measured performance drifts beyond this "
-"threshold. 0.20 means 20%."
-msgstr "当实测性能漂移超过此阈值时暂停 Rill 自动决策。0.20 表示 20%。"
 
 msgid "Performance drift threshold (0–1 ratio)"
 msgstr "性能漂移阈值（0–1 比例）"
@@ -1974,12 +1825,10 @@ msgid "Rill decisions are throttled; try again shortly"
 msgstr "Rill 决策已限流，请稍后重试"
 
 msgid ""
-"Rill ranks actions that passed the Core engine review; the Core engine "
-"keeps the final authority to execute them. Confidence and scores are shown "
-"as percentages (0–1 maps to 0–100%)."
-msgstr ""
-"Rill 对通过核心引擎审核的操作排序；最终执行权由核心引擎掌握。置信度和评分按"
-"百分比显示（0–1 对应 0–100%）。"
+"Rill ranks actions that passed the Core engine review; the Core engine keeps"
+" the final authority to execute them. Confidence and scores are shown as "
+"percentages (0–1 maps to 0–100%)."
+msgstr "Rill 对通过核心引擎审核的操作排序；最终执行权由核心引擎掌握。置信度和评分按百分比显示（0–1 对应 0–100%）。"
 
 msgid ""
 "Rill recommendation was not applied: %s. Review the safety state and try "
@@ -2051,14 +1900,6 @@ msgstr "候选项变更无法回滚"
 msgid "The candidate change is no longer active"
 msgstr "候选项变更已不再生效"
 
-msgid ""
-"The candidate is temporarily active and protected by commit-confirm. Run "
-"the same endpoint test now; the Core engine will restore the original value "
-"before validating the result."
-msgstr ""
-"候选项当前临时生效并受提交确认保护。请立即运行相同端点测试；核心引擎会先恢复"
-"原值，再验证结果。"
-
 msgid "The change could not be written to storage"
 msgstr "变更无法写入存储"
 
@@ -2092,7 +1933,9 @@ msgstr "未安装外部 Rill 运行环境"
 msgid "The health guard blocked this action"
 msgstr "系统健康保护阻止了该操作"
 
-msgid "The ip command needed for route evidence is missing or cannot emit JSON; install either ip-tiny or ip-full"
+msgid ""
+"The ip command needed for route evidence is missing or cannot emit JSON; "
+"install either ip-tiny or ip-full"
 msgstr "缺少可用于路由证据的 ip 命令，或该命令不支持 JSON 输出；安装 ip-tiny 或 ip-full 中的任意一个即可"
 
 msgid "The last result reduced measured performance"
@@ -2194,22 +2037,12 @@ msgstr "未知操作"
 msgid "Unknown capability"
 msgstr "未知能力"
 
-msgid "Unrecognized reason, see technical details"
-msgstr "无法识别的状态，详见技术详情"
-
 msgid "Verification after applying the action failed"
 msgstr "应用操作后的验证失败"
 
 #: package/luci-app-performance-manager/root/usr/share/luci/menu.d/luci-app-performance-manager.json
 msgid "Overview"
 msgstr "概览"
-
-#: package/luci-app-performance-manager/root/usr/share/luci/menu.d/luci-app-performance-manager.json
-msgid "Rill intelligence"
-msgstr "Rill 智能"
-
-msgid "Unable to load this page. Retry the page; if it keeps failing, check the service log."
-msgstr "无法加载本页。请重试；若仍失败，请检查服务日志。"
 
 #: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/overview.js:35
 msgid "Performance Manager is running"
@@ -2289,7 +2122,7 @@ msgstr "未满足"
 
 #: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/overview.js:51
 msgid "Health guard"
-msgstr "健康保护"
+msgstr "健康检查"
 
 #: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/overview.js:51
 msgid "Passed"
@@ -2332,7 +2165,7 @@ msgid "Automatic action"
 msgstr "自动操作状态"
 
 msgid "Automatic action not evaluated"
-msgstr "尚未评估自动操作"
+msgstr "尚未评估"
 
 msgid "Basic settings"
 msgstr "基本设置"
@@ -2359,13 +2192,12 @@ msgid "Provider and policy details"
 msgstr "提供方与策略详情"
 
 msgid "Ready for automatic action"
-msgstr "符合自动操作条件"
+msgstr "可自动应用"
 
-msgid "Rill provides observations and recommendations. Core checks safety and keeps final control over every change."
+msgid ""
+"Rill provides observations and recommendations. Core checks safety and keeps"
+" final control over every change."
 msgstr "Rill 只提供观察与建议。核心引擎会检查安全性，并始终保留所有变更的最终控制权。"
-
-msgid "Rill ranks actions that passed the Core engine review; the Core engine keeps the final authority to execute them."
-msgstr "Rill 会为通过核心引擎审核的操作排序；是否执行仍由核心引擎最终决定。"
 
 msgid "Runtime, decision and candidate details"
 msgstr "运行环境、决策与候选项详情"
@@ -2376,11 +2208,13 @@ msgstr "状态、路径与提供方详情"
 msgid "Transaction details"
 msgstr "事务详情"
 
-msgid "Tune measurement, learning and assisted-automation thresholds. The recommended defaults are suitable for most users."
+msgid ""
+"Tune measurement, learning and assisted-automation thresholds. The "
+"recommended defaults are suitable for most users."
 msgstr "调整测量、学习和辅助自动化阈值。推荐默认值适合大多数用户。"
 
 msgid "Unavailable benchmark providers and reasons"
-msgstr "不可用的基准测试提供方及原因"
+msgstr "不可用的测试提供方及原因"
 
 msgid "Why"
 msgstr "原因"
@@ -2398,12 +2232,14 @@ msgid "Needs attention"
 msgstr "需要处理"
 
 msgid "Runtime needs attention"
-msgstr "运行环境需要处理"
+msgstr "Rill 异常"
 
 msgid "Network adapter tuning"
 msgstr "网卡调优能力"
 
-msgid "Network adapter features are grouped here to keep repeated hardware details out of the main list."
+msgid ""
+"Network adapter features are grouped here to keep repeated hardware details "
+"out of the main list."
 msgstr "网卡相关功能集中显示，避免重复的硬件信息占据主列表。"
 
 msgid "Adapter capabilities and details"
@@ -2413,7 +2249,7 @@ msgid "Network adapter"
 msgstr "网络适配器"
 
 msgid "Rill unavailable"
-msgstr "Rill 暂不可用"
+msgstr "Rill 不可用"
 
 msgid "Runtime and profile"
 msgstr "运行状态与系统配置"
@@ -2430,11 +2266,12 @@ msgstr "正在执行的 Rill 操作"
 msgid "Detailed diagnostics"
 msgstr "详细诊断信息"
 
-msgid "Expand to load detailed capability, topology, transaction and lock records."
-msgstr "展开后加载能力、网络拓扑、事务和资源锁的详细记录。"
+msgid ""
+"Expand to load detailed capability, topology, transaction and lock records."
+msgstr "展开以加载能力、拓扑、事务和锁的详情。"
 
 msgid "Loading diagnostics…"
-msgstr "正在加载诊断信息…"
+msgstr "正在加载诊断…"
 
 msgid "Unable to load diagnostic records: %s"
 msgstr "无法加载诊断记录：%s"
@@ -2446,19 +2283,19 @@ msgid "Not reported"
 msgstr "无数据"
 
 msgid "Expand to load recent validated feedback."
-msgstr "展开后加载近期已验证的反馈记录。"
+msgstr "展开查看近期已验证的反馈。"
 
 msgid "Show recent validated feedback"
 msgstr "查看近期已验证的反馈"
 
 msgid "Loading feedback…"
-msgstr "正在加载反馈记录…"
+msgstr "正在加载反馈…"
 
 msgid "Loading history…"
-msgstr "正在加载历史记录…"
+msgstr "正在加载历史…"
 
 msgid "Expand to view recent history summaries."
-msgstr "展开后查看近期历史摘要。"
+msgstr "展开查看近期历史。"
 
 msgid "Unable to load history records: %s"
 msgstr "无法加载历史记录：%s"
@@ -2467,7 +2304,7 @@ msgid "Unable to load feedback records: %s"
 msgstr "无法加载反馈记录：%s"
 
 msgid "Expand to load detailed history and runtime events."
-msgstr "展开后加载详细历史和运行环境事件。"
+msgstr "展开查看历史和运行事件。"
 
 msgid "Check for updates"
 msgstr "检查更新"
@@ -2487,13 +2324,18 @@ msgstr "更新 Rill 运行环境"
 msgid "Update Performance Manager"
 msgstr "更新性能管理器"
 
-msgid "Package manager controls are unavailable. Update Performance Manager from the unified feed to enable them."
+msgid ""
+"Package manager controls are unavailable. Update Performance Manager from "
+"the unified feed to enable them."
 msgstr "软件包管理功能不可用。请从统一软件源更新性能管理器以启用此功能。"
 
-msgid "Rill Runtime is not available for this OpenWrt release and architecture."
+msgid ""
+"Rill Runtime is not available for this OpenWrt release and architecture."
 msgstr "此 OpenWrt 版本和架构暂不提供 Rill 运行环境。"
 
-msgid "A Stable or incompatible Rill Runtime is installed. Resolve that package conflict before changing Runtime packages."
+msgid ""
+"A Stable or incompatible Rill Runtime is installed. Resolve that package "
+"conflict before changing Runtime packages."
 msgstr "检测到 Stable 通道或不兼容的 Rill 运行环境。请先解决软件包冲突，再更改运行环境。"
 
 msgid "Rill Runtime is not installed. Install it to enable Rill decisions."
@@ -2529,13 +2371,21 @@ msgstr "软件包管理"
 msgid "Repair Rill Runtime"
 msgstr "修复 Rill 运行环境"
 
-msgid "The installed owner is rill-runtime-preview, version %s. PM will not remove or replace it automatically."
+msgid ""
+"The installed owner is rill-runtime-preview, version %s. PM will not remove "
+"or replace it automatically."
 msgstr "当前运行环境由 rill-runtime-preview（版本 %s）拥有。PM 不会自动删除或替换它。"
 
-msgid "Back up /etc/config/performance-manager and /etc/performance-manager/. Check for other packages that use rill-runtime-preview before continuing."
-msgstr "请先备份 /etc/config/performance-manager 和 /etc/performance-manager/。继续前检查是否有其他软件包依赖 rill-runtime-preview。"
+msgid ""
+"Back up /etc/config/performance-manager and /etc/performance-manager/. Check"
+" for other packages that use rill-runtime-preview before continuing."
+msgstr ""
+"请先备份 /etc/config/performance-manager 和 /etc/performance-"
+"manager/。继续前检查是否有其他软件包依赖 rill-runtime-preview。"
 
-msgid "An incompatible Rill Runtime is installed. Resolve that package conflict before changing Runtime packages."
+msgid ""
+"An incompatible Rill Runtime is installed. Resolve that package conflict "
+"before changing Runtime packages."
 msgstr "检测到不兼容的 Rill 运行环境。请先解决软件包冲突，再更改运行环境。"
 
 msgid "Runtime version"
@@ -2634,16 +2484,22 @@ msgstr "软件源索引已刷新"
 msgid "Package index"
 msgstr "软件源索引"
 
-msgid "Refreshes the trusted feed index, then reports whether an update is available."
+msgid ""
+"Refreshes the trusted feed index, then reports whether an update is "
+"available."
 msgstr "刷新可信软件源索引，然后报告是否有可用更新。"
 
 msgid "Installs the shared Runtime package for this release and architecture."
 msgstr "安装适用于当前版本和架构的共享运行环境软件包。"
 
-msgid "Updates only a compatible Stable Runtime; Preview installs are never replaced."
+msgid ""
+"Updates only a compatible Stable Runtime; Preview installs are never "
+"replaced."
 msgstr "仅更新兼容的稳定版运行环境；预览版安装不会被替换。"
 
-msgid "Reinstalls the same Stable package when its executable is missing; the version does not change."
+msgid ""
+"Reinstalls the same Stable package when its executable is missing; the "
+"version does not change."
 msgstr "运行环境程序缺失时重装同一稳定版软件包；不改变运行环境版本。"
 
 msgid "Installs the newer Performance Manager package from the unified feed."
@@ -2652,14 +2508,17 @@ msgstr "从统一软件源安装更新版本的性能管理器软件包。"
 msgid "The package manager is still busy. Do not retry until it is idle."
 msgstr "软件包管理器仍在处理中。空闲前请勿重试。"
 
-msgid "The package manager status could not be read. Do not retry until it is idle."
+msgid ""
+"The package manager status could not be read. Do not retry until it is idle."
 msgstr "无法读取软件包管理器状态。在确认其空闲前请勿重试。"
 
-msgid "The package manager request timed out, but the manager is now idle. The page will reload; check the package status above before retrying."
+msgid ""
+"The package manager request timed out, but the manager is now idle. The page"
+" will reload; check the package status above before retrying."
 msgstr "软件包管理器请求超时，但管理器现已空闲。页面即将刷新；重试前请先查看上方软件包状态。"
 
 msgid "Loading recommendations when this section is reached…"
-msgstr "滚动到此区域后加载优化建议…"
+msgstr "滚动到此处时加载建议…"
 
 msgid "Loading..."
 msgstr "正在加载…"
@@ -2672,3 +2531,169 @@ msgstr "重试"
 
 msgid "Unable to load recommendations: %s"
 msgstr "无法加载优化建议：%s"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/settings.js:14
+msgid "Local time when assisted automation may start."
+msgstr "辅助自动化的开始时间（本地时间）。"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/settings.js:15
+msgid "Local time when assisted automation must stop."
+msgstr "辅助自动化的结束时间（本地时间）。"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/settings.js:10
+msgid "Enable the Performance Manager service."
+msgstr "启用性能管理服务。"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/settings.js:35
+msgid "Path to the external Rill program."
+msgstr "外部 Rill 程序的路径。"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/settings.js:37
+msgid ""
+"Validated samples needed before an action can be considered automatically."
+msgstr "操作参与自动选择前所需的验证样本数。"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/settings.js:44
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/settings.js:46
+msgid ""
+"Conservative mode is the default. Enable assisted automation separately."
+msgstr "默认使用保守模式。辅助自动化需单独启用。"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/optimize.js:21
+msgid "No changes are recommended right now."
+msgstr "目前无需更改。"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/history.js:37
+msgid "Review pending confirmations, rollbacks and runtime events."
+msgstr "查看待确认项、回滚记录和运行事件。"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/benchmark.js:100
+msgid ""
+"Run one test at a time. Controlled A/B tests check system health and restore"
+" the original settings."
+msgstr "一次只运行一个测试。受控 A/B 测试会检查系统健康，并恢复原设置。"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/advanced.js:11
+msgid "View diagnostic data and resource use."
+msgstr "查看诊断数据和资源使用情况。"
+
+msgid "Not enough samples"
+msgstr "样本不足"
+
+msgid "Adjust measurement, learning and automation thresholds."
+msgstr "调整测量、学习和自动化阈值。"
+
+msgid "Collect data for health checks and decisions."
+msgstr "收集健康检查和决策所需数据。"
+
+msgid "Load this profile and its expected capabilities."
+msgstr "加载此方案及其预期能力。"
+
+msgid "Protect changes with locks, health checks and verified rollback."
+msgstr "通过锁、健康检查和已验证回滚保护变更。"
+
+msgid "Rank supported actions and evaluate results against this goal."
+msgstr "按此目标为操作排序并评估结果。"
+
+msgid "Save events for review and rollback."
+msgstr "保存事件，供查看和回滚。"
+
+#: package/luci-app-performance-manager/root/usr/share/luci/menu.d/luci-app-performance-manager.json
+msgid "Rill decisions"
+msgstr "Rill 决策"
+
+msgid ""
+"Unable to load this page. Retry; if it keeps failing, check the service log."
+msgstr "页面加载失败。请重试；若仍失败，请查看服务日志。"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/settings.js:13
+msgid "Allow only preset safe actions."
+msgstr "仅允许自动应用预设的安全操作。"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/settings.js:34
+msgid ""
+"Enable Rill. Performance Manager still checks safety and applies changes."
+msgstr "启用 Rill。性能管理器仍负责安全检查和应用变更。"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/settings.js:36
+msgid ""
+"Let Rill rank eligible actions. Performance Manager still chooses and "
+"applies them."
+msgstr "让 Rill 为符合条件的操作排序；性能管理器仍负责选择和应用。"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/optimize.js:58
+msgid ""
+"Review supported actions. Performance Manager checks safety before applying "
+"changes."
+msgstr "查看可用操作。性能管理器会先检查安全性，再应用变更。"
+
+msgid ""
+"Rill ranks eligible actions. Performance Manager checks safety and applies "
+"changes."
+msgstr "Rill 为符合条件的操作排序；性能管理器负责安全检查和应用变更。"
+
+msgid "Rill decisions are disabled"
+msgstr "Rill 决策已关闭"
+
+msgid ""
+"Run the companion test tool on a client or the router to create test "
+"evidence. Use this only for manual performance-test validation."
+msgstr "在客户端或路由器上运行配套工具以生成测试证据。仅用于手动验证性能测试。"
+
+msgid "Run the companion test tool, then paste its JSON result."
+msgstr "先运行配套测试工具，再粘贴生成的 JSON。"
+
+msgid ""
+"The candidate is active temporarily with automatic rollback protection. Run "
+"the same endpoint test now; the system restores the original setting before "
+"checking the result."
+msgstr "候选设置已临时生效，并启用自动回滚保护。请立即运行相同端点测试；系统会在验证结果前恢复原设置。"
+
+msgid ""
+"Run a performance test for this action. Use the companion tool for both "
+"stages; do not apply it directly."
+msgstr "此操作需先进行性能测试，不能直接应用。请使用配套工具完成两个阶段。"
+
+msgid "Minimum confidence for conservative mode. 0.65 = 65%."
+msgstr "保守模式的最低置信度。0.65 即 65%。"
+
+msgid "Minimum confidence for assisted mode. 0.75 = 75%."
+msgstr "辅助模式的最低置信度。0.75 即 75%。"
+
+msgid ""
+"Pause automatic Rill decisions when performance changes by more than this "
+"value. 0.20 = 20%."
+msgstr "性能变化超过此值时暂停 Rill 自动决策。0.20 即 20%。"
+
+msgid "Performance changed too much"
+msgstr "性能变化过大"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/rill.js:51
+msgid "Performance changed too much. Rill automation paused."
+msgstr "性能变化过大，Rill 自动决策已暂停。"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/optimize.js:20
+msgid "Performance changed too much. Automatic Rill decisions paused."
+msgstr "性能变化过大，Rill 自动决策已暂停。"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/capabilities.js:20
+msgid "Review capabilities detected on this device."
+msgstr "查看此设备检测到的能力。"
+
+msgid "Unknown reason"
+msgstr "未知原因"
+
+msgid ""
+"Run assisted automation only while traffic is below this limit. The default "
+"is about 1 MiB/s."
+msgstr "流量低于此值时才运行辅助自动化。默认约为 1 MiB/s。"
+
+#: package/luci-app-performance-manager/htdocs/luci-static/resources/view/performance-manager/settings.js:11
+msgid ""
+"Manual mode leaves each action to you. Conservative mode applies safe "
+"actions automatically. Assisted mode also needs a separate switch, a time "
+"window and low traffic."
+msgstr "手动模式由你决定是否应用。保守模式会自动应用安全操作。辅助模式还需单独开启，并满足维护时段和低流量条件。"
+
+msgid "Ready for decisions"
+msgstr "可参与决策"
