@@ -76,6 +76,8 @@ jobs:
           cp -a "$GITHUB_WORKSPACE/package/luci-app-performance-manager" package/performance-manager-local/
           cp -a "$GITHUB_WORKSPACE/package/performance-manager" package/performance-manager-local/
           cp "$GITHUB_WORKSPACE/VERSION" package/performance-manager-local/
+          cp "$GITHUB_WORKSPACE/VERSION" package/performance-manager-local/luci-app-performance-manager/VERSION
+          cp "$GITHUB_WORKSPACE/VERSION" package/performance-manager-local/performance-manager/VERSION
           make defconfig
 
       - name: Build the LuCI UI APK

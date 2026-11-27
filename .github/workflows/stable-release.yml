@@ -80,9 +80,11 @@ jobs:
               exit 1
             fi
           fi
-          printf 'expected_sha=%s\n' "$sha" >> "$GITHUB_OUTPUT"
-          printf 'aggregate_run_id=%s\n' "$aggregate" >> "$GITHUB_OUTPUT"
-          printf 'build_run_id=%s\n' "$build" >> "$GITHUB_OUTPUT"
+          {
+            printf 'expected_sha=%s\n' "$sha"
+            printf 'aggregate_run_id=%s\n' "$aggregate"
+            printf 'build_run_id=%s\n' "$build"
+          } >> "$GITHUB_OUTPUT"
           printf 'requested_profile=%s\n' "$profile" >> "$GITHUB_OUTPUT"
 
   gate:
@@ -132,7 +134,7 @@ jobs:
           version=$(cat VERSION)
           [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]
           for makefile in package/*/Makefile; do
-            grep -Fq "PKG_VERSION:=\$(shell sed -E 's/-rc\\./_rc/' \$(dir \$(realpath \$(lastword \$(MAKEFILE_LIST))))../../VERSION)" "$makefile" || {
+            grep -Fq "PM_VERSION_FILE:=\$(firstword \$(wildcard \$(PM_PACKAGE_DIR)VERSION" "$makefile" || {
               echo "$makefile does not derive PKG_VERSION from VERSION" >&2
               exit 1
             }
